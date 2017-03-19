@@ -69,7 +69,7 @@ class ConstrainSolver : public
 protected:
 
   // datatype for host coefficient
-  typedef std::vector<IndexType>  SingleCoefficient;
+  typedef std::vector<CoefType>  SingleCoefficient;
   // datatype for host constrain
   typedef std::vector<IndexType>  SingleConstrain;
 
@@ -151,9 +151,9 @@ public:
     free();
   }
 
-  real  del_t = .01;
-  real  velocity_fraction = .999;
-  real  successiveOverRealaxation = 1.5;
+  real  del_t = real(.01);
+  real  velocity_fraction = real(.999);
+  real  successiveOverRealaxation = real(1.5);
 
   FORCE_INLINE void pushPreviousObject()
   {
@@ -250,10 +250,10 @@ public:
 
   FORCE_INLINE void show()const
   {
-    for (int i = 0; i < constraints.size(); i++)
+    for (Counter i = 0; i < constraints.size(); i++)
     {
       std::cout << " Element " << i << " is linked with: ";
-      for (int j = 0; j < constraints[i].size(); j++)
+      for (Counter j = 0; j < constraints[i].size(); j++)
       {
         std::cout << constraints[i][j] << " ";
       }
@@ -319,7 +319,7 @@ public:
     }
 
     std::vector <ValueType> value_array = constrain_values;
-    for (int i = 0; i < 2 * countraints_count; i++) value_array.push_back(0);
+    for (Counter i = 0; i < 2 * countraints_count; i++) value_array.push_back(0);
 
     DeviceEntity::exportToDevice(this, constrain_alloc, 1);
     CU_PROMPT;
@@ -378,10 +378,10 @@ public:
 
 template<class IndexType, class CoefType, class ValueType>
 CU_KER void constrainSolver(
-  ConstrainSolver<IndexType, CoefType, ValueType>* constrain, int iteration)
+  ConstrainSolver<IndexType, CoefType, ValueType>* constrain, Counter iteration)
 {
   // the weight for new value
-  const CoefType weight = 3. / 4.;// 1. / 2.;
+  const CoefType weight = CoefType(3. / 4.);// 1. / 2.;
 
   // kernel grid size
   //const IndexType grid = blockDim.x*blockDim.y;
@@ -425,7 +425,7 @@ void ConstrainSolver<IndexType, CoefType, ValueType>::solve()
   dim3 threads, blocks;
   configureGrid(blocks, threads);
 
-  for (int i = 0; i < iterations; i++)
+  for (Counter i = 0; i < iterations; i++)
   {
     constrainSolver<IndexType, CoefType, ValueType>
       << <blocks, threads >> >(constrain_alloc, i);
@@ -438,7 +438,7 @@ void ConstrainSolver<IndexType, CoefType, ValueType>::solve()
     &(device_value_arrays[((iterations & 1) + 1)*getNodeCount()]),
     getNodeCount());
 
-  for (int i = 0; i < getNodeCount(); i++)
+  for (Counter i = 0; i < getNodeCount(); i++)
     std::cout << values[i] << "\n";
 
   delete values;

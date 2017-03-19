@@ -368,7 +368,7 @@ sprintf(str, "\nx: %f, y: %f, z: %f\n", prefix[0], prefix[1], prefix[2]);
 return std::string(str) + suffix;
 }
 */
-FORCE_INLINE CU_DEV_HOST std::ostream& operator<<(std::ostream& prefix, const Real3& suffix)
+FORCE_INLINE CU_HOST std::ostream& operator<<(std::ostream& prefix, const Real3& suffix)
 {
   char str[1024];
   str[0] = '\0';

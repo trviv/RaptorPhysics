@@ -10,46 +10,46 @@
 #define compare(a, b, less) !((a > b) ^ (less))
 
 /// function to perform bitonic sort
-template<class T>CU_KER void bitonicSort(T* series, int length)
+template<class T>CU_KER void bitonicSort(T* series, Counter length)
 {
   extern __shared__ T shared[];
 
   // the number of threads for the kernel
-  const int threads = blockDim.x*blockDim.y;
+  const Counter threads = blockDim.x*blockDim.y;
 
   // the number of times the block should execute
-  const int multiplier = ceil(length / float(threads << 1));
+  const Counter multiplier = (Counter)mCeil(length / float(threads << 1));
 
   // the upper exponent of 2 according to length
-  int block_size = mExpOf2(length);
+  Counter block_size = mExpOf2(length);
   if (((length - 1)&length) > 0) block_size++;
 
   // the execution slot for this thread
-  const int thread_index = threadIdx.x + threadIdx.y*blockDim.x;
-  const int thread_index_2 = (thread_index << 1);
+  const Counter thread_index = threadIdx.x + threadIdx.y*blockDim.x;
+  const Counter thread_index_2 = (thread_index << 1);
 
   // maximum times block has to iterate
   // upper limit is 5 which goes well with shared memory
-  int max_block;
+  Counter max_block;
   {
-    int shared_pow = mExpOf2(threads);
+    Counter shared_pow = mExpOf2(threads);
     max_block = 5;
     max_block = max_block < shared_pow ? max_block : shared_pow;
   }
 
-  for (int i = 0; i < block_size; i++)  //iterate over exponent of 2's
+  for (Counter i = 0; i < block_size; i++)  //iterate over exponent of 2's
   {
-    int k;
-    int block_mask = (1 << (i + 1));
+    Counter k;
+    Counter block_mask = (1 << (i + 1));
 
     for (k = i; k > max_block; k--) //sort more the 64 elements
     {
-      const int pow_k = (1 << k);
-      for (int m = 0; m < multiplier; m++)
+      const Counter pow_k = (1 << k);
+      for (Counter m = 0; m < multiplier; m++)
       {
-        int index = m*threads + thread_index;
+        Counter index = m*threads + thread_index;
         index = (index&(pow_k - 1)) + (pow_k + pow_k)*(index >> k);
-        const int index_swap = index + pow_k;
+        const Counter index_swap = index + pow_k;
 
         if (index_swap < length)
         {
@@ -65,23 +65,23 @@ template<class T>CU_KER void bitonicSort(T* series, int length)
       }
     }
 
-    for (int m = 0; m < multiplier; m++)
+    for (Counter m = 0; m < multiplier; m++)
     {
-      const int offset = ((m*threads + thread_index) << 1);
+      const Counter offset = ((m*threads + thread_index) << 1);
       if ((offset + 1) < length)
       {
         shared[thread_index_2] = series[offset];
         shared[thread_index_2 + 1] = series[offset + 1];
 
-        for (int k1 = k; k1 >= 0; k1--)
+        for (Counter k1 = k; k1 >= 0; k1--)
         {
-          const int pow_k = (1 << k1);
-          int index = thread_index;
+          const Counter pow_k = (1 << k1);
+          Counter index = thread_index;
           index = (index&(pow_k - 1)) + (pow_k + pow_k)*(index >> k1);
-          int absolute_index = (offset >> 1);
+          Counter absolute_index = (offset >> 1);
           absolute_index = (absolute_index&(pow_k - 1)) + (pow_k + pow_k)*
             (absolute_index >> k1);
-          const int index_swap = index + pow_k;
+          const Counter index_swap = index + pow_k;
           if (compare(shared[index], shared[index_swap],
             (absolute_index&block_mask) == 0))
           {
@@ -97,9 +97,9 @@ template<class T>CU_KER void bitonicSort(T* series, int length)
     }
     __syncthreads();
   }
-  for (int m = 0; m < multiplier; m++)
+  for (Counter m = 0; m < multiplier; m++)
   {
-    int index = m*threads + thread_index;
+    Counter index = m*threads + thread_index;
     if (index > 0 & index < length)
     {
       if (series[index] < series[index - 1])
@@ -110,9 +110,9 @@ template<class T>CU_KER void bitonicSort(T* series, int length)
   }
 }
 
-template CU_KER void bitonicSort<float>(float* series, int length);
+//template CU_KER void bitonicSort<real>(real* series, Counter length);
 
-template<class T> void sort(T* host_array, const int count)
+template<class T> void sort(T* host_array, const Counter count)
 {
   float *device_array = NULL;
   cudaMalloc(&device_array, sizeof(T)*count);
@@ -121,7 +121,7 @@ template<class T> void sort(T* host_array, const int count)
     cudaMemcpyHostToDevice);
   CU_PROMPT;
   std::cout << "start" << "\n";
-  int y = count / 64 > 32 ? 32 : count / 64;
+  Counter y = count / 64 > 32 ? 32 : count / 64;
   bitonicSort << < 1, dim3(32, y), 2 * 32 * y*sizeof(float) >> >
     (device_array, count);
   CU_PROMPT;
@@ -138,10 +138,10 @@ template<class T> void sort(T* host_array, const int count)
 static CU_HOST void configureGrid(dim3& blocks, dim3& threads,
   const Counter elements)
 {
-  threads = dim3(WARP_SIZE, ceil(float(elements) / WARP_SIZE), 1);
+  threads = dim3(WARP_SIZE, (Counter)mCeil(float(elements) / WARP_SIZE), 1);
   if (threads.y > WARP_SIZE)
   {
-    blocks.x = mCeil(threads.y / float(WARP_SIZE));
+    blocks.x = (Counter)mCeil(threads.y / float(WARP_SIZE));
     threads.y = WARP_SIZE;
   }
   if (threads.y == 0) threads.y = 1;
@@ -164,14 +164,14 @@ template<class T>CU_KER void meanKernel(T* device_array, const Counter length,
 }
 
 template<class T>void mean(T* device_array, const Counter length,
-  const bool only_sum = false)
+  const bool only_sum=true)
 {
   Counter iterations = mExpOf2(length);
-  Counter max_block_parallelism = mExpOf2(2 * MAX_BLOCK_PARALLELISM);
+  Counter max_block_parallelism = mExpOf2(MAX_BLOCK_PARALLELISM << 1);
   for (Counter i = 0; i < iterations; i++)
   {
     dim3 threads, blocks;
-    configureGrid(blocks, threads, ceil(float(length) / ((1 << i) * 2)));
+    configureGrid(blocks, threads, Counter(mCeil(float(length) / ((1 << i) * 2))));
     meanKernel << <blocks, threads >> >(device_array, length, i,
       ((iterations - i)>max_block_parallelism) ? 1 : (iterations - i),
       ((iterations - i) <= max_block_parallelism) ? (only_sum ? 0 : 1) : 0);
