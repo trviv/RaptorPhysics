@@ -11,6 +11,7 @@ static bool constrain_debug = true;
 CU_DEV_HOST ret_type* name()const{return ptr;} \
 CU_DEV_HOST ret_type* name(){return ptr;}
 
+/// function to offset an array
 template<class DEST_T, class SRC_T> DEST_T* getPointer(SRC_T* source_ptr,
   const Counter& offset)
 {
@@ -81,18 +82,18 @@ protected:
   std::vector <SingleConstrain>   constraints;
 
   // shared parameters
-  IndexType   countraints_count = 0;
-  IndexType   iterations = 32;
-  IndexType   offset = 0;
+  IndexType countraints_count = 0;
+  IndexType iterations = 32;
+  IndexType offset = 0;
 
   // device allocator for thei instance
   ConstrainSolver<IndexType, CoefType, ValueType> *constrain_alloc = NULL;
 
   //device array address
-  IndexType   *device_constrain_array = NULL;
-  CoefType    *device_coef_array = NULL;
-  Constrain   *device_constrain = NULL;
-  ValueType   *device_value_arrays = NULL;
+  IndexType *device_constrain_array = NULL;
+  CoefType  *device_coef_array = NULL;
+  Constrain *device_constrain = NULL;
+  ValueType *device_value_arrays = NULL;
 
   // point contraint
   std::vector<real>               point_mass;
@@ -181,17 +182,11 @@ public:
   }
 
   defineGet(real, getMass, device_mass);
-
   defineGet(real, getDistance, device_distance);
-
   defineGet(ValueType, getPosition, device_position);
-
   defineGet(ValueType, getDelPosition, device_del_pos);
-
   defineGet(ValueType, getVelocity, device_velocity);
-
   defineGet(ValueType, getForce, device_force);
-
   defineGet(real, getMatrix, device_matrix);
 
   CU_DEV const Real3* getComOffset()const
@@ -285,10 +280,10 @@ public:
 
     // total size for allocation
     IndexType total_allocation = baseSize +
-      constrain_array.size()*sizeof(IndexType) +
-      constrain_coef.size()*sizeof(CoefType) +
-      constrain_header.size()*sizeof(Constrain) +
-      constrain_values.size()*sizeof(ValueType) * 3 +
+      constrain_array.size()  *sizeof(IndexType) +
+      constrain_coef.size()   *sizeof(CoefType) +
+      constrain_header.size() *sizeof(Constrain) +
+      constrain_values.size() *sizeof(ValueType) * 3 +
       additional_size;
 
     device_memory.alloc(total_allocation);
@@ -342,22 +337,27 @@ public:
     std::cout << "Constrain array: " <<
       constrain_array.size()*sizeof(IndexType) <<
       "\tAddr: " << (__int64)device_constrain_array <<
-      "\tDiff: " << (__int64)device_constrain_array - (__int64)constrain_alloc << "\n";
+      "\tDiff: " << (__int64)device_constrain_array -
+      (__int64)constrain_alloc << "\n";
     std::cout << "Constrain coef: " <<
       constrain_coef.size()*sizeof(CoefType) <<
       "\tAddr: " << (__int64)device_coef_array <<
-      "\tDiff: " << (__int64)device_coef_array - (__int64)device_constrain_array << "\n";
+      "\tDiff: " << (__int64)device_coef_array -
+      (__int64)device_constrain_array << "\n";
     std::cout << "Constrain header: " <<
       constrain_header.size()*sizeof(Constrain) <<
       "\tAddr: " << (__int64)device_constrain <<
-      "\tDiff: " << (__int64)device_constrain - (__int64)device_coef_array << "\n";
+      "\tDiff: " << (__int64)device_constrain -
+      (__int64)device_coef_array << "\n";
     std::cout << "Constrain values: " <<
       constrain_values.size()*sizeof(ValueType) * 3 <<
       "\tAddr: " << (__int64)device_value_arrays <<
-      "\tDiff: " << (__int64)device_value_arrays - (__int64)device_constrain << "\n";
+      "\tDiff: " << (__int64)device_value_arrays -
+      (__int64)device_constrain << "\n";
     std::cout << "Additional: " << additional_size <<
       "\tAddr: " << (__int64)(*device_additional_memory) <<
-      "\tDiff: " << (__int64)(*device_additional_memory) - (__int64)device_value_arrays << "\n";
+      "\tDiff: " << (__int64)(*device_additional_memory) -
+      (__int64)device_value_arrays << "\n";
   }
 
   void solve();
@@ -449,16 +449,14 @@ CU_KER void constrainIntegrate(
   ConstrainSolver<IndexType, CoefType, ValueType>* constrain)
 {
   const IndexType index = threadIndex;
-  if (index < constrain->getNodeCount())
-  {
-    /*
-    constrain->getVelocity()[index] += (constrain->del_t*
-    constrain->velocity_fraction*constrain->getMass()[index])*
-    constrain->getForce()[index];
-    */
-    constrain->getPosition()[index] += constrain->getVelocity()[index] *
-      constrain->del_t;
-  }
+  if (index >= constrain->getNodeCount()) return;
+
+  //constrain->getVelocity()[index] += (constrain->del_t*
+  //  constrain->velocity_fraction*constrain->getMass()[index])*constrain->getForce()[index];
+  constrain->getPosition()[index] += constrain->getVelocity()[index] *
+    constrain->del_t;
+  constrain->getForce()[index] = 0;
+
 }
 
 template<class IndexType, class CoefType, class ValueType>
@@ -466,14 +464,14 @@ CU_KER void constrainDifferentiate(
   ConstrainSolver<IndexType, CoefType, ValueType>* constrain)
 {
   const IndexType index = threadIndex;
-  if (index < constrain->getNodeCount())
-  {
-    constrain->getVelocity()[index] = constrain->getDelPosition()[index] /
-      constrain->del_t;
-    constrain->getForce()[index] = constrain->getMass()[index] *
-      constrain->getVelocity()[index] /
-      constrain->del_t;
-  }
+  if (index >= constrain->getNodeCount()) return;
+
+  constrain->getVelocity()[index] = constrain->getDelPosition()[index] /
+    constrain->del_t;
+  constrain->getForce()[index] = constrain->getMass()[index] *
+    constrain->getVelocity()[index] /
+    constrain->del_t;
+
 }
 
 template<class IndexType, class CoefType, class ValueType>

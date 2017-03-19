@@ -15,7 +15,7 @@ protected:
   CudaGLPlug  plug;
 
 public:
-  virtual void init(const Matrix4& transform, const float dim[],
+  virtual void init(const Matrix4& transform, const real dim[],
     const Counter subdivision[]) = 0;
   virtual void render() = 0;
   virtual void step() = 0;

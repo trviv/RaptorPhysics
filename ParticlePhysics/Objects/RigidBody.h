@@ -7,7 +7,7 @@
 class RigidBody : public PhysicalEntity
 {
 public:
-  void init(const Matrix4& transform, const float dim[],
+  void init(const Matrix4& transform, const real dim[],
     const Counter subdivision[]);
   void render();
   void step();

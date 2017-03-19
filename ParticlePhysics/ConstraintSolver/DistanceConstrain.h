@@ -26,13 +26,16 @@ public:
     const ConstrainBuffer buffer_index)
   {
     del = 0;
-    real w1 = getMass()[index];
-    real w2 = getMass()[connection_index];
-    if (w1 + w2 < 0.0000001) return;
+    const real w1 = getMass()[index];
+    const real w2 = getMass()[connection_index];
+    const real w12 = w1 + w2;
+    if (w12 < real(0.0000001)) return;
 
     del = getValue(index, buffer_index) -
       getValue(connection_index, buffer_index);
-    del *= -w1*(1.f - getDistance()[offset] / del.length()) / (w1 + w2);
+    del *= real(1) - getDistance()[offset] / del.length();
+    del *= -w1 / w12;
+    //del = (-w1*(real(1) - getDistance()[offset] / del.length()) / (w1 + w2));
   }
 
   FORCE_INLINE void add(const IndexType index, const IndexType connection,
@@ -52,7 +55,7 @@ public:
   void exportToDevice(__int8** device_additional_memory = NULL,
     Counter additional_size = 0, Counter baseSize = 0)
   {
-    __int8* device_memory = 0;
+    __int8* device_memory = NULL;
     if (!baseSize) baseSize = sizeof(DistanceConstrain);
 
     std::vector<real> flat_distance;

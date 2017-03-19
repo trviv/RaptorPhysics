@@ -5,11 +5,6 @@
 
 class RigidConstrain;
 
-CU_KER void rigidSolver(
-  RigidConstrain* constrain,
-  const Counter step,
-  const Counter length = 0);
-
 static CU_KER void adjointMatrix(real* value, const Counter length)
 {
   Counter index = threadIndex;
@@ -51,11 +46,11 @@ public:
     del = 0;
     real w1 = getMass()[index];
     real w2 = getMass()[connection_index];
-    if (w1 + w2 < 0.0000001) return;
+    if (w1 + w2 < real(0.0000001)) return;
 
     del = getValue(index, buffer_index) -
       getValue(connection_index, buffer_index);
-    del *= -w1*(1.f - getDistance()[offset] / del.length()) / (w1 + w2);
+    del *= -w1*(real(1) - getDistance()[offset] / del.length()) / (w1 + w2);
   }
 
   FORCE_INLINE void add(const IndexType index, const IndexType connection,
@@ -68,8 +63,11 @@ public:
       expand<real>(index + offset, point_mass);
       point_mass[index + offset] = inv_mass;
     }
-    expand<std::vector<real>>(index + offset, point_distance);
-    point_distance[index + offset].push_back(distance);
+    else
+    {
+      expand<std::vector<real>>(index + offset, point_distance);
+      point_distance[index + offset].push_back(distance);
+    }
   }
 
   void exportToDevice(__int8** device_additional_memory = NULL,
