@@ -4,8 +4,8 @@
 void Cloth::init(const Matrix4& transform, const float dim[],
   const Counter subdivision[])
 {
-  Real3 del_x(0); del_x[0] = 2.*dim[0] / (subdivision[0] - 1);
-  Real3 del_y(0); del_y[1] = -2.*dim[1] / (subdivision[1] - 1);
+  Real3 del_x(0); del_x[0] = real(2.)*dim[0] / (subdivision[0] - 1);
+  Real3 del_y(0); del_y[1] = real(-2.)*dim[1] / (subdivision[1] - 1);
   Real3 top_left(-dim[0], dim[1], 0);
 
   float x_len = del_x.length();
@@ -31,7 +31,7 @@ void Cloth::init(const Matrix4& transform, const float dim[],
     {
       physics_system->distanceConstrain()->addValue(index,
         pos + Real3((((subdivision[1] - y) == 1) ? .2 : 0), 0, 0));
-      point_pos.push_back(pos + Real3((((subdivision[1] - y) == 1) ? .2 : 0),
+      point_pos.push_back(pos + Real3(real(((subdivision[1] - y) == 1) ? .2 : 0),
         0, 0));
       //constrain.add(index, index, 0, 0, y ? 1 : 0);
       if (x + 1 < subdivision[0])

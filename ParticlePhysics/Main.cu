@@ -77,20 +77,6 @@ int main(int argc, char** argv)
   delete[]arr;
   */
 
-  physics_system = new PhysicsSystem();
-  main_window = physics_system;
-  main_window->init(argc, argv);
-  main_window->start();
-
-  //Constraint con;
-  //con.setCount(17);
-  //con.setOffset(273);
-
-  //std::cout << con.count() << " " << con.offset() << "\n";
-  cudaSharedMemConfig cn;
-  cudaDeviceGetSharedMemConfig(&cn);
-  //std::cout << cn << "\n";
-
   ConstrainSolver<int, float, float> cons;
 
   /*
@@ -143,6 +129,21 @@ int main(int argc, char** argv)
 
   cons.show();
   cons.solve();
+  return 0;
+
+  physics_system = new PhysicsSystem();
+  main_window = physics_system;
+  main_window->init(argc, argv);
+  main_window->start();
+
+  //Constraint con;
+  //con.setCount(17);
+  //con.setOffset(273);
+
+  //std::cout << con.count() << " " << con.offset() << "\n";
+  cudaSharedMemConfig cn;
+  cudaDeviceGetSharedMemConfig(&cn);
+  //std::cout << cn << "\n";
 
   /*
   int count = pow(2, 23);

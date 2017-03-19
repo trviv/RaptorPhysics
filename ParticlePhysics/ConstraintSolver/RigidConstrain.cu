@@ -17,7 +17,7 @@ void RigidConstrain::exportToDevice(__int8** device_additional_memory,
     9 * sizeof(real)*constrain_values.size() +
     sizeof(Real3)*constrain_values.size();
 
-  constrain_values[0][0] += .1;
+  constrain_values[0][0] += real(.1);
   DistanceConstrain::exportToDevice(&device_memory, total_size,
     sizeof(RigidConstrain));
 
