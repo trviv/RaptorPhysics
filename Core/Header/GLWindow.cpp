@@ -173,8 +173,8 @@ void Window::mouse(int button, int dir, int x, int y)
 
 void Window::mouseDrag(int x, int y)
 {
-  float deltaX = x - intial_mouse_x;
-  float deltaY = y - intial_mouse_y;
+  float deltaX = float(x - intial_mouse_x);
+  float deltaY = float(y - intial_mouse_y);
 
   ry += .01*deltaX;
   rx += .01*deltaY;

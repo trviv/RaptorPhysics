@@ -17,7 +17,7 @@ void RigidConstrain::exportToDevice(__int8** device_additional_memory,
     9 * sizeof(real)*constrain_values.size() +
     sizeof(Real3)*constrain_values.size();
 
-  constrain_values[0][0] += real(.1);
+  constrain_values[0] -= real(.3);
   DistanceConstrain::exportToDevice(&device_memory, total_size,
     sizeof(RigidConstrain));
 
@@ -48,165 +48,174 @@ void RigidConstrain::exportToDevice(__int8** device_additional_memory,
     "\tDiff: " << (__int64)device_del_pos - (__int64)device_matrix << "\n";
 }
 
+enum RigidSolverStep
+{
+  COVARIANCE_MATRIX,
+  MORE,
+  LESS
+};
+
+CU_KER void covarianceMatrix(
+  RigidConstrain* constrain)
+{
+  Counter index = threadIndex;
+  const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
+  index = index / 9;
+  if (index < constrain->getNodeCount())
+  {
+    const Real3 diff = constrain->getValue(index) -
+      constrain->getValue(0, VAR1);
+    constrain->getMatrix()[index + ((3 * i) + j)*constrain->getNodeCount()]
+      = diff[i] * constrain->getComOffset()[index][j];
+    //= diff[i] * diff[j];
+    constrain->getDelPosition()[index] = constrain->getValue(0, VAR1) -
+      constrain->getPosition()[index];
+  }
+}
+
 CU_KER void rigidSolver(
   RigidConstrain* constrain,
   const Counter step,
   const Counter length)
 {
   Counter index = threadIndex;
-  if (step == 0)  //this blocks is to compute covariance matrix
+  const Counter grid = blockDim.x*blockDim.y;
+  const Counter multiplier = ceil(length / real(grid));
+  const Counter backIndex = index;
+  for (Counter it = 0; it < step; it++)
   {
-    const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
-    index = index / 9;
-    if (index < constrain->getNodeCount())
+    for (Counter m = 0; m < multiplier; m++)
     {
-      const Real3 diff = constrain->getValue(index) -
-        constrain->getValue(0, VAR1);
-      constrain->getMatrix()[index + ((3 * i) + j)*constrain->getNodeCount()]
-        = diff[i] * constrain->getComOffset()[index][j];
-      //= diff[i] * diff[j];
-      constrain->getDelPosition()[index] = constrain->getValue(0, VAR1) -
-        constrain->getPosition()[index];
-    }
-  }
-  else if (step > 0)
-  {
-    const Counter grid = blockDim.x*blockDim.y;
-    const Counter multiplier = ceil(length / real(grid));
-    const Counter backIndex = index;
-    for (Counter it = 0; it < step; it++)
-    {
-      for (Counter m = 0; m < multiplier; m++)
+      index = backIndex + grid*m;
+      const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
+      index = index / 9;
+      if (index < length)
       {
-        index = backIndex + grid*m;
-        const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
-        index = index / 9;
-        if (index < length)
-        {
-          real adjTra;
-          const real* value = (constrain->getMatrix() + index);
-          adjTra = value[((i + 1) % 3) * 3 + ((j + 1) % 3)] *
-            value[((i + 2) % 3) * 3 + ((j + 2) % 3)] -
-            value[((i + 1) % 3) * 3 + ((j + 2) % 3)] *
-            value[((i + 2) % 3) * 3 + ((j + 1) % 3)];
+        real adjTra;
+        const real* value = (constrain->getMatrix() + index);
+        adjTra = value[((i + 1) % 3) * 3 + ((j + 1) % 3)] *
+          value[((i + 2) % 3) * 3 + ((j + 2) % 3)] -
+          value[((i + 1) % 3) * 3 + ((j + 2) % 3)] *
+          value[((i + 2) % 3) * 3 + ((j + 1) % 3)];
 
-          ((real*)constrain->getValueBuffer(VAR1))[index + i * 3 + j] = adjTra;
-          ((real*)constrain->getValueBuffer(VAR0))[index + i * 3 + j] =
-            adjTra*value[i * 3 + j];
-          //printf("%f ", ((real*)constrain->getValueBuffer(VAR1))[index + i * 3 + j]);
-          //if (i == 0 && j == 0) printf("\n");
-        }
+        ((real*)constrain->getValueBuffer(VAR1))[index + i * 3 + j] = adjTra;
+        ((real*)constrain->getValueBuffer(VAR0))[index + i * 3 + j] =
+          adjTra*value[i * 3 + j];
+        //printf("%f ", ((real*)constrain->getValueBuffer(VAR1))[index + i * 3 + j]);
+        //if (i == 0 && j == 0) printf("\n");
       }
-      __syncthreads();
+    }
+    __syncthreads();
 
-      for (Counter m = 0; m < multiplier; m++)
+    for (Counter m = 0; m < multiplier; m++)
+    {
+      index = backIndex + grid*m;
+      const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
+      index = index / 9;
+      if (index < length)
       {
-        index = backIndex + grid*m;
-        const Counter i = ((index % 9) / 3), j = ((index % 9) % 3);
-        index = index / 9;
-        if (index < length)
+        real det = ((real*)constrain->getValueBuffer(VAR0))[index] +
+          ((real*)constrain->getValueBuffer(VAR0))[index + 1] +
+          ((real*)constrain->getValueBuffer(VAR0))[index + 2];
+        real gamma;
         {
-          real det = ((real*)constrain->getValueBuffer(VAR0))[index] +
-            ((real*)constrain->getValueBuffer(VAR0))[index + 1] +
-            ((real*)constrain->getValueBuffer(VAR0))[index + 2];
-          real gamma;
+          real mat_inf = 0, mat_one = 0, adj_inf = 0, adj_one = 0;
+          for (Counter x = 0; x < 3; x++)
           {
-            real mat_inf = 0, mat_one = 0, adj_inf = 0, adj_one = 0;
-            for (Counter x = 0; x < 3; x++)
+            real sum_mat_1 = 0, sum_adj_1 = 0,
+              sum_mat_0 = 0, sum_adj_0 = 0;
+            for (Counter y = 0; y < 3; y++)
             {
-              real sum_mat_1 = 0, sum_adj_1 = 0,
-                sum_mat_0 = 0, sum_adj_0 = 0;
-              for (Counter y = 0; y < 3; y++)
-              {
-                sum_mat_0 += fabs(constrain->getMatrix()[index + (x * 3) + y]);
-                sum_mat_1 += fabs(constrain->getMatrix()[index + (y * 3) + x]);
-                sum_adj_0 += fabs(((real*)constrain->getValueBuffer(VAR1))
-                  [index + (x * 3) + y]);
-                sum_adj_1 += fabs(((real*)constrain->getValueBuffer(VAR1))
-                  [index + (y * 3) + x]);
-              }
-              if (sum_mat_0 > mat_inf)  mat_inf = sum_mat_0;
-              if (sum_mat_1 > mat_one)  mat_one = sum_mat_1;
-              if (sum_adj_0 > adj_inf)  adj_inf = sum_adj_0;
-              if (sum_adj_1 > adj_one)  adj_one = sum_adj_1;
+              sum_mat_0 += fabs(constrain->getMatrix()[index + (x * 3) + y]);
+              sum_mat_1 += fabs(constrain->getMatrix()[index + (y * 3) + x]);
+              sum_adj_0 += fabs(((real*)constrain->getValueBuffer(VAR1))
+                [index + (x * 3) + y]);
+              sum_adj_1 += fabs(((real*)constrain->getValueBuffer(VAR1))
+                [index + (y * 3) + x]);
             }
-            gamma = mSqrt(mSqr((adj_one*adj_inf) / (mat_one*mat_inf))
-              / fabs(det));
+            if (sum_mat_0 > mat_inf)  mat_inf = sum_mat_0;
+            if (sum_mat_1 > mat_one)  mat_one = sum_mat_1;
+            if (sum_adj_0 > adj_inf)  adj_inf = sum_adj_0;
+            if (sum_adj_1 > adj_one)  adj_one = sum_adj_1;
           }
-          const real g1 = gamma*real(.5);
-          const real g2 = real(.5) / (gamma*det);
-          const Counter mat_index = index + (i * 3) + j;
-          constrain->getMatrix()[mat_index] =
-            g1*constrain->getMatrix()[mat_index] +
-            g2*((real*)constrain->getValueBuffer(VAR1))[mat_index];
+          gamma = mSqrt(mSqr((adj_one*adj_inf) / (mat_one*mat_inf))
+            / fabs(det));
         }
+        const real g1 = gamma*real(.5);
+        const real g2 = real(.5) / (gamma*det);
+        const Counter mat_index = index + (i * 3) + j;
+        constrain->getMatrix()[mat_index] =
+          g1*constrain->getMatrix()[mat_index] +
+          g2*((real*)constrain->getValueBuffer(VAR1))[mat_index];
       }
-      __syncthreads();
     }
+    __syncthreads();
   }
-  else if (step < 0)
-  {
-    const Counter i = (index % 3);
-    index = index / 3;
-    if (index < constrain->getNodeCount())
-    {
-      //real multiplier = -1;
-      /*
-      const real det =
-      ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount()] +
-      ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount() + 1] +
-      ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount() + 2];
-      //if (det > 0)
-      */
-      //multiplier = 1;
-      /*
-      real* mat = constrain->getMatrix() + i * 3;
-      constrain->getPosition(index)[i] +=
-      //constrain->getValue(index, VAR1)[i] +=
-      constrain->getDelPosition(index)[i]
-      + (constrain->getComOffset()[index][0] * mat[i] +
-      constrain->getComOffset()[index][1] * mat[i + 1] +
-      constrain->getComOffset()[index][2] * mat[i + 2]);
-      */
-      real* mat = constrain->getMatrix() + i;
-      real com_offset_cross_q =
-        constrain->getComOffset()[index][0] * mat[0] +
-        constrain->getComOffset()[index][1] * mat[3] +
-        constrain->getComOffset()[index][2] * mat[6];
-      /*
-      real* mat = constrain->getMatrix() + i * 3;
-      real com_offset_cross_q =
-      constrain->getComOffset()[index][0] * mat[i] +
-      constrain->getComOffset()[index][1] * mat[i + 1] +
-      constrain->getComOffset()[index][2] * mat[i + 2];
-      */
-      //constrain->getPosition()[index][i] +=
-      //constrain->getDelPosition()[index][i] + com_offset_cross_q;
-      constrain->getDelPosition()[index][i] += com_offset_cross_q;
-      //constrain->getDelPosition()[index][i] = -constrain->getDelPosition()[index][i];
+}
 
-      /*
-      printf("Del: %f %f\n", constrain->getDelPosition(index)[i],
-      (constrain->getComOffset()[index][0] * mat[i] +
-      constrain->getComOffset()[index][1] * mat[i + 1] +
-      constrain->getComOffset()[index][2] * mat[i + 2]));
-      printf("%f %f\n", constrain->getPosition(index)[i],
-      constrain->getDelPosition(index)[i]
-      + (constrain->getComOffset()[index][0] * mat[i] +
-      constrain->getComOffset()[index][1] * mat[i + 1] +
-      constrain->getComOffset()[index][2] * mat[i + 2]));
-      */
-      /*
-      printf("Del:%f %f\n", constrain->getDelPosition(index)[i],
-      (constrain->getComOffset()[index][0] * mat[0] +
+CU_KER void deltaPos(RigidConstrain* constrain)
+{
+  Counter index = threadIndex;
+  const Counter i = (index % 3);
+  index = index / 3;
+  if (index < constrain->getNodeCount())
+  {
+    //real multiplier = -1;
+    /*
+    const real det =
+    ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount()] +
+    ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount() + 1] +
+    ((real*)constrain->getValueBuffer(VAR0))[index / constrain->getNodeCount() + 2];
+    //if (det > 0)
+    */
+    //multiplier = 1;
+    /*
+    real* mat = constrain->getMatrix() + i * 3;
+    constrain->getPosition(index)[i] +=
+    //constrain->getValue(index, VAR1)[i] +=
+    constrain->getDelPosition(index)[i]
+    + (constrain->getComOffset()[index][0] * mat[i] +
+    constrain->getComOffset()[index][1] * mat[i + 1] +
+    constrain->getComOffset()[index][2] * mat[i + 2]);
+    */
+    real* mat = constrain->getMatrix() + i;
+    real com_offset_cross_q =
+      constrain->getComOffset()[index][0] * mat[0] +
       constrain->getComOffset()[index][1] * mat[3] +
-      constrain->getComOffset()[index][2] * mat[6]));
-      */
-      printf("Del:%d %f %f\n", index * 3 + i,
-        constrain->getDelPosition()[index][i], com_offset_cross_q);
-      printf("%d %f %f\n", index * 3 + i, constrain->getPosition()[index][i],
-        constrain->getDelPosition()[index][i] + com_offset_cross_q);
-    }
+      constrain->getComOffset()[index][2] * mat[6];
+    /*
+    real* mat = constrain->getMatrix() + i * 3;
+    real com_offset_cross_q =
+    constrain->getComOffset()[index][0] * mat[i] +
+    constrain->getComOffset()[index][1] * mat[i + 1] +
+    constrain->getComOffset()[index][2] * mat[i + 2];
+    */
+    //constrain->getPosition()[index][i] +=
+    //constrain->getDelPosition()[index][i] + com_offset_cross_q;
+    constrain->getDelPosition()[index][i] += com_offset_cross_q;
+    //constrain->getDelPosition()[index][i] = -constrain->getDelPosition()[index][i];
+
+    /*
+    printf("Del: %f %f\n", constrain->getDelPosition(index)[i],
+    (constrain->getComOffset()[index][0] * mat[i] +
+    constrain->getComOffset()[index][1] * mat[i + 1] +
+    constrain->getComOffset()[index][2] * mat[i + 2]));
+    printf("%f %f\n", constrain->getPosition(index)[i],
+    constrain->getDelPosition(index)[i]
+    + (constrain->getComOffset()[index][0] * mat[i] +
+    constrain->getComOffset()[index][1] * mat[i + 1] +
+    constrain->getComOffset()[index][2] * mat[i + 2]));
+    */
+    /*
+    printf("Del:%f %f\n", constrain->getDelPosition(index)[i],
+    (constrain->getComOffset()[index][0] * mat[0] +
+    constrain->getComOffset()[index][1] * mat[3] +
+    constrain->getComOffset()[index][2] * mat[6]));
+    */
+    printf("Del:%d %f %f\n", index * 3 + i,
+      constrain->getDelPosition()[index][i], com_offset_cross_q);
+    printf("%d %f %f\n", index * 3 + i, constrain->getPosition()[index][i],
+      constrain->getDelPosition()[index][i] + com_offset_cross_q);
   }
 }
 
@@ -226,8 +235,7 @@ void RigidConstrain::solve()
     //copy to aux buffer to find new COM
     DeviceEntity<Real3>::copy(getValueBuffer(VAR1), getPosition());
     mean<Real3>(getValueBuffer(VAR1), getNodeCount());
-    rigidSolver << <blocks_pre, threads_pre >> >
-      ((RigidConstrain*)constrain_alloc, 0, 0);
+    covarianceMatrix << <blocks_pre, threads_pre >> >((RigidConstrain*)constrain_alloc);
     cudaDeviceSynchronize();
     CU_PROMPT;
     for (Counter j = 0; j < 9; j++)
@@ -258,8 +266,7 @@ void RigidConstrain::solve()
     DeviceEntity<Real3>::copy(getValueBuffer(VAR1),
       getPosition(), getNodeCount());
 
-    rigidSolver << <blocks_upd, threads_upd >> >
-      ((RigidConstrain*)constrain_alloc, -1);
+    deltaPos << <blocks_upd, threads_upd >> >((RigidConstrain*)constrain_alloc);
     cudaDeviceSynchronize();
     CU_PROMPT;
   }

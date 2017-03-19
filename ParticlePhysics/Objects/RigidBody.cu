@@ -1,13 +1,13 @@
 #include "RigidBody.h"
 
-void RigidBody::init(const Matrix4& transform, const float dim[],
+void RigidBody::init(const Matrix4& transform, const real dim[],
   const Counter subdivision[])
 {
   Real3 del[3];
   for (Counter i = 0; i < 3; i++)
   {
     del[i] = 0;
-    del[i][i] = 2.*dim[i] / (subdivision[i] - 1);
+    del[i][i] = real(2.)*dim[i] / (subdivision[i] - 1);
   }
   del[1] *= -1;
   del[2] *= -1;
