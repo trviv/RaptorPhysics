@@ -164,7 +164,7 @@ template<class T>CU_KER void meanKernel(T* device_array, const Counter length,
 }
 
 template<class T>void mean(T* device_array, const Counter length,
-  const bool only_sum=true)
+  const bool only_sum=false)
 {
   Counter iterations = mExpOf2(length);
   Counter max_block_parallelism = mExpOf2(MAX_BLOCK_PARALLELISM << 1);

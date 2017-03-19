@@ -128,8 +128,8 @@ int main(int argc, char** argv)
   cons.addValue(1, 13);
 
   cons.show();
-  cons.solve();
-  return 0;
+  //cons.solve();
+  //return 0;
 
   physics_system = new PhysicsSystem();
   main_window = physics_system;
