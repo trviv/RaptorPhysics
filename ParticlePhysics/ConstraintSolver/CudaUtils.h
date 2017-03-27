@@ -9,6 +9,10 @@
 
 #define compare(a, b, less) !((a > b) ^ (less))
 
+#define debugLog(a, ...) printf(a, __VA_ARGS__)
+
+#define threadIndex threadIdx.x + threadIdx.y*blockDim.x + (blockIdx.x + blockIdx.y*gridDim.x)*blockDim.x*blockDim.y
+
 /// function to perform bitonic sort
 template<class T>CU_KER void bitonicSort(T* series, Counter length)
 {
@@ -164,7 +168,7 @@ template<class T>CU_KER void meanKernel(T* device_array, const Counter length,
 }
 
 template<class T>void mean(T* device_array, const Counter length,
-  const bool only_sum=false)
+  const bool only_sum = false)
 {
   Counter iterations = mExpOf2(length);
   Counter max_block_parallelism = mExpOf2(MAX_BLOCK_PARALLELISM << 1);
@@ -184,6 +188,24 @@ template<class T>void mean(T* device_array, const Counter length,
 template<class T>void sum(T* device_array, const Counter length)
 {
   mean(device_array, length, true);
+}
+
+template<class T>CU_KER void sumKernel(T* device_array_result,
+  T* device_array_a, T* device_array_b, const Counter length)
+{
+  Counter index = threadIndex;
+  if (index >= length) return;
+  device_array_result[index] = device_array_a[index] + device_array_b[index];
+}
+
+template<class T>void sum(T* device_array_result, T* device_array_a,
+  T* device_array_b, const Counter length)
+{
+  dim3 threads, blocks;
+  configureGrid(blocks, threads, length);
+  sumKernel << < blocks, threads >> >(device_array_result, device_array_a, device_array_b, length);
+  cudaDeviceSynchronize();
+  CU_PROMPT;
 }
 
 #endif

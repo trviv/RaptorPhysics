@@ -28,11 +28,30 @@ static CU_KER void adjointMatrix(real* value, const Counter length)
     value[i + j * 3] = minor;
   }
 }
-
+/*
 static CU_KER void matrix(real* value)
 {
-  for (int i = 0; i < 3; i++)
-    printf("%f %f %f\n", value[i * 3 + 0], value[i * 3 + 1], value[i * 3 + 2]);
+Counter index = threadIndex;
+//for (Counter i = 0; i < 3; i++)
+//debugLog("%f %f %f\n", value[i * 3 + 0], value[i * 3 + 1], value[i * 3 + 2]);
+debugLog("%f ", value[index]);
+}
+*/
+
+static void showMatrix(const Counter w, const Counter h, const real* device_mat)
+{
+  real* host_mat = new real[w*h];
+  DeviceEntity<real>::importToHost(host_mat, device_mat, w*h);
+  for (Counter i = 0; i < h; i++)
+  {
+    printf("Row:%d\n", i);
+    for (Counter j = 0; j < w; j++)
+    {
+      printf("%f ", host_mat[i*w + j]);
+    }
+    printf("\n");
+  }
+  delete host_mat;
 }
 
 ALIGN(16) class RigidConstrain : public DistanceConstrain
@@ -41,37 +60,14 @@ public:
 
   CU_DEV void getDelta(ValueType& del, const IndexType index,
     const IndexType connection_index, const IndexType offset,
-    const ConstrainBuffer buffer_index)
-  {
-    del = 0;
-    real w1 = getMass()[index];
-    real w2 = getMass()[connection_index];
-    if (w1 + w2 < real(0.0000001)) return;
+    const ConstrainBuffer buffer_index);
 
-    del = getValue(index, buffer_index) -
-      getValue(connection_index, buffer_index);
-    del *= -w1*(real(1) - getDistance()[offset] / del.length()) / (w1 + w2);
-  }
-
-  FORCE_INLINE void add(const IndexType index, const IndexType connection,
+  void add(const IndexType index, const IndexType connection,
     const CoefType coef, const real distance = 0,
-    const real inv_mass = 0)
-  {
-    Constrain::add(index, connection, coef);
-    if (index == connection)
-    {
-      expand<real>(index + offset, point_mass);
-      point_mass[index + offset] = inv_mass;
-    }
-    else
-    {
-      expand<std::vector<real>>(index + offset, point_distance);
-      point_distance[index + offset].push_back(distance);
-    }
-  }
+    const real inv_mass = 0);
 
   void exportToDevice(__int8** device_additional_memory = NULL,
-    int additional_size = 0, int baseSize = 0);
+    Counter additional_size = 0, Counter baseSize = 0);
 
   void solve();
 };
