@@ -1,16 +1,16 @@
 #include "Cloth.h"
 //#include "PhysicsSystem.h"
 
-void Cloth::init(const Matrix4& transform, const float dim[],
+void Cloth::init(const Matrix4& transform, const real dim[],
   const Counter subdivision[])
 {
   Real3 del_x(0); del_x[0] = real(2.)*dim[0] / (subdivision[0] - 1);
   Real3 del_y(0); del_y[1] = real(-2.)*dim[1] / (subdivision[1] - 1);
   Real3 top_left(-dim[0], dim[1], 0);
 
-  float x_len = del_x.length();
-  float y_len = del_y.length();
-  float diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
+  real x_len = del_x.length();
+  real y_len = del_y.length();
+  real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
   std::vector<Real3> point_pos;
 
   for (Counter y = 0; y < subdivision[1]; y++)

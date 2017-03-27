@@ -3,8 +3,6 @@
 
 #include "CudaUtils.h"
 
-#define threadIndex threadIdx.x + threadIdx.y*blockDim.x + (blockIdx.x + blockIdx.y*gridDim.x)*blockDim.x*blockDim.y
-
 static bool constrain_debug = true;
 
 #define defineGet(ret_type, name, ptr) \
@@ -152,7 +150,7 @@ public:
     free();
   }
 
-  real  del_t = real(.01);
+  real  del_t = real(.1);
   real  velocity_fraction = real(.999);
   real  successiveOverRealaxation = real(1.5);
 
@@ -290,27 +288,17 @@ public:
     countraints_count = constraints.size();
 
     constrain_alloc = (ConstrainSolver<IndexType, CoefType, ValueType>*)device_memory.get();
-    device_constrain_array = getPointer < IndexType,
-      ConstrainSolver < IndexType, CoefType, ValueType >> (constrain_alloc, 1);
-    //device_constrain_array = (IndexType*)((__int8*)constrain_alloc + baseSize);
+    device_constrain_array = (IndexType*)(((__int8*)constrain_alloc) + baseSize);
     device_coef_array = getPointer<CoefType, IndexType>(device_constrain_array,
       constrain_array.size());
-    //device_coef_array = (CoefType*)((__int8*)device_constrain_array +
-    //sizeof(IndexType)*constrain_array.size());
     device_constrain = getPointer<Constrain, CoefType>(device_coef_array,
       constrain_coef.size());
-    //device_constrain = (Constrain*)((__int8*)device_coef_array +
-    //sizeof(CoefType)*constrain_coef.size());
     device_value_arrays = getPointer<ValueType, Constrain>(device_constrain,
       constrain_header.size());
-    //device_value_arrays = (ValueType*)((__int8*)device_constrain +
-    //sizeof(Constrain)*constrain_header.size());
     if (additional_size)
     {
       *device_additional_memory = getPointer<__int8, ValueType>(
         device_value_arrays, constrain_values.size() * 3);
-      //*device_additional_memory = ((__int8*)device_value_arrays +
-      //constrain_values.size() * 3 * sizeof(ValueType));
     }
 
     std::vector <ValueType> value_array = constrain_values;
@@ -451,12 +439,13 @@ CU_KER void constrainIntegrate(
   const IndexType index = threadIndex;
   if (index >= constrain->getNodeCount()) return;
 
-  //constrain->getVelocity()[index] += (constrain->del_t*
-  //  constrain->velocity_fraction*constrain->getMass()[index])*constrain->getForce()[index];
+  constrain->getVelocity()[index] += (constrain->del_t*
+    constrain->velocity_fraction * constrain->getMass()[index])*constrain->getForce()[index];
   constrain->getPosition()[index] += constrain->getVelocity()[index] *
     constrain->del_t;
-  constrain->getForce()[index] = 0;
-
+  if (constrain->getPosition()[index][Y] <= -2)
+    constrain->getPosition()[index][Y] = -2;
+  constrain->getForce()[index] = Real3(0, -9.8, 0);
 }
 
 template<class IndexType, class CoefType, class ValueType>
@@ -468,17 +457,14 @@ CU_KER void constrainDifferentiate(
 
   constrain->getVelocity()[index] = constrain->getDelPosition()[index] /
     constrain->del_t;
-  constrain->getForce()[index] = constrain->getMass()[index] *
-    constrain->getVelocity()[index] /
-    constrain->del_t;
-
+  //constrain->getForce()[index] += constrain->getMass()[index] *
+  //constrain->getVelocity()[index] /
+  //constrain->del_t;
 }
 
 template<class IndexType, class CoefType, class ValueType>
 void ConstrainSolver<IndexType, CoefType, ValueType>::integrate()
 {
-  //DeviceEntity<ValueType>::copy(getValueBuffer(VAR1), getValueBuffer(DEF), getNodeCount());
-  CU_PROMPT;
   dim3 threads, blocks;
   configureGrid(blocks, threads);
   constrainIntegrate << <blocks, threads >> >(constrain_alloc);

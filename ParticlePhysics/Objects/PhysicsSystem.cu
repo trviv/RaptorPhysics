@@ -24,7 +24,7 @@ void PhysicsSystem::init(int argc, char** argv, int width,
   objects[0]->init(Matrix4(), dim, subdivision);
   */
   objects.push_back(new RigidBody());
-  Counter subdivision[] = { 2, 2, 2 };
+  Counter subdivision[] = { 3, 3, 3 };
   float dim[] = { 1, 1, 1 };
   objects[0]->init(Matrix4(), dim, subdivision);
 }
