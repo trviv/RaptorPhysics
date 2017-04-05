@@ -8,15 +8,6 @@
 class Cloth : public PhysicalEntity
 {
 public:
-  /*
-  DistanceConstrain constrain;
-  std::vector<int> line_elements;
-  Vertex disp_vertex;
-  Shader disp_shader;
-  Face   disp_elements;
-  CudaGLPlug plug;
-  */
-public:
   void init(const Matrix4& transform, const float dim[],
     const Counter subdivision[]);
   void render();

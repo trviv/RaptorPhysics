@@ -23,15 +23,15 @@ void Cloth::init(const Matrix4& transform, const real dim[],
     }
   }
 
-  for (int y = 0; y < subdivision[1]; y++)
+  for (Counter y = 0; y < subdivision[1]; y++)
   {
     Real3 pos = top_left + del_y*y;
-    int index = y*subdivision[0];
-    for (int x = 0; x < subdivision[0]; x++)
+    Counter index = y*subdivision[0];
+    for (Counter x = 0; x < subdivision[0]; x++)
     {
       physics_system->distanceConstrain()->addValue(index,
-        pos + Real3((((subdivision[1] - y) == 1) ? .2 : 0), 0, 0));
-      point_pos.push_back(pos + Real3(real(((subdivision[1] - y) == 1) ? .2 : 0),
+        pos + Real3((((subdivision[1] - y) == 1) ? .5 : 0), 0, 0));
+      point_pos.push_back(pos + Real3(real(((subdivision[1] - y) == 1) ? .5 : 0),
         0, 0));
       //constrain.add(index, index, 0, 0, y ? 1 : 0);
       if (x + 1 < subdivision[0])
