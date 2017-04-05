@@ -54,12 +54,12 @@ void RigidConstrain::exportToDevice(__int8** device_additional_memory,
 
   device_com_offset = (Real3*)device_memory;
   device_matrix = (real*)(device_com_offset + com_offset.size());
-  device_del_pos = (Real3*)(device_matrix + 9 * constrain_values.size());
+  //device_del_pos = (Real3*)(device_matrix + 9 * constrain_values.size());
 
   DeviceEntity<Real3>::exportToDevice(&com_offset[0], device_com_offset,
     com_offset.size());
   DeviceEntity<real>::set(device_matrix, 0, 9 * getNodeCount());
-  DeviceEntity<Real3>::set(device_del_pos, 0, getNodeCount());
+  //DeviceEntity<Real3>::set(device_del_pos, 0, getNodeCount());
   DeviceEntity<RigidConstrain>::exportToDevice(this,
     (RigidConstrain*)constrain_alloc);
 
@@ -73,10 +73,6 @@ void RigidConstrain::exportToDevice(__int8** device_additional_memory,
     9 * sizeof(real)*constrain_values.size() <<
     "\tAddr: " << (__int64)device_matrix <<
     "\tDiff: " << (__int64)device_matrix - (__int64)device_com_offset << "\n";
-  std::cout << "Del pos: " <<
-    sizeof(Real3)*constrain_values.size() <<
-    "\tAddr: " << (__int64)device_del_pos <<
-    "\tDiff: " << (__int64)device_del_pos - (__int64)device_matrix << "\n";
 }
 
 CU_KER void covarianceMatrix(

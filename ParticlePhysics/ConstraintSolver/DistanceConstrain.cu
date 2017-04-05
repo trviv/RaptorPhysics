@@ -45,7 +45,7 @@ void DistanceConstrain::exportToDevice(__int8** device_additional_memory,
   IndexType total_size = additional_size +
     sizeof(real)*point_mass.size() +
     sizeof(real)*flat_distance.size() +
-    3 * sizeof(Real3)*constraints.size();
+    4 * sizeof(Real3)*constraints.size();
 
   Constrain::exportToDevice(&device_memory, total_size, baseSize);
 
@@ -54,9 +54,10 @@ void DistanceConstrain::exportToDevice(__int8** device_additional_memory,
   device_position = (Real3*)(device_distance + flat_distance.size());
   device_velocity = (Real3*)(device_position + getNodeCount());
   device_force = (Real3*)(device_velocity + getNodeCount());
+  device_del_pos = (Real3*)(device_force + getNodeCount());
   if (additional_size)
   {
-    *device_additional_memory = ((__int8*)device_force +
+    *device_additional_memory = ((__int8*)device_del_pos +
       getNodeCount() * sizeof(Real3));
   }
 
@@ -77,10 +78,16 @@ void DistanceConstrain::exportToDevice(__int8** device_additional_memory,
   std::cout << "Force: " << sizeof(Real3)*getNodeCount() <<
     "\tAddr: " << (__int64)device_force <<
     "\tDiff: " << (__int64)device_force - (__int64)device_velocity << "\n";
-  std::cout << "Additional: " << additional_size <<
-    "\tAddr: " << (__int64)(*device_additional_memory) <<
-    "\tDiff: " << (__int64)(*device_additional_memory) -
-    (__int64)device_force << "\n";
+  std::cout << "Del pos: " << sizeof(Real3)*getNodeCount() <<
+    "\tAddr: " << (__int64)device_del_pos <<
+    "\tDiff: " << (__int64)device_del_pos - (__int64)device_force << "\n";
+  if (additional_size > 0)
+  {
+    std::cout << "Additional: " << additional_size <<
+      "\tAddr: " << (__int64)device_additional_memory <<
+      "\tDiff: " << (__int64)device_additional_memory -
+      (__int64)device_del_pos << "\n";
+  }
 
   DeviceEntity<real>::exportToDevice(&point_mass[0], device_mass,
     point_mass.size());
@@ -90,6 +97,7 @@ void DistanceConstrain::exportToDevice(__int8** device_additional_memory,
     getNodeCount());
   DeviceEntity<Real3>::set(device_velocity, 0, getNodeCount());
   DeviceEntity<Real3>::set(device_force, 0, getNodeCount());
+  DeviceEntity<Real3>::set(device_del_pos, 0, getNodeCount());
   DeviceEntity<DistanceConstrain>::exportToDevice(this,
     (DistanceConstrain*)constrain_alloc);
 }
@@ -98,49 +106,50 @@ CU_KER void distanceSolver(
   DistanceConstrain* constrain,
   const Counter iteration)
 {
+  Counter index = threadIndex;
+  if (index >= constrain->getNodeCount()) return;
+
   const ConstrainBuffer old_value = ((iteration & 1) == 0) ? DEF : VAR0;
   const ConstrainBuffer new_value = ((old_value == DEF) ? VAR0 : DEF);
-  Real3 sum;
-
-  Counter index = threadIndex;
-  if (index < constrain->getNodeCount())
+  Real3 sum(0);
+  Counter count = constrain->getConstrain(index).count();
+  Counter offset = constrain->getConstrain(index).offset();
+  Real3 del;
+  offset++;
+  real constrain_count = count;
+  for (count = count - 2; count >= 0; count--)
   {
-    sum = 0;
-    Counter count = constrain->getConstrain(index).count();
-    Counter offset = constrain->getConstrain(index).offset();
-    Real3 del;
+    constrain->getDelta(del, index, constrain->getIndex(offset), offset,
+      old_value);
+    sum += del;
     offset++;
-    real constrain_count = count;
-    for (count = count - 2; count >= 0; count--)
-    {
-      constrain->getDelta(del, index, constrain->getIndex(offset), offset,
-        old_value);
-      sum += del;
-      offset++;
-    }
-    constrain->getValue(index, new_value) =
-      constrain->getValue(index, old_value) + sum*(constrain->del_t*
-      constrain->successiveOverRealaxation / (constrain_count - 1));
   }
+  constrain->getValue(index, new_value) =
+    constrain->getValue(index, old_value) + sum*(//constrain->del_t*
+    constrain->successiveOverRealaxation / (constrain_count - 1));
 }
 
 void DistanceConstrain::solve()
 {
-  //integrate();
+  integrate();
   dim3 threads;
   dim3 blocks;
   configureGrid(blocks, threads);
+  DeviceEntity<Real3>::copy(getValueBuffer(DEF), getPosition(), getNodeCount());
   for (Counter i = 0; i < iterations; i++)
   {
     distanceSolver << <blocks, threads >> >((DistanceConstrain*)constrain_alloc, i);
     cudaDeviceSynchronize();
     CU_PROMPT;
   }
+
   if ((getIterations() & 1) == 0)
   {
     DeviceEntity<Real3>::copy((Real3*)getValueBuffer(DEF),
       (Real3*)getValueBuffer(VAR0), getNodeCount());
-    cudaDeviceSynchronize();
   }
-  //differentiate();
+  sum(getDelPosition(), getValueBuffer(DEF), getPosition(), getNodeCount(), true);
+  //scale(getDelPosition(), getDelPosition(), del_t, getNodeCount());
+  DeviceEntity<Real3>::copy(getPosition(), getValueBuffer(DEF), getNodeCount());
+  differentiate();
 }

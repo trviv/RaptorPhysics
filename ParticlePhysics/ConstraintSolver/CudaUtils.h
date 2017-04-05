@@ -191,19 +191,43 @@ template<class T>void sum(T* device_array, const Counter length)
 }
 
 template<class T>CU_KER void sumKernel(T* device_array_result,
-  T* device_array_a, T* device_array_b, const Counter length)
+  T* device_array_a, T* device_array_b, const Counter length,
+  const bool diff)
 {
   Counter index = threadIndex;
   if (index >= length) return;
-  device_array_result[index] = device_array_a[index] + device_array_b[index];
+  if (diff)
+    device_array_result[index] = device_array_a[index] - device_array_b[index];
+  else
+    device_array_result[index] = device_array_a[index] + device_array_b[index];
 }
 
 template<class T>void sum(T* device_array_result, T* device_array_a,
-  T* device_array_b, const Counter length)
+  T* device_array_b, const Counter length, const bool diff = false)
 {
   dim3 threads, blocks;
   configureGrid(blocks, threads, length);
-  sumKernel << < blocks, threads >> >(device_array_result, device_array_a, device_array_b, length);
+  sumKernel << < blocks, threads >> >(device_array_result, device_array_a,
+    device_array_b, length, diff);
+  cudaDeviceSynchronize();
+  CU_PROMPT;
+}
+
+template<class T>CU_KER void scaleKernel(T* device_array_result,
+  T* device_array, const real scale, const Counter length)
+{
+  Counter index = threadIndex;
+  if (index >= length) return;
+  device_array_result[index] = device_array[index] * scale;
+}
+
+template<class T>void scale(T* device_array_result, T* device_array,
+  const real scale, const Counter length)
+{
+  dim3 threads, blocks;
+  configureGrid(blocks, threads, length);
+  scaleKernel << < blocks, threads >> >(device_array_result, device_array,
+    scale, length);
   cudaDeviceSynchronize();
   CU_PROMPT;
 }
