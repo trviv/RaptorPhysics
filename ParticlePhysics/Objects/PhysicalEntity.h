@@ -13,6 +13,7 @@ protected:
   Shader  disp_shader;
   Face    disp_elements;
   CudaGLPlug  plug;
+  real    mass;
 
 public:
   virtual void init(const Matrix4& transform, const real dim[],
