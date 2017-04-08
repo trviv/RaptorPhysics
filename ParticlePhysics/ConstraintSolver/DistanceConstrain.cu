@@ -12,7 +12,7 @@ CU_DEV void DistanceConstrain::getDelta(ValueType& del, const IndexType index,
 
   del = getValue(index, buffer_index) -
     getValue(connection_index, buffer_index);
-  del *= real(1) - getDistance()[offset] / del.length();
+  del *= (real(1) - getDistance()[offset] / del.length());
   del *= -w1 / w12;
   //del = (-w1*(real(1) - getDistance()[offset] / del.length()) / (w1 + w2));
 }
@@ -116,7 +116,7 @@ CU_KER void distanceSolver(
   Counter offset = constrain->getConstrain(index).offset();
   Real3 del;
   offset++;
-  real constrain_count = count;
+  real constrain_count = (count <= 1) ? 1 : count - 1;
   for (count = count - 2; count >= 0; count--)
   {
     constrain->getDelta(del, index, constrain->getIndex(offset), offset,
@@ -126,7 +126,7 @@ CU_KER void distanceSolver(
   }
   constrain->getValue(index, new_value) =
     constrain->getValue(index, old_value) + sum*(//constrain->del_t*
-    constrain->successiveOverRealaxation / (constrain_count - 1));
+    constrain->successiveOverRealaxation / constrain_count);
 }
 
 void DistanceConstrain::solve()

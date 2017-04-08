@@ -8,17 +8,20 @@ void Cloth::init(const Matrix4& transform, const real dim[],
   Real3 del_y(0); del_y[1] = real(-2.)*dim[1] / (subdivision[1] - 1);
   Real3 top_left(-dim[0], dim[1], 0);
 
-  real x_len = del_x.length();
-  real y_len = del_y.length();
-  real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
+  const real x_len = del_x.length();
+  const real y_len = del_y.length();
+  const real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
   std::vector<Real3> point_pos;
+
+  mass = 10;
+  const real per_particle_inv_mass = real(1) / real(subdivision[0] * subdivision[1]);
 
   for (Counter y = 0; y < subdivision[1]; y++)
   {
     Counter index = y*subdivision[0];
     for (Counter x = 0; x < subdivision[0]; x++)
     {
-      physics_system->distanceConstrain()->add(index, index, 0, 0, y ? 1 : 0);
+      physics_system->distanceConstrain()->add(index, index, 0, 0, y ? per_particle_inv_mass : 0);
       index++;
     }
   }
@@ -29,11 +32,14 @@ void Cloth::init(const Matrix4& transform, const real dim[],
     Counter index = y*subdivision[0];
     for (Counter x = 0; x < subdivision[0]; x++)
     {
-      physics_system->distanceConstrain()->addValue(index,
-        pos + Real3((((subdivision[1] - y) == 1) ? .5 : 0), 0, 0));
-      point_pos.push_back(pos + Real3(real(((subdivision[1] - y) == 1) ? .5 : 0),
-        0, 0));
+      Real3 new_pos = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
+      //physics_system->distanceConstrain()->addValue(index,
+      //pos + Real3((((subdivision[1] - y) == 1) ? .5 : 0), 0, 0));
+      physics_system->distanceConstrain()->addValue(index, new_pos);
+      point_pos.push_back(new_pos);
+      //point_pos.push_back(pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0)));
       //constrain.add(index, index, 0, 0, y ? 1 : 0);
+      // add twice because constrain is solved only once
       if (x + 1 < subdivision[0])
       {
         physics_system->distanceConstrain()->add(index, index + 1, 1, x_len);
@@ -68,6 +74,7 @@ void Cloth::init(const Matrix4& transform, const real dim[],
         connection_elements.push_back(index);
         connection_elements.push_back(index + subdivision[0] - 1);
       }
+
       index++;
       pos += del_x;
     }
@@ -83,7 +90,7 @@ void Cloth::init(const Matrix4& transform, const real dim[],
     "../../ParticlePhysics/display_frag.glsl");
   plug.setGLResource(disp_vertex);
   physics_system->distanceConstrain()->exportToDevice();
-  //physics_system->distanceConstrain()->show();
+  physics_system->distanceConstrain()->show();
 }
 
 void Cloth::step()
@@ -127,7 +134,7 @@ void Cloth::render()
   disp_shader.set("projectionMatrix", proj_mat);
   disp_vertex.bind();
   GL_CHECK(glEnableVertexAttribArray(0));
-  GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Real3),
+  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Real3),
     (GLvoid*)0));
   //GL_CHECK(glEnableVertexAttribArray(1));
   //GL_CHECK(glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (GLvoid*)0));

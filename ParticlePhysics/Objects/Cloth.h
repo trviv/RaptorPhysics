@@ -1,7 +1,6 @@
 #ifndef __CLOTH
 #define __CLOTH
 
-//#include "PhysicsSystem.h"
 #include "PhysicalEntity.h"
 
 /// Class representing a cloth
