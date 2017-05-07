@@ -1,27 +1,35 @@
 #include "Cloth.h"
-//#include "PhysicsSystem.h"
 
 void Cloth::init(const Matrix4& transform, const real dim[],
-  const Counter subdivision[])
+  const real particle_radius, const real mass)
 {
-  Real3 del_x(0); del_x[0] = real(2.)*dim[0] / (subdivision[0] - 1);
-  Real3 del_y(0); del_y[1] = real(-2.)*dim[1] / (subdivision[1] - 1);
-  Real3 top_left(-dim[0], dim[1], 0);
+  Counter subdivision[3] = { 1, 1, 1 };
+  for (Counter i = 0; i < 2; i++) subdivision[i] = dim[i] / particle_radius;
+  this->particle_radius = particle_radius;
+  init(transform, dim, subdivision, mass);
+}
+
+void Cloth::init(const Matrix4& transform, const real dim[],
+  const Counter subdivision[], const real mass)
+{
+  Real3 del_x(0); del_x[0] = dim[0] / (subdivision[0] - 1);
+  Real3 del_y(0); del_y[1] = dim[1] / (subdivision[1] - 1);
+  Real3 top_left(-dim[0] / 2, dim[1] / 2, 0);
 
   const real x_len = del_x.length();
   const real y_len = del_y.length();
   const real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
   std::vector<Real3> point_pos;
 
-  mass = 10;
-  const real per_particle_inv_mass = real(1) / real(subdivision[0] * subdivision[1]);
+  const real per_particle_inv_mass = real(mass) / real(subdivision[0] * subdivision[1]);
 
   for (Counter y = 0; y < subdivision[1]; y++)
   {
     Counter index = y*subdivision[0];
     for (Counter x = 0; x < subdivision[0]; x++)
     {
-      physics_system->distanceConstrain()->add(index, index, 0, 0, y ? per_particle_inv_mass : 0);
+      //physics_system->distanceConstrain()->add(index, index, 0, 0, y ? per_particle_inv_mass : 0);
+      physics_system->distanceConstrain()->setInvMass(index, y ? per_particle_inv_mass : 0);
       index++;
     }
   }
@@ -32,45 +40,42 @@ void Cloth::init(const Matrix4& transform, const real dim[],
     Counter index = y*subdivision[0];
     for (Counter x = 0; x < subdivision[0]; x++)
     {
-      Real3 new_pos = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
-      //physics_system->distanceConstrain()->addValue(index,
-      //pos + Real3((((subdivision[1] - y) == 1) ? .5 : 0), 0, 0));
-      physics_system->distanceConstrain()->addValue(index, new_pos);
+      Real3 new_pos = pos + Real3(0, 0,
+        (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
+      physics_system->distanceConstrain()->setValue(index, new_pos);
       point_pos.push_back(new_pos);
-      //point_pos.push_back(pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0)));
-      //constrain.add(index, index, 0, 0, y ? 1 : 0);
       // add twice because constrain is solved only once
       if (x + 1 < subdivision[0])
       {
-        physics_system->distanceConstrain()->add(index, index + 1, 1, x_len);
-        physics_system->distanceConstrain()->add(index + 1, index, 1, x_len);
+        physics_system->distanceConstrain()->addDistance(index, index + 1, x_len);
+        physics_system->distanceConstrain()->addDistance(index + 1, index, x_len);
         connection_elements.push_back(index);
         connection_elements.push_back(index + 1);
       }
       if (y + 1 < subdivision[1])
       {
-        physics_system->distanceConstrain()->add(index, index + subdivision[0],
-          1, y_len);
-        physics_system->distanceConstrain()->add(index + subdivision[0], index,
-          1, y_len);
+        physics_system->distanceConstrain()->addDistance(index,
+          index + subdivision[0], y_len);
+        physics_system->distanceConstrain()->addDistance(index + subdivision[0],
+          index, y_len);
         connection_elements.push_back(index);
         connection_elements.push_back(index + subdivision[0]);
       }
       if (x + 1 < subdivision[0] && y + 1 < subdivision[1])
       {
-        physics_system->distanceConstrain()->add(index,
-          index + subdivision[0] + 1, 1, diag_len);
-        physics_system->distanceConstrain()->add(index + subdivision[0] + 1,
-          index, 1, diag_len);
+        physics_system->distanceConstrain()->addDistance(index,
+          index + subdivision[0] + 1, diag_len);
+        physics_system->distanceConstrain()->addDistance(index + subdivision[0] + 1,
+          index, diag_len);
         connection_elements.push_back(index);
         connection_elements.push_back(index + subdivision[0] + 1);
       }
       if (x >= 1 && y + 1 < subdivision[1])
       {
-        physics_system->distanceConstrain()->add(index,
-          index + subdivision[0] - 1, 1, diag_len);
-        physics_system->distanceConstrain()->add(index + subdivision[0] - 1,
-          index, 1, diag_len);
+        physics_system->distanceConstrain()->addDistance(index,
+          index + subdivision[0] - 1, diag_len);
+        physics_system->distanceConstrain()->addDistance(index + subdivision[0] - 1,
+          index, diag_len);
         connection_elements.push_back(index);
         connection_elements.push_back(index + subdivision[0] - 1);
       }
@@ -89,30 +94,19 @@ void Cloth::init(const Matrix4& transform, const real dim[],
   disp_shader.init("../../ParticlePhysics/display_vert.glsl",
     "../../ParticlePhysics/display_frag.glsl");
   plug.setGLResource(disp_vertex);
-  physics_system->distanceConstrain()->exportToDevice();
-  physics_system->distanceConstrain()->show();
 }
 
 void Cloth::step()
 {
   physics_system->distanceConstrain()->solve();
-  CU_PROMPT;
   void* vertex_array = this->plug.map();
 
   dim3 threads;
   dim3 blocks;
   physics_system->distanceConstrain()->configureGrid(threads, blocks);
-  /*
-  ConstrainBuffer buf = ConstrainBuffer(1 - (constrain.getIterations() & 1));
-  DeviceEntity<Real3>::copy((Real3*)vertex_array,
-  (Real3*)constrain.getValueBuffer(buf), constrain.getNodeCount());
-  cudaDeviceSynchronize();
-  CU_PROMPT;
-  */
   DeviceEntity<Real3>::copy((Real3*)vertex_array,
     (Real3*)physics_system->distanceConstrain()->getPosition(),
     physics_system->distanceConstrain()->getNodeCount());
-  CU_PROMPT;
   this->plug.unmap();
 }
 

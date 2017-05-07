@@ -13,11 +13,13 @@ protected:
   Shader  disp_shader;
   Face    disp_elements;
   CudaGLPlug  plug;
-  real    mass;
+  real    particle_radius;
 
 public:
   virtual void init(const Matrix4& transform, const real dim[],
-    const Counter subdivision[]) = 0;
+    const Counter subdivision[], const real mass) = 0;
+  virtual void init(const Matrix4& transform, const real dim[],
+    const real particle_radius, const real mass) = 0;
   virtual void render() = 0;
   virtual void step() = 0;
 };

@@ -7,8 +7,10 @@
 class Cloth : public PhysicalEntity
 {
 public:
-  void init(const Matrix4& transform, const float dim[],
-    const Counter subdivision[]);
+  void init(const Matrix4& transform, const real dim[],
+    const Counter subdivision[], const real mass);
+  void init(const Matrix4& transform, const real dim[],
+    const real particle_radius, const real mass);
   void render();
   void step();
 };

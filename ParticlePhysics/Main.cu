@@ -88,49 +88,50 @@ int main(int argc, char** argv)
   cons.add(1, 2, 1);
   cons.add(2, 1, 1);
 
-  cons.addValue(0, 1);
-  cons.addValue(1, 2);
-  cons.addValue(2, 3);
+  cons.setValue(0, 1);
+  cons.setValue(1, 2);
+  cons.setValue(2, 3);
   */
+  /*
+  cons.addCC(0, 0, 10);
+  cons.addCC(1, 1, 11);
+  cons.addCC(2, 2, 10);
+  cons.addCC(3, 3, 8);
 
-  cons.add(0, 0, 10);
-  cons.add(1, 1, 11);
-  cons.add(2, 2, 10);
-  cons.add(3, 3, 8);
+  cons.addCC(0, 1, -1);
+  cons.addCC(0, 2, 2);
 
-  cons.add(0, 1, -1);
-  cons.add(0, 2, 2);
+  cons.addCC(1, 0, -1);
+  cons.addCC(1, 2, -1);
+  cons.addCC(1, 3, 3);
 
-  cons.add(1, 0, -1);
-  cons.add(1, 2, -1);
-  cons.add(1, 3, 3);
+  cons.addCC(2, 0, 2);
+  cons.addCC(2, 1, -1);
+  cons.addCC(2, 3, -1);
 
-  cons.add(2, 0, 2);
-  cons.add(2, 1, -1);
-  cons.add(2, 3, -1);
+  cons.addCC(3, 1, 3);
+  cons.addCC(3, 2, -1);
 
-  cons.add(3, 1, 3);
-  cons.add(3, 2, -1);
+  cons.setValue(0, 6);
+  cons.setValue(1, 25);
+  cons.setValue(2, -11);
+  cons.setValue(3, 15);
 
-  cons.addValue(0, 6);
-  cons.addValue(1, 25);
-  cons.addValue(2, -11);
-  cons.addValue(3, 15);
-
-  cons.pushPreviousObject();
-  cons.add(0, 0, 2);
-  cons.add(1, 1, 7);
-  cons.add(0, 1, 1);
-  cons.add(1, 0, 5);
+  cons.pushObject(OBJ_EQUATION);
+  cons.addCC(0, 0, 2);
+  cons.addCC(1, 1, 7);
+  cons.addCC(0, 1, 1);
+  cons.addCC(1, 0, 5);
 
 
-  cons.addValue(0, 11);
-  cons.addValue(1, 13);
+  cons.setValue(0, 11);
+  cons.setValue(1, 13);
 
-  cons.show();
-  //cons.solve();
-  //return 0;
-
+  cons.pushObject(OBJ_EQUATION);
+  //cons.show();
+  cons.solve();
+  return 0;
+  */
   physics_system = new PhysicsSystem();
   main_window = physics_system;
   main_window->init(argc, argv);
