@@ -61,14 +61,6 @@ public:
   CU_DEV void getDelta(ValueType& del, const IndexType index,
     const IndexType connection_index, const IndexType offset,
     const ConstrainBuffer buffer_index);
-
-  void add(const IndexType index, const IndexType connection,
-    const CoefType coef, const real distance = 0,
-    const real inv_mass = 0);
-
-  void exportToDevice(__int8** device_additional_memory = NULL,
-    Counter additional_size = 0, Counter baseSize = 0);
-
   void solve();
 };
 

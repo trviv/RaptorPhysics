@@ -14,67 +14,6 @@ CU_DEV void RigidConstrain::getDelta(ValueType& del, const IndexType index,
   del *= -w1*(real(1) - getDistance()[offset] / del.length()) / (w1 + w2);
 }
 
-void RigidConstrain::add(const IndexType index, const IndexType connection,
-  const CoefType coef, const real distance,
-  const real inv_mass)
-{
-  Constrain::add(index, connection, coef);
-  if (index == connection)
-  {
-    expand<real>(index + offset, point_mass);
-    point_mass[index + offset] = inv_mass;
-  }
-  //else
-  //{
-  expand<std::vector<real>>(index + offset, point_distance);
-  point_distance[index + offset].push_back(distance);
-  //}
-}
-
-void RigidConstrain::exportToDevice(__int8** device_additional_memory,
-  Counter additional_size, Counter baseSize)
-{
-  __int8* device_memory = NULL;
-
-  Real3 com(0);
-  std::vector<Real3> com_offset;
-  for (Counter i = 0; i < constrain_values.size(); i++)
-    com += constrain_values[i];
-  com /= real(constrain_values.size());
-  for (Counter i = 0; i < constrain_values.size(); i++)
-    com_offset.push_back(constrain_values[i] - com);
-
-  IndexType total_size = sizeof(Real3)*com_offset.size() +
-    9 * sizeof(real)*constrain_values.size() +
-    sizeof(Real3)*constrain_values.size();
-
-  constrain_values[0] -= real(.5);
-  DistanceConstrain::exportToDevice(&device_memory, total_size,
-    sizeof(RigidConstrain));
-
-  device_com_offset = (Real3*)device_memory;
-  device_matrix = (real*)(device_com_offset + com_offset.size());
-  //device_del_pos = (Real3*)(device_matrix + 9 * constrain_values.size());
-
-  DeviceEntity<Real3>::exportToDevice(&com_offset[0], device_com_offset,
-    com_offset.size());
-  DeviceEntity<real>::set(device_matrix, 0, 9 * getNodeCount());
-  //DeviceEntity<Real3>::set(device_del_pos, 0, getNodeCount());
-  DeviceEntity<RigidConstrain>::exportToDevice(this,
-    (RigidConstrain*)constrain_alloc);
-
-  std::cout << "Rigid Alloc:\n";
-  std::cout << "Base: " << baseSize <<
-    "\tAddr: " << (__int64)constrain_alloc << "\n";
-  std::cout << "Com offset: " <<
-    sizeof(Real3)*com_offset.size() <<
-    "\tAddr: " << (__int64)device_com_offset << "\n";
-  std::cout << "Matrix: " <<
-    9 * sizeof(real)*constrain_values.size() <<
-    "\tAddr: " << (__int64)device_matrix <<
-    "\tDiff: " << (__int64)device_matrix - (__int64)device_com_offset << "\n";
-}
-
 CU_KER void covarianceMatrix(
   RigidConstrain* constrain)
 {

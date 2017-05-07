@@ -1,7 +1,16 @@
 #include "RigidBody.h"
 
 void RigidBody::init(const Matrix4& transform, const real dim[],
-  const Counter subdivision[])
+  const real particle_radius, const real mass)
+{
+  Counter subdivision[3];
+  for (Counter i = 0; i < 3; i++) subdivision[i] = dim[i] / particle_radius;
+  this->particle_radius = particle_radius;
+  init(transform, dim, subdivision, mass);
+}
+
+void RigidBody::init(const Matrix4& transform, const real dim[],
+  const Counter subdivision[], const real mass)
 {
   Real3 del[3];
   for (Counter i = 0; i < 3; i++)
@@ -12,7 +21,11 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
   del[1] *= -1;
   del[2] *= -1;
   Real3 top_left(-dim[0], dim[1], dim[2]);
+
   std::vector<Real3> point_pos;
+  std::vector<Real3> &constrain_values = physics_system->rigidConstrain()->hostPosition();
+  std::vector<Real3> &com_offset = physics_system->rigidConstrain()->hostComOffset();
+  Counter prev_value_count = constrain_values.size();
 
   for (Counter z = 0; z < subdivision[2]; z++)
   {
@@ -21,7 +34,7 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
       Counter index = (z*subdivision[2] * subdivision[1]) + (y*subdivision[1]);
       for (Counter x = 0; x < subdivision[0]; x++)
       {
-        physics_system->rigidConstrain()->add(index, index, 0, 0, 1);
+        //physics_system->rigidConstrain()->addDistance(index, index, 0);
         index++;
       }
     }
@@ -35,7 +48,7 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
       for (Counter x = 0; x < subdivision[0]; x++)
       {
         Real3 pos = top_left + del[0] * x + del[1] * y + del[2] * z;
-        physics_system->rigidConstrain()->addValue(index, pos);
+        physics_system->rigidConstrain()->setValue(index, pos);
         point_pos.push_back(pos);
         for (Counter zn = -1; zn < 2; zn++)
         {
@@ -55,7 +68,8 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
                 + (del[2] * tempz);
               if (index1 == index) continue;
               real len = (pos - pos2).length();
-              physics_system->rigidConstrain()->add(index, index1, 1, len);
+              physics_system->rigidConstrain()->addDistance(index, index1, len);
+              physics_system->rigidConstrain()->setInvMass(1);
               if (index1 > index)
               {
                 connection_elements.push_back(index);
@@ -70,6 +84,15 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
     }
   }
 
+  Real3 com(0);
+  for (Counter i = prev_value_count; i < constrain_values.size(); i++)
+    com += constrain_values[i];
+  com /= real(constrain_values.size() - prev_value_count);
+  for (Counter i = prev_value_count; i < constrain_values.size(); i++)
+    com_offset.push_back(constrain_values[i] - com);
+
+  constrain_values[prev_value_count] -= real(.5);
+
   disp_vertex.gen();
   disp_vertex.copyData(&point_pos[0][0],
     subdivision[0] * subdivision[1] * subdivision[2], 0, sizeof(Real3));
@@ -79,8 +102,6 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
   disp_shader.init("../../ParticlePhysics/display_vert.glsl",
     "../../ParticlePhysics/display_frag.glsl");
   plug.setGLResource(disp_vertex);
-  physics_system->rigidConstrain()->exportToDevice();
-  //physics_system->rigidConstrain()->show();
 }
 
 void RigidBody::step()
