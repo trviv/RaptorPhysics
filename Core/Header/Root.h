@@ -8,12 +8,13 @@
 #define RX_REN_GL       1 //open gl renderer
 #define RX_REN_D3       0 //directx
 
-#define RX_CUDA         1
 #define RX_USING_APPROX 0 //for using approximation methods
 
 #define RX_CUSTOM_MM
 
 #define RX_PREC_DOUBLE  0 //for using double as primary data type
+
+#define CU_KER
 
 /*
 #define RX_NS_CORE
@@ -27,6 +28,7 @@
 //#include <dvec.h>
 //#include <math.h>
 #include <conio.h>
+#include <sys/types.h>
 #include <float.h>
 #include <fstream>
 #include <assert.h>
@@ -41,10 +43,7 @@
 #if RX_REN_GL
 #include <glew.h>
 #include <freeglut.h>
-#endif
-
-#if RX_REN_D3
-#include <d3d9.h>
+#define ENABLE_RENDERING
 #endif
 
 #ifdef _X86_
@@ -56,22 +55,13 @@
 #if RX_CUDA
 
 //#include <cuda.h>
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 
 //use only single precision if cuda enabled
 #if RX_PREC_DOUBLE
 #undef  RX_PREC_DOUBLE
 #define RX_PREC_DOUBLE  0
 #endif
-
-#define CU_FI   __forceinline__
-#define CU_NI   __noinline__
-#define CU_DEV  __device__
-#define CU_HOST __host__
-#define CU_DEV_HOST __device__ __host__
-#define CU_KER  __global__
-#define CU_SHA  __shared__
-#define CU_PROMPT checkCudaErrors(cudaGetLastError());
 
 #endif
 
@@ -98,6 +88,7 @@ typedef double real;
 typedef float real;
 #endif
 
+/*
 typedef unsigned long ULong;
 typedef unsigned short UShort;
 typedef long Long;
@@ -106,6 +97,22 @@ typedef __int16 Index;
 typedef float Float;
 typedef unsigned __int8 Byte;
 typedef unsigned __int32 UInt32;
+*/
+
+
+//typedef signed   __int8         char;
+typedef unsigned __int8         uchar;
+//typedef signed   __int16        short;
+typedef unsigned __int16        ushort;
+//typedef signed   __int32        int;
+typedef unsigned __int32        uint;
+//typedef signed   __int64        long;
+typedef unsigned __int64        ulong;
+
+typedef unsigned __int16        half;
+//typedef float                   float;
+//typedef double                  double;
+
 
 #define INV_RAND_MAX real(1.0/32768.0)
 #define INV_RAND_MAX_F Float(1.0f/32768.0f)
@@ -119,20 +126,19 @@ typedef unsigned __int32 UInt32;
 #define INV_PI  real(0.31830988618379067154)
 #define INV_TWOPI  real(0.15915494309189533577)
 
-#if RX_PLF_PC
-#define FORCE_INLINE __forceinline
 #define prompt(X) assert(X)
-#endif
 
 #if defined(__CUDACC__) // NVCC
-#define ALIGN(n) __align__(n)
-#elif defined(__GNUC__) // GCC
-#define ALIGN(n) __attribute__((aligned(n)))
+#define ALIGN(n)  __align__(n)
+#elif defined(__GNUC__) || defined(OPENCL) // GCC or OpenCL
+#define ALIGN(n)  __attribute__((aligned(n)))
 #elif defined(_MSC_VER) // MSVC
-#define ALIGN(n) __declspec(align(n))
+#define ALIGN(n)  __declspec(align(n))
 #else
 #error "Please provide a definition for MY_ALIGN macro for your host compiler!"
 #endif
+
+#define DEFAULT_ALIGN ALIGN(16)
 
 static std::ostream &cout = std::cout;
 

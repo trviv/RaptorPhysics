@@ -1,6 +1,6 @@
 #include "GLWindow.h"
 
-int Window::del_time = 100;
+int Window::del_time = 15;
 Window *main_window = NULL;
 
 void Window::init(int argc, char** argv, int width, int height,
@@ -46,11 +46,6 @@ void Window::init(int argc, char** argv, int width, int height,
   //glDepthFunc(GL_LEQUAL);
 
   glViewport(0, 0, (GLsizei)width, (GLsizei)height);
-}
-
-void Window::start()
-{
-  glutMainLoop();
 }
 
 void Window::display()
@@ -157,11 +152,6 @@ void Window::reshape(int width, int height)
   win_height = height;
 }
 
-void Window::mouseWheel(int button, int dir, int x, int y)
-{
-  dz -= dir*.05;
-}
-
 void Window::mouse(int button, int dir, int x, int y)
 {
   if (button == GLUT_LEFT_BUTTON)
@@ -176,8 +166,18 @@ void Window::mouseDrag(int x, int y)
   float deltaX = float(x - intial_mouse_x);
   float deltaY = float(y - intial_mouse_y);
 
-  ry += .01*deltaX;
-  rx += .01*deltaY;
+  ry += (float).01*deltaX;
+  rx += (float).01*deltaY;
+}
+
+void Window::mouseWheel(int button, int dir, int x, int y)
+{
+  dz -= (float)(dir*.05);
+}
+
+void Window::start()
+{
+  glutMainLoop();
 }
 
 void glwRefreshTimer(int value)

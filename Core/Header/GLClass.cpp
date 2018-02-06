@@ -60,7 +60,7 @@ void Vertex::unbind()const
 
 void Vertex::free()
 {
-  if(index!=-1)
+  if (index != -1)
   {
     GL_CHECK(glDeleteBuffers(1, &index));
     index = -1;
@@ -74,14 +74,14 @@ void Vertex::make(float w, float h)
     -w, -h, 0, 0, 0, -w, h, 0, 0, 1, w, h, 0, 1, 1
   };
 
-  copyData(vertex, 6, 0, 5*SIZEOF_FLOAT);
+  copyData(vertex, 6, 0, 5 * SIZEOF_FLOAT);
 }
 
 void Vertex::copyData(float vertex[], GLsizei vertex_count, int vertex_width, int vertex_stride)
 {
   this->vertex_stride = vertex_stride;
-  this->vertex_width  = vertex_width;
-  this->vertex_count  = vertex_count;
+  this->vertex_width = vertex_width;
+  this->vertex_count = vertex_count;
   bind();
   GL_CHECK(glBufferData(GL_ARRAY_BUFFER, vertex_count*vertex_stride, vertex, GL_STATIC_DRAW));
   unbind();
@@ -124,7 +124,7 @@ void Face::unbind()const
 
 void Face::free()
 {
-  if(index!=-1)
+  if (index != -1)
   {
     GL_CHECK(glDeleteBuffers(1, &index));
     index = -1;
@@ -155,7 +155,7 @@ Texture::Texture()
 
 Texture::Texture(int w, int h)
 {
-  init(w,h);
+  init(w, h);
 }
 
 void Texture::init(int w, int h)
@@ -176,9 +176,9 @@ void Texture::unbind()const
 
 void Texture::free()
 {
-  if(index!=-1)
+  if (index != -1)
   {
-    GL_CHECK(glDeleteTextures(1,&index));
+    GL_CHECK(glDeleteTextures(1, &index));
     index = -1;
   }
 }
@@ -200,7 +200,7 @@ void Texture::gen(float buffer[], int type)
     GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, buffer));
     //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
   }
-  else if (type==1)
+  else if (type == 1)
   {
     //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR);
     //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
@@ -289,9 +289,9 @@ void Render::gen()
 
 void Render::free()
 {
-  if(index!=-1)
+  if (index != -1)
   {
-    GL_CHECK(glDeleteRenderbuffers(1,&index));
+    GL_CHECK(glDeleteRenderbuffers(1, &index));
     index = -1;
   }
 }
@@ -316,9 +316,9 @@ void Frame::gen()
 
 void Frame::free()
 {
-  if(index!=-1)
+  if (index != -1)
   {
-    GL_CHECK(glDeleteFramebuffers(1,&index));
+    GL_CHECK(glDeleteFramebuffers(1, &index));
     index = -1;
   }
 }
@@ -339,7 +339,7 @@ void Renderer::bind()const
 {
   fbo.bind();
   GL_CHECK(glViewport(0, 0, w, h));
-  glClearColor(0,0,0,0);
+  glClearColor(0, 0, 0, 0);
   GL_CHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 }
 
@@ -371,7 +371,7 @@ void Renderer::init(GLsizei w, GLsizei h)
   GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo.get()));
   //check for completeness
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    std::cerr<<"Init FBO: rendering to texture could not be initialised."<<std::endl;
+    std::cerr << "Init FBO: rendering to texture could not be initialised." << std::endl;
   fbo.unbind();
 }
 
@@ -389,11 +389,11 @@ Renderer::~Renderer()
 
 unsigned long getFileLength(std::ifstream& file)
 {
-  if(!file.good()) return 0;
+  if (!file.good()) return 0;
 
-  unsigned long pos=file.tellg();
-  file.seekg(0,std::ios::end);
-  unsigned long len = file.tellg();
+  unsigned long pos = (unsigned long)file.tellg();
+  file.seekg(0, std::ios::end);
+  unsigned long len = (unsigned long)file.tellg();
   file.seekg(std::ios::beg);
 
   return len;
@@ -401,53 +401,17 @@ unsigned long getFileLength(std::ifstream& file)
 
 int loadShader(const char* filename, GLchar** shader_source, GLint* len)
 {
-  std::ifstream file;
-  file.open(filename, std::ios::in); // opens as ASCII!
-  (*shader_source) = NULL;
-  if(!file)
-  {
-    std::cerr<<"Cannot open shader file: "<<filename<<std::endl;
-    return -1;
-  }
-
-  *len = getFileLength(file);
-
-  if (*len==0)
-  {
-    std::cerr<<"Empty shader file: "<<filename<<std::endl;
-    return -2;   // Error: Empty File 
-  }
-
-  (*shader_source) = new GLchar[(*len)+1];
-  if ((*shader_source) == 0)
-  {
-    std::cerr<<"Can't allocate memory for shader: "<<filename<<std::endl;
-    return -3;   // can't reserve memory
-  }
-
-  // len isn't always strlen cause some characters are stripped in ascii read...
-  // it is important to 0-terminate the real length later, len is just max possible value... 
-  GLchar *source = (*shader_source);
-  source[*len] = 0; 
-
-  unsigned int i=0;
-  while (file.good())
-  {
-    source[i] = file.get();       // get character from file.
-    if (!file.eof())
-      i++;
-  }
-
-  source[i] = 0;  // 0-terminate it at the correct position
-
-  file.close();
+  std::string data = readFile(filename);
+  *shader_source = new GLchar[data.size()];
+  *len = data.size();
+  memcpy(*shader_source, data.c_str(), *len);
 
   return 0; // No Error
 }
 
 void unloadShader(GLchar** ShaderSource)
 {
-  if (*ShaderSource != NULL) delete[] *ShaderSource;
+  if (*ShaderSource != NULL) delete[] * ShaderSource;
   *ShaderSource = NULL;
 }
 
@@ -460,13 +424,13 @@ bool checkShader(GLuint shader, const char* file)
   log[0] = 0;
   if (!compiled)
   {
-    glGetShaderInfoLog(shader,512,&len,log);
-    std::cerr<<"Shader: "<<file<<std::endl<<
-      "Compilation issue: "<<std::endl<<log<<std::endl;
+    glGetShaderInfoLog(shader, 512, &len, log);
+    std::cerr << "Shader: " << file << std::endl <<
+      "Compilation issue: " << std::endl << log << std::endl;
     return false;
   }
-  std::cerr<<"Shader: "<<file<<std::endl<<
-    "Compilation log: "<<std::endl<<log<<std::endl;
+  std::cerr << "Shader: " << file << std::endl <<
+    "Compilation log: " << std::endl << log << std::endl;
   return true;
 }
 
@@ -479,17 +443,17 @@ Shader::Shader()
 
 Shader::~Shader()
 {
-  if(program!=-1)
+  if (program != -1)
   {
     GL_CHECK(glDeleteProgram(program));
     program = -1;
   }
-  if(vertex_shader!=-1)
+  if (vertex_shader != -1)
   {
     GL_CHECK(glDeleteShader(vertex_shader));
     vertex_shader = -1;
   }
-  if(fragment_shader!=-1)
+  if (fragment_shader != -1)
   {
     GL_CHECK(glDeleteShader(fragment_shader));
     fragment_shader = -1;
@@ -498,17 +462,17 @@ Shader::~Shader()
 
 Shader::Shader(const char* vert, const char* frag)
 {
-  init(vert,frag);
+  init(vert, frag);
 }
 
 void Shader::init(const char* vert, const char* frag)
 {
   GLchar* vertex_program = NULL, *fragment_program = NULL;
   GLint vertex_len, fragment_len;
-  if(loadShader(vert, &vertex_program, &vertex_len)==0 &&
-    loadShader(frag, &fragment_program, &fragment_len)==0)
+  if (loadShader(vert, &vertex_program, &vertex_len) == 0 &&
+    loadShader(frag, &fragment_program, &fragment_len) == 0)
   {
-    vertex_shader   = glCreateShader(GL_VERTEX_SHADER);
+    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
     GL_CHECK(glShaderSource(vertex_shader, 1, &vertex_program, &vertex_len));
@@ -517,7 +481,7 @@ void Shader::init(const char* vert, const char* frag)
     GL_CHECK(glCompileShader(vertex_shader));
     GL_CHECK(glCompileShader(fragment_shader));
 
-    if(checkShader(vertex_shader, vert) && checkShader(fragment_shader, frag))
+    if (checkShader(vertex_shader, vert) && checkShader(fragment_shader, frag))
     {
       program = glCreateProgram();
       GL_CHECK(glAttachShader(program, vertex_shader));
@@ -530,18 +494,18 @@ void Shader::init(const char* vert, const char* frag)
         GLchar log[512];
         GLsizei len;
         log[0] = 0;
-        GL_CHECK(glGetProgramInfoLog(program,512,&len,log));
-        std::cerr<<"Cannot link program for shaders: "<<vert<<" "<<frag<<" "<<std::endl;
-        std::cerr<<log<<std::endl;
+        GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
+        std::cerr << "Cannot link program for shaders: " << vert << " " << frag << " " << std::endl;
+        std::cerr << log << std::endl;
       }
       else
       {
         GLchar log[512];
         GLsizei len;
         log[0] = 0;
-        GL_CHECK(glGetProgramInfoLog(program,512,&len,log));
-        std::cerr<<log<<std::endl;
-      }    
+        GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
+        std::cerr << log << std::endl;
+      }
     }
   }
   unloadShader(&vertex_program);
@@ -603,7 +567,7 @@ void Shader::set(const char* uniform_name, int v0, int v1, int v2, int v3)const
 void Shader::activateTexture(const char* uniform_name, GLint index, const Texture& tex)const
 {
   GLint loc = glGetUniformLocation(program, uniform_name);
-  GL_CHECK(glActiveTexture(GL_TEXTURE0+index));
+  GL_CHECK(glActiveTexture(GL_TEXTURE0 + index));
   tex.bind();
   GL_CHECK(glUniform1i(loc, index));
 }

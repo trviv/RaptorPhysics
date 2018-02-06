@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(ParticlePhysics)
 
-find_package(CUDA REQUIRED)
+find_package(OpenCL REQUIRED)
 
 #code to get subdirectories
 macro(SUBDIRLIST RESULT CURRENT_DIRECTORY)
@@ -20,48 +20,34 @@ set(CMAKE_BINARY_DIR "${CMAKE_BINARY_DIR}/bin")
 
 message(${CMAKE_BINARY_DIR})
 
-if(CUDA_FOUND)
+if(OPENCL_FOUND)
 
-  message("CUDA found generating GPU code")
-  #set(NVCC_VERBOSE 1)
+  message("OpenCL found generating GPU code")
 
   set(PROJECT_STRING Freeglut)
   add_subdirectory(Freeglut)
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4003")
 
-  get_filename_component(CUDA_LIB_DIR ${CUDA_LIBRARIES} DIRECTORY)
-  link_directories(${CUDA_LIB_DIR})
+  include_directories("External/GLEW/include/GL/")
+  include_directories("${OpenCL_INCLUDE_DIR}")
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4003")
+  link_directories("${CMAKE_BINARY_DIR}")
+  link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/")
+  link_directories("${OPENCL_INCLUDE_DIR}")
 
-  #set(CUDA_SEPARABLE_COMPILATION ON)
-
-  #set(CUDA_BUILD_CUBIN ON)
-  #set(CUDA_CUSTOM_NVCC_FLAGS -keep -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_21 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50 -rdc=true)
-  set(CUDA_CUSTOM_NVCC_FLAGS -keep -gencode arch=compute_30,code=sm_30)
-
-  include_directories(${CUDA_INCLUDE_DIRS})
-  include_directories(External/GLEW/include/GL/)
-  link_directories(${CMAKE_BINARY_DIR})
-  link_directories("${CMAKE_BINARY_DIR}/../../External/GLEW/lib/Release/Win32/")
-
-  set(ADDITIONAL_INCLUDE_DIR Freeglut)
+  set(ADDITIONAL_INCLUDE_DIR Freeglut Core)
+  set(ADDITIONAL_LIBRARY Freeglut)
   set(PROJECT_STRING Core)
   add_subdirectory(Core)
 
-  #set(CUDA_CUSTOM_NVCC_FLAGS -keep -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_21 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50 -rdc=true)
-  #set(CUDA_CUSTOM_NVCC_FLAGS -keep -gencode arch=compute_30,code=sm_30 -rdc=true)
-  set(CUDA_ADDITIONAL_LIBRARIES -L${CMAKE_BINARY_DIR}/Release;-lCudas)
-
-  set(ADDITIONAL_INCLUDE_DIR Core Freeglut)
+  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
+  set(ADDITIONAL_LIBRARY Core Freeglut glew32)
   set(PROJECT_EXECUTABLE TRUE)
   set(PROJECT_STRING ParticlePhysics)
   add_subdirectory(ParticlePhysics)
 
-  add_dependencies(Core Freeglut)
-  add_dependencies(ParticlePhysics Core)
+else(OPENCL_FOUND)
 
-else(CUDA_FOUND)
+  message("OpenCL not found")
 
-  message("CUDA not found")
-
-endif(CUDA_FOUND)
+endif(OPENCL_FOUND)
