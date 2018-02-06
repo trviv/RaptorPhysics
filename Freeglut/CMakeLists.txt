@@ -1,8 +1,4 @@
-if(PROJECT_EXECUTABLE)
-  file(GLOB_RECURSE SOURCES "*.c" "*.cu" "*.cpp" "*.h" "../*.xml")
-else(PROJECT_EXECUTABLE)
-  file(GLOB_RECURSE SOURCES "*.c" "*.cu" "*.cpp" "*.h")
-endif(PROJECT_EXECUTABLE)
+file(GLOB_RECURSE SOURCES_C "*.c" "*.cpp" "*.h" "*.shader" "../*.xml")
 
 #code to get current directory name
 get_directory_property(CURRENT_DIRECTORY PARENT_DIRECTORY)
@@ -28,7 +24,6 @@ if(ADDITIONAL_INCLUDE_DIR)
     subdirlist(ADDITIONAL_INCLUDE_SUBDIRS ${ADD_INCLUDE_DIRECTORY})
 
     include_directories("${PARENT}/${ADDITIONAL_INCLUDE}")
-    cuda_include_directories("${PARENT}/${ADDITIONAL_INCLUDE}")
 
   endforeach(ADDITIONAL_INCLUDE ${ADDITIONAL_INCLUDE_DIR})
 
@@ -42,24 +37,19 @@ foreach(SUBDIR ${SUBDIRS})
   source_group(${SUBDIR} FILES ${dir_files})
 endforeach(SUBDIR ${SUBDIRS})
 
-if(NVCC_VERBOSE)
-  set(CUDA_VERBOSE_BUILD ON CACHE BOOL "nvcc verbose" FORCE)
-endif(NVCC_VERBOSE)
-
 if(CUSTOM_DEFINITIONS)
   add_definitions(${CUSTOM_DEFINITIONS})
 endif(CUSTOM_DEFINITIONS)
 
 if(PROJECT_EXECUTABLE)
 
-  cuda_add_executable(${PROJECT_STRING} ${SOURCES})
-  target_link_libraries(${PROJECT_STRING} ${ADDITIONAL_INCLUDE_DIR})
+  add_executable(${PROJECT_STRING} ${SOURCES_CU} ${SOURCES_C})
 
 else(PROJECT_EXECUTABLE)
 
-  cuda_add_library(${PROJECT_STRING} ${SOURCES})
+  add_library(${PROJECT_STRING} ${SOURCES_CU} ${SOURCES_C})
   set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 endif(PROJECT_EXECUTABLE)
-
-target_link_libraries(${PROJECT_STRING} ${CUDA_CUDA_LIBRARY})
+target_link_libraries(${PROJECT_STRING} ${ADDITIONAL_LIBRARY} ${OpenCL_LIBRARY})
+set(ADDITIONAL_FILES ${ADDITIONAL_FILES} ${SOURCES_CU} ${SOURCES_C} PARENT_SCOPE)

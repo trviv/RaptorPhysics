@@ -40,15 +40,16 @@ public:
   virtual void init(int argc, char** argv, int width = 512, int height = 512,
     const char* name = "GL Window");
 
-  void start();
-  virtual void step() {};
-  virtual void render() {};
   void display();
   bool keyboard(unsigned char key, int x, int y);
   void reshape(int width, int height);
-  void mouseWheel(int button, int dir, int x, int y);
   void mouse(int button, int dir, int x, int y);
   void mouseDrag(int x, int y);
+  void mouseWheel(int button, int dir, int x, int y);
+  void start();
+
+  virtual void render() {};
+  virtual void step() {};
 };
 
 extern Window *main_window;

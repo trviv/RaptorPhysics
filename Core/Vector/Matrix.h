@@ -18,39 +18,39 @@ protected:
 public:
 
   /// Default constructor ( unused )
-  FORCE_INLINE  CU_DEV_HOST Matrix()
+  Matrix()
   {}
 
   /// Copy constructor
-  FORCE_INLINE  CU_DEV_HOST Matrix(const Matrix& mat)
+  Matrix(const Matrix& mat)
   {
     trans = mat.trans;
     itrans = mat.itrans;
   }
 
   /// Multiplication operator
-  FORCE_INLINE  CU_DEV_HOST void  operator*=(const Matrix& mat)
+  void  operator*=(const Matrix& mat)
   {
     trans *= mat.trans;
     itrans.preMul(mat.itrans);
   }
 
   /// Access operator
-  FORCE_INLINE  CU_DEV_HOST const Matrix4&  operator[](
-    const Counter& index)const
+  const Matrix4&  operator[](
+    const int& index)const
   {
     return *(&trans + index);
   }
 
   /// Set identity matrix
-  FORCE_INLINE  CU_DEV_HOST void  setIdentity()
+  void  setIdentity()
   {
     trans.setIdentity();
     itrans.setIdentity();
   }
 
   /// Apply rotation according to value
-  FORCE_INLINE  CU_DEV_HOST void  rotate(const Real3& val)
+  void  rotate(const Real3& val)
   {
     real cost, sint;
     Real3 rv = val * M_PI_180;
@@ -92,7 +92,7 @@ public:
   }
 
   /// Apply scale according to value
-  FORCE_INLINE  CU_DEV_HOST void  scale(const Real3& val)
+  void  scale(const Real3& val)
   {
     Matrix sm;
     sm.setIdentity();
@@ -108,7 +108,7 @@ public:
   }
 
   /// Apply translation according to value
-  FORCE_INLINE  CU_DEV_HOST void  translate(const Real3& val)
+  void  translate(const Real3& val)
   {
     Matrix t;
     t.trans.set(Matrix3::getIdentity(), val);

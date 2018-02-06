@@ -3,10 +3,11 @@
 
 #include "Root.h"
 #include <stdio.h>
+#include "ComputeInterface.h"
 
-const int SIZEOF_INT   = sizeof(int);
+const int SIZEOF_INT = sizeof(int);
 const int SIZEOF_FLOAT = sizeof(float);
-const int SIZEOF_BYTE  = sizeof(unsigned char);
+const int SIZEOF_BYTE = sizeof(unsigned char);
 
 static void CheckOpenGLError(const char* stmt, const char* fname, int line)
 {
@@ -39,9 +40,9 @@ class Shader
 public:
   Shader();
 
-  Shader(const char* vert,const char* frag);
+  Shader(const char* vert, const char* frag);
 
-  void init(const char* vert,const char* frag);
+  void init(const char* vert, const char* frag);
 
   ~Shader();
 
@@ -100,7 +101,7 @@ public:
   virtual void free();
 };
 
-class Frame:public GLObject
+class Frame :public GLObject
 {
   static const GLuint default_frame = 0;
 
@@ -116,7 +117,7 @@ public:
   void free();
 };
 
-class Render:public GLObject
+class Render :public GLObject
 {
 public:
   Render();
@@ -130,7 +131,7 @@ public:
   void free();
 };
 
-class Texture:public GLObject
+class Texture :public GLObject
 {
   GLsizei w, h;
 
@@ -165,11 +166,11 @@ public:
 
   void get(float target[])const;
 
-  GLsizei width()       {return w;}
-  GLsizei width()const  {return w;}
+  GLsizei width()       { return w; }
+  GLsizei width()const  { return w; }
 
-  GLsizei height()      {return h;}
-  GLsizei height()const {return h;}
+  GLsizei height()      { return h; }
+  GLsizei height()const { return h; }
 };
 
 class Renderer
@@ -195,7 +196,7 @@ public:
   void free();
 };
 
-class Vertex:public GLObject
+class Vertex :public GLObject
 {
   GLsizei vertex_stride;
   int vertex_width;
@@ -223,7 +224,7 @@ public:
   int count()const;
 };
 
-class Face:public GLObject
+class Face :public GLObject
 {
   GLsizei index_count;
 
