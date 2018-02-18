@@ -18,9 +18,13 @@ class PhysicsEntity : protected SolverData<uint, real, Real3>
 {
 protected:
 
+#ifdef ENABLE_RENDERING
+
   Vertex  displayVertex;
   Shader  displayShader;
   Face    displayElements;
+
+#endif
 
   uint    instanceCount;
   uint    solver;

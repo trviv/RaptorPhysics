@@ -12,6 +12,7 @@
 #endif
 #include <iostream>
 #include <string.h>
+#include <stdarg.h>
 #include <algorithm>
 
 #define CREATE_SUB_BUFFER
@@ -94,7 +95,7 @@ const char* getStatusMessage(ComputeStatus status)
   }
 }
 
-std::string getCurrentDir(void)
+string getCurrentDir(void)
 {
   char currentPath[1024];
 #ifdef _WIN32
@@ -110,6 +111,25 @@ std::string getCurrentDir(void)
   return ret.substr(0, ret.find_last_of("\\/"));
 }
 
+
+void logComputeMessage(const char* format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  string str = "\nInfo: ";
+  str += format;
+  printf(str.c_str(), args);
+}
+
+void logComputeError(const char* format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  string str = "\nError: ";
+  str += format;
+  printf(str.c_str(), args);
+  assert(0);
+}
 
 ComputeMemory::ComputeMemory()
 {
@@ -262,6 +282,12 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
   computeCheckError(status, 0);
 }
 
+void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
+{
+  ComputeMemoryIdentifier ident = *buffer;
+  setArg<ComputeMemoryIdentifier>(&ident, index);
+}
+
 void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* indices)
 {
   for (uint i = 0; i < count; i++)
@@ -412,17 +438,15 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   return program;
 }
 
-ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName,
-  const vector<string>* oldType,
-  const vector<string>* newType,
-  const vector<string>* includeFiles)
+ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, const vector<string>* oldType,
+  const vector<string>* newType, const vector<string>* includeFiles)
 {
   std::string data = "\n";
   if (oldType)
   {
     for (uint i = 0; i < oldType->size(); i++)
     {
-      data += "typedef " + (*oldType)[i] + " " + (*newType)[i] + ";\n";
+      data += "#define " + (*oldType)[i] + " " + (*newType)[i] + "\n";
     }
   }
   if (includeFiles)
@@ -468,9 +492,11 @@ void ComputeInterface::copyFromHost(ComputeMemory* destin, size_t destinOffset, 
 
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount)
 {
-  uint maxThreads = 1024;
-  uint height = maxThreads / 32;
-  workgroupSize[0] = 32;
+  const uint maxThreads = maxThreadsPerGroup();
+  const uint width = 32;
+  const uint height = maxThreads / width;
+
+  workgroupSize[0] = width;
   workgroupSize[1] = (uint)ceil(threadCount / float(height));
   workgroupSize[2] = 1;
 
@@ -498,6 +524,11 @@ void ComputeInterface::sync()
 {
   ComputeStatus status = clFinish(queue);
   computeCheckError(status, 0);
+}
+
+uint ComputeInterface::maxThreadsPerGroup()const
+{
+  return 1024;
 }
 
 #ifdef ENABLE_RENDERING

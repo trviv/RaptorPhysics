@@ -1,17 +1,17 @@
-#ifndef CLOTH_H
-#define CLOTH_H
+#ifndef RIGID_BODY_H
+#define RIGID_BODY_H
 
 #include "PhysicsEntity.h"
-#include "../Solvers/DistanceSolver.h"
+#include "../Solvers/RigidSolver.h"
 
 /*!
-@class Class representing a cloth.
+@class Class representing a rigid body.
 */
-class Cloth : public PhysicsEntity
+class RigidBody : public PhysicsEntity
 {
 public:
 
-  Cloth();
+  RigidBody();
 
   void init(const Matrix4& transform, const real dim[],
     const uint subdivision[], const real mass);

@@ -8,8 +8,6 @@ public Solver<IndexType, CoefficientType, VariableType>
 {
 protected:
 
-  uint iterations;
-
   void update();
 
 public:

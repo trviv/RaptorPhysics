@@ -40,6 +40,9 @@ typedef cl_int            ComputeStatus;
 extern string readFile(const char* fileName);
 extern const char* getStatusMessage(ComputeStatus status);
 
+extern void logComputeMessage(const char* format, ...);
+extern void logComputeError(const char* format, ...);
+
 #define computeCheckError(a, b) if((a)!=(b)) { printf("Compute Error : %s\n", getStatusMessage(a)); assert((a) == (b)); }
 
 class ComputeInterface;
@@ -120,6 +123,8 @@ public:
     setArg(valuePtr, sizeof(ArgType), index);
   }
 
+  void setArg(ComputeMemory* buffer, uint index);
+
   void setArgs(ComputeMemory* buffers[], const uint count, uint* indices = NULL);
 
   operator ComputeKernelIdentifier()
@@ -175,7 +180,8 @@ public:
 
   ComputeProgram createProgram(const char* sourceCode, size_t sourceSize);
 
-  ComputeProgram createTemplateProgram(const char* fileName, const vector<string>* oldType = NULL, const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
+  ComputeProgram createTemplateProgram(const char* fileName, const vector<string>* oldType = NULL,
+    const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
 
 
   void copyBuffer(ComputeMemory* source, ComputeMemory* destin, size_t sourceOffset, size_t destinOffset, size_t sizeInBytes);
@@ -192,6 +198,8 @@ public:
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
   void sync();
+
+  uint maxThreadsPerGroup()const;
 
 #ifdef ENABLE_RENDERING
   ComputeMemory createMemoryFromGLBuffer(GLuint glObject);

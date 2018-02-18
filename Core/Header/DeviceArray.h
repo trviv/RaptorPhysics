@@ -53,7 +53,7 @@ public:
 
   DeviceArray(const DeviceArray& ref)
   {
-    assert(0 && "Copying device array is not defined yet!");
+    logComputeError("Copying device array is not defined yet!");
   }
 
   void create(ComputeInterface* compute, ComputeHeap* heap = NULL, bool shared = false)
@@ -156,30 +156,28 @@ public:
     allocated = 0;
   }
 
-  void syncHost(size_t offset = 0, size_t size = 0)
+  void syncHost(size_t offset = 0, size_t elements = 0)
   {
     if (!hostBuffer)
     {
-      printf("Device array does not have a host buffer!");
-      assert(0);
+      logComputeError("Device array does not have a host buffer!");
     }
-    if (!size)
+    if (!elements)
     {
-      size = elements;
+      elements = this->elements;
     }
-    if ((offset + size) != elements)
+    //if ((offset + size) != elements)
     {
-      hostBuffer->resize(offset + size);
+      hostBuffer->resize(offset + elements);
     }
-    compute->copyToHost(deviceBuffer, offset * sizeof(ClassType), size * sizeof(ClassType), &((*hostBuffer)[offset]), false);
+    compute->copyToHost(deviceBuffer, offset * sizeof(ClassType), elements * sizeof(ClassType), &((*hostBuffer)[offset]), false);
   }
 
   void syncDevice(size_t offset = 0, size_t size = 0)
   {
     if (!hostBuffer)
     {
-      printf("Device array does not have a host buffer!");
-      assert(0);
+      logComputeError("Device array does not have a host buffer!");
     }
     if (!size)
     {
@@ -189,7 +187,14 @@ public:
     {
       resize((offset + size), true);
     }
-    compute->copyFromHost(deviceBuffer, offset * sizeof(ClassType), size * sizeof(ClassType), &((*hostBuffer)[offset]), false);
+    if (hostBuffer->size())
+    {
+      compute->copyFromHost(deviceBuffer, offset * sizeof(ClassType), size * sizeof(ClassType), &((*hostBuffer)[offset]), false);
+    }
+    else
+    {
+      logComputeMessage("Nothing to copy from host!");
+    }
   }
 
   uint size()const

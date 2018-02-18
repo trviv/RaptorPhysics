@@ -2,6 +2,7 @@
 
 #include "../Solvers/LinearSolver.h"
 #include "../Solvers/DistanceSolver.h"
+#include "../Solvers/RigidSolver.h"
 
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   : compute(compute)
@@ -16,8 +17,11 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
     solversUint[i] = NULL;
   }
 
-  vector<string> oldType = { "uint", "float", "float3" };
-  vector<string> newType = { "IndexType", "CoefficientType", "VariableType" };
+  includeFiles.push_back("ComputeHeader.shader");
+  includeFiles.push_back("ParticleStruct.h");
+
+  vector<string> newType = { "uint", "float", "float3" };
+  vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
   registerShader(compute, "PhysicsSystem.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("integrate"));
 
@@ -65,12 +69,22 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
   Solver<uint, real, Real3>* solver = NULL;
   if (!solversUint[entity->solver])
   {
+    int index = mExpOf2(entity->solver);
     switch (entity->solver)
     {
     case SOLVER_CLOTH:
-      solversUint[entity->solver] = new DistanceSolver(compute, allocator);
-      solver = solversUint[entity->solver];
+    {
+      solversUint[index] = new DistanceSolver(compute, allocator);
+      solver = solversUint[index];
       break;
+    }
+    case SOLVER_RIGID_BODY:
+    {
+      solversUint[index] = new RigidSolver(compute, allocator);
+      solver = solversUint[index];
+      break;
+    }
+
     default:
       printf("Undefined!");
       assert(0);
@@ -147,7 +161,6 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
       solver->particles.host()->push_back(particle);
     }
 
-
     if (solver->particleAuxData.host()->size())
     {
       solver->particleAuxData.host()->insert(entity->particleAuxData.host()->end(),
@@ -157,6 +170,17 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
     else
     {
       *solver->particleAuxData.host() = *entity->particleAuxData.host();
+    }
+
+    if (solver->particleRigidData.host()->size())
+    {
+      solver->particleRigidData.host()->insert(entity->particleRigidData.host()->end(),
+        entity->particleRigidData.host()->begin(),
+        solver->particleRigidData.host()->end());
+    }
+    else
+    {
+      *solver->particleRigidData.host() = *entity->particleRigidData.host();
     }
 
     solver->commit();
@@ -218,7 +242,8 @@ void PhysicsSystem::render()
   {
     if (solversUint[i])
     {
-      solversUint[i]->particles.syncHost();
+      uint elements = solversUint[i]->nodes();
+      solversUint[i]->particles.syncHost(0, elements);
     }
   }
 
@@ -260,20 +285,4 @@ void PhysicsSystem::step(float timeStep)
     kernels[0].setArg<uint>(&nodeCount, 6);
     compute->execute(kernels[0], workgroupSize, workgroupCount);
   }
-  /*
-  template<class IndexType, class CoefType, class ValueType>
-  CU_KER void constrainIntegrate(
-  DeviceConstrainData<IndexType, CoefType, ValueType>* constrain)
-  {
-  const IndexType index = threadIndex;
-  if (index >= constrain->getNodeCount()) return;
-
-  constrain->getVelocity()[index] += (constrain->del_t *
-  constrain->velocity_fraction * constrain->getMass()[index]) * constrain->getForce()[index];
-  constrain->getPosition()[index] += constrain->getVelocity()[index] * constrain->del_t;
-  if (constrain->getPosition()[index][Y] <= -2)
-  constrain->getPosition()[index][Y] = -2;
-  constrain->getForce()[index] = Real3(0, -9.8, 0);
-  }
-  */
 }

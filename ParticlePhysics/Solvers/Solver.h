@@ -2,7 +2,6 @@
 #define SOLVER_H
 
 #include "SolverData.h"
-#include "../Common/ShaderEntity.h"
 
 #define DEBUG_SOLVERS
 
@@ -24,6 +23,7 @@ protected:
   ComputeInterface*   compute;
   SharedAllocator*    allocator;
   SolverType          type;
+  uint                iterations;
   vector<SectionData> updates;
 
   template<class BaseType> void flatArray(vector<BaseType>& out, const vector<vector<BaseType>>& in)

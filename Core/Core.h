@@ -1,16 +1,20 @@
-#ifndef _CORE
-#define _CORE
+#ifndef CORE_H
+#define CORE_H
 
 #include "Header/Root.h"
+#include "Header/Math.h"
 #include "Header/Logging.h"
-//#include "Header/ComputeUtils.h"
 #include "Header/ComputeInterface.h"
+#include "Header/ShaderEntity.h"
+#include "Header/ComputeUtils.h"
+
 //#include "Header/CudaQuery.h"
 #include "Header/GLClass.h"
 //#include "Header/CudaGLPlug.h"
 #include "Header/DeviceArray.h"
 #include "Header/Math.h"
 #include "Header/GLWindow.h"
+
 #include "Vector/Matrix.h"
 
 #endif

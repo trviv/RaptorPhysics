@@ -22,8 +22,8 @@ void DistanceSolver::create(ComputeInterface* compute)
 {
   if (programs.empty())
   {
-    vector<string> oldType = { "uint", "float", "float3" };
-    vector<string> newType = { "IndexType", "CoefficientType", "VariableType" };
+    vector<string> newType = { "uint", "float", "float3" };
+    vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
     registerShader(compute, "DistanceSolver.shader", &oldType, &newType);
     kernels.push_back(programs[0].createKernel("distanceSolverSpring"));
     kernels.push_back(programs[0].createKernel("setDeltaPosition"));

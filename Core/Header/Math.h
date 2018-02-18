@@ -1,5 +1,5 @@
-#ifndef RX_MATH
-#define RX_MATH
+#ifndef MATH_H
+#define MATH_H
 
 #include "Root.h"
 
