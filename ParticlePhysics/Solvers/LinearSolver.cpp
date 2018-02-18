@@ -85,8 +85,8 @@ void LinearSolver<uint, real, real>::create(ComputeInterface* compute)
 {
   if (programs.empty())
   {
-    vector<string> oldType = { "uint", "float", "float" };
-    vector<string> newType = { "IndexType", "CoefficientType", "VariableType" };
+    vector<string> newType = { "uint", "float", "float" };
+    vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
     registerShader(compute, "LinearSolver.shader", &oldType, &newType);
     kernels.push_back(programs[0].createKernel("linearSolver"));
   }
@@ -97,8 +97,8 @@ void LinearSolver<ushort, real, real>::create(ComputeInterface* compute)
 {
   if (programs.empty())
   {
-    vector<string> oldType = { "ushort", "float", "float" };
-    vector<string> newType = { "IndexType", "CoefficientType", "VariableType" };
+    vector<string> newType = { "ushort", "float", "float" };
+    vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
     registerShader(compute, "LinearSolver.shader", &oldType, &newType);
     kernels.push_back(programs[0].createKernel("linearSolver"));
   }
@@ -109,8 +109,8 @@ void LinearSolver<uint, real, Real3>::create(ComputeInterface* compute)
 {
   if (programs.empty())
   {
-    vector<string> oldType = { "uint", "float", "Real3" };
-    vector<string> newType = { "IndexType", "CoefficientType", "VariableType" };
+    vector<string> newType = { "uint", "float", "float3" };
+    vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
     registerShader(compute, "LinearSolver.shader", &oldType, &newType);
     kernels.push_back(programs[0].createKernel("linearSolver"));
   }

@@ -54,14 +54,16 @@ endif(PROJECT_EXECUTABLE)
 #set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Common/ComputeHeader.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Common/ConstrainStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Common/ParticleStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Entities/PhysicsSystem.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Solvers/LinearSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Solvers/DistanceSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Solvers/RigidSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/display_vert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/display_frag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeHeader.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeUtils.shader"
   $<TARGET_FILE_DIR:${PROJECT_STRING}>)
 
 target_link_libraries(${PROJECT_STRING} ${ADDITIONAL_LIBRARY} ${OpenCL_LIBRARY})

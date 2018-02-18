@@ -4,12 +4,6 @@
 Cloth::Cloth()
 {
   solver = SOLVER_CLOTH;
-  ParticleSharedData sharedData;
-  sharedData.velocityDamping = .99f;
-  sharedData.sharedInvMass = 0.f;
-  sharedData.sharedRadius = 0.f;
-  sharedData.invMassIsShared = 0;
-  particleSharedData.host()->push_back(sharedData);
 }
 
 void Cloth::init(const Matrix4& transform, const real dim[],
@@ -41,16 +35,16 @@ void Cloth::init(const Matrix4& transform, const real dim[],
   const real x_len = del_x.length();
   const real y_len = del_y.length();
   const real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
-  std::vector<Real3> pointPosition;
+  vector<Real3> pointPosition;
 
-  const real per_particle_inv_mass = real(mass) / real(subdivision[0] * subdivision[1]);
+  const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1]);
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
     uint index = y*subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
-      addConnection(index, index, y ? per_particle_inv_mass : 0);
+      addConnection(index, index, y ? perParticleInvMass : 0);
       ParticleAuxData auxData;
       auxData.invMass = rawConstrainCoefficients[index][0];
       auxData.radius = 0;
@@ -65,9 +59,9 @@ void Cloth::init(const Matrix4& transform, const real dim[],
     uint index = y*subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
-      Real3 new_pos = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
-      setConstant(index, new_pos);
-      pointPosition.push_back(new_pos);
+      Real3 newPosition = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
+      setConstant(index, newPosition);
+      pointPosition.push_back(newPosition);
 
       // add twice because constrain is solved only once
       if (x + 1 < subdivision[0])

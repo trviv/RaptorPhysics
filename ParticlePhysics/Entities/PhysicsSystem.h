@@ -9,61 +9,71 @@
 */
 class PhysicsSystem : protected ShaderEntity, public Window
 {
-  /* Compute interface on which the system will operate on.*/
+  /*@member Compute interface on which the system will operate on.*/
   ComputeInterface*               compute;
 
-  /* Memory sections which needs updation.*/
+  /*@member Memory sections which needs updation.*/
   vector<SectionData>             updates;
 
-  /* Entities in the system.*/
+  /*@member Entities in the system.*/
   vector<PhysicsEntity*>          entities;
 
-  /* Shared data for entities.*/
+  /*@member Shared data for entities.*/
   vector<ParticleSharedData*>     entitySharedData;
 
-  /* Entities in the system.*/
+  /*@member Entities in the system.*/
   vector<vector<ParticleStruct>*> entityParticles;
 
-  /* Memory allocators used by the system.*/
+  /*@member Memory allocators used by the system.*/
   vector<SharedAllocator*>        allocators;
 
-  /* ushort solvers in the system.*/
+  /*@member ushort solvers in the system.*/
   Solver<ushort, real, Real3>*    solversUshort[SOLVER_MAX];
 
-  /* uint solvers in the system.*/
+  /*@member uint solvers in the system.*/
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
 
-  /* Number of nodes in the system.*/
+  /*@member Number of nodes in the system.*/
   uint  nodeCount;
 
-  /* Total entities in the system.*/
+  /*@member Total entities in the system.*/
   uint  totalEntityCount;
 
-  /* Entity ids available for reuse.*/
+  /*@member Entity ids available for reuse.*/
   vector<uint>  availableEntityIds;
 
+  /*@function Take one simulation step.*/
   void step();
 
+  /*@function Get an available unique entity id.*/
   uint getNewEntityId();
 
 public:
 
+  /*@constructor Create a new physics system using a compute interface.*/
   PhysicsSystem(ComputeInterface* compute);
 
+  /*@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
 
+  /*@function Initialize a physics system.*/
   void init(int argc, char** argv, int width = 512, int height = 512,
     const char* name = "GL Window");
 
+  /*@function Register a physics entity to the system.*/
   void registerEntity(PhysicsEntity* entity);
 
 #ifdef ENABLE_RENDERING
 
+  /*@function Get shared data for a given entity.*/
   const ParticleSharedData* getEntitySharedData(PhysicsEntity* entity)const;
 
+  /*@function Render all registered entities.*/
   void render();
+
 #endif
 
+  /*@function Take one simulation step using the time step.*/
   void step(float timeStep);
 };
 

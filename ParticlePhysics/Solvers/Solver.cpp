@@ -16,6 +16,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   particleDiff.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
   particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
+  particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
 #ifdef DEBUG_SOLVERS
   particlesTemp[0].create(compute, NULL, true);
   particlesTemp[1].create(compute, NULL, true);
@@ -24,6 +25,11 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   particlesTemp[1].create(compute, NULL, false);
 #endif
 
+  iterations = 1;
+
+  includeFiles.push_back("ComputeHeader.shader");
+  includeFiles.push_back("ConstrainStruct.h");
+  includeFiles.push_back("ParticleStruct.h");
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -45,15 +51,19 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
 
   for (const SectionData& section : updates)
   {
-    // create flat constrain array for device
-    for (uint i = section.offsets[DEVICE_HEADER_NODE]; i < section.offsets[DEVICE_HEADER_NODE] + section.counts[DEVICE_HEADER_NODE]; i++)
+
+    if (constrainIndices.host()->size())
     {
-      constrainHeaders.host()->push_back(Constrain(constrainIndices.host()->size(), 0));
-      for (uint j = 0; j < rawConstrainConnections[i].size(); j++)
+      // create flat constrain array for device
+      for (uint i = section.offsets[DEVICE_HEADER_NODE]; i < section.offsets[DEVICE_HEADER_NODE] + section.counts[DEVICE_HEADER_NODE]; i++)
       {
-        constrainIndices.host()->push_back(rawConstrainConnections[i][j]);
+        constrainHeaders.host()->push_back(Constrain(constrainIndices.host()->size(), 0));
+        for (uint j = 0; j < rawConstrainConnections[i].size(); j++)
+        {
+          constrainIndices.host()->push_back(rawConstrainConnections[i][j]);
+        }
+        (*constrainHeaders.host())[i].setCount(rawConstrainConnections[i].size()); // the constrain header
       }
-      (*constrainHeaders.host())[i].setCount(rawConstrainConnections[i].size()); // the constrain header
     }
 
     // send values to device
