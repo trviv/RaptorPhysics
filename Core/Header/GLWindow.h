@@ -47,6 +47,7 @@ public:
   void mouseDrag(int x, int y);
   void mouseWheel(int button, int dir, int x, int y);
   void start();
+  void loop();
 
   virtual void render() {};
   virtual void step() {};

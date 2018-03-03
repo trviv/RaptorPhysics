@@ -3,10 +3,11 @@
 vector<ComputeUtil> computeUtils;
 vector<string>      computeConfig;
 
-#define COMPUTE_UTIL_KERNEL_SUM           0
-#define COMPUTE_UTIL_KERNEL_SHOW_MATRIX   1
-#define COMPUTE_UTIL_KERNEL_SUM_PARTITION 2
-
+#define COMPUTE_UTIL_SUM_1D_KERNEL                  0
+#define COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL          1
+#define COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL        2
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL  3
+#define COMPUTE_UTIL_SHOW_MATRIX_KERNEL             4
 
 string getKeyName(ComputeUtilKey key)
 {
@@ -69,13 +70,17 @@ uint ComputeUtil::create(ComputeInterface* compute, const vector<ComputeUtilTupl
     newType.push_back(tuples[i].value);
     if (tuples[i].key == ComputeUtilStructType)
     {
-      util.kernelIndices[COMPUTE_UTIL_KERNEL_SUM] = kernelNames.size();
-      kernelNames.push_back("calculateSum");
+      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("sum1DKernel");
+      util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("sumRegular2DKernel");
+      util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("parallelPrefixSum1D");
     }
     else if (tuples[i].key == ComputeUtilIndexStructType)
     {
-      util.kernelIndices[COMPUTE_UTIL_KERNEL_SUM_PARTITION] = kernelNames.size();
-      kernelNames.push_back("calculateSumPartitions");
+      util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("sumIrregular2DKernel");
     }
     else if (tuples[i].key == ComputeUtilCustomFunctionSuffix)
     {
@@ -87,13 +92,14 @@ uint ComputeUtil::create(ComputeInterface* compute, const vector<ComputeUtilTupl
     }
   }
 
-  util.kernelIndices[COMPUTE_UTIL_KERNEL_SHOW_MATRIX] = kernelNames.size();
+  util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
   kernelNames.push_back("showMatrix");
-
-  util.programs.push_back(compute->createTemplateProgram("ComputeUtils.shader", &oldType, &newType, &util.includeFiles));
 
   for (const string& kernelName : kernelNames)
   {
+    //oldType.push_back("GroupSize");
+    //newType.push_back("GroupSize");
+    util.programs.push_back(compute->createTemplateProgram("ComputeUtils.shader", &oldType, &newType, &util.includeFiles));
     util.kernels.push_back(util.programs[0].createKernel(kernelName.c_str()));
   }
 
@@ -107,17 +113,19 @@ ComputeUtil* ComputeUtil::get(uint templateId)
   return &computeUtils[templateId];
 }
 
-void ComputeUtil::calculateSum(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
+void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
 {
-  const uint iterations = mExpOf2(length);
-  const uint maxThreadsPerGroupExponent = mExpOf2(compute->maxThreadsPerGroup() << 1);
+  const uint iterations = mCeilExpOf2(length);
+  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
 
   uint divideFlag = 0;
   uint maxLocalIterations = 1;
-  kernels[COMPUTE_UTIL_KERNEL_SUM].setArg(memory, 0);
-  kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&length, 1);
-  kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&maxLocalIterations, 3);
-  kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&divideFlag, 4);
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
+
+  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg<uint>(&length, 1);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
@@ -126,45 +134,89 @@ void ComputeUtil::calculateSum(ComputeInterface* compute, ComputeMemory* memory,
   {
     maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
 
-    kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&i, 2);
+    kernels[kernelIndex].setArg<uint>(&i, 2);
     if (maxLocalIterations != 1)
     {
-      kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&maxLocalIterations, 3);
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
     }
 
     divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
     if (divideFlag && doMean) // set only if needed
     {
-      kernels[COMPUTE_UTIL_KERNEL_SUM].setArg<uint>(&divideFlag, 4);
+      kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
     }
 
     compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i) * 2)));
-    compute->execute(kernels[COMPUTE_UTIL_KERNEL_SUM], workgroupSize, workgroupCount);
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
     if (iterations - i <= maxThreadsPerGroupExponent) break;
   }
 }
 
-void ComputeUtil::calculateSum(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
+/*void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
 {
-  const uint iterations = mExpOf2(maxPartitionLength);// << 1;// mExpOf2(length);
-  const uint maxThreadsPerGroupExponent = mExpOf2(compute->maxThreadsPerGroup() << 1);
+ComputeMemory* temp = compute->heap.alloc(length);
+compute->copyBuffer(memory, temp, 0, 0, length);
+
+const uint iterations = mExpOf2(length);
+const uint maxThreadsPerGroupExponent = mExpOf2(compute->maxThreadsPerGroup() << 1);
+
+uint divideFlag = 0;
+uint maxLocalIterations = 1;
+const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
+
+kernels[kernelIndex].setArg(memory, 0);
+kernels[kernelIndex].setArg<uint>(&length, 1);
+kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
+kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
+
+size_t workgroupSize[3];
+size_t workgroupCount[3];
+
+for (uint i = 0; i < iterations; i++)
+{
+maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
+
+kernels[kernelIndex].setArg<uint>(&i, 2);
+if (maxLocalIterations != 1)
+{
+kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
+}
+
+divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
+if (divideFlag && doMean) // set only if needed
+{
+kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
+}
+
+compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i) * 2)));
+compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+if (iterations - i <= maxThreadsPerGroupExponent) break;
+}
+}*/
+
+void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* memory, uint length, uint subArrayElements, bool doMean)
+{
+  const uint iterations = mCeilExpOf2(subArrayElements);
+  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
 
   uint divideFlag = 0;
   uint maxLocalIterations = 1;
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg(memory, 0);
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg(partitions, 1);
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&length, 2);
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&maxPartitionLength, 3);
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&maxLocalIterations, 5);
-  kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&divideFlag, 6);
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL];
+
+  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg<uint>(&length, 1);
+  kernels[kernelIndex].setArg<uint>(&subArrayElements, 2);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 4);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, 5);
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
 
   for (uint i = 0; i < iterations; i++)
   {
-    kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&i, 4);
+    kernels[kernelIndex].setArg<uint>(&i, 3);
 
     maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
     divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
@@ -172,29 +224,115 @@ void ComputeUtil::calculateSum(ComputeInterface* compute, ComputeMemory* memory,
     // set only if needed
     if (maxLocalIterations != 1)
     {
-      kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&maxLocalIterations, 5);
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 4);
     }
     if (divideFlag && doMean)
     {
-      kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION].setArg<uint>(&divideFlag, 6);
+      kernels[kernelIndex].setArg<uint>(&divideFlag, 5);
     }
 
-    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i) * 2)));
-    compute->execute(kernels[COMPUTE_UTIL_KERNEL_SUM_PARTITION], workgroupSize, workgroupCount);
+    const uint arraysPerGroup = compute->maxThreadsPerGroup() / subArrayElements;
+    const uint subArrays = length / subArrayElements;
+    const float totalthreads = compute->maxThreadsPerGroup() * (float(subArrays) / arraysPerGroup);
+
+    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(totalthreads / ((1 << i) * 2)));
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
     if (iterations - i <= maxThreadsPerGroupExponent) break;
   }
+}
+
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
+{
+  const uint iterations = mCeilExpOf2(maxPartitionLength);
+  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
+
+  uint divideFlag = 0;
+  uint maxLocalIterations = 1;
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL];
+
+  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg(partitions, 1);
+  kernels[kernelIndex].setArg<uint>(&length, 2);
+  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, 3);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 5);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, 6);
+
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+
+  for (uint i = 0; i < iterations; i++)
+  {
+    kernels[kernelIndex].setArg<uint>(&i, 4);
+
+    maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
+    divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
+
+    // set only if needed
+    if (maxLocalIterations != 1)
+    {
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 5);
+    }
+    if (divideFlag && doMean)
+    {
+      kernels[kernelIndex].setArg<uint>(&divideFlag, 6);
+    }
+
+    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i) * 2)));
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+    if (iterations - i <= maxThreadsPerGroupExponent) break;
+  }
+}
+
+void ComputeUtil::prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
+{
+  const uint iterations = mCeilExpOf2(length);
+  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
+
+  uint backwards = 0;
+  uint maxLocalIterations = 1;
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL];
+
+  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg<uint>(&length, 1);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
+
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+
+  for (uint i = 0; i < iterations; i++)
+  {
+    maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
+
+    kernels[kernelIndex].setArg<uint>(&i, 2);
+    if (maxLocalIterations != 1)
+    {
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
+    }
+
+    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << (i / 2)) * 2)));
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+    if (iterations - i <= maxThreadsPerGroupExponent) break;
+  }
+}
+
+void ComputeUtil::determineGroups(ComputeMemory* group, ComputeMemory* partitions, uint partitionCount)
+{
+
 }
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
 {
   size_t workgroupSize[3];
   size_t workgroupCount[3];
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL];
 
   compute->configureSize(workgroupSize, workgroupCount, length / rowSize);
-  kernels[COMPUTE_UTIL_KERNEL_SHOW_MATRIX].setArg(memory, 0);
-  kernels[COMPUTE_UTIL_KERNEL_SHOW_MATRIX].setArg<uint>(&rowSize, 1);
-  kernels[COMPUTE_UTIL_KERNEL_SHOW_MATRIX].setArg<uint>(&strideIn4Byte, 2);
-  kernels[COMPUTE_UTIL_KERNEL_SHOW_MATRIX].setArg<uint>(&length, 3);
-  compute->execute(kernels[COMPUTE_UTIL_KERNEL_SHOW_MATRIX], workgroupSize, workgroupCount);
+  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg<uint>(&rowSize, 1);
+  kernels[kernelIndex].setArg<uint>(&strideIn4Byte, 2);
+  kernels[kernelIndex].setArg<uint>(&length, 3);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }

@@ -8,26 +8,13 @@ VariableType getDelta(
   const Thread VariableType    otherOldValue,
   const Thread CoefficientType coefficient)
 {
-  VariableType delta      = otherOldValue - selfOldValue;;
+  VariableType delta = otherOldValue - selfOldValue;
   const float deltaLength = length(delta);
   if (deltaLength > COMPUTE_EPSILON)
   {
     delta *= ((1.f - (coefficient / deltaLength)) * .5f);
   }
   return delta;
-}
-
-Kernel void setDeltaPosition(
-  Device ParticleStruct*        particleDeltas,
-  const Device ParticleStruct*  particles,
-  const Device ParticleStruct*  newParticles,
-  const uint                    nodeCount)
-{
-  const uint index = threadIndex();
-  if (index < nodeCount)
-  {
-    particleDeltas[index].position = newParticles[index].position - particles[index].position;
-  }
 }
 
 Kernel void distanceSolverSpring(
@@ -42,8 +29,8 @@ Kernel void distanceSolverSpring(
 
   if (index < nodeCount)
   {
-    const uint offset               = constrainOffset(constrainNodes[index]);
-    const CoefficientType selfCoef  = coefficients[offset];
+    const uint offset = constrainOffset(constrainNodes[index]);
+    const CoefficientType selfCoef = coefficients[offset];
     const VariableType selfOldValue = oldPositions[index].position;
 
     newPositions[index].position = selfOldValue;
@@ -62,6 +49,19 @@ Kernel void distanceSolverSpring(
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
+  }
+}
+
+Kernel void setDeltaPosition(
+  Device ParticleStruct*        particleDeltas,
+  const Device ParticleStruct*  particles,
+  const Device ParticleStruct*  newParticles,
+  const uint                    nodeCount)
+{
+  const uint index = threadIndex();
+  if (index < nodeCount)
+  {
+    particleDeltas[index].position = newParticles[index].position - particles[index].position;
   }
 }
 

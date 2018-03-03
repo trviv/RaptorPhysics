@@ -15,7 +15,9 @@ typedef Real3 float4;
 */
 struct DEFAULT_ALIGN SectionData_t
 {
+  /*@member Offsets.*/
   uint    offsets[2];
+  /*@member Counts.*/
   uint    counts[2];
 };
 
@@ -23,21 +25,38 @@ typedef struct SectionData_t SectionData;
 
 
 /*
+@struct Allocation data shared by all the particles of an entity.
+*/
+struct DEFAULT_ALIGN GroupData_t
+{
+  uint    minIdentity;
+  uint    maxIdentity;
+};
+
+typedef struct GroupData_t GroupData;
+
+
+/*
 @struct Data shared by all the particles of an entity.
 */
 struct DEFAULT_ALIGN ParticleSharedData_t
 {
+  /*@member If mass is shared by particles of a body.*/
   uint    invMassIsShared;
+  /*@member Shared inverse mass.*/
   float   sharedInvMass;
 
+  /*@member If radius is shared by particles of a body.*/
   uint    radiusIsShared;
+  /*@member Shared radius.*/
   float   sharedRadius;
 
+  /*@member Stiffness for spring constraint.*/
   float   stiffness;
+  /*@member Viscosity for fluid constraint.*/
   float   viscosity;
+  /*@member Velocity damping.*/
   float   velocityDamping;
-
-  SectionData entityAlloc;
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;

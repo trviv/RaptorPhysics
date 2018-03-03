@@ -1,7 +1,7 @@
 #include "DistanceSolver.h"
 
-static const int DISTANCE_SOLVER_SPRING_KERNEL = 0;
-static const int SET_DELTA_POSITION_KERNEL = 1;
+#define DISTANCE_SOLVER_KERNEL_SPRING 0
+#define DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION 1
 
 //#define DEBUG_DISTANCE_SOLVER
 
@@ -41,7 +41,7 @@ void DistanceSolver::solve()
   uint count = nodes();
   compute->configureSize(workgroupSize, workgroupCount, count);
 
-  particleDiff.resize(count, false);
+  particleDifferential.resize(count, false);
   particlesTemp[0].resize(count, false);
   particlesTemp[1].resize(count, false);
 
@@ -57,9 +57,9 @@ void DistanceSolver::solve()
       constrainIndices.device(),
       constrainCoefficients.device()
     };
-    kernels[DISTANCE_SOLVER_SPRING_KERNEL].setArgs(buffers, 5);
-    kernels[DISTANCE_SOLVER_SPRING_KERNEL].setArg<uint>(&count, 5);
-    compute->execute(kernels[DISTANCE_SOLVER_SPRING_KERNEL], workgroupSize, workgroupCount);
+    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, 5);
+    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArg<uint>(&count, 5);
+    compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SPRING], workgroupSize, workgroupCount);
 
 #if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)
     compute->sync();
@@ -75,9 +75,9 @@ void DistanceSolver::solve()
       particles.device(),
       particlesTemp[(iterations - 1) & 1].device()
     };
-    kernels[SET_DELTA_POSITION_KERNEL].setArgs(buffers, 3);
-    kernels[SET_DELTA_POSITION_KERNEL].setArg<uint>(&count, 3);
-    compute->execute(kernels[SET_DELTA_POSITION_KERNEL], workgroupSize, workgroupCount);
+    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, 3);
+    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, 3);
+    compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
   }
 }
 

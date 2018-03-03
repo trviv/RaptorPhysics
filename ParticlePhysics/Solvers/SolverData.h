@@ -29,7 +29,7 @@ protected:
   DeviceArray<ParticleSharedData>   particleSharedData;
   DeviceArray<ParticleStruct>       particles;
   DeviceArray<ParticleStruct>       particleDeltas;
-  DeviceArray<ParticleDifferential> particleDiff;
+  DeviceArray<ParticleDifferential> particleDifferential;
   DeviceArray<ParticleAuxData>      particleAuxData;
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];

@@ -73,7 +73,7 @@ template<class T>T mCeil(T a)
 }
 
 /// Function to find the number as an expoenent of 2
-template<class T>T mExpOf2(T integer)
+template<class T>T mCeilExpOf2(T integer)
 {
   T exp;
   T backup = integer;

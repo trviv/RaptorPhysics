@@ -14,7 +14,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   particleSharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
   particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
-  particleDiff.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
+  particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
   particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
   particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
 #ifdef DEBUG_SOLVERS
@@ -46,13 +46,9 @@ template<class IndexType, class CoefficientType, class VariableType>
 void Solver<IndexType, CoefficientType, VariableType>::update()
 {
   // arrays to be exported to device
-  //deviceConstrainHeaders.host()->clear();
-  //deviceConstrainIndices.host()->clear();
-
   for (const SectionData& section : updates)
   {
-
-    if (constrainIndices.host()->size())
+    if (rawConstrainConnections.size())
     {
       // create flat constrain array for device
       for (uint i = section.offsets[DEVICE_HEADER_NODE]; i < section.offsets[DEVICE_HEADER_NODE] + section.counts[DEVICE_HEADER_NODE]; i++)

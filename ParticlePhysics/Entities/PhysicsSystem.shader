@@ -20,10 +20,14 @@ Kernel void integrate(
     if (invMass)
     {
       particleDiff[index].velocity = particleDeltas[index].position / timeStep;
-      particleDiff[index].velocity += makeFloat3(0.f, -9.8f, 0.f) * timeStep;
+      particleDiff[index].velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
       particleDiff[index].velocity *= sharedData.velocityDamping;
 
       particles[index].position += particleDiff[index].velocity * timeStep;
+      if (particles[index].position.y <= -2)
+      {
+        particles[index].position.y = -2;
+      }
       //particles[index].position += particleDeltas[index].position;
       /*
       particleDiffs[index] += timeStep*particleSharedData[particleAuxData[index].identity].damping

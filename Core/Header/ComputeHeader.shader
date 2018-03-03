@@ -21,44 +21,36 @@ static uint groupIndex()
   return get_group_id(0);
 }
 
+void globalMemBarrier()
+{
+  barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
+void localMemBarrier()
+{
+  barrier(CLK_LOCAL_MEM_FENCE);
+}
+
 #define Kernel  __kernel
 #define Device  __global
 #define Const   __constant
-#define Group   __local
+#define Shared  __local
 #define Thread  __private
 
 #define COMPUTE_SHADER_SCOPE
+#define COMPUTE_MAX_THREADS   1024
+#define COMPUTE_EPSILON       0.000001f
 
-#define ALIGN(n) __attribute__((aligned(n))) __attribute__((packed))
-#define DEFAULT_ALIGN ALIGN(16) 
+#define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
+#define DEFAULT_ALIGN         ALIGN(16)
 
-#define makeFloat3 (float3)
-
-#define COMPUTE_EPSILON .000001f
-
-uint mExpOf2(uint integer)
-{
-  if (!integer)
-  {
-    return 0;
-  }
-
-  int exp;
-  uint backup = integer;
-  for (exp = -1; integer; integer >>= 1)
-  {
-    exp++;
-  }
-  if ((((1 << exp) - 1) & backup)) exp++;
-  return exp;
-}
+#define constructFloat3       (float3)
 
 float sqr(const float x)
 {
   return x*x;
 }
 
-ALIGN(4)
 typedef struct
 {
   float val[9];

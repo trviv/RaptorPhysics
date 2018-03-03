@@ -64,12 +64,16 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
     allocator->constrainAllocator.create(1024, 4096);
     allocators.push_back(allocator);
   }
+  else
+  {
+    allocator = allocators[0];
+  }
 
   // get solver
   Solver<uint, real, Real3>* solver = NULL;
-  if (!solversUint[entity->solver])
+  int index = mCeilExpOf2(entity->solver);
+  if (!solversUint[index])
   {
-    int index = mExpOf2(entity->solver);
     switch (entity->solver)
     {
     case SOLVER_CLOTH:
@@ -100,15 +104,14 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
 
   // add entity shared data to the system
   solver->particleSharedData.host()->push_back(entity->particleSharedData.host()->at(0));
+  //solver->deviceSections.push_back();
 
   // create entity header
   {
-    ParticleSharedData* sharedData = &solver->particleSharedData.host()->back();
-    sharedData->entityAlloc.offsets[DEVICE_HEADER_NODE] = solver->nodeOffset;
-    sharedData->entityAlloc.offsets[DEVICE_HEADER_CONNECTION] = solver->connectionOffset;
-    //sharedData->entityAlloc.counts[DEVICE_HEADER_NODE] = entity->nodeCount;
-    //sharedData->entityAlloc.counts[DEVICE_HEADER_CONNECTION] = entity->connectionCount;
-    entitySharedData.push_back(sharedData);
+    SectionData entityData;
+    entityData.offsets[DEVICE_HEADER_NODE] = solver->nodeOffset;
+    entityData.offsets[DEVICE_HEADER_CONNECTION] = solver->connectionOffset;
+    entitySectionData.push_back(entityData);
   }
 
   entityParticles.push_back(solver->particles.host());
@@ -185,15 +188,6 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
 
     solver->commit();
 
-    /*if (i == 0) // create entity header
-    {
-    ParticleSharedData* sharedData = &solver->particleSharedData.host()->back();
-    sharedData->entityAlloc.offsets[DEVICE_HEADER_NODE] = solver->nodeOffset;
-    sharedData->entityAlloc.offsets[DEVICE_HEADER_CONNECTION] = solver->connectionOffset;
-    //sharedData->entityAlloc.counts[DEVICE_HEADER_NODE] = entity->nodeCount;
-    //sharedData->entityAlloc.counts[DEVICE_HEADER_CONNECTION] = entity->connectionCount;
-    entitySharedData.push_back(sharedData);
-    }*/
     nodeCount += solver->nodeOffset;
   }
 
@@ -213,6 +207,11 @@ void PhysicsSystem::step()
       float zero = 0;
 
       compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+        section.offsets[DEVICE_HEADER_NODE] * sizeof(ParticleStruct),
+        section.counts[DEVICE_HEADER_NODE] * sizeof(ParticleStruct),
+        &zero, sizeof(float));
+
+      compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
         section.offsets[DEVICE_HEADER_NODE] * sizeof(ParticleDifferential),
         section.counts[DEVICE_HEADER_NODE] * sizeof(ParticleDifferential),
         &zero, sizeof(float));
@@ -224,16 +223,16 @@ void PhysicsSystem::step()
 
 #ifdef ENABLE_RENDERING
 
-const ParticleSharedData* PhysicsSystem::getEntitySharedData(PhysicsEntity* entity)const
+/*const ParticleSharedData* PhysicsSystem::getEntitySharedData(PhysicsEntity* entity)const
 {
-  const vector<PhysicsEntity*>::const_iterator entityLocation = find(entities.begin(), entities.end(), entity);
-  if (entityLocation != entities.end())
-  {
-    printf("Entity not found!");
-    assert(0);
-  }
-  return entitySharedData[(entityLocation - entities.begin())];
+const vector<PhysicsEntity*>::const_iterator entityLocation = find(entities.begin(), entities.end(), entity);
+if (entityLocation != entities.end())
+{
+printf("Entity not found!");
+assert(0);
 }
+return entitySharedData[(entityLocation - entities.begin())];
+}*/
 
 void PhysicsSystem::render()
 {
@@ -247,9 +246,9 @@ void PhysicsSystem::render()
     }
   }
 
-  for (uint i = 0; i < entitySharedData.size(); i++)
+  for (uint i = 0; i < entitySectionData.size(); i++)
   {
-    uint entityOffset = entitySharedData[i]->entityAlloc.offsets[DEVICE_HEADER_NODE];
+    uint entityOffset = entitySectionData[i].offsets[DEVICE_HEADER_NODE];
     entities[i]->render(&(*entityParticles[i])[entityOffset]);
   }
 }
