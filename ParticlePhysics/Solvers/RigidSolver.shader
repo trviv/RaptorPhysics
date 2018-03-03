@@ -160,7 +160,7 @@ Kernel void setDeltaPosition(
     for (uint i = 0; i < 3; i++)
     {
       const Device float* particleMatrix = matrixData + i;
-      const float3 product = initialComOffset * makeFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
+      const float3 product = initialComOffset * constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
       comOffsetCrossQPtr[i] = product.x + product.y + product.z;
     }
 

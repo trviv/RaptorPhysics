@@ -180,6 +180,14 @@ void Window::start()
   glutMainLoop();
 }
 
+void Window::loop()
+{
+  while (true)
+  {
+    glutMainLoopEvent();
+  }
+}
+
 void glwRefreshTimer(int value)
 {
   glutPostRedisplay();

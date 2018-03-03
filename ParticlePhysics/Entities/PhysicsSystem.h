@@ -18,8 +18,8 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Entities in the system.*/
   vector<PhysicsEntity*>          entities;
 
-  /*@member Shared data for entities.*/
-  vector<ParticleSharedData*>     entitySharedData;
+  /*@member Entity data offsets.*/
+  vector<SectionData>             entitySectionData;
 
   /*@member Entities in the system.*/
   vector<vector<ParticleStruct>*> entityParticles;
@@ -60,13 +60,19 @@ public:
   void init(int argc, char** argv, int width = 512, int height = 512,
     const char* name = "GL Window");
 
-  /*@function Register a physics entity to the system.*/
+  /*
+  @function Register a physics entity to the system.
+  @param entity Entity to register.
+  */
   void registerEntity(PhysicsEntity* entity);
 
 #ifdef ENABLE_RENDERING
 
-  /*@function Get shared data for a given entity.*/
-  const ParticleSharedData* getEntitySharedData(PhysicsEntity* entity)const;
+  /*
+  @function Get shared data for a given entity.
+  @param entity Entity to search.
+  */
+  //const ParticleSharedData* getEntitySharedData(PhysicsEntity* entity)const;
 
   /*@function Render all registered entities.*/
   void render();
