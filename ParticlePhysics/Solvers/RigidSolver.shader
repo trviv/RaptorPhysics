@@ -1,6 +1,15 @@
 #ifndef RIGID_SOLVER_SHADER
 #define RIGID_SOLVER_SHADER
 
+/*
+@kernel Compute covariance matrix.
+@param matrixData Matrix data output.
+@param particleDeltas Change in particle position.
+@param particlesPredicted Current particle position.
+@param particlesTemp Current particle position.
+@param rigidBodyData Rigid body data.
+@param length Rigid body count.
+*/
 Kernel void covarianceMatrix(
   Device float*                   matrixData,
   Device ParticleStruct*          particleDeltas,
@@ -99,6 +108,15 @@ float getGamma(const Device float* matrix2, const Device float* matrixPtr, const
   return sqrt(sqr((adj_one * adj_inf) / (mat_one * mat_inf)) / fabs(determinant));
 }
 
+/*
+@kernel Rigid body .
+@param matrixData Matrix data output.
+@param particleDeltas Change in particle position.
+@param particlesPredicted Current particle position.
+@param particlesTemp Current particle position.
+@param rigidBodyData Rigid body data.
+@param length Rigid body count.
+*/
 Kernel void rigidSolver(
   Device float* matrixData,
   Device float* matrixTempInput1,
@@ -117,9 +135,15 @@ Kernel void rigidSolver(
 
     if (index < length)
     {
-      Device float* matrix1 = (matrixTempInput1 + index * 9);
-      Device float* matrix2 = (matrixTempInput2 + index * 9);
+      Device float* matrix1;
+      Device float* matrix2;
       Device float* matrixPtr = (matrixData + index * 9);
+
+      matrix1 = (it & 1) ? matrixTempInput2 : matrixTempInput1;
+      matrix2 = (it & 1) ? matrixTempInput1 : matrixTempInput2;
+
+      matrix1 += index * 9;
+      matrix2 += index * 9;
 
       setAdjugateMatrix(matrix1, matrix2, matrixPtr);
 
@@ -138,6 +162,7 @@ Kernel void rigidSolver(
         }
       }
     }
+    //globalMemBarrier();
   }
 }
 

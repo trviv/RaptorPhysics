@@ -42,9 +42,20 @@ if(OPENCL_FOUND)
 
   set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
   set(ADDITIONAL_LIBRARY Core Freeglut glew32)
-  set(PROJECT_EXECUTABLE TRUE)
   set(PROJECT_STRING ParticlePhysics)
   add_subdirectory(ParticlePhysics)
+
+  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
+  set(ADDITIONAL_LIBRARY ParticlePhysics Core Freeglut glew32)
+  set(PROJECT_EXECUTABLE TRUE)
+  set(PROJECT_STRING App)
+  add_subdirectory(App)
+
+  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
+  set(ADDITIONAL_LIBRARY ParticlePhysics Core Freeglut glew32)
+  set(PROJECT_EXECUTABLE TRUE)
+  set(PROJECT_STRING Tests)
+  add_subdirectory(Tests)
 
 else(OPENCL_FOUND)
 

@@ -1,10 +1,6 @@
 #include "UnifiedPhysics.h"
 
-#pragma comment(lib, "glew32.lib")
-
 static ComputeInterface* compute;
-static PhysicsSystem* physicsSystem;
-
 
 void testEquation(ComputeInterface* compute)
 {
@@ -54,6 +50,7 @@ void testEquation(ComputeInterface* compute)
 
   cons.solve();
 }
+
 void test1DMean(ComputeInterface* compute)
 {
   DeviceArray<float> data(compute, NULL, true);
@@ -249,39 +246,11 @@ int main(int argc, char** argv)
   compute = new ComputeInterface();
   compute->create(1);
 
-  //test1DMean(compute);
+  test1DMean(compute);
   //testRegular2DMean(compute);
   //testIrregular2DMean(compute);
   //testPrefixSum1D(compute);
   //testEquation(compute);
-
-  //return 0;
-
-  physicsSystem = new PhysicsSystem(compute);
-  main_window = physicsSystem;
-  main_window->init(argc, argv);
-
-  real dim[3];
-
-  Cloth* cloth = new Cloth();
-  RigidBody* rigidBody = new RigidBody();
-
-  dim[0] = 1;
-  dim[1] = 1;
-  dim[2] = 1;
-
-  uint subdivision1[2] = { 8, 8 };
-  cloth->init(Matrix4(), dim, subdivision1, 1);
-  physicsSystem->registerEntity(cloth);
-
-  uint subdivision2[3] = { 6, 6, 6 };
-  rigidBody->init(Matrix4(), dim, subdivision2, 1);
-  physicsSystem->registerEntity(rigidBody);
-
-  main_window->start();
-
-  delete physicsSystem;
-  delete compute;
 
   return 0;
 }
