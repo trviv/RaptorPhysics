@@ -51,5 +51,19 @@ else(PROJECT_EXECUTABLE)
   set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 endif(PROJECT_EXECUTABLE)
+
+add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ConstrainStruct.h"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ParticleStruct.h"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Entities/PhysicsSystem.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/LinearSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/DistanceSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/RigidSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/display_vert.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/display_frag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeHeader.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeUtils.shader"
+  $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+
 target_link_libraries(${PROJECT_STRING} ${ADDITIONAL_LIBRARY} ${OpenCL_LIBRARY})
 set(ADDITIONAL_FILES ${ADDITIONAL_FILES} ${SOURCES_CU} ${SOURCES_C} PARENT_SCOPE)
