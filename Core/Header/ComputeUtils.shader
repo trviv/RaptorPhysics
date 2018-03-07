@@ -258,10 +258,10 @@ Kernel void sumRegular2DKernel(
     }
   }
 
-  if (divideFlag && originalIndex < (length / subArrayElements))
+  if (divideFlag && originalIndex < arraysPerGroup)
   {
-    float divisor = length;
-    DIV_FUNCTION(array2D[originalIndex * subArrayElements]STRUCT_MEMBER, divisor);
+    float divisor = subArrayElements;
+    DIV_FUNCTION(array2D[(groupIndex() * arraysPerGroup + originalIndex) * subArrayElements]STRUCT_MEMBER, divisor);
   }
 }
 
