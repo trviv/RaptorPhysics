@@ -6,31 +6,29 @@ Cloth::Cloth()
   solver = SOLVER_CLOTH;
 }
 
-void Cloth::init(const Matrix4& transform, const real dim[],
-  const real particleRadius, const real mass)
+void Cloth::initXY(const real dimensions[], const real particleRadius, const real mass)
 {
   uint subdivision[3] = { 1, 1, 1 };
-  for (int i = 0; i < 2; i++) subdivision[i] = uint(dim[i] / particleRadius);
+  for (int i = 0; i < 2; i++) subdivision[i] = uint(dimensions[i] / particleRadius);
   (*particleSharedData.host())[0].sharedRadius = particleRadius;
-  init(transform, dim, subdivision, mass);
+  initXY(dimensions, subdivision, mass);
 }
 
-void Cloth::init(const Matrix4& transform, const real dim[],
-  const uint subdivision[], const real mass)
+void Cloth::initXY(const real dimensions[], const uint subdivision[], const real mass)
 {
   vector<uint32_t> connectionElements;
 
   Real3 del_x(0);
   if (subdivision[0] > 1)
   {
-    del_x[0] = dim[0] / (subdivision[0] - 1);
+    del_x[0] = dimensions[0] / (subdivision[0] - 1);
   }
   Real3 del_y(0);
   if (subdivision[1] > 1)
   {
-    del_y[1] = -dim[1] / (subdivision[1] - 1);
+    del_y[1] = -dimensions[1] / (subdivision[1] - 1);
   }
-  Real3 top_left(-dim[0] / 2, dim[1] / 2, 0);
+  Real3 top_left(-dimensions[0] / 2, dimensions[1] / 2, 0);
 
   const real x_len = del_x.length();
   const real y_len = del_y.length();
@@ -97,6 +95,11 @@ void Cloth::init(const Matrix4& transform, const real dim[],
       pos += del_x;
     }
   }
+
+  sectionShared[SECTION_DATA_NODE] = false;
+  sectionShared[SECTION_DATA_CONNECTION] = true;
+
+#ifdef ENABLE_RENDERING
   displayVertex.gen();
   displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1], 0, sizeof(Real3));
 
@@ -104,6 +107,7 @@ void Cloth::init(const Matrix4& transform, const real dim[],
   displayElements.copyData((GLuint*)&connectionElements[0], connectionElements.size());
 
   displayShader.init("display_vert.glsl", "display_frag.glsl");
+#endif
 }
 
 #ifdef ENABLE_RENDERING
@@ -124,14 +128,18 @@ void Cloth::render(ParticleStruct* particles)
   displayShader.bind();
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
-  //displayVertex.bind();
-  GL_CHECK(glEnableVertexAttribArray(0));
-  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
-  //GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Real3), (GLvoid*)0));
-  displayElements.bind();
-  GL_CHECK(glDrawElements(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL));
-  displayElements.unbind();
-  GL_CHECK(glDisableVertexAttribArray(0));
+
+  uint instances = getInstanceId(identity);
+  for (int i = 0; i < instances; i++)
+  {
+    //displayVertex.bind();
+    GL_CHECK(glEnableVertexAttribArray(0));
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles + i*rawConstrainCoefficients.size()));
+    displayElements.bind();
+    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
+    displayElements.unbind();
+    GL_CHECK(glDisableVertexAttribArray(0));
+  }
   //displayVertex.unbind();
   displayShader.unbind();
   glPopMatrix();

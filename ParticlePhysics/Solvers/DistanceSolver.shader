@@ -3,10 +3,16 @@
 
 #define successiveOverRealaxation 1.5f
 
+/*
+@function Function to calculate gradient between 2 constrained objects
+@param selfOldValue Current value for object 1.
+@param otherOldValue Current value for object 2.
+@param coefficient Constrain magnitude.
+*/
 VariableType getDelta(
-  const Thread VariableType    selfOldValue,
-  const Thread VariableType    otherOldValue,
-  const Thread CoefficientType coefficient)
+  const VariableType    selfOldValue,
+  const VariableType    otherOldValue,
+  const CoefficientType coefficient)
 {
   VariableType delta = otherOldValue - selfOldValue;
   const float deltaLength = length(delta);
@@ -17,41 +23,74 @@ VariableType getDelta(
   return delta;
 }
 
+/*
+@kernel Solve distance constrain using spring equation.
+@param newPositions Position output buffer for this iteration.
+@param oldPositions Position input buffer for this iteration.
+@param constrainNodes Buffer containing constrain header data.
+@param indexArray Buffer containing constrain index data.
+@param coefficients Buffer containing constrain magnitude data.
+@param sectionData Buffer containing entity boundary info.
+@param nodeCount Total nodes in the solver.
+*/
 Kernel void distanceSolverSpring(
   Device ParticleStruct*            newPositions,
   const Device ParticleStruct*      oldPositions,
   const Device ConstrainStruct*     constrainNodes,
   const Device IndexType*           indexArray,
   const Device CoefficientType*     coefficients,
+  const Device SectionData*         sectionData,
   const uint                        nodeCount)
 {
+  Shared VariableType oldValues[COMPUTE_MAX_THREADS];
+  Shared VariableType sums[COMPUTE_MAX_THREADS];
+
   const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
 
   if (index < nodeCount)
   {
-    const uint offset = constrainOffset(constrainNodes[index]);
-    const CoefficientType selfCoef = coefficients[offset];
-    const VariableType selfOldValue = oldPositions[index].position;
+    oldValues[localIndex] = oldPositions[index].position;
 
-    newPositions[index].position = selfOldValue;
+    // entity id
+    const uint identity = oldPositions[index].identity;
 
-    if (selfCoef) // if self movememnt allowed
+    uint instanceNodeOffset;
     {
-      VariableType sum = 0;
-      const uint count = constrainCount(constrainNodes[index]);
+      const uint entityId = getEntityId(identity);
+      instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
+    }
+    const uint commonIndex = index - instanceNodeOffset;
+    const uint offset = constrainOffset(constrainNodes[commonIndex]);
+
+    if (coefficients[offset]) // if self movement allowed
+    {
+      const uint count = constrainCount(constrainNodes[commonIndex]);
+      sums[localIndex] = 0;
 
       for (uint i = 1; i < count; i++)
       {
-        sum += getDelta(selfOldValue, oldPositions[indexArray[offset + i]].position, coefficients[offset + i]);
+        sums[localIndex] += getDelta(oldValues[localIndex],
+          oldPositions[instanceNodeOffset + indexArray[offset + i]].position,
+          coefficients[offset + i]);
       }
-      newPositions[index].position += sum * (successiveOverRealaxation / count);
+      oldValues[localIndex] += sums[localIndex] * (successiveOverRealaxation / count);
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
+    newPositions[index].position = oldValues[localIndex];
+    newPositions[index].identity = identity;
   }
 }
 
+/*
+@kernel Calculate delta position for particles.
+@param particleDeltas Position delta output buffer.
+@param particles Old position buffer.
+@param newParticles New position buffer.
+@param nodeCount Total nodes in the solver.
+*/
 Kernel void setDeltaPosition(
   Device ParticleStruct*        particleDeltas,
   const Device ParticleStruct*  particles,

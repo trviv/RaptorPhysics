@@ -7,8 +7,8 @@ PhysicsEntity::PhysicsEntity()
   particleAuxData.create(NULL, NULL, true);
   particleRigidData.create(NULL, NULL, true);
 
-  instanceCount = 1;
-  solver = 0;
+  identity = -1;
+  solver = SOLVER_NULL;
 
   ParticleSharedData sharedData;
   sharedData.velocityDamping = .99f;
@@ -16,4 +16,9 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedRadius = 0.f;
   sharedData.invMassIsShared = 0;
   particleSharedData.host()->push_back(sharedData);
+
+  for (uint i = 0; i < SECTION_DATA_MAX; i++)
+  {
+    sectionShared[i] = false;
+  }
 }

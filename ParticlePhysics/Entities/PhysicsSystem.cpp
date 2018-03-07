@@ -36,12 +36,6 @@ PhysicsSystem::~PhysicsSystem()
   }
 }
 
-void PhysicsSystem::init(int argc, char** argv, int width,
-  int height, const char* name)
-{
-  Window::init(argc, argv, width, height);
-}
-
 /*bool compareEntity(PhysicsEntity* i, PhysicsEntity* j)
 {
 return (i->getId() < j->getId());
@@ -52,146 +46,120 @@ uint PhysicsSystem::getNewEntityId()
   return totalEntityCount++;
 }
 
-void PhysicsSystem::registerEntity(PhysicsEntity* entity)
+void* PhysicsSystem::getSolver(SolverType type)
 {
-  entities.push_back(entity);
-
-  SharedAllocator* allocator = NULL;
-  if (!allocators.size())
-  {
-    allocator = new SharedAllocator(compute);
-    allocator->particleAllocator.create(1024);
-    allocator->constrainAllocator.create(1024, 4096);
-    allocators.push_back(allocator);
-  }
-  else
-  {
-    allocator = allocators[0];
-  }
-
   // get solver
-  Solver<uint, real, Real3>* solver = NULL;
-  int index = mCeilExpOf2(entity->solver);
+  int index = mCeilExpOf2((uint)type);
+
   if (!solversUint[index])
   {
-    switch (entity->solver)
+    switch (type)
     {
     case SOLVER_CLOTH:
     {
-      solversUint[index] = new DistanceSolver(compute, allocator);
-      solver = solversUint[index];
+      solversUint[index] = new DistanceSolver(compute, allocators[0]);
       break;
     }
     case SOLVER_RIGID_BODY:
     {
-      solversUint[index] = new RigidSolver(compute, allocator);
-      solver = solversUint[index];
+      solversUint[index] = new RigidSolver(compute, allocators[0]);
       break;
     }
-
     default:
       printf("Undefined!");
       assert(0);
       break;
     }
   }
-  else
+
+  return solversUint[index];
+}
+
+void PhysicsSystem::registerEntity(PhysicsEntity* entity)
+{
+  Matrix4 iden;
+  iden.setIdentity();
+  registerEntity(entity, 1, &iden);
+}
+
+void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceCount, const Matrix4* instanceTransforms)
+{
+  if (!allocators.size())
   {
-    solver = solversUint[entity->solver];
+    SharedAllocator* allocator = new SharedAllocator(compute);
+    int multiplier = 512;
+    allocator->particleAllocator.create(multiplier * 1024);
+    allocator->constrainAllocator.create(multiplier * 1024, 4096);
+    allocators.push_back(allocator);
   }
 
-  // copy entity data to the solver
+  Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(entity->solver);
+
+  // create entity section data
+  SectionData sectionData;
+  SectionData updateInfo;
+
+  sectionData.offsets[SECTION_DATA_NODE] = solver->nodeOffset;
+  sectionData.offsets[SECTION_DATA_CONNECTION] = solver->connectionOffset;
+  sectionData.instanceCount = instanceCount;
 
   // add entity shared data to the system
   solver->particleSharedData.host()->push_back(entity->particleSharedData.host()->at(0));
-  //solver->deviceSections.push_back();
 
-  // create entity header
+  // update information
+  updateInfo.offsets[SECTION_DATA_NODE] = nodeCount;
+
+  uint entityId = getNewEntityId();
+  entity->setIdentity(instanceCount, entityId);
+
+  for (uint i = 0; i < instanceCount; i++)
   {
-    SectionData entityData;
-    entityData.offsets[DEVICE_HEADER_NODE] = solver->nodeOffset;
-    entityData.offsets[DEVICE_HEADER_CONNECTION] = solver->connectionOffset;
-    entitySectionData.push_back(entityData);
-  }
-
-  entityParticles.push_back(solver->particles.host());
-
-  SectionData updateInfo;
-  updateInfo.offsets[DEVICE_HEADER_NODE] = nodeCount;
-
-  for (uint i = 0; i < entity->instanceCount; i++)
-  {
-    if (solver->rawConstrainConnections.size())
+    if ((i == 0) || (!entity->sectionShared[SECTION_DATA_CONNECTION]))
     {
-      solver->rawConstrainConnections.insert(entity->rawConstrainConnections.begin(),
-        entity->rawConstrainConnections.end(),
-        solver->rawConstrainConnections.end());
-    }
-    else
-    {
-      solver->rawConstrainConnections = entity->rawConstrainConnections;
+      solver->rawConstrainConnections.insert(solver->rawConstrainConnections.end(),
+        entity->rawConstrainConnections.begin(), entity->rawConstrainConnections.end());
+
+      solver->rawConstrainCoefficients.insert(solver->rawConstrainCoefficients.end(),
+        entity->rawConstrainCoefficients.begin(), entity->rawConstrainCoefficients.end());
     }
 
-    if (solver->rawConstrainCoefficients.size())
+    if ((i == 0) || (!entity->sectionShared[SECTION_DATA_NODE]))
     {
-      solver->rawConstrainCoefficients.insert(entity->rawConstrainCoefficients.begin(),
-        entity->rawConstrainCoefficients.end(),
-        solver->rawConstrainCoefficients.end());
-    }
-    else
-    {
-      solver->rawConstrainCoefficients = entity->rawConstrainCoefficients;
+      solver->constrainConstants.host()->insert(solver->constrainConstants.host()->end(),
+        entity->constrainConstants.host()->begin(), entity->constrainConstants.host()->end());
+
+      solver->particleAuxData.host()->insert(solver->particleAuxData.host()->end(),
+        entity->particleAuxData.host()->begin(), entity->particleAuxData.host()->end());
+
+      solver->particleRigidData.host()->insert(solver->particleRigidData.host()->end(),
+        entity->particleRigidData.host()->begin(), entity->particleRigidData.host()->end());
     }
 
-    if (solver->constrainConstants.host()->size())
-    {
-      solver->constrainConstants.host()->insert(entity->constrainConstants.host()->end(),
-        entity->constrainConstants.host()->begin(),
-        solver->constrainConstants.host()->end());
-    }
-    else
-    {
-      *solver->constrainConstants.host() = *entity->constrainConstants.host();
-    }
-
-    uint entityId = getNewEntityId();
     vector<Real3>* entityPositions = entity->constrainConstants.host();
     for (uint p = 0; p < entityPositions->size(); p++)
     {
       ParticleStruct particle;
-      particle.position = entityPositions->at(p);
-      particle.identity = (i << PARTICLE_INSTANCE_ID_SHIFT) | entityId;
+      instanceTransforms[i].transformPos(particle.position, entityPositions->at(p));
+      particle.setIdentity(i, entityId);
       solver->particles.host()->push_back(particle);
     }
 
-    if (solver->particleAuxData.host()->size())
-    {
-      solver->particleAuxData.host()->insert(entity->particleAuxData.host()->end(),
-        entity->particleAuxData.host()->begin(),
-        solver->particleAuxData.host()->end());
-    }
-    else
-    {
-      *solver->particleAuxData.host() = *entity->particleAuxData.host();
-    }
-
-    if (solver->particleRigidData.host()->size())
-    {
-      solver->particleRigidData.host()->insert(entity->particleRigidData.host()->end(),
-        entity->particleRigidData.host()->begin(),
-        solver->particleRigidData.host()->end());
-    }
-    else
-    {
-      *solver->particleRigidData.host() = *entity->particleRigidData.host();
-    }
-
     solver->commit();
-
-    nodeCount += solver->nodeOffset;
   }
 
-  updateInfo.counts[DEVICE_HEADER_NODE] = nodeCount - updateInfo.offsets[DEVICE_HEADER_NODE];
+  nodeCount += solver->nodeOffset;
+
+  updateInfo.counts[SECTION_DATA_NODE] = nodeCount - updateInfo.offsets[SECTION_DATA_NODE];
+
+  sectionData.counts[SECTION_DATA_NODE] = solver->nodeOffset - sectionData.offsets[SECTION_DATA_NODE];
+  sectionData.counts[SECTION_DATA_CONNECTION] = solver->connectionOffset - sectionData.offsets[SECTION_DATA_CONNECTION];
+
+  solver->deviceSections.host()->push_back(sectionData);
+
+  // register entity properties
+  entities.push_back(entity);
+  entityParticles.push_back(solver->particles.host());
+  entitySectionData.push_back(sectionData);
   updates.push_back(updateInfo);
 }
 
@@ -207,13 +175,13 @@ void PhysicsSystem::step()
       float zero = 0;
 
       compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-        section.offsets[DEVICE_HEADER_NODE] * sizeof(ParticleStruct),
-        section.counts[DEVICE_HEADER_NODE] * sizeof(ParticleStruct),
+        section.offsets[SECTION_DATA_NODE] * sizeof(ParticleStruct),
+        section.counts[SECTION_DATA_NODE] * sizeof(ParticleStruct),
         &zero, sizeof(float));
 
       compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-        section.offsets[DEVICE_HEADER_NODE] * sizeof(ParticleDifferential),
-        section.counts[DEVICE_HEADER_NODE] * sizeof(ParticleDifferential),
+        section.offsets[SECTION_DATA_NODE] * sizeof(ParticleDifferential),
+        section.counts[SECTION_DATA_NODE] * sizeof(ParticleDifferential),
         &zero, sizeof(float));
     }
     updates.clear();
@@ -248,7 +216,7 @@ void PhysicsSystem::render()
 
   for (uint i = 0; i < entitySectionData.size(); i++)
   {
-    uint entityOffset = entitySectionData[i].offsets[DEVICE_HEADER_NODE];
+    uint entityOffset = entitySectionData[i].offsets[SECTION_DATA_NODE];
     entities[i]->render(&(*entityParticles[i])[entityOffset]);
   }
 }

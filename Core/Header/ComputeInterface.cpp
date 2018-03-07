@@ -506,6 +506,8 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
     workgroupCount[0] = (uint)ceil(workgroupSize[1] / float(height));
     workgroupSize[1] = height;
   }
+  workgroupSize[0] *= workgroupSize[1];
+  workgroupSize[1] = 1;
   workgroupCount[1] = 1;
   workgroupCount[2] = 1;
 }

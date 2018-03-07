@@ -14,7 +14,10 @@ Kernel void integrate(
 
   if (index < nodeCount)
   {
-    const ParticleSharedData sharedData = particleSharedData[particles[index].identity];
+    const uint identity = particles[index].identity;
+    const uint instanceId = getInstanceId(identity);
+    const uint entityId = getEntityId(identity);
+    const ParticleSharedData sharedData = particleSharedData[entityId];
     const float invMass = getInvMass(&sharedData, particleAuxData, index);
 
     if (invMass)

@@ -1,5 +1,5 @@
-#ifndef RX_ROOT
-#define RX_ROOT
+#ifndef ROOT_H
+#define ROOT_H
 
 #define RX_ENV_WIN      1 //for windows enviornment
 
@@ -10,17 +10,8 @@
 
 #define RX_USING_APPROX 0 //for using approximation methods
 
-#define RX_CUSTOM_MM
-
 #define RX_PREC_DOUBLE  0 //for using double as primary data type
 
-#define CU_KER
-
-/*
-#define RX_NS_CORE
-#define RX_NS_RAY RX_NS_CORE
-#define RX_NS_PHOTON RX_NS_CORE
-*/
 
 #if RX_PLF_PC
 //#include <map>
@@ -43,26 +34,12 @@
 #if RX_REN_GL
 #include <glew.h>
 #include <freeglut.h>
-#define ENABLE_RENDERING
 #endif
 
 #ifdef _X86_
 #define RX_32
 #else _AMD64_
 #define RX_64
-#endif
-
-#if RX_CUDA
-
-//#include <cuda.h>
-//#include <cuda_runtime.h>
-
-//use only single precision if cuda enabled
-#if RX_PREC_DOUBLE
-#undef  RX_PREC_DOUBLE
-#define RX_PREC_DOUBLE  0
-#endif
-
 #endif
 
 #define NAMELEN 16
@@ -82,23 +59,11 @@ typedef double real;
 #define EPSILON FLT_EPSILON
 #define MIN_R -FLT_MAX
 #define MAX_R FLT_MAX
-#define INF 1e10f
-#define MIN .0001f
+#define INF 1e30f
+#define MIN 1e-10f
 
 typedef float real;
 #endif
-
-/*
-typedef unsigned long ULong;
-typedef unsigned short UShort;
-typedef long Long;
-typedef __int32 Counter;
-typedef __int16 Index;
-typedef float Float;
-typedef unsigned __int8 Byte;
-typedef unsigned __int32 UInt32;
-*/
-
 
 //typedef signed   __int8         char;
 typedef unsigned __int8         uchar;
@@ -110,8 +75,6 @@ typedef unsigned __int32        uint;
 typedef unsigned __int64        ulong;
 
 typedef unsigned __int16        half;
-//typedef float                   float;
-//typedef double                  double;
 
 
 #define INV_RAND_MAX real(1.0/32768.0)

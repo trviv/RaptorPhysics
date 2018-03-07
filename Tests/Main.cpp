@@ -93,7 +93,7 @@ void testRegular2DMean(ComputeInterface* compute)
   for (int i = 0; i < parts; i++)
   {
     SectionData section;
-    section.offsets[DEVICE_HEADER_NODE] = i * width;
+    section.offsets[SECTION_DATA_NODE] = i * width;
     partitions.host()->push_back(section);
   }
 
@@ -154,7 +154,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   for (int i = 0; i < parts; i++)
   {
     SectionData section;
-    section.offsets[DEVICE_HEADER_NODE] = width ? section.offsets[DEVICE_HEADER_NODE] + width : 0;
+    section.offsets[SECTION_DATA_NODE] = width ? section.offsets[SECTION_DATA_NODE] + width : 0;
     partitions.host()->push_back(section);
     width++;
   }
@@ -171,7 +171,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     ParticleStruct particle;
     particle.position = 1;
     if (sectionIndex < (partitionsHost.size() - 1) &&
-      i == partitionsHost[sectionIndex + 1].offsets[DEVICE_HEADER_NODE])
+      i == partitionsHost[sectionIndex + 1].offsets[SECTION_DATA_NODE])
     {
       means.push_back(sum);
       sum = 0;
@@ -204,7 +204,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (int i = 0; i < partitionsHost.size(); i++)
   {
-    std::cout << means[i] << " " << particlesHost[partitionsHost[i].offsets[DEVICE_HEADER_NODE]].position << "\n";
+    std::cout << means[i] << " " << particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position << "\n";
   }
 }
 

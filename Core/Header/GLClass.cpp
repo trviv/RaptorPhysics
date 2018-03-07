@@ -429,7 +429,7 @@ bool checkShader(GLuint shader, const char* file)
       "Compilation issue: " << std::endl << log << std::endl;
     return false;
   }
-  std::cerr << "Shader: " << file << std::endl <<
+  std::cout << "Shader: " << file << std::endl <<
     "Compilation log: " << std::endl << log << std::endl;
   return true;
 }

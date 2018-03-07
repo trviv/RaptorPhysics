@@ -50,15 +50,31 @@ void DistanceSolver::solve()
     ComputeMemory* newPosition = particlesTemp[i & 1].device();
     ComputeMemory* oldPosition = (i == 0) ? particles.device() : particlesTemp[(i + 1) & 1].device();
 
-    ComputeMemory* buffers[] = {
-      newPosition,
-      oldPosition,
-      constrainHeaders.device(),
-      constrainIndices.device(),
-      constrainCoefficients.device()
-    };
-    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, 5);
-    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArg<uint>(&count, 5);
+    if (i == 0)
+    {
+      // set everything in the first iteration
+      ComputeMemory* buffers[] = {
+        newPosition,
+        oldPosition,
+        constrainHeaders.device(),
+        constrainIndices.device(),
+        constrainCoefficients.device(),
+        deviceSections.device()
+      };
+      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);
+      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArg<uint>(&count, bufferOffset);
+    }
+    else
+    {
+      // set only the changed data for second plus iteration
+      ComputeMemory* buffers[] = {
+        newPosition,
+        oldPosition
+      };
+      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);
+    }
     compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SPRING], workgroupSize, workgroupCount);
 
 #if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)
@@ -69,14 +85,15 @@ void DistanceSolver::solve()
 
   }
 
-  {
+  { // calculate position deltas
     ComputeMemory* buffers[] = {
       particleDeltas.device(),
       particles.device(),
       particlesTemp[(iterations - 1) & 1].device()
     };
-    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, 3);
-    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, 3);
+    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
+    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
     compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
   }
 }
@@ -89,4 +106,5 @@ void DistanceSolver::update()
   particles.syncDevice();
   particleDeltas.resize(particles.size(), false);
   particleAuxData.syncDevice();
+  deviceSections.syncDevice();
 }

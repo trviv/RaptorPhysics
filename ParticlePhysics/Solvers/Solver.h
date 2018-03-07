@@ -7,6 +7,7 @@
 
 enum SolverType
 {
+  SOLVER_NULL = 0,
   SOLVER_EQUATION = 1,
   SOLVER_CLOTH = 2,
   SOLVER_RIGID_BODY = 4,
