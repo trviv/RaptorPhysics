@@ -7,8 +7,13 @@ typedef Real3 float3;
 typedef Real3 float4;
 #endif
 
-#define DEVICE_HEADER_NODE        0
-#define DEVICE_HEADER_CONNECTION  1
+#define SECTION_DATA_NODE       0
+#define SECTION_DATA_CONNECTION 1
+#define SECTION_DATA_MAX        2
+
+#define PHYSICS_ENTITY_ID_MASK    0xFFFFFF
+#define PHYSICS_INSTANCE_ID_SHIFT 24
+
 
 /*
 @struct Allocation data shared by all the particles of an entity.
@@ -16,9 +21,11 @@ typedef Real3 float4;
 struct DEFAULT_ALIGN SectionData_t
 {
   /*@member Offsets.*/
-  uint    offsets[2];
+  uint    offsets[SECTION_DATA_MAX];
   /*@member Counts.*/
-  uint    counts[2];
+  uint    counts[SECTION_DATA_MAX];
+  /*@member Total instances in the section.*/
+  uint    instanceCount, pad[3];
 };
 
 typedef struct SectionData_t SectionData;
@@ -78,6 +85,13 @@ struct DEFAULT_ALIGN ParticleStruct_t
       uint    reserved[3], identity;
     };
   };
+
+#ifndef COMPUTE_SHADER_SCOPE
+  void setIdentity(uint instance, uint entityId)
+  {
+    identity = (instance << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
+  }
+#endif
 };
 
 typedef struct ParticleStruct_t ParticleStruct;
@@ -108,17 +122,14 @@ struct DEFAULT_ALIGN ParticleDifferential_t
 typedef struct ParticleDifferential_t ParticleDifferential;
 
 
-#define PARTICLE_ENTITY_ID_MASK     0xFFFFFFF
-#define PARTICLE_INSTANCE_ID_SHIFT  28
-
 static uint getEntityId(const uint particleIdentity)
 {
-  return particleIdentity&PARTICLE_ENTITY_ID_MASK;
+  return particleIdentity&PHYSICS_ENTITY_ID_MASK;
 }
 
 static uint getInstanceId(const uint particleIdentity)
 {
-  return particleIdentity >> PARTICLE_INSTANCE_ID_SHIFT;
+  return particleIdentity >> PHYSICS_INSTANCE_ID_SHIFT;
 }
 
 

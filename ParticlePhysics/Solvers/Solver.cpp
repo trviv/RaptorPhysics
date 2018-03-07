@@ -25,6 +25,8 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   particlesTemp[1].create(compute, NULL, false);
 #endif
 
+  deviceSections.create(compute, NULL, true);
+
   iterations = 1;
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -51,7 +53,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
     if (rawConstrainConnections.size())
     {
       // create flat constrain array for device
-      for (uint i = section.offsets[DEVICE_HEADER_NODE]; i < section.offsets[DEVICE_HEADER_NODE] + section.counts[DEVICE_HEADER_NODE]; i++)
+      for (uint i = section.offsets[SECTION_DATA_NODE]; i < section.offsets[SECTION_DATA_NODE] + section.counts[SECTION_DATA_NODE]; i++)
       {
         constrainHeaders.host()->push_back(Constrain(constrainIndices.host()->size(), 0));
         for (uint j = 0; j < rawConstrainConnections[i].size(); j++)
@@ -60,18 +62,21 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
         }
         (*constrainHeaders.host())[i].setCount(rawConstrainConnections[i].size()); // the constrain header
       }
+
+      rawConstrainConnections.clear();
+
+      // send values to device
+      if (section.counts[SECTION_DATA_NODE])
+      {
+        constrainHeaders.syncDevice(section.offsets[SECTION_DATA_NODE], section.counts[SECTION_DATA_NODE]);
+        constrainConstants.syncDevice(section.offsets[SECTION_DATA_NODE], section.counts[SECTION_DATA_NODE]);
+      }
+      if (section.counts[SECTION_DATA_CONNECTION])
+      {
+        constrainIndices.syncDevice(section.offsets[SECTION_DATA_CONNECTION], section.counts[SECTION_DATA_CONNECTION]);
+        constrainCoefficients.syncDevice(section.offsets[SECTION_DATA_CONNECTION], section.counts[SECTION_DATA_CONNECTION]);
+      }
     }
-
-    // send values to device
-    constrainHeaders.syncDevice(section.offsets[DEVICE_HEADER_NODE], section.counts[DEVICE_HEADER_NODE]);
-    constrainIndices.syncDevice(section.offsets[DEVICE_HEADER_CONNECTION], section.counts[DEVICE_HEADER_CONNECTION]);
-    constrainCoefficients.syncDevice(section.offsets[DEVICE_HEADER_CONNECTION], section.counts[DEVICE_HEADER_CONNECTION]);
-    constrainConstants.syncDevice(section.offsets[DEVICE_HEADER_NODE], section.counts[DEVICE_HEADER_NODE]);
-
-    deviceSections.push_back(section);
-
-    nodeOffset += section.offsets[DEVICE_HEADER_NODE];
-    connectionOffset += section.offsets[DEVICE_HEADER_CONNECTION];
   }
 
   // reset aux arrays

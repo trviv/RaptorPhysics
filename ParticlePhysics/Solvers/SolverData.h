@@ -37,8 +37,8 @@ protected:
   vector<SingleConstrain>           rawConstrainConnections;
   vector<SingleCoefficient>         rawConstrainCoefficients;
 
-  // sections in the device array where each entity is present
-  vector<SectionData>               deviceSections;
+  /*@member Sections in device array where each entity is present.*/
+  DeviceArray<SectionData>          deviceSections;
 
   uint nodeOffset;
   uint connectionOffset;

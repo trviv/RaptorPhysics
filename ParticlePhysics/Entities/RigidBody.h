@@ -15,12 +15,10 @@ public:
   RigidBody();
 
   /*@function Initialize a cube.*/
-  void init(const Matrix4& transform, const real dim[],
-    const uint subdivision[], const real mass);
+  void initCube(const real dimensions[], const uint subdivision[], const real mass);
 
   /*@function Initialize a cube.*/
-  void init(const Matrix4& transform, const real dim[],
-    const real particleRadius, const real mass);
+  void initCube(const real dimensions[], const real particleRadius, const real mass);
 
 #ifdef ENABLE_RENDERING
   void render(ParticleStruct* particles);

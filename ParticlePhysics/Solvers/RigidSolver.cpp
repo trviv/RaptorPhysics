@@ -26,15 +26,15 @@ void RigidSolver::commit()
 
   SectionData updateInfo;
 
-  updateInfo.offsets[DEVICE_HEADER_NODE] = nodeOffset;
-  updateInfo.counts[DEVICE_HEADER_NODE] = constrainConstants.host()->size() - nodeOffset;
-  updateInfo.offsets[DEVICE_HEADER_CONNECTION] = connectionOffset;
-  updateInfo.counts[DEVICE_HEADER_CONNECTION] = constrainCoefficients.host()->size() - connectionOffset;
+  updateInfo.offsets[SECTION_DATA_NODE] = nodeOffset;
+  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodeOffset;
+  updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionOffset;
+  updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionOffset;
 
   updates.push_back(updateInfo);
 
-  nodeOffset += updateInfo.counts[DEVICE_HEADER_NODE];
-  connectionOffset += updateInfo.counts[DEVICE_HEADER_CONNECTION];
+  nodeOffset += updateInfo.counts[SECTION_DATA_NODE];
+  connectionOffset += updateInfo.counts[SECTION_DATA_CONNECTION];
 }
 
 void RigidSolver::create(ComputeInterface* compute)

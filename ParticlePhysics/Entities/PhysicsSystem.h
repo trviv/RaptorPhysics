@@ -34,19 +34,22 @@ class PhysicsSystem : protected ShaderEntity, public Window
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
 
   /*@member Number of nodes in the system.*/
-  uint  nodeCount;
+  uint                            nodeCount;
 
   /*@member Total entities in the system.*/
-  uint  totalEntityCount;
+  uint                            totalEntityCount;
 
   /*@member Entity ids available for reuse.*/
-  vector<uint>  availableEntityIds;
+  vector<uint>                    availableEntityIds;
 
   /*@function Take one simulation step.*/
   void step();
 
   /*@function Get an available unique entity id.*/
   uint getNewEntityId();
+
+  /*@function Get solver instance for a solver type.*/
+  void* getSolver(SolverType type);
 
 public:
 
@@ -56,15 +59,19 @@ public:
   /*@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
 
-  /*@function Initialize a physics system.*/
-  void init(int argc, char** argv, int width = 512, int height = 512,
-    const char* name = "GL Window");
-
   /*
   @function Register a physics entity to the system.
   @param entity Entity to register.
   */
   void registerEntity(PhysicsEntity* entity);
+
+  /*
+  @function Register a physics entity with multiple insances to the system.
+  @param entity Entity to register.
+  @param instanceCount Number of entity instances.
+  @param instanceTransform Initial world transform for instances.
+  */
+  void registerEntity(PhysicsEntity* entity, const ushort instanceCount, const Matrix4* instanceTransforms);
 
 #ifdef ENABLE_RENDERING
 

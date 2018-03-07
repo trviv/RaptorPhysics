@@ -5,19 +5,17 @@ RigidBody::RigidBody()
   solver = SOLVER_RIGID_BODY;
 }
 
-void RigidBody::init(const Matrix4& transform, const real dim[],
-  const real particleRadius, const real mass)
+void RigidBody::initCube(const real dimensions[], const real particleRadius, const real mass)
 {
   uint subdivision[3];
   for (uint i = 0; i < 3; i++)
   {
-    subdivision[i] = (uint)(dim[i] / particleRadius);
+    subdivision[i] = (uint)(dimensions[i] / particleRadius);
   }
-  init(transform, dim, subdivision, mass);
+  initCube(dimensions, subdivision, mass);
 }
 
-void RigidBody::init(const Matrix4& transform, const real dim[],
-  const uint subdivision[], const real mass)
+void RigidBody::initCube(const real dimensions[], const uint subdivision[], const real mass)
 {
   vector<uint32_t> connectionElements;
 
@@ -25,11 +23,11 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
   for (uint i = 0; i < 3; i++)
   {
     del[i] = 0;
-    del[i][i] = real(2.)*dim[i] / (subdivision[i] - 1);
+    del[i][i] = real(2.)*dimensions[i] / (subdivision[i] - 1);
   }
   del[1] *= -1;
   del[2] *= -1;
-  Real3 top_left(-dim[0], dim[1], dim[2]);
+  Real3 top_left(-dimensions[0], dimensions[1], dimensions[2]);
 
   vector<Real3> pointPosition;
   int signedSubdivision[] = { subdivision[0], subdivision[1], subdivision[2] };
@@ -101,6 +99,7 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
   }
   (*points)[prev_value_count] -= real(1.5);
 
+#ifdef ENABLE_RENDERING
   displayVertex.gen();
   displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1] * subdivision[2], 0, sizeof(Real3));
 
@@ -108,6 +107,7 @@ void RigidBody::init(const Matrix4& transform, const real dim[],
   displayElements.copyData((GLuint*)&connectionElements[0], connectionElements.size());
 
   displayShader.init("display_vert.glsl", "display_frag.glsl");
+#endif
 }
 
 #ifdef ENABLE_RENDERING
