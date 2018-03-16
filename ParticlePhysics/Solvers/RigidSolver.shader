@@ -16,13 +16,21 @@ Kernel void covarianceMatrix(
   const Device ParticleStruct*    particlesPredicted,
   const Device ParticleStruct*    particlesTemp,
   const Device ParticleRigidData* rigidBodyData,
+  const Device SectionData*       sectionData,
   const uint length)
 {
   const uint index = threadIndex();
 
   if (index < length)
   {
-    uint comOffsetIndex = 0;
+    const uint identity = particlesPredicted[index].identity;
+
+    uint instanceNodeOffset;
+    {
+      const uint entityId = getEntityId(identity);
+      instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
+    }
+    uint comOffsetIndex = instanceNodeOffset;
 
     const float3 currentComOffset = particlesPredicted[index].position - particlesTemp[comOffsetIndex].position;
     const float3 initialComOffset = rigidBodyData[index].initialComOffset;
@@ -30,6 +38,7 @@ Kernel void covarianceMatrix(
     // set delta now because com is available, and will be overwritten later
     // refer unified particle physics
     particleDeltas[index].position = -currentComOffset;
+    particleDeltas[index].identity = identity;
 
     const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
     const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
@@ -162,7 +171,6 @@ Kernel void rigidSolver(
         }
       }
     }
-    //globalMemBarrier();
   }
 }
 
@@ -170,13 +178,19 @@ Kernel void setDeltaPosition(
   Device ParticleStruct*          particleDeltas,
   const Device float*             matrixData,
   const Device ParticleRigidData* rigidBodyData,
+  const Device SectionData*       sectionData,
   const uint length)
 {
   const uint index = threadIndex();
 
   if (index < length)
   {
-    uint rigidBodyDataIndex = index;
+    const uint identity = particleDeltas[index].identity;
+    const uint entityId = getEntityId(identity);
+    uint rigidBodyDataIndex = index % (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount);
+
+    matrixData += 9 * getInstanceId(identity);
+
     const float3 initialComOffset = rigidBodyData[rigidBodyDataIndex].initialComOffset;
 
     float3 comOffsetCrossQ;

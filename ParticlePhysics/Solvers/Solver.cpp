@@ -20,9 +20,13 @@ SolverData(), compute(compute), allocator(allocator), type(type)
 #ifdef DEBUG_SOLVERS
   particlesTemp[0].create(compute, NULL, true);
   particlesTemp[1].create(compute, NULL, true);
+  entityOffsets.create(compute, NULL, true);
+  entityOffsetCount.create(compute, NULL, true);
 #else
   particlesTemp[0].create(compute, NULL, false);
   particlesTemp[1].create(compute, NULL, false);
+  entityOffsets.create(compute, NULL, false);
+  entityOffsetCount.create(compute, NULL, false);
 #endif
 
   deviceSections.create(compute, NULL, true);

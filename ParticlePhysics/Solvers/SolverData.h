@@ -39,6 +39,8 @@ protected:
 
   /*@member Sections in device array where each entity is present.*/
   DeviceArray<SectionData>          deviceSections;
+  DeviceArray<uint>                 entityOffsets;
+  DeviceArray<uint>                 entityOffsetCount;
 
   uint nodeOffset;
   uint connectionOffset;

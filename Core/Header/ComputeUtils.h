@@ -11,19 +11,9 @@ enum ComputeUtilKey
   ComputeUtilStructIdentity,
   ComputeUtilIndexStructType,
   ComputeUtilIndexStructMember,
-  ComputeUtilCustomFunctionSuffix
-};
-
-struct ComputeUtilTuple
-{
-  ComputeUtilKey  key;
-  string          value;
-
-  ComputeUtilTuple(ComputeUtilKey key, const string& value)
-  {
-    this->key = key;
-    this->value = value;
-  }
+  ComputeUtilIdentityStructType,
+  ComputeUtilCustomFunctionSuffix,
+  ComputeUtilMaxKey
 };
 
 /*
@@ -31,11 +21,11 @@ struct ComputeUtilTuple
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[5];
+  uint kernelIndices[7];
 
 public:
 
-  static uint create(ComputeInterface* compute, const vector<ComputeUtilTuple>& tuples, const vector<string>* includeFiles = NULL);
+  static uint create(ComputeInterface* compute, map<ComputeUtilKey, string>& dataMap, const vector<string>* includeFiles = NULL);
 
   static ComputeUtil* get(uint templateId);
 
@@ -43,11 +33,13 @@ public:
 
   void sumRegular2D(ComputeInterface* compute, ComputeMemory* memory, uint length, uint subArrayElements, bool doMean = false);
 
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
+  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false, ComputeMemory* identity = NULL);
 
   void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
 
-  void determineGroups(ComputeMemory* group, ComputeMemory* partitions, uint partitionCount);
+  void createSectionOffsets(ComputeInterface* compute, ComputeMemory* sectionOffsets, ComputeMemory* sectionOffsetCount, ComputeMemory* sections, uint sectionCount);
+
+  void copySectionOffsets(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* sectionOffsets, ComputeMemory* sectionOffsetCount, uint sectionOffsetCountHost);
 
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
 };

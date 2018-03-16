@@ -2,12 +2,13 @@
 
 static uint positionUtilId;
 static uint matrix3x3UtilId;
+static uint sectionOffsetUtilId;
 
 //#define DEBUG_RIGID_SOLVER
 
-#define RIGID_SOLVER_KERNEL_COVARIANCE 0
-#define RIGID_SOLVER_KERNEL_DETERMINE_MATRIX 1
-#define RIGID_SOLVER_KERNEL_SET_DELTA_POSITION 2
+#define RIGID_SOLVER_KERNEL_COVARIANCE          0
+#define RIGID_SOLVER_KERNEL_DETERMINE_MATRIX    1
+#define RIGID_SOLVER_KERNEL_SET_DELTA_POSITION  2
 
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
@@ -49,16 +50,24 @@ void RigidSolver::create(ComputeInterface* compute)
     kernels.push_back(programs[0].createKernel("setDeltaPosition"));
 
     vector<string> include = { "ParticleStruct.h" };
-    vector<ComputeUtilTuple> positionSetting;
-    positionSetting.push_back(ComputeUtilTuple(ComputeUtilStructType, "ParticleStruct"));
-    positionSetting.push_back(ComputeUtilTuple(ComputeUtilStructMember, "position"));
+    map<ComputeUtilKey, string> positionSetting;
+    positionSetting[ComputeUtilStructType] = "ParticleStruct";
+    positionSetting[ComputeUtilStructMember] = "position";
 
-    vector<ComputeUtilTuple> matrix3x3Setting;
-    matrix3x3Setting.push_back(ComputeUtilTuple(ComputeUtilStructType, "Matrix3x3"));
-    matrix3x3Setting.push_back(ComputeUtilTuple(ComputeUtilCustomFunctionSuffix, "Matrix3x3"));;
+    map<ComputeUtilKey, string> matrix3x3Setting;
+    matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
+    matrix3x3Setting[ComputeUtilStructIdentity] = "identity";
+    matrix3x3Setting[ComputeUtilIndexStructType] = "SectionData";
+    matrix3x3Setting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
+    matrix3x3Setting[ComputeUtilIdentityStructType] = "ParticleStruct";
+    matrix3x3Setting[ComputeUtilCustomFunctionSuffix] = "Matrix3x3";
+
+    map<ComputeUtilKey, string> sectionOffsetSetting;
+    sectionOffsetSetting[ComputeUtilIndexStructType] = "SectionData";
 
     positionUtilId = ComputeUtil::create(compute, positionSetting, &include);
     matrix3x3UtilId = ComputeUtil::create(compute, matrix3x3Setting, &include);
+    sectionOffsetUtilId = ComputeUtil::create(compute, sectionOffsetSetting, &include);
   }
 }
 
@@ -80,8 +89,10 @@ void RigidSolver::solve()
   // copy to aux buffer to find new COM
   compute->copyBuffer(particles.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
 
+  uint instances = entityOffsetCount.host()->at(0);// deviceSections.host()->at(0).instanceCount;
+
   // calculate current COM
-  ComputeUtil::get(positionUtilId)->sum1D(compute, particlesTemp[0].device(), count, true);
+  ComputeUtil::get(positionUtilId)->sumRegular2D(compute, particlesTemp[0].device(), count, count / instances, true);
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nMean:\n");
@@ -96,28 +107,35 @@ void RigidSolver::solve()
       particleDeltas.device(),
       particles.device(),
       particlesTemp[0].device(),
-      particleRigidData.device()
+      particleRigidData.device(),
+      deviceSections.device()
     };
-    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArgs(buffers, 5);
-    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArg<uint>(&count, 5);
+
+    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArgs(buffers, bufferOffset);
+    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArg<uint>(&count, bufferOffset);
     compute->execute(kernels[RIGID_SOLVER_KERNEL_COVARIANCE], workgroupSize, workgroupCount);
   }
 
   // consolidate matrix for each body
   // add all n * 9 values to form = 3x3 matrix
-  ComputeUtil::get(matrix3x3UtilId)->sum1D(compute, covarianceMatrix.device(), count, true);
+  //ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), entitycount, count / instances, true);
+  ComputeUtil::get(matrix3x3UtilId)->sumRegular2D(compute, covarianceMatrix.device(), count, count / instances, true);
 
-  compute->copyBuffer(covarianceMatrix.device(), covarianceMatrix.device(), 0, 9 * sizeof(float), 9 * sizeof(float));
+  ComputeUtil::get(matrix3x3UtilId)->copySectionOffsets(compute, particlesTemp[0].device(), covarianceMatrix.device(),
+    entityOffsets.device(), entityOffsetCount.device(), instances);
+
+  compute->copyBuffer(particlesTemp[0].device(), covarianceMatrix.device(), 0, 0, instances * 9 * sizeof(float));
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nM:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * 2);
+  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * 2 * instances);
   compute->sync();
 #endif
 
   {
     size_t workgroupSize[3], workgroupCount[3];
-    uint rigidBodyCount = 1;
+    uint rigidBodyCount = instances;
     compute->configureSize(workgroupSize, workgroupCount, rigidBodyCount);
 
     ComputeMemory* buffers[] = {
@@ -127,16 +145,16 @@ void RigidSolver::solve()
     };
 
     uint step = 1;
-
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, 3);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&step, 3);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&rigidBodyCount, 4);
+    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
+    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&step, bufferOffset);
+    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&rigidBodyCount, bufferOffset + 1);
     compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nQ:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * 2);
+  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * instances);
   compute->sync();
 #endif
 
@@ -146,11 +164,13 @@ void RigidSolver::solve()
     ComputeMemory* buffers[] = {
       particleDeltas.device(),
       covarianceMatrix.device(),
-      particleRigidData.device()
+      particleRigidData.device(),
+      deviceSections.device()
     };
 
-    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, 3);
-    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, 3);
+    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
+    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
     compute->execute(kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
   }
 
@@ -171,4 +191,26 @@ void RigidSolver::update()
   particleDeltas.resize(particles.size(), false);
   particleAuxData.syncDevice();
   particleRigidData.syncDevice();
+  deviceSections.syncDevice();
+  uint totalEntities = 0;
+  for (int i = 0; i < deviceSections.host()->size(); i++)
+  {
+    totalEntities += deviceSections.host()->at(i).instanceCount;
+  }
+  entityOffsets.resize(totalEntities, false);
+  entityOffsetCount.resize(1, false);
+  ComputeUtil::get(sectionOffsetUtilId)->createSectionOffsets(compute, entityOffsets.device(), entityOffsetCount.device(), deviceSections.device(), deviceSections.size());
+
+  entityOffsetCount.syncHost();
+  compute->sync();
+
+#ifdef DEBUG_RIGID_SOLVER
+  entityOffsets.syncHost();
+  compute->sync();
+  printf("Rigid body section offsets: %d\n", entityOffsetCount.host()->at(0));
+  for (int i = 0; i < entityOffsets.host()->size(); i++)
+  {
+    printf("%d %d\n", i, entityOffsets.host()->at(i));
+  }
+#endif
 }

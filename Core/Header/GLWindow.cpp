@@ -145,7 +145,7 @@ void Window::reshape(int width, int height)
   glLoadIdentity();
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  gluPerspective(60, ((float)width) / ((float)height), .1, 100.0);
+  gluPerspective(60, ((float)width) / ((float)height), .001, 100000.0);
   gluLookAt(0, 0, 1, 0, 0, 0, 0, 1, 0);
   glViewport(0, 0, (GLsizei)width, (GLsizei)height);
   win_width = width;
@@ -172,7 +172,14 @@ void Window::mouseDrag(int x, int y)
 
 void Window::mouseWheel(int button, int dir, int x, int y)
 {
-  dz -= (float)(dir*.05);
+  if (dir > 0)
+  {
+    dz *= .9f;
+  }
+  else
+  {
+    dz /= .9f;
+  }
 }
 
 void Window::start()
