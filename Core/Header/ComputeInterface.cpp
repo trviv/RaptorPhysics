@@ -116,18 +116,16 @@ void logComputeMessage(const char* format, ...)
 {
   va_list args;
   va_start(args, format);
-  string str = "\nInfo: ";
-  str += format;
-  printf(str.c_str(), args);
+  printf("\nInfo: ");
+  vprintf(format, args);
 }
 
 void logComputeError(const char* format, ...)
 {
   va_list args;
   va_start(args, format);
-  string str = "\nError: ";
-  str += format;
-  printf(str.c_str(), args);
+  printf("\nError: ");
+  vprintf(format, args);
   assert(0);
 }
 
@@ -428,12 +426,18 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   // Get the log
   clGetProgramBuildInfo(program, deviceId, CL_PROGRAM_BUILD_LOG, logSize, log, NULL);
 
-  // Print the log
-  printf("Compilation Log:\n\n%s\n", log);
+  string logs(log);
+  remove(logs.begin(), logs.end(), ' ');
+  remove(logs.begin(), logs.end(), '\n');
+
+  if (logs.size() == 0)
+  {
+    // Print the log
+    printf("Compilation Log:\n\n%s\n", log);
+  }
+
   delete log;
-
   computeCheckError(status, 0);
-
 
   return program;
 }
@@ -449,6 +453,7 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
       data += "#define " + (*oldType)[i] + " " + (*newType)[i] + "\n";
     }
   }
+  logComputeMessage("Template types%s", data.c_str());
   if (includeFiles)
   {
     for (uint i = 0; i < includeFiles->size(); i++)

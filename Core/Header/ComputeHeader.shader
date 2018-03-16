@@ -72,4 +72,12 @@ inline void divMatrix3x3(Device Matrix3x3* a, const float* b)
   }
 }
 
+inline void copyMatrix3x3(Device Matrix3x3* a, const Device Matrix3x3* b)
+{
+  for (uint i = 0; i < 9; i++)
+  {
+    a->val[i] = b->val[i];
+  }
+}
+
 #endif

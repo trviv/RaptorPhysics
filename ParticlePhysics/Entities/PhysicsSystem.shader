@@ -11,6 +11,8 @@ Kernel void integrate(
   const uint                        nodeCount)
 {
   const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+  Shared float3 velocity[COMPUTE_MAX_THREADS];
 
   if (index < nodeCount)
   {
@@ -22,9 +24,10 @@ Kernel void integrate(
 
     if (invMass)
     {
-      particleDiff[index].velocity = particleDeltas[index].position / timeStep;
-      particleDiff[index].velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
-      particleDiff[index].velocity *= sharedData.velocityDamping;
+      velocity[localIndex] = particleDeltas[index].position / timeStep;
+      velocity[localIndex] += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
+      velocity[localIndex] *= sharedData.velocityDamping;
+      particleDiff[index].velocity = velocity[localIndex];
 
       particles[index].position += particleDiff[index].velocity * timeStep;
       if (particles[index].position.y <= -2)

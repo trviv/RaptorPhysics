@@ -22,6 +22,7 @@
 #endif
 #endif //__APPLE__
 
+#include <map>
 #include <assert.h>
 #include <stdio.h>
 #include <vector>

@@ -53,11 +53,11 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
-    Real3 pos = top_left + del_y*y;
+    Real3 pos = top_left + del_y*(float)y;
     uint index = y*subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
-      Real3 newPosition = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5 : 0));
+      Real3 newPosition = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5f : 0));
       setConstant(index, newPosition);
       pointPosition.push_back(newPosition);
 
@@ -130,7 +130,7 @@ void Cloth::render(ParticleStruct* particles)
   displayShader.set("projectionMatrix", proj_mat);
 
   uint instances = getInstanceId(identity);
-  for (int i = 0; i < instances; i++)
+  for (uint i = 0; i < instances; i++)
   {
     //displayVertex.bind();
     GL_CHECK(glEnableVertexAttribArray(0));
@@ -139,8 +139,8 @@ void Cloth::render(ParticleStruct* particles)
     GL_CHECK(glDrawElementsInstanced(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
     displayElements.unbind();
     GL_CHECK(glDisableVertexAttribArray(0));
+    //displayVertex.unbind();
   }
-  //displayVertex.unbind();
   displayShader.unbind();
   glPopMatrix();
 }
