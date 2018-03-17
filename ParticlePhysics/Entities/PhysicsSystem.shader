@@ -3,6 +3,7 @@
 
 Kernel void integrate(
   Device ParticleStruct*            particles,
+  Device IdentityInfo*              particleIdentities,
   Device ParticleStruct*            particleDeltas,
   Device ParticleDifferential*      particleDiff,
   const Device ParticleSharedData*  particleSharedData,
@@ -16,7 +17,7 @@ Kernel void integrate(
 
   if (index < nodeCount)
   {
-    const uint identity = particles[index].identity;
+    const uint identity = particleIdentities[index].identity;
     const uint instanceId = getInstanceId(identity);
     const uint entityId = getEntityId(identity);
     const ParticleSharedData sharedData = particleSharedData[entityId];

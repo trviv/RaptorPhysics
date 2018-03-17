@@ -14,6 +14,7 @@ Kernel void covarianceMatrix(
   Device float*                   matrixData,
   Device ParticleStruct*          particleDeltas,
   const Device ParticleStruct*    particlesPredicted,
+  const Device IdentityInfo*      particleIdentities,
   const Device ParticleStruct*    particlesTemp,
   const Device ParticleRigidData* rigidBodyData,
   const Device SectionData*       sectionData,
@@ -23,10 +24,9 @@ Kernel void covarianceMatrix(
 
   if (index < length)
   {
-    const uint identity = particlesPredicted[index].identity;
-
     uint instanceNodeOffset;
     {
+      const uint identity = particleIdentities[index].identity;
       const uint entityId = getEntityId(identity);
       instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
     }
@@ -38,7 +38,6 @@ Kernel void covarianceMatrix(
     // set delta now because com is available, and will be overwritten later
     // refer unified particle physics
     particleDeltas[index].position = -currentComOffset;
-    particleDeltas[index].identity = identity;
 
     const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
     const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
@@ -176,6 +175,7 @@ Kernel void rigidSolver(
 
 Kernel void setDeltaPosition(
   Device ParticleStruct*          particleDeltas,
+  const Device IdentityInfo*      particleIdentities,
   const Device float*             matrixData,
   const Device ParticleRigidData* rigidBodyData,
   const Device SectionData*       sectionData,
@@ -185,7 +185,7 @@ Kernel void setDeltaPosition(
 
   if (index < length)
   {
-    const uint identity = particleDeltas[index].identity;
+    const uint identity = particleIdentities[index].identity;
     const uint entityId = getEntityId(identity);
     uint rigidBodyDataIndex = index % (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount);
 

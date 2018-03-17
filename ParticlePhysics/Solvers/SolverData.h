@@ -28,11 +28,13 @@ protected:
   // related to particle simulation
   DeviceArray<ParticleSharedData>   particleSharedData;
   DeviceArray<ParticleStruct>       particles;
+  DeviceArray<IdentityInfo>         particleIdentities;
   DeviceArray<ParticleStruct>       particleDeltas;
   DeviceArray<ParticleDifferential> particleDifferential;
   DeviceArray<ParticleAuxData>      particleAuxData;
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];
+
 
   vector<SingleConstrain>           rawConstrainConnections;
   vector<SingleCoefficient>         rawConstrainCoefficients;

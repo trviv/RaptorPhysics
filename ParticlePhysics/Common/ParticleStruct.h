@@ -82,9 +82,17 @@ struct DEFAULT_ALIGN ParticleStruct_t
     };
     struct
     {
-      uint    reserved[3], identity;
+      uint    reserved[4];
     };
   };
+};
+
+typedef struct ParticleStruct_t ParticleStruct;
+
+
+struct IdentityInfo_t
+{
+  uint identity;
 
 #ifndef COMPUTE_SHADER_SCOPE
   void setIdentity(uint instance, uint entityId)
@@ -94,7 +102,7 @@ struct DEFAULT_ALIGN ParticleStruct_t
 #endif
 };
 
-typedef struct ParticleStruct_t ParticleStruct;
+typedef struct IdentityInfo_t IdentityInfo;
 
 
 struct DEFAULT_ALIGN ParticleRigidData_t

@@ -119,7 +119,7 @@ void testRegular2DMean(ComputeInterface* compute)
       sum = 0;
       sectionIndex++;
     }
-    particle.identity = sectionIndex;
+    //particle.identity = sectionIndex;
     particlesHost.push_back(particle);
     sum += particle.position;
   }
@@ -159,6 +159,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   printf("\nTesting irregular 2D mean:\n");
 
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
+  DeviceArray<IdentityInfo>   particleIdentities(compute, NULL, true);
   DeviceArray<SectionData>    partitions(compute, NULL, true);
 
   uint width = 1;
@@ -193,7 +194,11 @@ void testIrregular2DMean(ComputeInterface* compute)
       sum = 0;
       sectionIndex++;
     }
-    particle.identity = sectionIndex;
+
+    IdentityInfo particleIdentity;
+    particleIdentity.identity = sectionIndex;
+    particleIdentities.host()->push_back(particleIdentity);
+
     particlesHost.push_back(particle);
     sum += particle.position;
   }
@@ -202,6 +207,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   particles.syncDevice();
   partitions.syncDevice();
+  particleIdentities.syncDevice();
 
   vector<string> includes = { "ParticleStruct.h" };
   map<ComputeUtilKey, string> utilSetting;
@@ -209,11 +215,12 @@ void testIrregular2DMean(ComputeInterface* compute)
   utilSetting[ComputeUtilStructMember] = "position";
   utilSetting[ComputeUtilStructIdentity] = "identity";
   utilSetting[ComputeUtilIndexStructType] = "SectionData";
+  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
   utilSetting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), partitions.device(), elements, width, false);
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), elements, width, false);
 
   particles.syncHost();
   compute->sync();

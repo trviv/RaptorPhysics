@@ -36,6 +36,7 @@ VariableType getDelta(
 Kernel void distanceSolverSpring(
   Device ParticleStruct*            newPositions,
   const Device ParticleStruct*      oldPositions,
+  const Device IdentityInfo*        particleIdentities,
   const Device ConstrainStruct*     constrainNodes,
   const Device IndexType*           indexArray,
   const Device CoefficientType*     coefficients,
@@ -52,11 +53,10 @@ Kernel void distanceSolverSpring(
   {
     oldValues[localIndex] = oldPositions[index].position;
 
-    // entity id
-    const uint identity = oldPositions[index].identity;
-
     uint instanceNodeOffset;
     {
+      // entity id
+      const uint identity = particleIdentities[index].identity;
       const uint entityId = getEntityId(identity);
       instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
     }
@@ -80,7 +80,7 @@ Kernel void distanceSolverSpring(
       // SOR is from unified particle physics
     }
     newPositions[index].position = oldValues[localIndex];
-    newPositions[index].identity = identity;
+    //newPositions[index].identity = identity;
   }
 }
 
