@@ -464,6 +464,7 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
   data += readFile(fileName);
   data += "\n";
 
+  logComputeMessage("Compiling File: %s", fileName);
   return createProgram(data.c_str(), data.size());
 }
 

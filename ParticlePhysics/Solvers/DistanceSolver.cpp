@@ -9,7 +9,7 @@ DistanceSolver::DistanceSolver(ComputeInterface* compute, SharedAllocator* alloc
   : LinearSolver(compute, allocator)
 {
   type = SOLVER_CLOTH;
-  iterations = 2;
+  iterations = 8;
   create(compute);
 }
 
@@ -56,6 +56,7 @@ void DistanceSolver::solve()
       ComputeMemory* buffers[] = {
         newPosition,
         oldPosition,
+        particleIdentities.device(),
         constrainHeaders.device(),
         constrainIndices.device(),
         constrainCoefficients.device(),
@@ -104,6 +105,7 @@ void DistanceSolver::update()
 
   particleSharedData.syncDevice();
   particles.syncDevice();
+  particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
   particleAuxData.syncDevice();
   deviceSections.syncDevice();

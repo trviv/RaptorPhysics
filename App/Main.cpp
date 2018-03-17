@@ -27,30 +27,30 @@ int main(int argc, char** argv)
 
   uint subdivision1[2] = { 8, 8 };
   cloth->initXY(dim, subdivision1, 1);
-  int clothInstances = 0;
+  int clothInstances = 2;
   for (int i = 0; i < clothInstances; i++)
   {
     Matrix4 matrix;
     matrix.set(Matrix3::getIdentity(), Real3(.25*i, 0, .25*i));
     matrixTransforms.push_back(matrix);
   }
-  //physicsSystem->registerEntity(cloth, clothInstances, &matrixTransforms[0]);
+  physicsSystem->registerEntity(cloth, clothInstances, &matrixTransforms[0]);
 
   matrixTransforms.clear();
 
   uint subdivision2[3] = { 2, 2, 2 };
   rigidBody->initCube(dim, subdivision2, 1);
-  int rbInstances = 1024;
+  int rbInstances = 2*1024;
   for (int i = 0; i < rbInstances; i++)
   {
     Matrix4 matrix;
     float randx = (2 * float(rand()) / RAND_MAX) - 1;
     float randy = float(rand()) / RAND_MAX;
     float randz = (2 * float(rand()) / RAND_MAX) - 1;
-    matrix.set(Matrix3::getIdentity(), Real3(randx * 20.f, randy * 20.f, randz * 20.f));
+    matrix.set(Matrix3::getIdentity(), Real3(randx * 50.f, randy * 50.f, randz * 50.f));
     matrixTransforms.push_back(matrix);
   }
-  physicsSystem->registerEntity(rigidBody, rbInstances, &matrixTransforms[0]);
+  //physicsSystem->registerEntity(rigidBody, rbInstances, &matrixTransforms[0]);
 
   main_window->start();
 

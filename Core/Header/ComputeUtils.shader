@@ -234,7 +234,7 @@ Kernel void copyFromOffsetsKernel(
 Kernel void sumIrregular2DKernel(
   Device StructType* array2D,
 #ifdef IdentityStructType
-  Device IdentityStructType* array2DIdentity,
+  const Device IdentityStructType* array2DIdentity,
 #endif
   const Device IndexStructType* partitionArray,
   const uint length,

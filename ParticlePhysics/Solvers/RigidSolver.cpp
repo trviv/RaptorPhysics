@@ -59,7 +59,7 @@ void RigidSolver::create(ComputeInterface* compute)
     matrix3x3Setting[ComputeUtilStructIdentity] = "identity";
     matrix3x3Setting[ComputeUtilIndexStructType] = "SectionData";
     matrix3x3Setting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
-    matrix3x3Setting[ComputeUtilIdentityStructType] = "ParticleStruct";
+    matrix3x3Setting[ComputeUtilIdentityStructType] = "IdentityInfo";
     matrix3x3Setting[ComputeUtilCustomFunctionSuffix] = "Matrix3x3";
 
     map<ComputeUtilKey, string> sectionOffsetSetting;
@@ -106,6 +106,7 @@ void RigidSolver::solve()
       covarianceMatrix.device(),
       particleDeltas.device(),
       particles.device(),
+      particleIdentities.device(),
       particlesTemp[0].device(),
       particleRigidData.device(),
       deviceSections.device()
@@ -163,6 +164,7 @@ void RigidSolver::solve()
   {
     ComputeMemory* buffers[] = {
       particleDeltas.device(),
+      particleIdentities.device(),
       covarianceMatrix.device(),
       particleRigidData.device(),
       deviceSections.device()
@@ -188,12 +190,13 @@ void RigidSolver::update()
 
   particleSharedData.syncDevice();
   particles.syncDevice();
+  particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
   particleAuxData.syncDevice();
   particleRigidData.syncDevice();
   deviceSections.syncDevice();
   uint totalEntities = 0;
-  for (int i = 0; i < deviceSections.host()->size(); i++)
+  for (uint i = 0; i < deviceSections.host()->size(); i++)
   {
     totalEntities += deviceSections.host()->at(i).instanceCount;
   }

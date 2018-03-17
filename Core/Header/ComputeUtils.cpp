@@ -74,7 +74,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   vector<string> kernelNames;
 
-  logComputeMessage("Available utility kernels");
+  logComputeMessage("Adding utility kernels");
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
   {
     util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
@@ -117,9 +117,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   for (const string& kernelName : kernelNames)
   {
+    logComputeMessage(kernelName.c_str());
     util.programs.push_back(compute->createTemplateProgram("ComputeUtils.shader", &oldType, &newType, &util.includeFiles));
     util.kernels.push_back(util.programs[0].createKernel(kernelName.c_str()));
-    logComputeMessage(kernelName.c_str());
   }
   logComputeMessage("\n");
 
@@ -219,7 +219,12 @@ void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* memory,
   }
 }
 
-void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean, ComputeMemory* identity)
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
+{
+  sumIrregular2D(compute, memory, NULL, partitions, length, maxPartitionLength, doMean);
+}
+
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
 {
   const uint iterations = mCeilExpOf2(maxPartitionLength);
   const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
@@ -232,7 +237,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
   kernels[kernelIndex].setArg(memory, 0);
   if (identity)
   {
-    kernels[kernelIndex].setArg(identity, index++);
+    kernels[kernelIndex].setArg(identity, ++index);
   }
 
   kernels[kernelIndex].setArg(partitions, index + 1);

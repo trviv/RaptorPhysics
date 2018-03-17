@@ -1,6 +1,6 @@
 #include "GLWindow.h"
 
-int Window::del_time = 15;
+int Window::del_time = 5;
 Window *main_window = NULL;
 
 void Window::init(int argc, char** argv, int width, int height,

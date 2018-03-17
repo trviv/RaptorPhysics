@@ -140,8 +140,12 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
     {
       ParticleStruct particle;
       instanceTransforms[i].transformPos(particle.position, entityPositions->at(p));
-      particle.setIdentity(i, entityId);
+
+      IdentityInfo particleIdentity;
+      particleIdentity.setIdentity(i, entityId);
+
       solver->particles.host()->push_back(particle);
+      solver->particleIdentities.host()->push_back(particleIdentity);
     }
 
     solver->commit();
@@ -186,7 +190,7 @@ void PhysicsSystem::step()
     }
     updates.clear();
   }
-  step(.033f);
+  step(.066f);
 }
 
 #ifdef ENABLE_RENDERING
@@ -242,14 +246,16 @@ void PhysicsSystem::step(float timeStep)
 
     ComputeMemory* buffers[] = {
       allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get()
     };
-    kernels[0].setArgs(buffers, 5);
-    kernels[0].setArg<float>(&timeStep, 5);
-    kernels[0].setArg<uint>(&nodeCount, 6);
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[0].setArgs(buffers, bufferCount);
+    kernels[0].setArg<float>(&timeStep, bufferCount);
+    kernels[0].setArg<uint>(&nodeCount, bufferCount + 1);
     compute->execute(kernels[0], workgroupSize, workgroupCount);
   }
 }
