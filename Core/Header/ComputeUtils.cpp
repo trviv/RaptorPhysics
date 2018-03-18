@@ -19,14 +19,16 @@ string getKeyName(ComputeUtilKey key)
     return "StructType";
   case ComputeUtilStructMember:
     return "StructMember";
-  case ComputeUtilIdentityStructType:
-    return "IdentityStructType";
   case ComputeUtilStructIdentity:
     return "StructIdentity";
   case ComputeUtilIndexStructType:
     return "IndexStructType";
   case ComputeUtilIndexStructMember:
     return "IndexStructMember";
+  case ComputeUtilIdentityFunction:
+    return "IdentityFunction";
+  case ComputeUtilIdentityStructType:
+    return "IdentityStructType";
   case ComputeUtilCustomFunctionSuffix:
     return "FunctionSuffix";
   }

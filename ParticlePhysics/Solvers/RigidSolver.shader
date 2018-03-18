@@ -26,9 +26,9 @@ Kernel void covarianceMatrix(
   {
     uint instanceNodeOffset;
     {
-      const uint identity = particleIdentities[index].identity;
+      const IdentityInfo identity = particleIdentities[index];
       const uint entityId = getEntityId(identity);
-      instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
+      instanceNodeOffset = getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / getInstanceId(sectionData[entityId].identity));
     }
     uint comOffsetIndex = instanceNodeOffset;
 
@@ -185,9 +185,9 @@ Kernel void setDeltaPosition(
 
   if (index < length)
   {
-    const uint identity = particleIdentities[index].identity;
+    const IdentityInfo identity = particleIdentities[index];
     const uint entityId = getEntityId(identity);
-    uint rigidBodyDataIndex = index % (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount);
+    uint rigidBodyDataIndex = index % (sectionData[entityId].counts[SECTION_DATA_NODE] / getInstanceId(sectionData[entityId].identity));
 
     matrixData += 9 * getInstanceId(identity);
 

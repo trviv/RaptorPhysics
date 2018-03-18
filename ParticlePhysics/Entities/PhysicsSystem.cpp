@@ -25,6 +25,20 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   registerShader(compute, "PhysicsSystem.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("integrate"));
 
+  solverEntityOffsets.create(compute, NULL, true);
+  solverNodeOffsets.create(compute, NULL, true);
+
+  solverEntityOffsets.resize(SOLVER_MAX, false);
+  solverNodeOffsets.resize(SOLVER_MAX, false);
+
+  solverEntityOffsets.host()->resize(SOLVER_MAX);
+  solverNodeOffsets.host()->resize(SOLVER_MAX);
+
+  for (uint i = 0; i < SOLVER_MAX; i++)
+  {
+    (*solverEntityOffsets.host())[i] = 0;
+    (*solverNodeOffsets.host())[i] = 0;
+  }
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -41,11 +55,6 @@ PhysicsSystem::~PhysicsSystem()
 return (i->getId() < j->getId());
 }*/
 
-uint PhysicsSystem::getNewEntityId()
-{
-  return totalEntityCount++;
-}
-
 void* PhysicsSystem::getSolver(SolverType type)
 {
   // get solver
@@ -55,6 +64,9 @@ void* PhysicsSystem::getSolver(SolverType type)
   {
     switch (type)
     {
+    case SOLVER_NULL:
+    case SOLVER_EQUATION:
+      break;
     case SOLVER_CLOTH:
     {
       solversUint[index] = new DistanceSolver(compute, allocators[0]);
@@ -84,10 +96,11 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity)
 
 void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceCount, const Matrix4* instanceTransforms)
 {
+  // create memory heap allocators for the system
   if (!allocators.size())
   {
     SharedAllocator* allocator = new SharedAllocator(compute);
-    int multiplier = 512;
+    int multiplier = 2048;
     allocator->particleAllocator.create(multiplier * 1024);
     allocator->constrainAllocator.create(multiplier * 1024, 4096);
     allocators.push_back(allocator);
@@ -101,7 +114,6 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
 
   sectionData.offsets[SECTION_DATA_NODE] = solver->nodeOffset;
   sectionData.offsets[SECTION_DATA_CONNECTION] = solver->connectionOffset;
-  sectionData.instanceCount = instanceCount;
 
   // add entity shared data to the system
   solver->particleSharedData.host()->push_back(entity->particleSharedData.host()->at(0));
@@ -109,8 +121,10 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
   // update information
   updateInfo.offsets[SECTION_DATA_NODE] = nodeCount;
 
-  uint entityId = getNewEntityId();
-  entity->setIdentity(instanceCount, entityId);
+  uint entityId = solver->newEntityId();
+  entity->identity.setIdentity(instanceCount, entityId);
+  entity->identity.setSolver(entity->solver);
+  sectionData.identity = entity->identity;
 
   for (uint i = 0; i < instanceCount; i++)
   {
@@ -143,6 +157,7 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
 
       IdentityInfo particleIdentity;
       particleIdentity.setIdentity(i, entityId);
+      particleIdentity.setSolver(entity->solver);
 
       solver->particles.host()->push_back(particle);
       solver->particleIdentities.host()->push_back(particleIdentity);
@@ -159,6 +174,23 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
   sectionData.counts[SECTION_DATA_CONNECTION] = solver->connectionOffset - sectionData.offsets[SECTION_DATA_CONNECTION];
 
   solver->deviceSections.host()->push_back(sectionData);
+
+  uint cumulativeOffset = 0;
+  uint cumulativeEntities = 0;
+  // update starting offset for each solver
+  for (uint i = 1; i < SOLVER_MAX; i++)
+  {
+    Solver<uint, real, Real3>* localSolver = (Solver<uint, real, Real3>*)getSolver((SolverType)(1 << (i - 1)));
+    if (localSolver)
+    {
+      cumulativeOffset += localSolver->nodeOffset;
+      cumulativeEntities += localSolver->entityCount();
+    }
+    (*solverEntityOffsets.host())[i] = cumulativeEntities;
+    (*solverNodeOffsets.host())[i] = cumulativeOffset;
+  }
+  solverEntityOffsets.syncDevice();
+  solverNodeOffsets.syncDevice();
 
   // register entity properties
   entities.push_back(entity);
@@ -214,6 +246,7 @@ void PhysicsSystem::render()
     if (solversUint[i])
     {
       uint elements = solversUint[i]->nodes();
+      if (!elements) continue;
       solversUint[i]->particles.syncHost(0, elements);
     }
   }
@@ -221,6 +254,11 @@ void PhysicsSystem::render()
   for (uint i = 0; i < entitySectionData.size(); i++)
   {
     uint entityOffset = entitySectionData[i].offsets[SECTION_DATA_NODE];
+    uint solverId = getSolverId(entitySectionData[i].identity);
+    if (solverId)
+    {
+      entityOffset += solverNodeOffsets.host()->at(solverId - 1);
+    }
     entities[i]->render(&(*entityParticles[i])[entityOffset]);
   }
 }
@@ -250,7 +288,9 @@ void PhysicsSystem::step(float timeStep)
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get()
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+      solverEntityOffsets.device(),
+      solverNodeOffsets.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[0].setArgs(buffers, bufferCount);

@@ -8,12 +8,11 @@
 enum SolverType
 {
   SOLVER_NULL = 0,
-  SOLVER_EQUATION = 1,
-  SOLVER_CLOTH = 2,
-  SOLVER_RIGID_BODY = 4,
-  SOLVER_SYSTEM,
+  SOLVER_CLOTH = 1,
+  SOLVER_RIGID_BODY = 2,
+  SOLVER_EQUATION = 4,
 
-  SOLVER_MAX = 4
+  SOLVER_MAX = 3
 };
 
 template<class IndexType, class CoefficientType, class VariableType> class Solver :
@@ -52,6 +51,11 @@ public:
   virtual void create(ComputeInterface* compute) = 0;
 
   virtual void solve() = 0;
+
+  /*@function Get an available unique entity id.*/
+  uint newEntityId();
+
+  uint entityCount();
 };
 
 #endif

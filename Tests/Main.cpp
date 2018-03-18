@@ -171,7 +171,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   {
     SectionData section;
     section.offsets[SECTION_DATA_NODE] = i ? partitions.host()->at(i - 1).offsets[SECTION_DATA_NODE] + width : 0;
-    section.instanceCount = 1;
+    section.identity.setIdentity(1, 0);
     partitions.host()->push_back(section);
     width++;
   }
@@ -196,7 +196,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     }
 
     IdentityInfo particleIdentity;
-    particleIdentity.identity = sectionIndex;
+    particleIdentity.setIdentity(0, sectionIndex);
     particleIdentities.host()->push_back(particleIdentity);
 
     particlesHost.push_back(particle);
@@ -213,10 +213,10 @@ void testIrregular2DMean(ComputeInterface* compute)
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
-  utilSetting[ComputeUtilStructIdentity] = "identity";
   utilSetting[ComputeUtilIndexStructType] = "SectionData";
-  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
   utilSetting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
+  utilSetting[ComputeUtilIdentityFunction] = "getEntityId";
+  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
@@ -334,7 +334,7 @@ void testSectionOffsets(ComputeInterface* compute)
     section.offsets[SECTION_DATA_NODE] = i ? (partitions.host()->at(i - 1).offsets[SECTION_DATA_NODE] +
       partitions.host()->at(i - 1).counts[SECTION_DATA_NODE]) : 0;
     section.counts[SECTION_DATA_NODE] = nodes * instanceCount;
-    section.instanceCount = instanceCount;
+    section.identity.setIdentity(instanceCount, 0);
 
     partitions.host()->push_back(section);
     for (uint j = 0; j < instanceCount; j++)

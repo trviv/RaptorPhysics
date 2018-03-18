@@ -73,13 +73,15 @@ void RigidSolver::create(ComputeInterface* compute)
 
 void RigidSolver::solve()
 {
+  uint count = nodes();
+  if (!count) return;
+
   if (updates.size()) // update arrays
   {
     update();
   }
 
   size_t workgroupSize[3], workgroupCount[3];
-  uint count = nodes();
   compute->configureSize(workgroupSize, workgroupCount, count);
 
   covarianceMatrix.resize(count * 9, false);
@@ -198,7 +200,7 @@ void RigidSolver::update()
   uint totalEntities = 0;
   for (uint i = 0; i < deviceSections.host()->size(); i++)
   {
-    totalEntities += deviceSections.host()->at(i).instanceCount;
+    totalEntities += getInstanceId(deviceSections.host()->at(i).identity);
   }
   entityOffsets.resize(totalEntities, false);
   entityOffsetCount.resize(1, false);

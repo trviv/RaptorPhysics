@@ -21,6 +21,12 @@
 #define INDEX_STRUCT_MEMBER
 #endif
 
+#ifdef IdentityFunction
+#define IDENTITY_FUNCTION(x) IdentityFunction(x)
+#else
+#define IDENTITY_FUNCTION(x) x
+#endif
+
 #ifdef AddFunction
 #define ADD_FUNCTION(x, y) AddFunction(&(x), &(y))
 #else
@@ -175,10 +181,6 @@ Kernel void parallelPrefixSum1D(
   const uint iteration,
   const uint maxLocalIterations)
 {
-  /*
-  Group StructType localArray[2 * COMPUTE_MAX_THREADS];
-  */
-
   const uint originalIndex = threadIndex();
 
   for (uint i = 0; i < maxLocalIterations; i++)
@@ -260,9 +262,9 @@ Kernel void sumIrregular2DKernel(
     if (index1 < length)
     {
 #ifdef IdentityStructType
-      uint identity1 = array2DIdentity[index1]STRUCT_IDENTITY;
+      uint identity1 = IDENTITY_FUNCTION(array2DIdentity[index1]STRUCT_IDENTITY);
 #else
-      uint identity1 = array2D[index1]STRUCT_IDENTITY;
+      uint identity1 = IDENTITY_FUNCTION(array2D[index1]STRUCT_IDENTITY);
 #endif
       if (identity1 < maxIdentity)
       {
@@ -277,9 +279,9 @@ Kernel void sumIrregular2DKernel(
         if (index2 < length)
         {
 #ifdef IdentityStructType
-          if (identity1 == array2DIdentity[index2]STRUCT_IDENTITY)
+          if (identity1 == IDENTITY_FUNCTION(array2DIdentity[index2]STRUCT_IDENTITY))
 #else
-          if (identity1 == array2D[index2]STRUCT_IDENTITY)
+          if (identity1 == IDENTITY_FUNCTION(array2D[index2]STRUCT_IDENTITY))
 #endif
           {
             bool add = !backwards;
@@ -366,7 +368,7 @@ Kernel void sectionOffsetsKernel(
       compactOffsets[COMPUTE_MAX_THREADS] = compactOffsets[COMPUTE_MAX_THREADS - 1];
       if (multiple > 0)
       {
-        compactOffsets[COMPUTE_MAX_THREADS] += sectionData[gridOffset].instanceCount;
+        compactOffsets[COMPUTE_MAX_THREADS] += getInstanceId(sectionData[gridOffset].identity);
       }
     }
     localMemBarrier();
@@ -375,12 +377,12 @@ Kernel void sectionOffsetsKernel(
     {
       localSectionOffsets[localIndex] = sectionData[index].offsets[SECTION_DATA_NODE];
       localSectionCounts[localIndex] = sectionData[index].counts[SECTION_DATA_NODE];
-      const uint instanceCount = sectionData[index].instanceCount;
+      const uint instanceCount = getInstanceId(sectionData[index].identity);
 
       compactOffsets[localIndex] = compactOffsets[COMPUTE_MAX_THREADS];
       for (uint i = 0; i < localIndex; i++)
       {
-        compactOffsets[localIndex] += sectionData[gridOffset + i].instanceCount;
+        compactOffsets[localIndex] += getInstanceId(sectionData[gridOffset + i].identity);
       }
 
       const uint nodeCount = localSectionCounts[localIndex] / instanceCount;
@@ -393,7 +395,7 @@ Kernel void sectionOffsetsKernel(
     localMemBarrier();
     if (index == length)
     {
-      sectionOffsetCount[0] = compactOffsets[localIndex - 1] + sectionData[index - 1].instanceCount;
+      sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(sectionData[index - 1].identity);
     }
   }
 }

@@ -56,9 +56,9 @@ Kernel void distanceSolverSpring(
     uint instanceNodeOffset;
     {
       // entity id
-      const uint identity = particleIdentities[index].identity;
+      const IdentityInfo identity = particleIdentities[index];
       const uint entityId = getEntityId(identity);
-      instanceNodeOffset = (getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / sectionData[entityId].instanceCount));
+      instanceNodeOffset = getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / getInstanceId(sectionData[entityId].identity));
     }
     const uint commonIndex = index - instanceNodeOffset;
     const uint offset = constrainOffset(constrainNodes[commonIndex]);
@@ -80,7 +80,6 @@ Kernel void distanceSolverSpring(
       // SOR is from unified particle physics
     }
     newPositions[index].position = oldValues[localIndex];
-    //newPositions[index].identity = identity;
   }
 }
 

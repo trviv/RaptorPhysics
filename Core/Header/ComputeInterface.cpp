@@ -426,14 +426,15 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   // Get the log
   clGetProgramBuildInfo(program, deviceId, CL_PROGRAM_BUILD_LOG, logSize, log, NULL);
 
-  string logs(log);
-  remove(logs.begin(), logs.end(), ' ');
-  remove(logs.begin(), logs.end(), '\n');
+  //string tempLogs = log;
+  string logs = log;
+  logs.erase(remove(logs.begin(), logs.end(), ' '), logs.end());
+  logs.erase(remove(logs.begin(), logs.end(), '\n'), logs.end());
 
-  if (logs.size() == 0)
+  if (logs.size() != 0)
   {
     // Print the log
-    printf("Compilation Log:\n\n%s\n", log);
+    logComputeMessage("Compilation Log:\n%s\n", logs.c_str());
   }
 
   delete log;

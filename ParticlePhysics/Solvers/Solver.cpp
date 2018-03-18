@@ -91,13 +91,27 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   updates.clear();
 }
 
+template<class IndexType, class CoefficientType, class VariableType>
+uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
+{
+  return deviceSections.host()->size();
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
+uint Solver<IndexType, CoefficientType, VariableType>::entityCount()
+{
+  return deviceSections.host()->size();
+}
+
 #define classPrefix(x, y, z) template void Solver<x, y, z>
 
 #define declareFunctions(x, y, z) \
   template Solver<x, y, z>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type); \
   template Solver<x, y, z>::~Solver(); \
   classPrefix(x, y, z)::update(); \
-  classPrefix(x, y, z)::commit();
+  classPrefix(x, y, z)::commit(); \
+  template uint Solver<x, y, z>::newEntityId(); \
+  template uint Solver<x, y, z>::entityCount();
 
 declareFunctions(ushort, real, real)
 declareFunctions(uint, real, real)

@@ -15,17 +15,59 @@ typedef Real3 float4;
 #define PHYSICS_INSTANCE_ID_SHIFT 20
 
 
+struct IdentityInfo_t
+{
+  uint identity[2];
+
+#ifndef COMPUTE_SHADER_SCOPE
+  IdentityInfo_t()
+  {
+    identity[0] = -1;
+    identity[1] = 0;
+  }
+
+  void setIdentity(uint instance, uint entityId)
+  {
+    identity[0] = (instance << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
+  }
+
+  void setSolver(uint solver)
+  {
+    identity[1] = mCeilExpOf2(solver);
+  }
+#endif
+};
+
+typedef struct IdentityInfo_t IdentityInfo;
+
+
+static uint getEntityId(const IdentityInfo particleIdentity)
+{
+  return particleIdentity.identity[0] & PHYSICS_ENTITY_ID_MASK;
+}
+
+static uint getInstanceId(const IdentityInfo particleIdentity)
+{
+  return particleIdentity.identity[0] >> PHYSICS_INSTANCE_ID_SHIFT;
+}
+
+static uint getSolverId(const IdentityInfo particleIdentity)
+{
+  return particleIdentity.identity[1];
+}
+
+
 /*
 @struct Allocation data shared by all the particles of an entity.
 */
-struct DEFAULT_ALIGN SectionData_t
+struct SectionData_t
 {
   /*@member Offsets.*/
-  uint    offsets[SECTION_DATA_MAX];
+  uint          offsets[SECTION_DATA_MAX];
   /*@member Counts.*/
-  uint    counts[SECTION_DATA_MAX];
+  uint          counts[SECTION_DATA_MAX];
   /*@member Total instances in the section.*/
-  uint    instanceCount, pad[3];
+  IdentityInfo  identity;
 };
 
 typedef struct SectionData_t SectionData;
@@ -90,21 +132,6 @@ struct DEFAULT_ALIGN ParticleStruct_t
 typedef struct ParticleStruct_t ParticleStruct;
 
 
-struct IdentityInfo_t
-{
-  uint identity;
-
-#ifndef COMPUTE_SHADER_SCOPE
-  void setIdentity(uint instance, uint entityId)
-  {
-    identity = (instance << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
-  }
-#endif
-};
-
-typedef struct IdentityInfo_t IdentityInfo;
-
-
 struct DEFAULT_ALIGN ParticleRigidData_t
 {
   float3  initialComOffset;
@@ -128,17 +155,6 @@ struct DEFAULT_ALIGN ParticleDifferential_t
 };
 
 typedef struct ParticleDifferential_t ParticleDifferential;
-
-
-static uint getEntityId(const uint particleIdentity)
-{
-  return particleIdentity&PHYSICS_ENTITY_ID_MASK;
-}
-
-static uint getInstanceId(const uint particleIdentity)
-{
-  return particleIdentity >> PHYSICS_INSTANCE_ID_SHIFT;
-}
 
 
 #ifdef COMPUTE_SHADER_SCOPE
