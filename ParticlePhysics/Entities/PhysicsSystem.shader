@@ -8,6 +8,8 @@ Kernel void integrate(
   Device ParticleDifferential*      particleDiff,
   const Device ParticleSharedData*  particleSharedData,
   const Device ParticleAuxData*     particleAuxData,
+  Const uint*                       solverEntityOffsets,
+  Const uint*                       solverNodeOffsets,
   const float                       timeStep,
   const uint                        nodeCount)
 {
@@ -17,13 +19,15 @@ Kernel void integrate(
 
   if (index < nodeCount)
   {
-    const uint identity = particleIdentities[index].identity;
+    const IdentityInfo identity = particleIdentities[index];
+    const uint solverId = getSolverId(identity);
     const uint instanceId = getInstanceId(identity);
-    const uint entityId = getEntityId(identity);
+    const uint entityId = solverEntityOffsets[solverId] + getEntityId(identity);
+
     const ParticleSharedData sharedData = particleSharedData[entityId];
     const float invMass = getInvMass(&sharedData, particleAuxData, index);
 
-    if (invMass)
+    if (invMass) // only if movable
     {
       velocity[localIndex] = particleDeltas[index].position / timeStep;
       velocity[localIndex] += constructFloat3(0.f, -9.8f, 0.f) * timeStep;

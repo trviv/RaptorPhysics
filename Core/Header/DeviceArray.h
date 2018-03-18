@@ -166,6 +166,10 @@ public:
     {
       elements = this->elements;
     }
+    if ((offset + elements) == 0)
+    {
+      logComputeError("Device array is empty!");
+    }
     //if ((offset + size) != elements)
     {
       hostBuffer->resize(offset + elements);

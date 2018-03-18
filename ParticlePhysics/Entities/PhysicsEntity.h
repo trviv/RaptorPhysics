@@ -14,8 +14,6 @@ class PhysicsEntity : protected SolverData<uint, real, Real3>
 {
 protected:
 
-  uint    identity;
-
 #ifdef ENABLE_RENDERING
 
   Vertex  displayVertex;
@@ -34,12 +32,9 @@ protected:
 
 public:
 
-  PhysicsEntity();
+  IdentityInfo identity;
 
-  void setIdentity(uint instanceCount, uint entityId)
-  {
-    identity = (instanceCount << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
-  }
+  PhysicsEntity();
 
 #ifdef ENABLE_RENDERING
   virtual void render(ParticleStruct* particles) = 0;

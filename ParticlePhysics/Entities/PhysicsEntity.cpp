@@ -7,7 +7,6 @@ PhysicsEntity::PhysicsEntity()
   particleAuxData.create(NULL, NULL, true);
   particleRigidData.create(NULL, NULL, true);
 
-  identity = -1;
   solver = SOLVER_NULL;
 
   ParticleSharedData sharedData;

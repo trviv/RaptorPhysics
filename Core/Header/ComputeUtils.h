@@ -11,6 +11,7 @@ enum ComputeUtilKey
   ComputeUtilStructIdentity,
   ComputeUtilIndexStructType,
   ComputeUtilIndexStructMember,
+  ComputeUtilIdentityFunction,
   ComputeUtilIdentityStructType,
   ComputeUtilCustomFunctionSuffix,
   ComputeUtilMaxKey

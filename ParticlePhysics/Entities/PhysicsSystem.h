@@ -42,11 +42,11 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Entity ids available for reuse.*/
   vector<uint>                    availableEntityIds;
 
+  DeviceArray<uint>               solverEntityOffsets;
+  DeviceArray<uint>               solverNodeOffsets;
+
   /*@function Take one simulation step.*/
   void step();
-
-  /*@function Get an available unique entity id.*/
-  uint getNewEntityId();
 
   /*@function Get solver instance for a solver type.*/
   void* getSolver(SolverType type);

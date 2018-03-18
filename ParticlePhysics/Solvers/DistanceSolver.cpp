@@ -32,13 +32,15 @@ void DistanceSolver::create(ComputeInterface* compute)
 
 void DistanceSolver::solve()
 {
+  uint count = nodes();
+  if (!count) return;
+
   if (updates.size())
   {
     update();
   }
 
   size_t workgroupSize[3], workgroupCount[3];
-  uint count = nodes();
   compute->configureSize(workgroupSize, workgroupCount, count);
 
   particleDifferential.resize(count, false);
