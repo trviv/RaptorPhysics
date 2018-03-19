@@ -3,7 +3,8 @@
 
 #include "Header/Root.h"
 #include "Header/Math.h"
-#include "Header/Logging.h"
+#include "Header/Clock.h"
+#include "Header/Profiler.h"
 #include "Header/ComputeInterface.h"
 #include "Header/ShaderEntity.h"
 #include "Header/ComputeUtils.h"

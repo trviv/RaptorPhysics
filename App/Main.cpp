@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 
   uint subdivision1[2] = { 8, 8 };
   cloth->initXY(dim, subdivision1, 1);
-  int clothInstances = 512;
+  int clothInstances = 2048;
   for (int i = 0; i < clothInstances; i++)
   {
     Matrix4 matrix;
@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
   uint subdivision2[3] = { 2, 2, 2 };
   rigidBody->initCube(dim, subdivision2, 1);
-  int rbInstances = 512;
+  int rbInstances = 2048;
   for (int i = 0; i < rbInstances; i++)
   {
     Matrix4 matrix;
