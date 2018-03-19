@@ -201,8 +201,11 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
 
 void PhysicsSystem::step()
 {
+  ProfileManager::Reset();
+
   if (updates.size())
   {
+    ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
     for (const SectionData& section : updates)
@@ -223,6 +226,10 @@ void PhysicsSystem::step()
     updates.clear();
   }
   step(.066f);
+
+  compute->sync();
+  ProfileManager::dumpAll(stdout);
+  ProfileManager::Increment_Frame_Counter();
 }
 
 #ifdef ENABLE_RENDERING
@@ -240,7 +247,6 @@ return entitySharedData[(entityLocation - entities.begin())];
 
 void PhysicsSystem::render()
 {
-  compute->sync();
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     if (solversUint[i])
@@ -267,6 +273,8 @@ void PhysicsSystem::render()
 
 void PhysicsSystem::step(float timeStep)
 {
+  ProfileBlock("Physics system step");
+
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     if (solversUint[i])
