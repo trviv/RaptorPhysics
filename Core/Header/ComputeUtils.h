@@ -9,11 +9,18 @@ enum ComputeUtilKey
   ComputeUtilStructType,
   ComputeUtilStructMember,
   ComputeUtilStructIdentity,
-  ComputeUtilIndexStructType,
-  ComputeUtilIndexStructMember,
-  ComputeUtilIdentityFunction,
   ComputeUtilIdentityStructType,
-  ComputeUtilCustomFunctionSuffix,
+
+  ComputeUtilPartitionCountStructType,
+  ComputeUtilPartitionCountStructMember,
+  ComputeUtilPartitionOffsetStructType,
+  ComputeUtilPartitionOffsetStructMember,
+
+  ComputeUtilCustomAddFunction,
+  ComputeUtilCustomCopyFunction,
+  ComputeUtilCustomDivFunction,
+  ComputeUtilCustomCommonIdentityFunction,
+  ComputeUtilCustomUniqueIdentityFunction,
   ComputeUtilMaxKey
 };
 
@@ -37,6 +44,8 @@ public:
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
 
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
+
+  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitionOffsets, ComputeMemory* partitionCounts, uint length, uint maxPartitionLength, bool doMean = false);
 
   void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
 

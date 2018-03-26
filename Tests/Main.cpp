@@ -8,6 +8,7 @@ void testEquation(ComputeInterface* compute)
   allocator.constrainAllocator.create(1024, 1024 * 16);
   allocator.particleAllocator.create(1024);
 
+  SectionData sectionData;
   LinearSolver<ushort, float, float> cons(compute, &allocator);
 
   cons.create(compute);
@@ -36,7 +37,7 @@ void testEquation(ComputeInterface* compute)
   cons.setConstant(2, -11);
   cons.setConstant(3, 15);
 
-  cons.commit();
+  cons.commit(sectionData);
 
   cons.addConnection(0, 0, 2);
   cons.addConnection(1, 1, 7);
@@ -46,7 +47,7 @@ void testEquation(ComputeInterface* compute)
   cons.setConstant(0, 11);
   cons.setConstant(1, 13);
 
-  cons.commit();
+  cons.commit(sectionData);
 
   cons.solve();
 }
@@ -163,14 +164,15 @@ void testIrregular2DMean(ComputeInterface* compute)
   DeviceArray<SectionData>    partitions(compute, NULL, true);
 
   uint width = 1;
-  const uint parts = 1022;
-  const int elements = (parts * (parts + 1)) >> 1;// width * parts;
+  const uint parts = 1021;
+  const int elements = (parts * (parts + 1)) >> 1;
   Real3 sum = 0;
 
   for (int i = 0; i < parts; i++)
   {
     SectionData section;
     section.offsets[SECTION_DATA_NODE] = i ? partitions.host()->at(i - 1).offsets[SECTION_DATA_NODE] + width : 0;
+    section.counts[SECTION_DATA_NODE] = width + 1;
     section.identity.setIdentity(1, 0);
     partitions.host()->push_back(section);
     width++;
@@ -190,7 +192,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     if (sectionIndex < (partitionsHost.size() - 1) &&
       i == partitionsHost[sectionIndex + 1].offsets[SECTION_DATA_NODE])
     {
-      means.push_back(sum);
+      means.push_back(sum / (partitionsHost[sectionIndex + 1].offsets[SECTION_DATA_NODE] - partitionsHost[sectionIndex].offsets[SECTION_DATA_NODE]));
       sum = 0;
       sectionIndex++;
     }
@@ -203,7 +205,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     sum += particle.position;
   }
 
-  means.push_back(sum);
+  means.push_back(sum / (elements - partitionsHost[sectionIndex].offsets[SECTION_DATA_NODE]));
 
   particles.syncDevice();
   partitions.syncDevice();
@@ -213,23 +215,28 @@ void testIrregular2DMean(ComputeInterface* compute)
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
-  utilSetting[ComputeUtilIndexStructType] = "SectionData";
-  utilSetting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
-  utilSetting[ComputeUtilIdentityFunction] = "getEntityId";
   utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
+
+  utilSetting[ComputeUtilPartitionCountStructType] = "SectionData";
+  utilSetting[ComputeUtilPartitionCountStructMember] = "counts[SECTION_DATA_NODE]";
+  utilSetting[ComputeUtilPartitionOffsetStructType] = "SectionData";
+  utilSetting[ComputeUtilPartitionOffsetStructMember] = "offsets[SECTION_DATA_NODE]";
+
+  utilSetting[ComputeUtilCustomCommonIdentityFunction] = "getEntityId";
+  utilSetting[ComputeUtilCustomUniqueIdentityFunction] = "getEntityId";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), elements, width, false);
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), elements, width, true);
 
   particles.syncHost();
   compute->sync();
 
   for (uint i = 0; i < partitionsHost.size(); i++)
   {
-    if (means[i][0] != particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[0]
-      || means[i][1] != particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[1]
-      || means[i][2] != particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[2])
+    if (abs(means[i][0] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[0]) > .00001f
+      || abs(means[i][1] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[1]) > .00001f
+      || abs(means[i][2] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[2]) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position << "\n";
       assert(0);
@@ -269,9 +276,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (uint i = 0; i < particlesConsolidated.host()->size(); i++)
   {
-    if (means[i][0] != particlesConsolidated.host()->at(i).position[0]
-      || means[i][1] != particlesConsolidated.host()->at(i).position[1]
-      || means[i][2] != particlesConsolidated.host()->at(i).position[2])
+    if (abs(means[i][0] - particlesConsolidated.host()->at(i).position[0]) > .00001f
+      || abs(means[i][1] - particlesConsolidated.host()->at(i).position[1]) > .00001f
+      || abs(means[i][2] - particlesConsolidated.host()->at(i).position[2]) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particlesConsolidated.host()->at(i).position << "\n";
       assert(0);
@@ -357,7 +364,6 @@ void testSectionOffsets(ComputeInterface* compute)
   vector<string>              includes;
   map<ComputeUtilKey, string> utilSetting;
   includes.push_back("ParticleStruct.h");
-  utilSetting[ComputeUtilIndexStructType] = "SectionData";
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
   ComputeUtil::get(templateId)->createSectionOffsets(compute, offsets.device(), offsetCount.device(), partitions.device(), parts);

@@ -99,6 +99,9 @@ void DistanceSolver::solve()
     kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
     compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
   }
+#if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)
+  compute->sync();
+#endif
 }
 
 void DistanceSolver::update()

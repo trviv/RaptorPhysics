@@ -8,23 +8,25 @@ Solver<IndexType, CoefficientType, VariableType>(compute, allocator, SOLVER_EQUA
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-void LinearSolver<IndexType, CoefficientType, VariableType>::commit()
+void LinearSolver<IndexType, CoefficientType, VariableType>::commit(const SectionData& sectionData)
 {
-  Solver::commit();
+  Solver::commit(sectionData);
 
-  flatArray<CoefficientType>(*constrainCoefficients.host(), rawConstrainCoefficients);
+  /*flatArray<CoefficientType>(*constrainCoefficients.host(), rawConstrainCoefficients);
 
   SectionData updateInfo;
 
-  updateInfo.offsets[SECTION_DATA_NODE] = nodeOffset;
-  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodeOffset;
-  updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionOffset;
-  updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionOffset;
+  updateInfo.offsets[SECTION_DATA_NODE] = nodes();
+  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodes();
+  updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionCount();
+  updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionCount();
+  updateInfo.offsets[SECTION_DATA_COMMON_NODE] = connectionCount();
+  updateInfo.counts[SECTION_DATA_COMMON_NODE] = constrainConstants.host()->size() - commonNodeCount();
 
-  updates.push_back(updateInfo);
+  updates.push_back(updateInfo);*/
 
-  nodeOffset += updateInfo.counts[SECTION_DATA_NODE];
-  connectionOffset += updateInfo.counts[SECTION_DATA_CONNECTION];
+  //nodeOffset += updateInfo.counts[SECTION_DATA_NODE];
+  //connectionOffset += updateInfo.counts[SECTION_DATA_CONNECTION];
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

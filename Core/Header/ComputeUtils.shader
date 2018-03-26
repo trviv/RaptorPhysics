@@ -15,28 +15,10 @@
 #define STRUCT_IDENTITY
 #endif
 
-#ifdef IndexStructMember
-#define INDEX_STRUCT_MEMBER .IndexStructMember
-#else
-#define INDEX_STRUCT_MEMBER
-#endif
-
-#ifdef IdentityFunction
-#define IDENTITY_FUNCTION(x) IdentityFunction(x)
-#else
-#define IDENTITY_FUNCTION(x) x
-#endif
-
 #ifdef AddFunction
 #define ADD_FUNCTION(x, y) AddFunction(&(x), &(y))
 #else
 #define ADD_FUNCTION(x, y) x += y
-#endif
-
-#ifdef DivFunction
-#define DIV_FUNCTION(x, y) DivFunction(&(x), &(y))
-#else
-#define DIV_FUNCTION(x, y) x /= y
 #endif
 
 #ifdef CopyFunction
@@ -45,8 +27,24 @@
 #define COPY_FUNCTION(x, y) x = y
 #endif
 
-// requires ReductionFunction
-// GroupSize
+#ifdef DivFunction
+#define DIV_FUNCTION(x, y) DivFunction(&(x), &(y))
+#else
+#define DIV_FUNCTION(x, y) x /= y
+#endif
+
+#ifdef UniqueIdentityFunction
+#define UNIQUE_IDENTITY_FUNCTION(x) UniqueIdentityFunction(x)
+#else
+#define UNIQUE_IDENTITY_FUNCTION(x) x
+#endif
+
+#ifdef CommonIdentityFunction
+#define COMMON_IDENTITY_FUNCTION(x) CommonIdentityFunction(x)
+#else
+#define COMMON_IDENTITY_FUNCTION(x) x
+#endif
+
 /*@kernel Sum all the array elements.*/
 
 #ifdef StructType
@@ -81,8 +79,6 @@ Kernel void sum1DKernel(Device StructType* array,
     DIV_FUNCTION(array[index]STRUCT_MEMBER, divisor);
   }
 }
-
-//#define DEBUG_SUM_PARTITION
 
 /*@kernel Sum all the elements of a flat 2d array.*/
 Kernel void sumRegular2DKernel(
@@ -231,14 +227,27 @@ Kernel void copyFromOffsetsKernel(
   }
 }
 
-#ifdef IndexStructType
+#ifdef PartitionOffsetStructType
+
+#ifdef PartitionOffsetStructMember
+#define OFFSET_STRUCT_MEMBER .PartitionOffsetStructMember
+#else
+#define OFFSET_STRUCT_MEMBER
+#endif
+
+#ifdef PartitionCountStructMember
+#define COUNT_STRUCT_MEMBER .PartitionCountStructMember
+#else
+#define COUNT_STRUCT_MEMBER
+#endif
 
 Kernel void sumIrregular2DKernel(
   Device StructType* array2D,
 #ifdef IdentityStructType
   const Device IdentityStructType* array2DIdentity,
 #endif
-  const Device IndexStructType* partitionArray,
+  const Device PartitionCountStructType* partitionArrayCounts,
+  const Device PartitionOffsetStructType* partitionArrayOffsets,
   const uint length,
   const uint maxPartitionLength,
   const uint iteration,
@@ -251,7 +260,7 @@ Kernel void sumIrregular2DKernel(
   maxLocalIterations = maxLocalIterations << 1;
 
   const int maxIdentity = (groupIndex() + 1) * ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength);
-  const int offset = partitionArray[groupIndex()  * ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength)]INDEX_STRUCT_MEMBER;
+  const int offset = partitionArrayOffsets[groupIndex()  * ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength)]OFFSET_STRUCT_MEMBER;
 
   for (uint i = 0; i < maxLocalIterations; i++)
   {
@@ -262,9 +271,9 @@ Kernel void sumIrregular2DKernel(
     if (index1 < length)
     {
 #ifdef IdentityStructType
-      uint identity1 = IDENTITY_FUNCTION(array2DIdentity[index1]STRUCT_IDENTITY);
+      uint identity1 = UNIQUE_IDENTITY_FUNCTION(array2DIdentity[index1]STRUCT_IDENTITY);
 #else
-      uint identity1 = IDENTITY_FUNCTION(array2D[index1]STRUCT_IDENTITY);
+      uint identity1 = UNIQUE_IDENTITY_FUNCTION(array2D[index1]STRUCT_IDENTITY);
 #endif
       if (identity1 < maxIdentity)
       {
@@ -273,22 +282,21 @@ Kernel void sumIrregular2DKernel(
           // treat this index as second
           index2 = index1;
           // treat partition as the destination
-          index1 = partitionArray[identity1]INDEX_STRUCT_MEMBER;
+          index1 = partitionArrayOffsets[identity1]OFFSET_STRUCT_MEMBER;
         }
 
         if (index2 < length)
         {
 #ifdef IdentityStructType
-          if (identity1 == IDENTITY_FUNCTION(array2DIdentity[index2]STRUCT_IDENTITY))
+          if (identity1 == UNIQUE_IDENTITY_FUNCTION(array2DIdentity[index2]STRUCT_IDENTITY))
 #else
-          if (identity1 == IDENTITY_FUNCTION(array2D[index2]STRUCT_IDENTITY))
+          if (identity1 == UNIQUE_IDENTITY_FUNCTION(array2D[index2]STRUCT_IDENTITY))
 #endif
           {
             bool add = !backwards;
+            const int diff = index2 - index1;
             if (backwards)
             {
-              int diff = index2 - index1;
-              //if (diff < width && diff >= (width >> 1) && (index1 & ((width << 1) - 1)))//*((index1 - offset) & ((width << 1) - 1)))
               if (diff < width && diff >= (width >> 1) && ((index1 - offset) & ((width << 1) - 1)))
               {
                 add = true;
@@ -298,6 +306,15 @@ Kernel void sumIrregular2DKernel(
             if (add)
             {
               ADD_FUNCTION(array2D[index1]STRUCT_MEMBER, array2D[index2]STRUCT_MEMBER);
+            }
+
+            if (maxPower == 1 && backwards && diff < width)
+            {
+#if UNIQUE_IDENTITY_FUNCTION == COMMON_IDENTITY_FUNCTION
+              DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, partitionArrayCounts[identity1]COUNT_STRUCT_MEMBER);
+#else
+              DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, partitionArrayCounts[COMMON_IDENTITY_FUNCTION(array2D[index2]STRUCT_IDENTITY)]COUNT_STRUCT_MEMBER);
+#endif
             }
           }
         }
@@ -325,17 +342,13 @@ Kernel void sumIrregular2DKernel(
       barrier(CLK_GLOBAL_MEM_FENCE);
     }
   }
-  //if (divideFlag && index == 0)
-  {
-    //array[index]STRUCT_MEMBER /= length;
-  }
 }
 
 #endif
 
 #endif
 
-#ifdef IndexStructType
+#ifdef SECTION_DATA_NODE
 
 /*
 @kernel Store offsets in an array from section data.
@@ -346,7 +359,7 @@ Kernel void sumIrregular2DKernel(
 Kernel void sectionOffsetsKernel(
   Device uint* sectionOffsets,
   Device uint* sectionOffsetCount,
-  const Device IndexStructType* sectionData,
+  const Device SectionData* sectionData,
   const uint length)
 {
   const uint localIndex = threadLocalIndex();

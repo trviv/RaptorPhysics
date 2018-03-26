@@ -45,8 +45,22 @@ Solver<IndexType, CoefficientType, VariableType>::~Solver()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-void Solver<IndexType, CoefficientType, VariableType>::commit()
+void Solver<IndexType, CoefficientType, VariableType>::commit(const SectionData& sectionData)
 {
+  flatArray<CoefficientType>(*constrainCoefficients.host(), rawConstrainCoefficients);
+
+  SectionData updateInfo;
+
+  updateInfo.offsets[SECTION_DATA_NODE] = nodes();
+  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodes();
+
+  updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionCount();
+  updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionCount();
+
+  updateInfo.offsets[SECTION_DATA_COMMON_NODE] = commonNodeCount();
+  updateInfo.counts[SECTION_DATA_COMMON_NODE] = constrainConstants.host()->size() / getInstanceId(sectionData.identity) - commonNodeCount();
+
+  updates.push_back(updateInfo);
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -55,26 +69,29 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   // arrays to be exported to device
   for (const SectionData& section : updates)
   {
-    if (rawConstrainConnections.size())
+    if (rawConstrainConnections.size() && section.counts[SECTION_DATA_CONNECTION])
     {
+      uint indexOffset = 0;
+
       // create flat constrain array for device
-      for (uint i = section.offsets[SECTION_DATA_NODE]; i < section.offsets[SECTION_DATA_NODE] + section.counts[SECTION_DATA_NODE]; i++)
+      for (uint i = 0; i < section.counts[SECTION_DATA_COMMON_NODE]; i++)
       {
-        constrainHeaders.host()->push_back(Constrain(constrainIndices.host()->size(), 0));
-        for (uint j = 0; j < rawConstrainConnections[i].size(); j++)
+        Constrain newConstrain(indexOffset, 0);
+
+        for (uint j = 0; j < rawConstrainConnections[constrainHeaders.host()->size()].size(); j++)
         {
-          constrainIndices.host()->push_back(rawConstrainConnections[i][j]);
+          constrainIndices.host()->push_back(rawConstrainConnections[constrainHeaders.host()->size()][j]);
+          indexOffset++;
         }
-        (*constrainHeaders.host())[i].setCount(rawConstrainConnections[i].size()); // the constrain header
+        newConstrain.setCount(rawConstrainConnections[constrainHeaders.host()->size()].size());
+        constrainHeaders.host()->push_back(newConstrain);
       }
 
-      rawConstrainConnections.clear();
-
       // send values to device
-      if (section.counts[SECTION_DATA_NODE])
+      if (section.counts[SECTION_DATA_COMMON_NODE])
       {
-        constrainHeaders.syncDevice(section.offsets[SECTION_DATA_NODE], section.counts[SECTION_DATA_NODE]);
-        constrainConstants.syncDevice(section.offsets[SECTION_DATA_NODE], section.counts[SECTION_DATA_NODE]);
+        constrainHeaders.syncDevice(section.offsets[SECTION_DATA_COMMON_NODE], section.counts[SECTION_DATA_COMMON_NODE]);
+        constrainConstants.syncDevice(section.offsets[SECTION_DATA_COMMON_NODE], section.counts[SECTION_DATA_COMMON_NODE]);
       }
       if (section.counts[SECTION_DATA_CONNECTION])
       {
@@ -83,6 +100,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
       }
     }
   }
+  rawConstrainConnections.clear();
 
   // reset aux arrays
   constrainVariableAux[0].resize(nodes(), false);
@@ -98,9 +116,20 @@ uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-uint Solver<IndexType, CoefficientType, VariableType>::entityCount()
+uint Solver<IndexType, CoefficientType, VariableType>::uniqueEntityCount()const
 {
   return deviceSections.host()->size();
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
+uint Solver<IndexType, CoefficientType, VariableType>::totalEntityCount()const
+{
+  if (deviceSections.host()->size())
+  {
+    return getEntityOffset(deviceSections.host()->back().identity) + getInstanceId(deviceSections.host()->back().identity);
+  }
+
+  return 0;
 }
 
 #define classPrefix(x, y, z) template void Solver<x, y, z>
@@ -109,9 +138,10 @@ uint Solver<IndexType, CoefficientType, VariableType>::entityCount()
   template Solver<x, y, z>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type); \
   template Solver<x, y, z>::~Solver(); \
   classPrefix(x, y, z)::update(); \
-  classPrefix(x, y, z)::commit(); \
+  classPrefix(x, y, z)::commit(const SectionData& sectionData); \
   template uint Solver<x, y, z>::newEntityId(); \
-  template uint Solver<x, y, z>::entityCount();
+  template uint Solver<x, y, z>::uniqueEntityCount()const; \
+  template uint Solver<x, y, z>::totalEntityCount()const;
 
 declareFunctions(ushort, real, real)
 declareFunctions(uint, real, real)

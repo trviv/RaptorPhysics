@@ -1,8 +1,59 @@
 #include "SolverData.h"
 
 template<class IndexType, class CoefficientType, class VariableType>
-SolverData<IndexType, CoefficientType, VariableType>::SolverData() : nodeOffset(0), connectionOffset(0)
+SolverData<IndexType, CoefficientType, VariableType>::SolverData()
 {
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
+uint SolverData<IndexType, CoefficientType, VariableType>::nodes()const
+{
+  uint ret = 0;
+
+  if (deviceSections.host() && deviceSections.host()->size())
+  {
+    ret = deviceSections.host()->back().offsets[SECTION_DATA_NODE] + deviceSections.host()->back().counts[SECTION_DATA_NODE];
+  }
+  if (updates.size() > 0)
+  {
+    ret = updates.back().offsets[SECTION_DATA_NODE] + updates.back().counts[SECTION_DATA_NODE];
+  }
+
+  return ret;
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
+uint SolverData<IndexType, CoefficientType, VariableType>::commonNodeCount()const
+{
+  uint ret = 0;
+
+  if (deviceSections.host() && deviceSections.host()->size())
+  {
+    ret = deviceSections.host()->back().offsets[SECTION_DATA_COMMON_NODE] + deviceSections.host()->back().counts[SECTION_DATA_COMMON_NODE];
+  }
+  if (updates.size() > 0)
+  {
+    ret = updates.back().offsets[SECTION_DATA_COMMON_NODE] + updates.back().counts[SECTION_DATA_COMMON_NODE];
+  }
+
+  return ret;
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
+uint SolverData<IndexType, CoefficientType, VariableType>::connectionCount()const
+{
+  uint ret = 0;
+
+  if (deviceSections.host() && deviceSections.host()->size())
+  {
+    ret = deviceSections.host()->back().offsets[SECTION_DATA_CONNECTION] + deviceSections.host()->back().counts[SECTION_DATA_CONNECTION];
+  }
+  if (updates.size() > 0)
+  {
+    ret = updates.back().offsets[SECTION_DATA_CONNECTION] + updates.back().counts[SECTION_DATA_CONNECTION];
+  }
+
+  return ret;
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -46,6 +97,9 @@ void SolverData<IndexType, CoefficientType, VariableType>::setConstant(IndexType
 
 #define declareFunctions(x, y, z) \
   template SolverData<x, y, z>::SolverData(); \
+  template uint SolverData<x, y, z>::nodes()const; \
+  template uint SolverData<x, y, z>::connectionCount()const; \
+  template uint SolverData<x, y, z>::commonNodeCount()const; \
   classPrefix(x, y, z)::addConstrain(x index, x connection); \
   classPrefix(x, y, z)::addCoefficient(x index, y coefficient); \
   classPrefix(x, y, z)::addConnection(x index, x connection, y coefficient); \

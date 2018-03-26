@@ -21,16 +21,28 @@ string getKeyName(ComputeUtilKey key)
     return "StructMember";
   case ComputeUtilStructIdentity:
     return "StructIdentity";
-  case ComputeUtilIndexStructType:
-    return "IndexStructType";
-  case ComputeUtilIndexStructMember:
-    return "IndexStructMember";
-  case ComputeUtilIdentityFunction:
-    return "IdentityFunction";
   case ComputeUtilIdentityStructType:
     return "IdentityStructType";
-  case ComputeUtilCustomFunctionSuffix:
-    return "FunctionSuffix";
+
+  case ComputeUtilPartitionCountStructType:
+    return "PartitionCountStructType";
+  case ComputeUtilPartitionCountStructMember:
+    return "PartitionCountStructMember";
+  case ComputeUtilPartitionOffsetStructType:
+    return "PartitionOffsetStructType";
+  case ComputeUtilPartitionOffsetStructMember:
+    return "PartitionOffsetStructMember";
+
+  case ComputeUtilCustomAddFunction:
+    return "AddFunction";
+  case ComputeUtilCustomCopyFunction:
+    return "CopyFunction";
+  case ComputeUtilCustomDivFunction:
+    return "DivFunction";
+  case ComputeUtilCustomCommonIdentityFunction:
+    return "CommonIdentityFunction";
+  case ComputeUtilCustomUniqueIdentityFunction:
+    return "UniqueIdentityFunction";
   }
   return "";
 }
@@ -40,6 +52,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   ComputeUtil util;
   vector<string> oldType;
   vector<string> newType;
+  vector<string> kernelNames;
 
   util.includeFiles.push_back("ComputeHeader.shader");
   if (includeFiles)
@@ -64,6 +77,11 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   for (const string& include : util.includeFiles)
   {
+    if (include == "ParticleStruct.h")
+    {
+      util.kernelIndices[COMPUTE_UTIL_SECTION_OFFSET] = kernelNames.size();
+      kernelNames.push_back("sectionOffsetsKernel");
+    }
     key += ":" + include;
   }
 
@@ -73,8 +91,6 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     logComputeMessage("Using existing utility instance.");
     return pos - computeConfig.begin();
   }
-
-  vector<string> kernelNames;
 
   logComputeMessage("Adding utility kernels");
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
@@ -87,11 +103,8 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     //kernelNames.push_back("parallelPrefixSum1D");
   }
 
-  if (dataMap.find(ComputeUtilIndexStructType) != dataMap.end())
+  if (dataMap.find(ComputeUtilPartitionOffsetStructType) != dataMap.end())
   {
-    util.kernelIndices[COMPUTE_UTIL_SECTION_OFFSET] = kernelNames.size();
-    kernelNames.push_back("sectionOffsetsKernel");
-
     if (dataMap.find(ComputeUtilStructType) != dataMap.end())
     {
       util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = kernelNames.size();
@@ -102,17 +115,17 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     }
   }
 
-  if (dataMap.find(ComputeUtilCustomFunctionSuffix) != dataMap.end())
+  /*if (dataMap.find(ComputeUtilCustomFunctionSuffix) != dataMap.end())
   {
-    oldType.push_back("AddFunction");
-    newType.push_back("add" + dataMap[ComputeUtilCustomFunctionSuffix]);
+  oldType.push_back("AddFunction");
+  newType.push_back("add" + dataMap[ComputeUtilCustomFunctionSuffix]);
 
-    oldType.push_back("DivFunction");
-    newType.push_back("div" + dataMap[ComputeUtilCustomFunctionSuffix]);
+  oldType.push_back("DivFunction");
+  newType.push_back("div" + dataMap[ComputeUtilCustomFunctionSuffix]);
 
-    oldType.push_back("CopyFunction");
-    newType.push_back("copy" + dataMap[ComputeUtilCustomFunctionSuffix]);
-  }
+  oldType.push_back("CopyFunction");
+  newType.push_back("copy" + dataMap[ComputeUtilCustomFunctionSuffix]);
+  }*/
 
   util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
   kernelNames.push_back("showMatrix");
@@ -228,6 +241,11 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
 
 void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
 {
+  sumIrregular2D(compute, memory, identity, partitions, NULL, length, maxPartitionLength, doMean);
+}
+
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitionCounts, ComputeMemory* partitionOffsets, uint length, uint maxPartitionLength, bool doMean)
+{
   const uint iterations = mCeilExpOf2(maxPartitionLength);
   const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
 
@@ -241,19 +259,24 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
   {
     kernels[kernelIndex].setArg(identity, ++index);
   }
+  if (!partitionOffsets)
+  {
+    partitionOffsets = partitionCounts;
+  }
 
-  kernels[kernelIndex].setArg(partitions, index + 1);
-  kernels[kernelIndex].setArg<uint>(&length, index + 2);
-  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, index + 3);
-  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, index + 5);
-  kernels[kernelIndex].setArg<uint>(&divideFlag, index + 6);
+  kernels[kernelIndex].setArg(partitionCounts, index + 1);
+  kernels[kernelIndex].setArg(partitionOffsets, index + 2);
+  kernels[kernelIndex].setArg<uint>(&length, index + 3);
+  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, index + 4);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, index + 6);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, index + 7);
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
 
   for (uint i = 0; i < iterations; i++)
   {
-    kernels[kernelIndex].setArg<uint>(&i, index + 4);
+    kernels[kernelIndex].setArg<uint>(&i, index + 5);
 
     maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
     divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
@@ -261,11 +284,11 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
     // set only if needed
     if (maxLocalIterations != 1)
     {
-      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, index + 5);
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, index + 6);
     }
     if (divideFlag && doMean)
     {
-      kernels[kernelIndex].setArg<uint>(&divideFlag, index + 6);
+      kernels[kernelIndex].setArg<uint>(&divideFlag, index + 7);
     }
 
     compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i))));

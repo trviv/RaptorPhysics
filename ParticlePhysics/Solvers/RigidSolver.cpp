@@ -4,7 +4,7 @@ static uint positionUtilId;
 static uint matrix3x3UtilId;
 static uint sectionOffsetUtilId;
 
-//#define DEBUG_RIGID_SOLVER
+#define DEBUG_RIGID_SOLVER
 
 #define RIGID_SOLVER_KERNEL_COVARIANCE          0
 #define RIGID_SOLVER_KERNEL_DETERMINE_MATRIX    1
@@ -14,28 +14,29 @@ RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
   iterations = 2;
+  maxPerInstanceNodes = 0;
   create(compute);
 
   covarianceMatrix.create(compute, NULL, false);
 }
 
-void RigidSolver::commit()
+void RigidSolver::commit(const SectionData& sectionData)
 {
-  Solver::commit();
+  Solver::commit(sectionData);
 
-  flatArray<real>(*constrainCoefficients.host(), rawConstrainCoefficients);
+  /*flatArray<real>(*constrainCoefficients.host(), rawConstrainCoefficients);
 
   SectionData updateInfo;
 
-  updateInfo.offsets[SECTION_DATA_NODE] = nodeOffset;
-  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodeOffset;
+  updateInfo.offsets[SECTION_DATA_NODE] = nodes();
+  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodes();
   updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionOffset;
   updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionOffset;
 
-  updates.push_back(updateInfo);
+  updates.push_back(updateInfo);*/
 
-  nodeOffset += updateInfo.counts[SECTION_DATA_NODE];
-  connectionOffset += updateInfo.counts[SECTION_DATA_CONNECTION];
+  //nodeOffset += updateInfo.counts[SECTION_DATA_NODE];
+  //connectionOffset += updateInfo.counts[SECTION_DATA_CONNECTION];
 }
 
 void RigidSolver::create(ComputeInterface* compute)
@@ -53,17 +54,31 @@ void RigidSolver::create(ComputeInterface* compute)
     map<ComputeUtilKey, string> positionSetting;
     positionSetting[ComputeUtilStructType] = "ParticleStruct";
     positionSetting[ComputeUtilStructMember] = "position";
+    positionSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
+
+    positionSetting[ComputeUtilPartitionCountStructType] = "SectionData";
+    positionSetting[ComputeUtilPartitionCountStructMember] = "counts[SECTION_DATA_COMMON_NODE]";
+    positionSetting[ComputeUtilPartitionOffsetStructType] = "uint";
+
+    positionSetting[ComputeUtilCustomCommonIdentityFunction] = "getEntityId";
+    positionSetting[ComputeUtilCustomUniqueIdentityFunction] = "getUniqueEntityId";
 
     map<ComputeUtilKey, string> matrix3x3Setting;
     matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
     matrix3x3Setting[ComputeUtilStructIdentity] = "identity";
-    matrix3x3Setting[ComputeUtilIndexStructType] = "SectionData";
-    matrix3x3Setting[ComputeUtilIndexStructMember] = "offsets[SECTION_DATA_NODE]";
+
+    matrix3x3Setting[ComputeUtilPartitionOffsetStructType] = "SectionData";
+    matrix3x3Setting[ComputeUtilPartitionOffsetStructMember] = "offsets[SECTION_DATA_NODE]";
+    matrix3x3Setting[ComputeUtilPartitionCountStructType] = "SectionData";
+    matrix3x3Setting[ComputeUtilPartitionCountStructMember] = "counts[SECTION_DATA_NODE]";
+
     matrix3x3Setting[ComputeUtilIdentityStructType] = "IdentityInfo";
-    matrix3x3Setting[ComputeUtilCustomFunctionSuffix] = "Matrix3x3";
+    matrix3x3Setting[ComputeUtilCustomAddFunction] = "addMatrix3x3";
+    matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
+    matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
 
     map<ComputeUtilKey, string> sectionOffsetSetting;
-    sectionOffsetSetting[ComputeUtilIndexStructType] = "SectionData";
+    sectionOffsetSetting[ComputeUtilPartitionOffsetStructType] = "SectionData";
 
     positionUtilId = ComputeUtil::create(compute, positionSetting, &include);
     matrix3x3UtilId = ComputeUtil::create(compute, matrix3x3Setting, &include);
@@ -91,14 +106,17 @@ void RigidSolver::solve()
   // copy to aux buffer to find new COM
   compute->copyBuffer(particles.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
 
-  uint instances = entityOffsetCount.host()->at(0);// deviceSections.host()->at(0).instanceCount;
+  uint totalEntities = totalEntityCount();// entityOffsetCount.host()->at(0);
+  //uint instances = entityOffsetCount.host()->at(0);// deviceSections.host()->at(0).instanceCount;
 
   // calculate current COM
-  ComputeUtil::get(positionUtilId)->sumRegular2D(compute, particlesTemp[0].device(), count, count / instances, true);
+  //ComputeUtil::get(positionUtilId)->sumRegular2D(compute, particlesTemp[0].device(), count, count / instances, true);
+  ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particleIdentities.device(),
+    entityOffsets.device(), deviceSections.device(), totalEntities, maxPerInstanceNodes, true);
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nMean:\n");
-  ComputeUtil::get(positionUtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, 3);
+  ComputeUtil::get(positionUtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, totalEntities * 3);
   compute->sync();
 #endif
 
@@ -122,24 +140,24 @@ void RigidSolver::solve()
 
   // consolidate matrix for each body
   // add all n * 9 values to form = 3x3 matrix
-  //ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), entitycount, count / instances, true);
-  ComputeUtil::get(matrix3x3UtilId)->sumRegular2D(compute, covarianceMatrix.device(), count, count / instances, true);
+  ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), deviceSections.device(), totalEntities, true);
+  //ComputeUtil::get(matrix3x3UtilId)->sumRegular2D(compute, covarianceMatrix.device(), count, count / instances, true);
 
   ComputeUtil::get(matrix3x3UtilId)->copySectionOffsets(compute, particlesTemp[0].device(), covarianceMatrix.device(),
-    entityOffsets.device(), entityOffsetCount.device(), instances);
+    entityOffsets.device(), entityOffsetCount.device(), totalEntities);
 
-  compute->copyBuffer(particlesTemp[0].device(), covarianceMatrix.device(), 0, 0, instances * 9 * sizeof(float));
+  compute->copyBuffer(particlesTemp[0].device(), covarianceMatrix.device(), 0, 0, totalEntities * 9 * sizeof(float));
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nM:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * 2 * instances);
+  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * 1 * totalEntities);
   compute->sync();
 #endif
 
   {
     size_t workgroupSize[3], workgroupCount[3];
-    uint rigidBodyCount = instances;
-    compute->configureSize(workgroupSize, workgroupCount, rigidBodyCount);
+    //uint rigidBodyCount = instances;
+    compute->configureSize(workgroupSize, workgroupCount, totalEntities);
 
     ComputeMemory* buffers[] = {
       covarianceMatrix.device(),
@@ -151,13 +169,13 @@ void RigidSolver::solve()
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
     kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&step, bufferOffset);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&rigidBodyCount, bufferOffset + 1);
+    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&totalEntities, bufferOffset + 1);
     compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nQ:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * instances);
+  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 3, 3, 9 * totalEntities);
   compute->sync();
 #endif
 
@@ -190,6 +208,14 @@ void RigidSolver::update()
 {
   Solver::update();
 
+  for (const SectionData& section : *deviceSections.host())
+  {
+    if (section.counts[SECTION_DATA_COMMON_NODE] > maxPerInstanceNodes)
+    {
+      maxPerInstanceNodes = section.counts[SECTION_DATA_COMMON_NODE];
+    }
+  }
+
   particleSharedData.syncDevice();
   particles.syncDevice();
   particleIdentities.syncDevice();
@@ -213,7 +239,7 @@ void RigidSolver::update()
   entityOffsets.syncHost();
   compute->sync();
   printf("Rigid body section offsets: %d\n", entityOffsetCount.host()->at(0));
-  for (int i = 0; i < entityOffsets.host()->size(); i++)
+  for (uint i = 0; i < entityOffsets.host()->size(); i++)
   {
     printf("%d %d\n", i, entityOffsets.host()->at(i));
   }

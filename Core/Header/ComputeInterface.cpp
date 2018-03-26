@@ -434,7 +434,7 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   if (logs.size() != 0)
   {
     // Print the log
-    logComputeMessage("Compilation Log:\n%s\n", logs.c_str());
+    logComputeMessage("Compilation Log:\n%s\n", log);
   }
 
   delete log;

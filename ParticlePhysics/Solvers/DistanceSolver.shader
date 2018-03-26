@@ -53,26 +53,28 @@ Kernel void distanceSolverSpring(
   {
     oldValues[localIndex] = oldPositions[index].position;
 
-    uint instanceNodeOffset;
-    {
-      // entity id
-      const IdentityInfo identity = particleIdentities[index];
-      const uint entityId = getEntityId(identity);
-      instanceNodeOffset = getInstanceId(identity) * (sectionData[entityId].counts[SECTION_DATA_NODE] / getInstanceId(sectionData[entityId].identity));
-    }
-    const uint commonIndex = index - instanceNodeOffset;
-    const uint offset = constrainOffset(constrainNodes[commonIndex]);
+    const IdentityInfo identity = particleIdentities[index];
+    const uint entityId = getEntityId(identity);
 
-    if (coefficients[offset]) // if self movement allowed
+    const uint absoluteNodeOffset = sectionData[entityId].offsets[SECTION_DATA_NODE] + getInstanceId(identity) * sectionData[entityId].counts[SECTION_DATA_COMMON_NODE];
+    const uint absoluteCommonNodeIndex = sectionData[entityId].offsets[SECTION_DATA_COMMON_NODE] + index - absoluteNodeOffset;
+
+    const ConstrainStruct constrain = constrainNodes[absoluteCommonNodeIndex];
+    const uint count = constrainCount(constrain);
+
+    const uint absoluteCommonConnectionIndex = sectionData[entityId].offsets[SECTION_DATA_CONNECTION] + constrainOffset(constrain);
+
+    if (coefficients[absoluteCommonConnectionIndex]) // if self movement allowed
     {
-      const uint count = constrainCount(constrainNodes[commonIndex]);
       sums[localIndex] = 0;
 
       for (uint i = 1; i < count; i++)
       {
+        const uint absoluteConnectionNodeIndex = absoluteNodeOffset + indexArray[absoluteCommonConnectionIndex + i];
+
         sums[localIndex] += getDelta(oldValues[localIndex],
-          oldPositions[instanceNodeOffset + indexArray[offset + i]].position,
-          coefficients[offset + i]);
+          oldPositions[absoluteConnectionNodeIndex].position,
+          coefficients[absoluteCommonConnectionIndex + i]);
       }
       oldValues[localIndex] += sums[localIndex] * (successiveOverRealaxation / count);
       // division is for under relaxation

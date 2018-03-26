@@ -43,8 +43,11 @@ protected:
   DeviceArray<uint>                 entityOffsets;
   DeviceArray<uint>                 entityOffsetCount;
 
-  uint nodeOffset;
-  uint connectionOffset;
+  vector<SectionData>               updates;
+
+  /*uint nodeOffset;
+  uint commonNodeOffset;
+  uint connectionOffset;*/
 
   template<class BaseType> void expand(IndexType index, vector<BaseType>& list)
   {
@@ -59,10 +62,11 @@ public:
 
   SolverData();
 
-  uint nodes()const
-  {
-    return nodeOffset;
-  }
+  uint nodes()const;
+
+  uint commonNodeCount()const;
+
+  uint connectionCount()const;
 
   void addConnection(IndexType index, IndexType connection, CoefficientType coefficient);
 
