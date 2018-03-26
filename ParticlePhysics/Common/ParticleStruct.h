@@ -7,9 +7,10 @@ typedef Real3 float3;
 typedef Real3 float4;
 #endif
 
-#define SECTION_DATA_NODE       0
-#define SECTION_DATA_CONNECTION 1
-#define SECTION_DATA_MAX        2
+#define SECTION_DATA_NODE         0
+#define SECTION_DATA_CONNECTION   1
+#define SECTION_DATA_COMMON_NODE  2
+#define SECTION_DATA_MAX          3
 
 #define PHYSICS_ENTITY_ID_MASK    0xFFFFF
 #define PHYSICS_INSTANCE_ID_SHIFT 20
@@ -23,7 +24,7 @@ struct IdentityInfo_t
   IdentityInfo_t()
   {
     identity[0] = -1;
-    identity[1] = 0;
+    identity[1] = -1;
   }
 
   void setIdentity(uint instance, uint entityId)
@@ -33,7 +34,12 @@ struct IdentityInfo_t
 
   void setSolver(uint solver)
   {
-    identity[1] = mCeilExpOf2(solver);
+    identity[1] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (identity[1] & PHYSICS_ENTITY_ID_MASK);
+  }
+
+  void setEntityOffset(uint entityOffset)
+  {
+    identity[1] = (identity[1] & (-1 ^ PHYSICS_ENTITY_ID_MASK)) | (entityOffset & PHYSICS_ENTITY_ID_MASK);
   }
 #endif
 };
@@ -53,7 +59,17 @@ static uint getInstanceId(const IdentityInfo particleIdentity)
 
 static uint getSolverId(const IdentityInfo particleIdentity)
 {
-  return particleIdentity.identity[1];
+  return particleIdentity.identity[1] >> PHYSICS_INSTANCE_ID_SHIFT;
+}
+
+static uint getEntityOffset(const IdentityInfo particleIdentity)
+{
+  return particleIdentity.identity[1] & PHYSICS_ENTITY_ID_MASK;
+}
+
+static uint getUniqueEntityId(const IdentityInfo particleIdentity)
+{
+  return getEntityOffset(particleIdentity) + getInstanceId(particleIdentity);
 }
 
 

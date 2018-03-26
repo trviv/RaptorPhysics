@@ -8,6 +8,8 @@ class RigidSolver : public Solver<uint, real, Real3>
 {
 protected:
 
+  uint maxPerInstanceNodes;
+
   DeviceArray<real> covarianceMatrix;
 
   void update();
@@ -16,7 +18,7 @@ public:
 
   RigidSolver(ComputeInterface* compute, SharedAllocator* allocator);
 
-  void commit();
+  void commit(const SectionData& sectionData);
 
   void create(ComputeInterface* compute);
 

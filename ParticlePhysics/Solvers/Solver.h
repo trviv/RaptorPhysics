@@ -24,7 +24,8 @@ protected:
   SharedAllocator*    allocator;
   SolverType          type;
   uint                iterations;
-  vector<SectionData> updates;
+
+  friend class PhysicsSystem;
 
   template<class BaseType> void flatArray(vector<BaseType>& out, const vector<vector<BaseType>>& in)
   {
@@ -46,7 +47,7 @@ public:
 
   ~Solver();
 
-  virtual void commit();
+  virtual void commit(const SectionData& sectionData);
 
   virtual void create(ComputeInterface* compute) = 0;
 
@@ -55,7 +56,9 @@ public:
   /*@function Get an available unique entity id.*/
   uint newEntityId();
 
-  uint entityCount();
+  uint uniqueEntityCount()const;
+
+  uint totalEntityCount()const;
 };
 
 #endif

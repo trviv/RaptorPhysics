@@ -102,7 +102,7 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
     SharedAllocator* allocator = new SharedAllocator(compute);
     int multiplier = 2048;
     allocator->particleAllocator.create(multiplier * 1024);
-    allocator->constrainAllocator.create(multiplier * 1024, 4096);
+    allocator->constrainAllocator.create(multiplier * 1024, multiplier * 128);
     allocators.push_back(allocator);
   }
 
@@ -112,8 +112,9 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
   SectionData sectionData;
   SectionData updateInfo;
 
-  sectionData.offsets[SECTION_DATA_NODE] = solver->nodeOffset;
-  sectionData.offsets[SECTION_DATA_CONNECTION] = solver->connectionOffset;
+  sectionData.offsets[SECTION_DATA_NODE] = solver->nodes();
+  sectionData.offsets[SECTION_DATA_CONNECTION] = solver->connectionCount();
+  sectionData.offsets[SECTION_DATA_COMMON_NODE] = solver->commonNodeCount();
 
   // add entity shared data to the system
   solver->particleSharedData.host()->push_back(entity->particleSharedData.host()->at(0));
@@ -122,13 +123,16 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
   updateInfo.offsets[SECTION_DATA_NODE] = nodeCount;
 
   uint entityId = solver->newEntityId();
+
   entity->identity.setIdentity(instanceCount, entityId);
   entity->identity.setSolver(entity->solver);
+  entity->identity.setEntityOffset(solver->totalEntityCount());
+
   sectionData.identity = entity->identity;
 
-  for (uint i = 0; i < instanceCount; i++)
+  for (uint instance = 0; instance < instanceCount; instance++)
   {
-    if ((i == 0) || (!entity->sectionShared[SECTION_DATA_CONNECTION]))
+    if ((instance == 0) || (!entity->sectionShared[SECTION_DATA_CONNECTION]))
     {
       solver->rawConstrainConnections.insert(solver->rawConstrainConnections.end(),
         entity->rawConstrainConnections.begin(), entity->rawConstrainConnections.end());
@@ -137,7 +141,7 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
         entity->rawConstrainCoefficients.begin(), entity->rawConstrainCoefficients.end());
     }
 
-    if ((i == 0) || (!entity->sectionShared[SECTION_DATA_NODE]))
+    if ((instance == 0) || (!entity->sectionShared[SECTION_DATA_NODE]))
     {
       solver->constrainConstants.host()->insert(solver->constrainConstants.host()->end(),
         entity->constrainConstants.host()->begin(), entity->constrainConstants.host()->end());
@@ -147,31 +151,32 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
 
       solver->particleRigidData.host()->insert(solver->particleRigidData.host()->end(),
         entity->particleRigidData.host()->begin(), entity->particleRigidData.host()->end());
+
+      nodeCount += mMax(entity->constrainConstants.host()->size(), entity->particleRigidData.host()->size());
     }
 
     vector<Real3>* entityPositions = entity->constrainConstants.host();
-    for (uint p = 0; p < entityPositions->size(); p++)
+    for (Real3& position : *entityPositions)//p = 0; p < entityPositions->size(); p++)
     {
       ParticleStruct particle;
-      instanceTransforms[i].transformPos(particle.position, entityPositions->at(p));
+      instanceTransforms[instance].transformPos(particle.position, position);// entityPositions->at(p));
 
       IdentityInfo particleIdentity;
-      particleIdentity.setIdentity(i, entityId);
+      particleIdentity.setIdentity(instance, entityId);
       particleIdentity.setSolver(entity->solver);
 
       solver->particles.host()->push_back(particle);
       solver->particleIdentities.host()->push_back(particleIdentity);
     }
-
-    solver->commit();
   }
 
-  nodeCount += solver->nodeOffset;
+  solver->commit(sectionData);
 
   updateInfo.counts[SECTION_DATA_NODE] = nodeCount - updateInfo.offsets[SECTION_DATA_NODE];
 
-  sectionData.counts[SECTION_DATA_NODE] = solver->nodeOffset - sectionData.offsets[SECTION_DATA_NODE];
-  sectionData.counts[SECTION_DATA_CONNECTION] = solver->connectionOffset - sectionData.offsets[SECTION_DATA_CONNECTION];
+  sectionData.counts[SECTION_DATA_NODE] = solver->nodes() - sectionData.offsets[SECTION_DATA_NODE];
+  sectionData.counts[SECTION_DATA_CONNECTION] = solver->connectionCount() - sectionData.offsets[SECTION_DATA_CONNECTION];
+  sectionData.counts[SECTION_DATA_COMMON_NODE] = solver->commonNodeCount() - sectionData.offsets[SECTION_DATA_COMMON_NODE];
 
   solver->deviceSections.host()->push_back(sectionData);
 
@@ -183,8 +188,8 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
     Solver<uint, real, Real3>* localSolver = (Solver<uint, real, Real3>*)getSolver((SolverType)(1 << (i - 1)));
     if (localSolver)
     {
-      cumulativeOffset += localSolver->nodeOffset;
-      cumulativeEntities += localSolver->entityCount();
+      cumulativeOffset += localSolver->nodes();
+      cumulativeEntities += localSolver->uniqueEntityCount();
     }
     (*solverEntityOffsets.host())[i] = cumulativeEntities;
     (*solverNodeOffsets.host())[i] = cumulativeOffset;
@@ -201,6 +206,7 @@ void PhysicsSystem::registerEntity(PhysicsEntity* entity, const ushort instanceC
 
 void PhysicsSystem::step()
 {
+  glFinish();
   ProfileManager::Reset();
 
   if (updates.size())
