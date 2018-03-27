@@ -52,6 +52,7 @@ else(PROJECT_EXECUTABLE)
 endif(PROJECT_EXECUTABLE)
 
 add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeShared.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ConstrainStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ParticleStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Entities/PhysicsSystem.shader"

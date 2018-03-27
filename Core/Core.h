@@ -7,6 +7,7 @@
 #include "Header/Profiler.h"
 #include "Header/ComputeInterface.h"
 #include "Header/ShaderEntity.h"
+#include "Header/ComputeShared.h"
 #include "Header/ComputeUtils.h"
 
 //#include "Header/CudaQuery.h"

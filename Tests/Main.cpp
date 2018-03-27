@@ -1,56 +1,57 @@
-#include "UnifiedPhysics.h"
+#include "Core.h"
+#include "../ParticlePhysics/Common/ParticleStruct.h"
 
 static ComputeInterface* compute;
 
-void testEquation(ComputeInterface* compute)
+/*void testEquation(ComputeInterface* compute)
 {
-  SharedAllocator allocator(compute);
-  allocator.constrainAllocator.create(1024, 1024 * 16);
-  allocator.particleAllocator.create(1024);
+SharedAllocator allocator(compute);
+allocator.constrainAllocator.create(1024, 1024 * 16);
+allocator.particleAllocator.create(1024);
 
-  SectionData sectionData;
-  LinearSolver<ushort, float, float> cons(compute, &allocator);
+PartitionInfo sectionData;
+LinearSolver<ushort, float, float> cons(compute, &allocator);
 
-  cons.create(compute);
+cons.create(compute);
 
-  cons.addConnection(0, 0, 10);
-  cons.addConnection(1, 1, 11);
-  cons.addConnection(2, 2, 10);
-  cons.addConnection(3, 3, 8);
+cons.addConnection(0, 0, 10);
+cons.addConnection(1, 1, 11);
+cons.addConnection(2, 2, 10);
+cons.addConnection(3, 3, 8);
 
-  cons.addConnection(0, 1, -1);
-  cons.addConnection(0, 2, 2);
+cons.addConnection(0, 1, -1);
+cons.addConnection(0, 2, 2);
 
-  cons.addConnection(1, 0, -1);
-  cons.addConnection(1, 2, -1);
-  cons.addConnection(1, 3, 3);
+cons.addConnection(1, 0, -1);
+cons.addConnection(1, 2, -1);
+cons.addConnection(1, 3, 3);
 
-  cons.addConnection(2, 0, 2);
-  cons.addConnection(2, 1, -1);
-  cons.addConnection(2, 3, -1);
+cons.addConnection(2, 0, 2);
+cons.addConnection(2, 1, -1);
+cons.addConnection(2, 3, -1);
 
-  cons.addConnection(3, 1, 3);
-  cons.addConnection(3, 2, -1);
+cons.addConnection(3, 1, 3);
+cons.addConnection(3, 2, -1);
 
-  cons.setConstant(0, 6);
-  cons.setConstant(1, 25);
-  cons.setConstant(2, -11);
-  cons.setConstant(3, 15);
+cons.setConstant(0, 6);
+cons.setConstant(1, 25);
+cons.setConstant(2, -11);
+cons.setConstant(3, 15);
 
-  cons.commit(sectionData);
+cons.commit(sectionData);
 
-  cons.addConnection(0, 0, 2);
-  cons.addConnection(1, 1, 7);
-  cons.addConnection(0, 1, 1);
-  cons.addConnection(1, 0, 5);
+cons.addConnection(0, 0, 2);
+cons.addConnection(1, 1, 7);
+cons.addConnection(0, 1, 1);
+cons.addConnection(1, 0, 5);
 
-  cons.setConstant(0, 11);
-  cons.setConstant(1, 13);
+cons.setConstant(0, 11);
+cons.setConstant(1, 13);
 
-  cons.commit(sectionData);
+cons.commit(sectionData);
 
-  cons.solve();
-}
+cons.solve();
+}*/
 
 void test1DMean(ComputeInterface* compute)
 {
@@ -90,7 +91,7 @@ void testRegular2DMean(ComputeInterface* compute)
   printf("\nTesting regular 2D mean:\n");
 
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
-  DeviceArray<SectionData>    partitions(compute, NULL, true);
+  DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
 
   uint width = 83;
   const uint parts = 625;
@@ -99,8 +100,8 @@ void testRegular2DMean(ComputeInterface* compute)
 
   for (int i = 0; i < parts; i++)
   {
-    SectionData section;
-    section.offsets[SECTION_DATA_NODE] = i * width;
+    PartitionInfo section;
+    section.offset = i * width;
     partitions.host()->push_back(section);
   }
 
@@ -120,7 +121,6 @@ void testRegular2DMean(ComputeInterface* compute)
       sum = 0;
       sectionIndex++;
     }
-    //particle.identity = sectionIndex;
     particlesHost.push_back(particle);
     sum += particle.position;
   }
@@ -161,7 +161,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
   DeviceArray<IdentityInfo>   particleIdentities(compute, NULL, true);
-  DeviceArray<SectionData>    partitions(compute, NULL, true);
+  DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
 
   uint width = 1;
   const uint parts = 1021;
@@ -170,10 +170,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (int i = 0; i < parts; i++)
   {
-    SectionData section;
-    section.offsets[SECTION_DATA_NODE] = i ? partitions.host()->at(i - 1).offsets[SECTION_DATA_NODE] + width : 0;
-    section.counts[SECTION_DATA_NODE] = width + 1;
-    section.identity.setIdentity(1, 0);
+    PartitionInfo section;
+    section.offset = i ? partitions.host()->at(i - 1).offset + width : 0;
+    section.count = width + 1;
     partitions.host()->push_back(section);
     width++;
   }
@@ -181,7 +180,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   particles.host()->reserve(elements);
 
   uint sectionIndex = 0;
-  vector<SectionData> &partitionsHost = *partitions.host();
+  vector<PartitionInfo> &partitionsHost = *partitions.host();
   vector<ParticleStruct> &particlesHost = *particles.host();
   vector<Real3> means;
 
@@ -189,10 +188,9 @@ void testIrregular2DMean(ComputeInterface* compute)
   {
     ParticleStruct particle;
     particle.position = 1;
-    if (sectionIndex < (partitionsHost.size() - 1) &&
-      i == partitionsHost[sectionIndex + 1].offsets[SECTION_DATA_NODE])
+    if (sectionIndex < (partitionsHost.size() - 1) && i == partitionsHost[sectionIndex + 1].offset)
     {
-      means.push_back(sum / (partitionsHost[sectionIndex + 1].offsets[SECTION_DATA_NODE] - partitionsHost[sectionIndex].offsets[SECTION_DATA_NODE]));
+      means.push_back(sum / (partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));
       sum = 0;
       sectionIndex++;
     }
@@ -205,7 +203,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     sum += particle.position;
   }
 
-  means.push_back(sum / (elements - partitionsHost[sectionIndex].offsets[SECTION_DATA_NODE]));
+  means.push_back(sum / (elements - partitionsHost[sectionIndex].offset));
 
   particles.syncDevice();
   partitions.syncDevice();
@@ -213,17 +211,12 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   vector<string> includes = { "ParticleStruct.h" };
   map<ComputeUtilKey, string> utilSetting;
+
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
+
   utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
-
-  utilSetting[ComputeUtilPartitionCountStructType] = "SectionData";
-  utilSetting[ComputeUtilPartitionCountStructMember] = "counts[SECTION_DATA_NODE]";
-  utilSetting[ComputeUtilPartitionOffsetStructType] = "SectionData";
-  utilSetting[ComputeUtilPartitionOffsetStructMember] = "offsets[SECTION_DATA_NODE]";
-
-  utilSetting[ComputeUtilCustomCommonIdentityFunction] = "getEntityId";
-  utilSetting[ComputeUtilCustomUniqueIdentityFunction] = "getEntityId";
+  utilSetting[ComputeUtilIdentityFunction] = "getEntityId";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
@@ -234,42 +227,27 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (uint i = 0; i < partitionsHost.size(); i++)
   {
-    if (abs(means[i][0] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[0]) > .00001f
-      || abs(means[i][1] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[1]) > .00001f
-      || abs(means[i][2] - particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position[2]) > .00001f)
+    if (abs(means[i][0] - particlesHost[partitionsHost[i].offset].position[0]) > .00001f
+      || abs(means[i][1] - particlesHost[partitionsHost[i].offset].position[1]) > .00001f
+      || abs(means[i][2] - particlesHost[partitionsHost[i].offset].position[2]) > .00001f)
     {
-      std::cout << i << " " << means[i] << " " << particlesHost[partitionsHost[i].offsets[SECTION_DATA_NODE]].position << "\n";
+      std::cout << i << " " << means[i] << " " << particlesHost[partitionsHost[i].offset].position << "\n";
       assert(0);
     }
   }
   printf("Irregular 2D mean test passed!\n");
 
-  printf("\nTesting section offsets count:\n");
-
-  DeviceArray<ParticleStruct> particlesConsolidated(compute, NULL, true);
-  DeviceArray<uint>           sectionOffsets(compute, NULL, true);
-  DeviceArray<uint>           sectionOffsetCount(compute, NULL, true);
-
-  particlesConsolidated.resize(parts, false);
-  sectionOffsets.resize(parts, false);
-  sectionOffsetCount.resize(1, false);
-
-  ComputeUtil::get(templateId)->createSectionOffsets(compute,
-    sectionOffsets.device(), sectionOffsetCount.device(), partitions.device(), parts);
-
-  sectionOffsetCount.syncHost();
-  compute->sync();
-
-  if (sectionOffsetCount.host()->at(0) != parts)
-  {
-    printf("%d %d", sectionOffsetCount.host()->at(0), parts);
-  }
-  printf("Section offsets count test passed!\n");
-
   printf("\nTesting consolidation:\n");
 
-  ComputeUtil::get(templateId)->copySectionOffsets(compute,
-    particlesConsolidated.device(), particles.device(), sectionOffsets.device(), sectionOffsetCount.device(), parts);
+  DeviceArray<ParticleStruct> particlesConsolidated(compute, NULL, true);
+  DeviceArray<uint> partitionsCount(compute, NULL, true);
+
+  particlesConsolidated.resize(parts, false);
+  partitionsCount.host()->push_back(parts);
+  partitionsCount.syncDevice();
+
+  ComputeUtil::get(templateId)->consolidateFromPartitions(compute,
+    particles.device(), particlesConsolidated.device(), partitions.device(), partitionsCount.device(), parts);
 
   particlesConsolidated.syncHost();
   compute->sync();
@@ -287,109 +265,108 @@ void testIrregular2DMean(ComputeInterface* compute)
   printf("Consolidation test passed!\n");
 }
 
-void testPrefixSum1D(ComputeInterface* compute)
+/*void testPrefixSum1D(ComputeInterface* compute)
 {
-  DeviceArray<float> data(compute, NULL, true);
-  const int elements = 12;
-  std::vector<float> prefixSum;
-  std::vector<float> original;
+DeviceArray<float> data(compute, NULL, true);
+const int elements = 12;
+std::vector<float> prefixSum;
+std::vector<float> original;
 
-  data.host()->reserve(elements);
-  for (int i = 0; i < elements; i++)
-  {
-    data.host()->push_back(1.f);// float(rand()) / RAND_MAX);
-    original.push_back(data.host()->at(i));
-    prefixSum.push_back(i ? (prefixSum[i - 1] + data.host()->at(i)) : data.host()->at(i));
-  }
-
-  data.syncDevice();
-
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "float";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-
-  ComputeUtil::get(templateId)->prefixSum1D(compute, data.device(), elements, true);
-
-  data.syncHost();
-  compute->sync();
-
-  for (uint i = 0; i < data.host()->size(); i++)
-  {
-    std::cout << original[i] << " " << prefixSum[i] << " " << data.host()->at(i) << "\n";
-    //assert(prefixSum[i] == data.host()->at(0));
-  }
+data.host()->reserve(elements);
+for (int i = 0; i < elements; i++)
+{
+data.host()->push_back(1.f);// float(rand()) / RAND_MAX);
+original.push_back(data.host()->at(i));
+prefixSum.push_back(i ? (prefixSum[i - 1] + data.host()->at(i)) : data.host()->at(i));
 }
 
-void testSectionOffsets(ComputeInterface* compute)
+data.syncDevice();
+
+map<ComputeUtilKey, string> utilSetting;
+utilSetting[ComputeUtilStructType] = "float";
+uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+ComputeUtil::get(templateId)->prefixSum1D(compute, data.device(), elements, true);
+
+data.syncHost();
+compute->sync();
+
+for (uint i = 0; i < data.host()->size(); i++)
 {
-  printf("\nTesting section offset:\n");
-
-  vector<uint>              offsetOutput;
-  DeviceArray<uint>         offsets(compute, NULL, true);
-  DeviceArray<uint>         offsetCount(compute, NULL, true);
-  DeviceArray<SectionData>  partitions(compute, NULL, true);
-
-  const uint parts = 86878;
-  uint nodes = 2;
-  uint instanceCount = 1;
-  uint totalNodes = 0;
-  uint totalInstances = 0;
-
-  for (int i = 0; i < parts; i++)
-  {
-    SectionData section;
-    section.offsets[SECTION_DATA_NODE] = i ? (partitions.host()->at(i - 1).offsets[SECTION_DATA_NODE] +
-      partitions.host()->at(i - 1).counts[SECTION_DATA_NODE]) : 0;
-    section.counts[SECTION_DATA_NODE] = nodes * instanceCount;
-    section.identity.setIdentity(instanceCount, 0);
-
-    partitions.host()->push_back(section);
-    for (uint j = 0; j < instanceCount; j++)
-    {
-      offsetOutput.push_back(totalNodes);
-      totalNodes += nodes;
-    }
-    totalInstances += instanceCount;
-    nodes++;
-    if (i % 505 == 0)
-    {
-      instanceCount += 1;
-    }
-  }
-
-  offsets.resize(totalInstances, false);
-  offsetCount.resize(1, false);
-  partitions.syncDevice();
-
-  vector<string>              includes;
-  map<ComputeUtilKey, string> utilSetting;
-  includes.push_back("ParticleStruct.h");
-  uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
-
-  ComputeUtil::get(templateId)->createSectionOffsets(compute, offsets.device(), offsetCount.device(), partitions.device(), parts);
-
-  offsets.syncHost();
-  offsetCount.syncHost();
-  compute->sync();
-
-  printf("Section offset count %d\n", offsetCount.host()->at(0));
-  for (uint i = 0; i < offsetOutput.size(); i++)
-  {
-    if (offsetOutput[i] != offsets.host()->at(i))
-    {
-      std::cout << offsetOutput[i] << " " << offsets.host()->at(i) << "\n";
-      assert(offsetOutput[i] == offsets.host()->at(i));
-    }
-  }
-  printf("Section offset test passed!\n");
+std::cout << original[i] << " " << prefixSum[i] << " " << data.host()->at(i) << "\n";
+//assert(prefixSum[i] == data.host()->at(0));
 }
+}*/
+
+/*void testSectionOffsets(ComputeInterface* compute)
+{
+printf("\nTesting section offset:\n");
+
+vector<uint>                offsetOutput;
+DeviceArray<uint>           offsets(compute, NULL, true);
+DeviceArray<uint>           offsetCount(compute, NULL, true);
+DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
+
+const uint parts = 86878;
+uint nodes = 2;
+uint instanceCount = 1;
+uint totalNodes = 0;
+uint totalInstances = 0;
+
+for (int i = 0; i < parts; i++)
+{
+PartitionInfo section;
+section.offset = i ? (partitions.host()->at(i - 1).offset + partitions.host()->at(i - 1).count) : 0;
+section.count = nodes * instanceCount;
+//section.identity.setIdentity(instanceCount, 0);
+
+partitions.host()->push_back(section);
+for (uint j = 0; j < instanceCount; j++)
+{
+offsetOutput.push_back(totalNodes);
+totalNodes += nodes;
+}
+totalInstances += instanceCount;
+nodes++;
+if (i % 505 == 0)
+{
+instanceCount += 1;
+}
+}
+
+offsets.resize(totalInstances, false);
+offsetCount.resize(1, false);
+partitions.syncDevice();
+
+vector<string>              includes;
+map<ComputeUtilKey, string> utilSetting;
+includes.push_back("ParticleStruct.h");
+uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
+
+ComputeUtil::get(templateId)->createSectionOffsets(compute, offsets.device(), offsetCount.device(), partitions.device(), parts);
+
+offsets.syncHost();
+offsetCount.syncHost();
+compute->sync();
+
+printf("Section offset count %d\n", offsetCount.host()->at(0));
+for (uint i = 0; i < offsetOutput.size(); i++)
+{
+if (offsetOutput[i] != offsets.host()->at(i))
+{
+std::cout << offsetOutput[i] << " " << offsets.host()->at(i) << "\n";
+assert(offsetOutput[i] == offsets.host()->at(i));
+}
+}
+printf("Section offset test passed!\n");
+}*/
 
 int main(int argc, char** argv)
 {
   compute = new ComputeInterface();
   compute->create(1);
 
-  testSectionOffsets(compute);
+  //testSectionOffsets(compute);
   test1DMean(compute);
   testRegular2DMean(compute);
   testIrregular2DMean(compute);

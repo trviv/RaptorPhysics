@@ -8,19 +8,15 @@ enum ComputeUtilKey
 {
   ComputeUtilStructType,
   ComputeUtilStructMember,
-  ComputeUtilStructIdentity,
-  ComputeUtilIdentityStructType,
 
-  ComputeUtilPartitionCountStructType,
-  ComputeUtilPartitionCountStructMember,
-  ComputeUtilPartitionOffsetStructType,
-  ComputeUtilPartitionOffsetStructMember,
+  ComputeUtilIdentityStructType,
+  ComputeUtilIdentityStructMember,
+  ComputeUtilIdentityFunction,
 
   ComputeUtilCustomAddFunction,
   ComputeUtilCustomCopyFunction,
   ComputeUtilCustomDivFunction,
-  ComputeUtilCustomCommonIdentityFunction,
-  ComputeUtilCustomUniqueIdentityFunction,
+
   ComputeUtilMaxKey
 };
 
@@ -41,17 +37,11 @@ public:
 
   void sumRegular2D(ComputeInterface* compute, ComputeMemory* memory, uint length, uint subArrayElements, bool doMean = false);
 
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
-
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
 
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitionOffsets, ComputeMemory* partitionCounts, uint length, uint maxPartitionLength, bool doMean = false);
+  //void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
 
-  void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
-
-  void createSectionOffsets(ComputeInterface* compute, ComputeMemory* sectionOffsets, ComputeMemory* sectionOffsetCount, ComputeMemory* sections, uint sectionCount);
-
-  void copySectionOffsets(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* sectionOffsets, ComputeMemory* sectionOffsetCount, uint sectionOffsetCountHost);
+  void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
 };
