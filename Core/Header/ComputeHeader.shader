@@ -64,7 +64,7 @@ inline void addMatrix3x3(Device Matrix3x3* a, const Device Matrix3x3* b)
   }
 }
 
-inline void divMatrix3x3(Device Matrix3x3* a, const float* b)
+inline void divMatrix3x3(Device Matrix3x3* a, const Thread float* b)
 {
   for (uint i = 0; i < 9; i++)
   {

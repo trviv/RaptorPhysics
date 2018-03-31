@@ -56,9 +56,8 @@ public:
   /*@function Get an available unique entity id.*/
   uint newEntityId();
 
-  uint uniqueEntityCount()const;
-
-  uint totalEntityCount()const;
+  /*@function Get an available unique instance id.*/
+  uint newEntityInstanceId()const;
 };
 
 #endif

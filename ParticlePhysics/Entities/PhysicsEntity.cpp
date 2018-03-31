@@ -3,7 +3,7 @@
 PhysicsEntity::PhysicsEntity()
 {
   constrainConstants.create(NULL, NULL, true);
-  particleSharedData.create(NULL, NULL, true);
+  entityParticleSharedData.create(NULL, NULL, true);
   particleAuxData.create(NULL, NULL, true);
   particleRigidData.create(NULL, NULL, true);
 
@@ -14,10 +14,6 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedInvMass = 0.f;
   sharedData.sharedRadius = 0.f;
   sharedData.invMassIsShared = 0;
-  particleSharedData.host()->push_back(sharedData);
-
-  for (uint i = 0; i < SECTION_DATA_MAX; i++)
-  {
-    sectionShared[i] = false;
-  }
+  entityParticleSharedData.host()->reserve(1);
+  entityParticleSharedData.host()->push_back(sharedData);
 }

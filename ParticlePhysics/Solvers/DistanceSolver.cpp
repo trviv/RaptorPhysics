@@ -32,7 +32,8 @@ void DistanceSolver::create(ComputeInterface* compute)
 
 void DistanceSolver::solve()
 {
-  uint count = nodes();
+  uint count = lastPartition().end();
+
   if (!count) return;
 
   if (updates.size())
@@ -62,6 +63,7 @@ void DistanceSolver::solve()
         constrainHeaders.device(),
         constrainIndices.device(),
         constrainCoefficients.device(),
+        partitions.device(),
         deviceSections.device()
       };
       uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -107,11 +109,4 @@ void DistanceSolver::solve()
 void DistanceSolver::update()
 {
   LinearSolver::update();
-
-  particleSharedData.syncDevice();
-  particles.syncDevice();
-  particleIdentities.syncDevice();
-  particleDeltas.resize(particles.size(), false);
-  particleAuxData.syncDevice();
-  deviceSections.syncDevice();
 }

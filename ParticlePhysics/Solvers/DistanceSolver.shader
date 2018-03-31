@@ -40,6 +40,7 @@ Kernel void distanceSolverSpring(
   const Device ConstrainStruct*     constrainNodes,
   const Device IndexType*           indexArray,
   const Device CoefficientType*     coefficients,
+  const Device PartitionInfo*       partitions,
   const Device SectionData*         sectionData,
   const uint                        nodeCount)
 {
@@ -51,37 +52,41 @@ Kernel void distanceSolverSpring(
 
   if (index < nodeCount)
   {
-    oldValues[localIndex] = oldPositions[index].position;
-
     const IdentityInfo identity = particleIdentities[index];
+    const uint solverId = getSolverId(identity);
     const uint entityId = getEntityId(identity);
 
-    const uint absoluteNodeOffset = sectionData[entityId].offsets[SECTION_DATA_NODE] + getInstanceId(identity) * sectionData[entityId].counts[SECTION_DATA_COMMON_NODE];
-    const uint absoluteCommonNodeIndex = sectionData[entityId].offsets[SECTION_DATA_COMMON_NODE] + index - absoluteNodeOffset;
+    const SectionData localSectionData = sectionData[solverId];
 
-    const ConstrainStruct constrain = constrainNodes[absoluteCommonNodeIndex];
+    const uint absoluteNodeOffset = partitions[entityId].offset;
+    const uint relativeNodeIndex = index % localSectionData.node.count;
+    const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
+    const uint commonNodeIndex = localSectionData.node.offset + relativeNodeIndex;
+
+    oldValues[localIndex] = oldPositions[absoluteNodeIndex].position;
+
+    const ConstrainStruct constrain = constrainNodes[commonNodeIndex];
+    const uint commonConnectionIndex = localSectionData.connection.offset + constrainOffset(constrain);
     const uint count = constrainCount(constrain);
 
-    const uint absoluteCommonConnectionIndex = sectionData[entityId].offsets[SECTION_DATA_CONNECTION] + constrainOffset(constrain);
-
-    if (coefficients[absoluteCommonConnectionIndex]) // if self movement allowed
+    if (coefficients[commonConnectionIndex]) // if self movement allowed
     {
       sums[localIndex] = 0;
 
       for (uint i = 1; i < count; i++)
       {
-        const uint absoluteConnectionNodeIndex = absoluteNodeOffset + indexArray[absoluteCommonConnectionIndex + i];
+        const uint absoluteConnectionNodeIndex = absoluteNodeOffset + indexArray[commonConnectionIndex + i];
 
         sums[localIndex] += getDelta(oldValues[localIndex],
           oldPositions[absoluteConnectionNodeIndex].position,
-          coefficients[absoluteCommonConnectionIndex + i]);
+          coefficients[commonConnectionIndex + i]);
       }
       oldValues[localIndex] += sums[localIndex] * (successiveOverRealaxation / count);
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
-    newPositions[index].position = oldValues[localIndex];
+    newPositions[absoluteNodeIndex].position = oldValues[localIndex];
   }
 }
 

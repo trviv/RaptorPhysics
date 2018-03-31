@@ -10,7 +10,7 @@ void Cloth::initXY(const real dimensions[], const real particleRadius, const rea
 {
   uint subdivision[3] = { 1, 1, 1 };
   for (int i = 0; i < 2; i++) subdivision[i] = uint(dimensions[i] / particleRadius);
-  (*particleSharedData.host())[0].sharedRadius = particleRadius;
+  (*entityParticleSharedData.host())[0].sharedRadius = particleRadius;
   initXY(dimensions, subdivision, mass);
 }
 
@@ -96,9 +96,6 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
     }
   }
 
-  sectionShared[SECTION_DATA_NODE] = false;
-  sectionShared[SECTION_DATA_CONNECTION] = true;
-
 #ifdef ENABLE_RENDERING
   displayVertex.gen();
   displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1], 0, sizeof(Real3));
@@ -129,12 +126,12 @@ void Cloth::render(ParticleStruct* particles)
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
 
-  uint instances = getInstanceId(identity);
+  uint instances = 1;
   for (uint i = 0; i < instances; i++)
   {
     //displayVertex.bind();
     GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles + i*rawConstrainCoefficients.size()));
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
     displayElements.bind();
     GL_CHECK(glDrawElementsInstanced(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
     displayElements.unbind();

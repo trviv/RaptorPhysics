@@ -25,9 +25,6 @@ protected:
   /*@member Entity solver type.*/
   SolverType  solver;
 
-  /*@member Flag indicating wich section data is shared between instances.*/
-  bool        sectionShared[SECTION_DATA_MAX];
-
   friend class PhysicsSystem;
 
 public:

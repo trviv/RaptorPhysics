@@ -4,6 +4,28 @@
 #include "../Solvers/Solver.h"
 #include "PhysicsEntity.h"
 
+enum GlobalOffsetsEnum
+{
+  GLOBAL_NODE_OFFSET,
+  GLOBAL_INSTANCE_OFFSET,
+  GLOBAL_SOLVER_OFFSET
+};
+
+struct uint4
+{
+  uint value[4];
+
+  uint& operator[](int index)
+  {
+    return value[index];
+  }
+
+  const uint& operator[](int index)const
+  {
+    return value[index];
+  }
+};
+
 /*
 @class Class representing a system simulating physical entities.
 */
@@ -18,7 +40,7 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Entities in the system.*/
   vector<PhysicsEntity*>          entities;
 
-  /*@member Entity data offsets.*/
+  /*@member Common solver entity data offsets.*/
   vector<SectionData>             entitySectionData;
 
   /*@member Entities in the system.*/
@@ -33,8 +55,11 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member uint solvers in the system.*/
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
 
-  /*@member Number of nodes in the system.*/
+  /*@member Number of unique nodes in the system.*/
   uint                            nodeCount;
+
+  /*@member Number of instanced nodes in the system.*/
+  uint                            instanceNodeCount;
 
   /*@member Total entities in the system.*/
   uint                            totalEntityCount;
@@ -42,8 +67,8 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Entity ids available for reuse.*/
   vector<uint>                    availableEntityIds;
 
-  DeviceArray<uint>               solverEntityOffsets;
-  DeviceArray<uint>               solverNodeOffsets;
+  /*@member Offsets for different solvers.*/
+  DeviceArray<uint4>              globalOffsets;
 
   /*@function Take one simulation step.*/
   void step();
@@ -62,24 +87,19 @@ public:
   /*
   @function Register a physics entity to the system.
   @param entity Entity to register.
+  @return Identifier for the registered entity.
   */
-  void registerEntity(PhysicsEntity* entity);
+  PhysicsEntityId registerEntity(PhysicsEntity* entity);
 
   /*
-  @function Register a physics entity with multiple insances to the system.
-  @param entity Entity to register.
+  @function Add instance(s) of the physics entity to the system.
+  @param registeredEntityId Entity to register.
   @param instanceCount Number of entity instances.
   @param instanceTransform Initial world transform for instances.
   */
-  void registerEntity(PhysicsEntity* entity, const ushort instanceCount, const Matrix4* instanceTransforms);
+  void addEntityInstance(const PhysicsEntityId registeredEntityId, const ushort instanceCount, const Matrix4* instanceTransforms);
 
 #ifdef ENABLE_RENDERING
-
-  /*
-  @function Get shared data for a given entity.
-  @param entity Entity to search.
-  */
-  //const ParticleSharedData* getEntitySharedData(PhysicsEntity* entity)const;
 
   /*@function Render all registered entities.*/
   void render();

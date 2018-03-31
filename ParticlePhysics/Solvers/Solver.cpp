@@ -11,30 +11,33 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   constrainVariableAux[0].create(compute, NULL, false);
   constrainVariableAux[1].create(compute, NULL, false);
 
-  particleSharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
+  entityParticleSharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
+
   particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   particleIdentities.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY), true);
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
   particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
   particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
+
 #ifdef DEBUG_SOLVERS
   particlesTemp[0].create(compute, NULL, true);
   particlesTemp[1].create(compute, NULL, true);
-  entityOffsets.create(compute, NULL, true);
-  entityOffsetCount.create(compute, NULL, true);
 #else
   particlesTemp[0].create(compute, NULL, false);
   particlesTemp[1].create(compute, NULL, false);
-  entityOffsets.create(compute, NULL, false);
-  entityOffsetCount.create(compute, NULL, false);
 #endif
 
-  deviceSections.create(compute, NULL, true);
+  partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS), true);
+  partitionsCount.create(compute, NULL, true);
+  partitionsCount.host()->reserve(1);
+  partitionsCount.host()->resize(1);
+  deviceSections.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
 
   iterations = 1;
 
   includeFiles.push_back("ComputeHeader.shader");
+  includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("ConstrainStruct.h");
   includeFiles.push_back("ParticleStruct.h");
 }
@@ -51,16 +54,14 @@ void Solver<IndexType, CoefficientType, VariableType>::commit(const SectionData&
 
   SectionData updateInfo;
 
-  updateInfo.offsets[SECTION_DATA_NODE] = nodes();
-  updateInfo.counts[SECTION_DATA_NODE] = constrainConstants.host()->size() - nodes();
+  updateInfo.node.offset = nodes();
+  updateInfo.node.count = constrainConstants.host()->size() - nodes();
 
-  updateInfo.offsets[SECTION_DATA_CONNECTION] = connectionCount();
-  updateInfo.counts[SECTION_DATA_CONNECTION] = constrainCoefficients.host()->size() - connectionCount();
-
-  updateInfo.offsets[SECTION_DATA_COMMON_NODE] = commonNodeCount();
-  updateInfo.counts[SECTION_DATA_COMMON_NODE] = constrainConstants.host()->size() / getInstanceId(sectionData.identity) - commonNodeCount();
+  updateInfo.connection.offset = connectionCount();
+  updateInfo.connection.count = constrainCoefficients.host()->size() - connectionCount();
 
   updates.push_back(updateInfo);
+  deviceSections.host()->push_back(updateInfo);
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -69,12 +70,12 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   // arrays to be exported to device
   for (const SectionData& section : updates)
   {
-    if (rawConstrainConnections.size() && section.counts[SECTION_DATA_CONNECTION])
+    if (rawConstrainConnections.size() && section.connection.count)
     {
       uint indexOffset = 0;
 
       // create flat constrain array for device
-      for (uint i = 0; i < section.counts[SECTION_DATA_COMMON_NODE]; i++)
+      for (uint i = 0; i < section.node.count; i++)
       {
         Constrain newConstrain(indexOffset, 0);
 
@@ -88,23 +89,35 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
       }
 
       // send values to device
-      if (section.counts[SECTION_DATA_COMMON_NODE])
+      if (section.node.count)
       {
-        constrainHeaders.syncDevice(section.offsets[SECTION_DATA_COMMON_NODE], section.counts[SECTION_DATA_COMMON_NODE]);
-        constrainConstants.syncDevice(section.offsets[SECTION_DATA_COMMON_NODE], section.counts[SECTION_DATA_COMMON_NODE]);
+        constrainHeaders.syncDevice(section.node);
+        constrainConstants.syncDevice(section.node);
       }
-      if (section.counts[SECTION_DATA_CONNECTION])
+      if (section.connection.count)
       {
-        constrainIndices.syncDevice(section.offsets[SECTION_DATA_CONNECTION], section.counts[SECTION_DATA_CONNECTION]);
-        constrainCoefficients.syncDevice(section.offsets[SECTION_DATA_CONNECTION], section.counts[SECTION_DATA_CONNECTION]);
+        constrainIndices.syncDevice(section.connection);
+        constrainCoefficients.syncDevice(section.connection);
       }
     }
   }
   rawConstrainConnections.clear();
 
+  const uint count = lastPartition().end();
   // reset aux arrays
-  constrainVariableAux[0].resize(nodes(), false);
-  constrainVariableAux[1].resize(nodes(), false);
+  constrainVariableAux[0].resize(count, false);
+  constrainVariableAux[1].resize(count, false);
+
+  entityParticleSharedData.syncDevice();
+  particles.syncDevice();
+  particleIdentities.syncDevice();
+  particleDeltas.resize(particles.size(), false);
+  particleAuxData.syncDevice();
+
+  partitions.syncDevice();
+  (*partitionsCount.host())[0] = partitions.host()->size();
+  partitionsCount.syncDevice();
+  deviceSections.syncDevice();
 
   updates.clear();
 }
@@ -116,20 +129,9 @@ uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-uint Solver<IndexType, CoefficientType, VariableType>::uniqueEntityCount()const
+uint Solver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()const
 {
-  return deviceSections.host()->size();
-}
-
-template<class IndexType, class CoefficientType, class VariableType>
-uint Solver<IndexType, CoefficientType, VariableType>::totalEntityCount()const
-{
-  if (deviceSections.host()->size())
-  {
-    return getEntityOffset(deviceSections.host()->back().identity) + getInstanceId(deviceSections.host()->back().identity);
-  }
-
-  return 0;
+  return partitions.host()->size();
 }
 
 #define classPrefix(x, y, z) template void Solver<x, y, z>
@@ -140,8 +142,7 @@ uint Solver<IndexType, CoefficientType, VariableType>::totalEntityCount()const
   classPrefix(x, y, z)::update(); \
   classPrefix(x, y, z)::commit(const SectionData& sectionData); \
   template uint Solver<x, y, z>::newEntityId(); \
-  template uint Solver<x, y, z>::uniqueEntityCount()const; \
-  template uint Solver<x, y, z>::totalEntityCount()const;
+  template uint Solver<x, y, z>::newEntityInstanceId()const;
 
 declareFunctions(ushort, real, real)
 declareFunctions(uint, real, real)

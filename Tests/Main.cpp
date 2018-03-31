@@ -190,20 +190,20 @@ void testIrregular2DMean(ComputeInterface* compute)
     particle.position = 1;
     if (sectionIndex < (partitionsHost.size() - 1) && i == partitionsHost[sectionIndex + 1].offset)
     {
-      means.push_back(sum / (partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));
+      means.push_back(sum / float(partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));
       sum = 0;
       sectionIndex++;
     }
 
     IdentityInfo particleIdentity;
-    particleIdentity.setIdentity(0, sectionIndex);
+    particleIdentity.setEntityId(sectionIndex);
     particleIdentities.host()->push_back(particleIdentity);
 
     particlesHost.push_back(particle);
     sum += particle.position;
   }
 
-  means.push_back(sum / (elements - partitionsHost[sectionIndex].offset));
+  means.push_back(sum / float(elements - partitionsHost[sectionIndex].offset));
 
   particles.syncDevice();
   partitions.syncDevice();
