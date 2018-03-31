@@ -26,7 +26,9 @@ protected:
   DeviceArray<VariableType>         constrainVariableAux[2];
 
   // related to particle simulation
-  DeviceArray<ParticleSharedData>   particleSharedData;
+  DeviceArray<ParticleSharedData>   entityParticleSharedData;
+
+  // related to particle instances
   DeviceArray<ParticleStruct>       particles;
   DeviceArray<IdentityInfo>         particleIdentities;
   DeviceArray<ParticleStruct>       particleDeltas;
@@ -35,19 +37,16 @@ protected:
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];
 
+  DeviceArray<PartitionInfo>        partitions;
+  DeviceArray<uint>                 partitionsCount;
+
   vector<SingleConstrain>           rawConstrainConnections;
   vector<SingleCoefficient>         rawConstrainCoefficients;
 
   /*@member Sections in device array where each entity is present.*/
   DeviceArray<SectionData>          deviceSections;
-  DeviceArray<uint>                 entityOffsets;
-  DeviceArray<uint>                 entityOffsetCount;
 
   vector<SectionData>               updates;
-
-  /*uint nodeOffset;
-  uint commonNodeOffset;
-  uint connectionOffset;*/
 
   template<class BaseType> void expand(IndexType index, vector<BaseType>& list)
   {
@@ -64,9 +63,9 @@ public:
 
   uint nodes()const;
 
-  uint commonNodeCount()const;
-
   uint connectionCount()const;
+
+  const PartitionInfo lastPartition()const;
 
   void addConnection(IndexType index, IndexType connection, CoefficientType coefficient);
 

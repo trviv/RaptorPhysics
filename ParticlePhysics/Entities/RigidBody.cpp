@@ -34,8 +34,8 @@ void RigidBody::initCube(const real dimensions[], const uint subdivision[], cons
 
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1] * subdivision[2]);
 
-  (*particleSharedData.host())[0].invMassIsShared = 1;
-  (*particleSharedData.host())[0].sharedInvMass = perParticleInvMass;
+  (*entityParticleSharedData.host())[0].invMassIsShared = 1;
+  (*entityParticleSharedData.host())[0].sharedInvMass = perParticleInvMass;
 
   uint prev_value_count = 0;
 
@@ -97,7 +97,7 @@ void RigidBody::initCube(const real dimensions[], const uint subdivision[], cons
     rigidData.initialComOffset = (*points)[i] - com;
     particleRigidData.host()->push_back(rigidData);
   }
-  (*points)[prev_value_count] -= real(1.5);
+  (*points)[prev_value_count] -= real(.5);
 
 #ifdef ENABLE_RENDERING
   displayVertex.gen();
@@ -129,12 +129,12 @@ void RigidBody::render(ParticleStruct* particles)
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
 
-  uint instances = getInstanceId(identity);
+  uint instances = 1;
   for (uint i = 0; i < instances; i++)
   {
     //displayVertex.bind();
     GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles + i*particleRigidData.host()->size()));
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
     displayElements.bind();
     GL_CHECK(glDrawElements(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL));
     displayElements.unbind();

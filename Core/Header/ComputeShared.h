@@ -6,7 +6,7 @@
 #endif
 
 /*
-@struct Data describing a sub-part of an array.
+@struct Data describing an array sub-part.
 */
 struct PartitionInfo_t
 {
@@ -14,6 +14,24 @@ struct PartitionInfo_t
   uint  offset;
   /*@member Count.*/
   uint  count;
+
+#ifndef COMPUTE_SHADER_SCOPE
+
+  PartitionInfo_t()
+  {}
+
+  PartitionInfo_t(uint init)
+  {
+    offset = init;
+    count = init;
+  }
+
+  uint end()const
+  {
+    return offset + count;
+  }
+#endif
+
 };
 
 typedef struct PartitionInfo_t PartitionInfo;

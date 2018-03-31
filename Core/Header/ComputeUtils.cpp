@@ -44,7 +44,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   vector<string> newType;
   vector<string> kernelNames;
 
-  util.includeFiles.push_back("ComputeHeader.shader");
+  util.includeFiles.insert(util.includeFiles.begin(), "ComputeHeader.shader");
   if (includeFiles)
   {
     for (auto i : *includeFiles)
@@ -65,7 +65,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     }
   }
 
-  util.includeFiles.push_back("ComputeShared.h");
+  util.includeFiles.insert(util.includeFiles.begin() + 1, "ComputeShared.h");
   for (const string& include : util.includeFiles)
   {
     key += ":" + include;

@@ -7,11 +7,6 @@ typedef Real3 float3;
 typedef Real3 float4;
 #endif
 
-#define SECTION_DATA_NODE         0
-#define SECTION_DATA_CONNECTION   1
-#define SECTION_DATA_COMMON_NODE  2
-#define SECTION_DATA_MAX          3
-
 #define PHYSICS_ENTITY_ID_MASK    0xFFFFF
 #define PHYSICS_INSTANCE_ID_SHIFT 20
 
@@ -21,55 +16,42 @@ struct IdentityInfo_t
   uint identity[2];
 
 #ifndef COMPUTE_SHADER_SCOPE
+
   IdentityInfo_t()
   {
     identity[0] = -1;
     identity[1] = -1;
   }
 
-  void setIdentity(uint instance, uint entityId)
+  void setSolverId(uint solver, uint solverId)
   {
-    identity[0] = (instance << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
+    identity[0] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (solverId & PHYSICS_ENTITY_ID_MASK);
   }
 
-  void setSolver(uint solver)
+  void setEntityId(uint entityId)
   {
-    identity[1] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (identity[1] & PHYSICS_ENTITY_ID_MASK);
+    identity[1] = entityId & PHYSICS_ENTITY_ID_MASK;
   }
 
-  void setEntityOffset(uint entityOffset)
-  {
-    identity[1] = (identity[1] & (-1 ^ PHYSICS_ENTITY_ID_MASK)) | (entityOffset & PHYSICS_ENTITY_ID_MASK);
-  }
 #endif
 };
 
 typedef struct IdentityInfo_t IdentityInfo;
-
+typedef struct IdentityInfo_t PhysicsEntityId;
 
 static uint getEntityId(const IdentityInfo particleIdentity)
-{
-  return particleIdentity.identity[0] & PHYSICS_ENTITY_ID_MASK;
-}
-
-static uint getInstanceId(const IdentityInfo particleIdentity)
-{
-  return particleIdentity.identity[0] >> PHYSICS_INSTANCE_ID_SHIFT;
-}
-
-static uint getSolverId(const IdentityInfo particleIdentity)
-{
-  return particleIdentity.identity[1] >> PHYSICS_INSTANCE_ID_SHIFT;
-}
-
-static uint getEntityOffset(const IdentityInfo particleIdentity)
 {
   return particleIdentity.identity[1] & PHYSICS_ENTITY_ID_MASK;
 }
 
-static uint getUniqueEntityId(const IdentityInfo particleIdentity)
+static uint getSolverId(const IdentityInfo particleIdentity)
 {
-  return getEntityOffset(particleIdentity) + getInstanceId(particleIdentity);
+  return particleIdentity.identity[0] & PHYSICS_ENTITY_ID_MASK;
+}
+
+static uint getSolverType(const IdentityInfo particleIdentity)
+{
+  return (particleIdentity.identity[0] >> PHYSICS_INSTANCE_ID_SHIFT) + 1;
 }
 
 
@@ -78,12 +60,8 @@ static uint getUniqueEntityId(const IdentityInfo particleIdentity)
 */
 struct SectionData_t
 {
-  /*@member Offsets.*/
-  uint          offsets[SECTION_DATA_MAX];
-  /*@member Counts.*/
-  uint          counts[SECTION_DATA_MAX];
-  /*@member Total instances in the section.*/
-  IdentityInfo  identity;
+  PartitionInfo node;
+  PartitionInfo connection;
 };
 
 typedef struct SectionData_t SectionData;

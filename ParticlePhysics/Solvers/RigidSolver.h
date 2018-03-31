@@ -18,8 +18,6 @@ public:
 
   RigidSolver(ComputeInterface* compute, SharedAllocator* allocator);
 
-  void commit(const SectionData& sectionData);
-
   void create(ComputeInterface* compute);
 
   void solve();

@@ -2,6 +2,7 @@
 #define DEVICE_ARRAY_H
 
 #include "ComputeInterface.h"
+#include "ComputeShared.h"
 
 /*!
 @class Class to allocate a device array of a specific type.
@@ -119,10 +120,6 @@ public:
 
   void resize(const uint elements, bool copyOld)
   {
-    /*if (shared && elements != hostBuffer->size())
-    {
-    (*hostBuffer).resize(elements);
-    }*/
     if (elements <= allocated)
     {
       this->elements = elements;
@@ -199,6 +196,11 @@ public:
     {
       logComputeMessage("Nothing to copy from host!");
     }
+  }
+
+  void syncDevice(const PartitionInfo& partition)
+  {
+    syncDevice(partition.offset, partition.count);
   }
 
   uint size()const

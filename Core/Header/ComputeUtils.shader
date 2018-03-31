@@ -281,7 +281,8 @@ Kernel void sumIrregular2DKernel(
 
             if (maxPower == 1 && backwards && diff < width)
             {
-              DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, partitionArray[identity1].count);
+              float div = partitionArray[identity1].count;
+              DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
             }
           }
         }
@@ -290,7 +291,7 @@ Kernel void sumIrregular2DKernel(
 
     if (!backwards)
     {
-      if (width > maxPartitionLength)
+      if (width >= maxPartitionLength)
       {
         backwards = true;
       }

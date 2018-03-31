@@ -12,28 +12,11 @@ uint SolverData<IndexType, CoefficientType, VariableType>::nodes()const
 
   if (deviceSections.host() && deviceSections.host()->size())
   {
-    ret = deviceSections.host()->back().offsets[SECTION_DATA_NODE] + deviceSections.host()->back().counts[SECTION_DATA_NODE];
+    ret = deviceSections.host()->back().node.end();
   }
   if (updates.size() > 0)
   {
-    ret = updates.back().offsets[SECTION_DATA_NODE] + updates.back().counts[SECTION_DATA_NODE];
-  }
-
-  return ret;
-}
-
-template<class IndexType, class CoefficientType, class VariableType>
-uint SolverData<IndexType, CoefficientType, VariableType>::commonNodeCount()const
-{
-  uint ret = 0;
-
-  if (deviceSections.host() && deviceSections.host()->size())
-  {
-    ret = deviceSections.host()->back().offsets[SECTION_DATA_COMMON_NODE] + deviceSections.host()->back().counts[SECTION_DATA_COMMON_NODE];
-  }
-  if (updates.size() > 0)
-  {
-    ret = updates.back().offsets[SECTION_DATA_COMMON_NODE] + updates.back().counts[SECTION_DATA_COMMON_NODE];
+    ret = updates.back().node.end();
   }
 
   return ret;
@@ -46,22 +29,26 @@ uint SolverData<IndexType, CoefficientType, VariableType>::connectionCount()cons
 
   if (deviceSections.host() && deviceSections.host()->size())
   {
-    ret = deviceSections.host()->back().offsets[SECTION_DATA_CONNECTION] + deviceSections.host()->back().counts[SECTION_DATA_CONNECTION];
+    ret = deviceSections.host()->back().connection.end();
   }
   if (updates.size() > 0)
   {
-    ret = updates.back().offsets[SECTION_DATA_CONNECTION] + updates.back().counts[SECTION_DATA_CONNECTION];
+    ret = updates.back().connection.end();
   }
 
   return ret;
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
+const PartitionInfo SolverData<IndexType, CoefficientType, VariableType>::lastPartition()const
+{
+  return partitions.host()->size() ? partitions.host()->back() : PartitionInfo(0);
+}
+
+template<class IndexType, class CoefficientType, class VariableType>
 void SolverData<IndexType, CoefficientType, VariableType>::addCoefficient(IndexType index, CoefficientType coefficient)
 {
   // add coeficient to first element
-  //expand<SingleCoefficient>(index + nodes(), constrainCoefficients);
-  //constrainCoefficients[index + nodes()].push_back(coefficient);
   expand<SingleCoefficient>(index + nodes(), rawConstrainCoefficients);
   rawConstrainCoefficients[index + nodes()].push_back(coefficient);
 }
@@ -70,8 +57,6 @@ template<class IndexType, class CoefficientType, class VariableType>
 void SolverData<IndexType, CoefficientType, VariableType>::addConstrain(IndexType index, IndexType connection)
 {
   // add contrain to first element
-  //expand<SingleConstrain>(index + nodes(), constrainConnections);
-  //constrainConnections[index + nodes()].push_back(connection + nodes());
   expand<SingleConstrain>(index + nodes(), rawConstrainConnections);
   rawConstrainConnections[index + nodes()].push_back(connection + nodes());
 }
@@ -87,8 +72,6 @@ template<class IndexType, class CoefficientType, class VariableType>
 void SolverData<IndexType, CoefficientType, VariableType>::setConstant(IndexType index, VariableType value)
 {
   //add value for the element
-  //expand<VariableType>(index + nodes(), *deviceConstrainConstants.host());
-  //(*deviceConstrainConstants.host())[index + nodes()] = value;
   expand<VariableType>(index + nodes(), *constrainConstants.host());
   (*constrainConstants.host())[index + nodes()] = value;
 }
@@ -99,7 +82,7 @@ void SolverData<IndexType, CoefficientType, VariableType>::setConstant(IndexType
   template SolverData<x, y, z>::SolverData(); \
   template uint SolverData<x, y, z>::nodes()const; \
   template uint SolverData<x, y, z>::connectionCount()const; \
-  template uint SolverData<x, y, z>::commonNodeCount()const; \
+  template const PartitionInfo SolverData<x, y, z>::lastPartition()const; \
   classPrefix(x, y, z)::addConstrain(x index, x connection); \
   classPrefix(x, y, z)::addCoefficient(x index, y coefficient); \
   classPrefix(x, y, z)::addConnection(x index, x connection, y coefficient); \
