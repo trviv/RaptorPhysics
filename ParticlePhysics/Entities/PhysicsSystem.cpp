@@ -109,7 +109,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   entitySectionData.connection.offset = solver->connectionCount();
 
   // add entity shared data to the system
-  solver->entityParticleSharedData.host()->push_back(entity->entityParticleSharedData.host()->at(0));
+  solver->entitySharedData.host()->push_back(entity->entitySharedData.host()->at(0));
 
   // update information
   systemUpdateInfo.node.offset = nodeCount;
@@ -173,7 +173,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     }
     PartitionInfo partition;
     partition.offset = solver->lastPartition().end();
-    partition.count = solver->deviceSections.host()->at(solverId).node.count;
+    partition.count = solver->entitySectionData.host()->at(solverId).node.count;
 
     solver->partitions.host()->push_back(partition);
     instanceNodeCount += entityPositions->size();

@@ -10,9 +10,9 @@ uint SolverData<IndexType, CoefficientType, VariableType>::nodes()const
 {
   uint ret = 0;
 
-  if (deviceSections.host() && deviceSections.host()->size())
+  if (entitySectionData.host() && entitySectionData.host()->size())
   {
-    ret = deviceSections.host()->back().node.end();
+    ret = entitySectionData.host()->back().node.end();
   }
   if (updates.size() > 0)
   {
@@ -27,9 +27,9 @@ uint SolverData<IndexType, CoefficientType, VariableType>::connectionCount()cons
 {
   uint ret = 0;
 
-  if (deviceSections.host() && deviceSections.host()->size())
+  if (entitySectionData.host() && entitySectionData.host()->size())
   {
-    ret = deviceSections.host()->back().connection.end();
+    ret = entitySectionData.host()->back().connection.end();
   }
   if (updates.size() > 0)
   {

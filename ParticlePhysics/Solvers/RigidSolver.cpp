@@ -99,7 +99,7 @@ void RigidSolver::solve()
       particlesTemp[1].device(),
       particleRigidData.device(),
       partitions.device(),
-      deviceSections.device()
+      entitySectionData.device()
     };
 
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -155,7 +155,7 @@ void RigidSolver::solve()
       particlesTemp[0].device(),
       particleRigidData.device(),
       partitions.device(),
-      deviceSections.device()
+      entitySectionData.device()
     };
 
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -176,7 +176,7 @@ void RigidSolver::update()
 {
   Solver::update();
 
-  for (const SectionData& section : *deviceSections.host())
+  for (const SectionData& section : *entitySectionData.host())
   {
     if (section.node.count > maxPerInstanceNodes)
     {

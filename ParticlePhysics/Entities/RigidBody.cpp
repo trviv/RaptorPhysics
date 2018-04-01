@@ -34,8 +34,8 @@ void RigidBody::initCube(const real dimensions[], const uint subdivision[], cons
 
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1] * subdivision[2]);
 
-  (*entityParticleSharedData.host())[0].invMassIsShared = 1;
-  (*entityParticleSharedData.host())[0].sharedInvMass = perParticleInvMass;
+  (*entitySharedData.host())[0].invMassIsShared = 1;
+  (*entitySharedData.host())[0].sharedInvMass = perParticleInvMass;
 
   uint prev_value_count = 0;
 

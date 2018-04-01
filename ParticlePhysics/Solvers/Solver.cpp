@@ -11,7 +11,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   constrainVariableAux[0].create(compute, NULL, false);
   constrainVariableAux[1].create(compute, NULL, false);
 
-  entityParticleSharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
+  entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
 
   particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   particleIdentities.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY), true);
@@ -32,7 +32,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   partitionsCount.create(compute, NULL, true);
   partitionsCount.host()->reserve(1);
   partitionsCount.host()->resize(1);
-  deviceSections.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
+  entitySectionData.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
 
   iterations = 1;
 
@@ -61,7 +61,7 @@ void Solver<IndexType, CoefficientType, VariableType>::commit(const SectionData&
   updateInfo.connection.count = constrainCoefficients.host()->size() - connectionCount();
 
   updates.push_back(updateInfo);
-  deviceSections.host()->push_back(updateInfo);
+  entitySectionData.host()->push_back(updateInfo);
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -108,7 +108,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   constrainVariableAux[0].resize(count, false);
   constrainVariableAux[1].resize(count, false);
 
-  entityParticleSharedData.syncDevice();
+  entitySharedData.syncDevice();
   particles.syncDevice();
   particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
@@ -117,7 +117,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   partitions.syncDevice();
   (*partitionsCount.host())[0] = partitions.host()->size();
   partitionsCount.syncDevice();
-  deviceSections.syncDevice();
+  entitySectionData.syncDevice();
 
   updates.clear();
 }
@@ -125,7 +125,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
 template<class IndexType, class CoefficientType, class VariableType>
 uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
 {
-  return deviceSections.host()->size();
+  return entitySectionData.host()->size();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

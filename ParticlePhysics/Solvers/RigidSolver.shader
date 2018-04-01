@@ -6,9 +6,11 @@
 @param matrixData Matrix data output.
 @param particleDeltas Change in particle position.
 @param particlesPredicted Current particle position.
+@param particleIdentities Particle identifiers.
 @param particlesTemp Current particle position.
 @param rigidBodyData Rigid body data.
-@param partitions
+@param partitions Instance partition data.
+@param sectionData Entity section data.
 @param length Rigid body count.
 */
 Kernel void covarianceMatrix(
@@ -24,6 +26,7 @@ Kernel void covarianceMatrix(
 {
   const uint index = threadIndex();
   const uint localIndex = threadLocalIndex();
+
   Shared float3 currentComOffset[COMPUTE_MAX_THREADS];
   Shared float3 initialComOffset[COMPUTE_MAX_THREADS];
 
@@ -69,8 +72,8 @@ void setAdjugateMatrix(
   const Device float* matrixData)
 {
   const char mod3[5] = { 0, 1, 2, 0, 1 };
-
   uint offset = 0;
+
   for (uint i = 0; i < 3; i++)
   {
     for (uint j = 0; j < 3; j++)
@@ -125,12 +128,11 @@ float getGamma(const Device float* matrix2, const Device float* matrixPtr, const
 }
 
 /*
-@kernel Rigid body .
+@kernel Matrix SVD decomposition kernel.
 @param matrixData Matrix data output.
-@param particleDeltas Change in particle position.
-@param particlesPredicted Current particle position.
-@param particlesTemp Current particle position.
-@param rigidBodyData Rigid body data.
+@param matrixTempInput1 Temporary array 1.
+@param matrixTempInput2 Temporary array 2.
+@param iterations Iterations for the solver.
 @param length Rigid body count.
 */
 Kernel void rigidSolver(
@@ -181,6 +183,16 @@ Kernel void rigidSolver(
   }
 }
 
+/*
+@kernel Set delta position for rigid body.
+@param particleDeltas Change in particle position.
+@param particleIdentities Particle identifiers.
+@param matrixData Instance transformation matrix data.
+@param rigidBodyData Rigid body data.
+@param partitions Instance partition data.
+@param sectionData Entity section data.
+@param length Rigid body count.
+*/
 Kernel void setDeltaPosition(
   Device ParticleStruct*          particleDeltas,
   const Device IdentityInfo*      particleIdentities,
