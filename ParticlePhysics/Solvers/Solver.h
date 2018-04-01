@@ -12,7 +12,7 @@ enum SolverType
   SOLVER_RIGID_BODY = 2,
   SOLVER_EQUATION = 4,
 
-  SOLVER_MAX = 3
+  SOLVER_MAX = 4
 };
 
 template<class IndexType, class CoefficientType, class VariableType> class Solver :
