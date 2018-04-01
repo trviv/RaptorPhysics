@@ -35,23 +35,28 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     for (uint j = 0; j < 3; j++)
+    {
       (*globalOffsets.host())[i][j] = 0;
+    }
   }
 }
 
 PhysicsSystem::~PhysicsSystem()
 {
-  for (uint i = 0; i < entities.size(); i++)
+  for (uint s = 0; s < SOLVER_MAX; s++)
   {
-    delete entities[i];
-    entities[i] = NULL;
+    for (uint i = 0; entities[s].size() && i < entities[s].size(); i++)
+    {
+      delete entities[s][i];
+      entities[s][i] = NULL;
+    }
   }
 }
 
 void* PhysicsSystem::getSolver(SolverType type)
 {
   // get solver
-  int index = mCeilExpOf2((uint)type);
+  int index = mCeilExpOf2((uint)type) + 1;
 
   if (!solversUint[index])
   {
@@ -138,7 +143,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   entitySectionData.connection.count = solver->connectionCount() - entitySectionData.connection.offset;
 
   // register entity properties
-  entities.push_back(entity);
+  entities[mCeilExpOf2((uint)entity->solver) + 1].push_back(entity);
   this->entitySectionData.push_back(entitySectionData);
   updates.push_back(systemUpdateInfo);
 
@@ -149,9 +154,10 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 {
   // get entity
   const uint solverId = getSolverId(registeredEntityId);
-  const PhysicsEntity* entity = entities[solverId];
+  const SolverType solverType = (SolverType)(1 << (getSolverType(registeredEntityId) - 1));
+  const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][solverId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
-  Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver((SolverType)(1 << (getSolverType(registeredEntityId) - 1)));
+  Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(solverType);
 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
@@ -193,8 +199,6 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   }
 
   globalOffsets.syncDevice();
-
-  entityParticles.push_back(solver->particles.host());
   updates.push_back(SectionData());
 }
 
@@ -243,12 +247,10 @@ void PhysicsSystem::render()
       for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
       {
         IdentityInfo identity = solversUint[i]->particleIdentities.host()->at(partition.offset);
-        uint solverType = getSolverType(identity);
         uint solverId = getSolverId(identity);
-        uint entityOffset = partition.offset;
+        ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
 
-        entityOffset += globalOffsets.host()->at(solverType)[GLOBAL_INSTANCE_OFFSET];
-        entities[solverId]->render(&((*(entityParticles[0]))[entityOffset]));
+        entities[i][solverId]->render(pos);
       }
     }
   }

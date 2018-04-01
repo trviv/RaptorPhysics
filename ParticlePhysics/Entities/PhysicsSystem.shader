@@ -27,12 +27,12 @@ Kernel void integrate(
     const uint globalNodeOffset = globalOffsets[solverType].x;
     const uint globalInstanceOffset = globalOffsets[solverType].y;
 
-    const uint solverId = getSolverId(identity);
-    const uint entityId = globalSolverOffset + getEntityId(identity);
+    const uint solverId = globalSolverOffset + getSolverId(identity);
+    const uint entityId = globalInstanceOffset + getEntityId(identity);
 
     const ParticleSharedData sharedData = particleSharedData[solverId];
 
-    const uint absoluteNodeOffset = globalInstanceOffset + partitions[entityId].offset;
+    const uint absoluteNodeOffset = globalNodeOffset + partitions[entityId].offset;
     const uint relativeNodeIndex = index % sectionData[solverId].node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
 

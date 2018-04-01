@@ -37,14 +37,8 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Memory sections which needs updation.*/
   vector<SectionData>             updates;
 
-  /*@member Entities in the system.*/
-  vector<PhysicsEntity*>          entities;
-
   /*@member Common solver entity data offsets.*/
   vector<SectionData>             entitySectionData;
-
-  /*@member Entities in the system.*/
-  vector<vector<ParticleStruct>*> entityParticles;
 
   /*@member Memory allocators used by the system.*/
   vector<SharedAllocator*>        allocators;
@@ -54,6 +48,8 @@ class PhysicsSystem : protected ShaderEntity, public Window
 
   /*@member uint solvers in the system.*/
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
+
+  vector<PhysicsEntity*>          entities[SOLVER_MAX];
 
   /*@member Number of unique nodes in the system.*/
   uint                            nodeCount;
