@@ -137,14 +137,14 @@ Kernel void rigidSolver(
   Device float* matrixData,
   Device float* matrixTempInput1,
   Device float* matrixTempInput2,
-  uint step,
+  const uint iterations,
   const uint length)
 {
   uint index = threadIndex();
   const uint grid = groupSize();
   const uint originalIndex = index;
 
-  for (uint it = 0; it < step; it++)
+  for (uint it = 0; it < iterations; it++)
   {
     const uint m = 0;
     index = originalIndex + grid*m;
@@ -191,6 +191,8 @@ Kernel void setDeltaPosition(
   const uint length)
 {
   const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+  Shared float3 initialComOffset[COMPUTE_MAX_THREADS];
 
   if (index < length)
   {
@@ -207,15 +209,15 @@ Kernel void setDeltaPosition(
 
     matrixData += 9 * entityId;
 
-    const float3 initialComOffset = rigidBodyData[commonNodeIndex].initialComOffset;
+    initialComOffset[localIndex] = rigidBodyData[commonNodeIndex].initialComOffset;
 
     float3 comOffsetCrossQ;
-    Thread float* comOffsetCrossQPtr = (float*)&comOffsetCrossQ;
+    Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
 
     for (uint i = 0; i < 3; i++)
     {
       const Device float* particleMatrix = matrixData + i;
-      const float3 product = initialComOffset * constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
+      const float3 product = initialComOffset[localIndex] * constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
       comOffsetCrossQPtr[i] = product.x + product.y + product.z;
     }
 
