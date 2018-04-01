@@ -23,6 +23,9 @@ Kernel void covarianceMatrix(
   const uint length)
 {
   const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+  Shared float3 currentComOffset[COMPUTE_MAX_THREADS];
+  Shared float3 initialComOffset[COMPUTE_MAX_THREADS];
 
   if (index < length)
   {
@@ -37,15 +40,15 @@ Kernel void covarianceMatrix(
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
     const uint commonNodeIndex = localSectionData.node.offset + relativeNodeIndex;
 
-    const float3 currentComOffset = particlesPredicted[absoluteNodeIndex].position - particlesTemp[entityId].position;
-    const float3 initialComOffset = rigidBodyData[commonNodeIndex].initialComOffset;
+    currentComOffset[localIndex] = particlesPredicted[absoluteNodeIndex].position - particlesTemp[entityId].position;
+    initialComOffset[localIndex] = rigidBodyData[commonNodeIndex].initialComOffset;
 
     // set delta now because com is available, and will be overwritten later
     // refer unified particle physics
-    particleDeltas[absoluteNodeIndex].position = -currentComOffset;
+    particleDeltas[absoluteNodeIndex].position = -currentComOffset[localIndex];
 
-    const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
-    const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
+    const Shared float* currentComOffsetPtr = (currentComOffset + localIndex);
+    const Shared float* initialComOffsetPtr = (initialComOffset + localIndex);
     Device float* matrixRow = (matrixData + 9 * absoluteNodeIndex);
 
     uint offset = 0;
@@ -54,7 +57,6 @@ Kernel void covarianceMatrix(
       for (uint j = 0; j < 3; j++)
       {
         matrixRow[offset] = currentComOffsetPtr[j] * initialComOffsetPtr[i];
-        //matrixRow[offset] = currentComOffsetPtr[i] * initialComOffsetPtr[j];
         offset++;
       }
     }

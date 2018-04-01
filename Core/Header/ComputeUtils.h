@@ -33,11 +33,13 @@ public:
 
   static ComputeUtil* get(uint templateId);
 
-  void sum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
+  void sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint length, bool doMean = false);
 
-  void sumRegular2D(ComputeInterface* compute, ComputeMemory* memory, uint length, uint subArrayElements, bool doMean = false);
+  void sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D, uint length, uint subArrayElements, bool doMean = false);
 
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
+  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
+
+  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean = false);
 
   //void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
 

@@ -224,6 +224,7 @@ Kernel void consolidateFromPartitionsKernel(
 
 Kernel void sumIrregular2DKernel(
   Device StructType* array2D,
+  Device StructType* consolidatedArray,
   const Device IdentityStructType* array2DIdentity,
   const Device PartitionInfo* partitionArray,
   const uint length,
@@ -281,8 +282,15 @@ Kernel void sumIrregular2DKernel(
 
             if (maxPower == 1 && backwards && diff < width)
             {
-              float div = partitionArray[identity1].count;
-              DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+              if (divideFlag)
+              {
+                float div = partitionArray[identity1].count;
+                DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+              }
+              if (consolidatedArray != array2D)
+              {
+                COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
+              }
             }
           }
         }
