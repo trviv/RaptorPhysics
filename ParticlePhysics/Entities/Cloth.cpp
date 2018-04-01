@@ -10,7 +10,7 @@ void Cloth::initXY(const real dimensions[], const real particleRadius, const rea
 {
   uint subdivision[3] = { 1, 1, 1 };
   for (int i = 0; i < 2; i++) subdivision[i] = uint(dimensions[i] / particleRadius);
-  (*entityParticleSharedData.host())[0].sharedRadius = particleRadius;
+  (*entitySharedData.host())[0].sharedRadius = particleRadius;
   initXY(dimensions, subdivision, mass);
 }
 

@@ -25,9 +25,6 @@ protected:
   DeviceArray<VariableType>         constrainConstants;
   DeviceArray<VariableType>         constrainVariableAux[2];
 
-  // related to particle simulation
-  DeviceArray<ParticleSharedData>   entityParticleSharedData;
-
   // related to particle instances
   DeviceArray<ParticleStruct>       particles;
   DeviceArray<IdentityInfo>         particleIdentities;
@@ -43,8 +40,11 @@ protected:
   vector<SingleConstrain>           rawConstrainConnections;
   vector<SingleCoefficient>         rawConstrainCoefficients;
 
-  /*@member Sections in device array where each entity is present.*/
-  DeviceArray<SectionData>          deviceSections;
+  /*@member Per entity simulation property.*/
+  DeviceArray<ParticleSharedData>   entitySharedData;
+
+  /*@member Per entity shared data info.*/
+  DeviceArray<SectionData>          entitySectionData;
 
   vector<SectionData>               updates;
 
