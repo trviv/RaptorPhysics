@@ -122,7 +122,7 @@ ComputeUtil* ComputeUtil::get(uint templateId)
   return &computeUtils[templateId];
 }
 
-void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
+void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint length, bool doMean)
 {
   const uint iterations = mCeilExpOf2(length);
   const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
@@ -131,7 +131,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* memory, uint l
   uint maxLocalIterations = 1;
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
 
-  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg(array1D, 0);
   kernels[kernelIndex].setArg<uint>(&length, 1);
   kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
   kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
@@ -162,7 +162,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* memory, uint l
   }
 }
 
-void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* memory, uint length, uint subArrayElements, bool doMean)
+void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D, uint length, uint subArrayElements, bool doMean)
 {
   const uint iterations = mCeilExpOf2(subArrayElements);
   const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
@@ -171,7 +171,7 @@ void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* memory,
   uint maxLocalIterations = 1;
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL];
 
-  kernels[kernelIndex].setArg(memory, 0);
+  kernels[kernelIndex].setArg(array2D, 0);
   kernels[kernelIndex].setArg<uint>(&length, 1);
   kernels[kernelIndex].setArg<uint>(&subArrayElements, 2);
   kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 4);
@@ -208,7 +208,12 @@ void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* memory,
   }
 }
 
-void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memory, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
+{
+  sumIrregular2D(compute, array2D, NULL, identity, partitions, length, maxPartitionLength, doMean);
+}
+
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
 {
   const uint iterations = mCeilExpOf2(maxPartitionLength);
   const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
@@ -217,20 +222,21 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
   uint maxLocalIterations = 1;
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL];
 
-  kernels[kernelIndex].setArg(memory, 0);
-  kernels[kernelIndex].setArg(identity, 1);
-  kernels[kernelIndex].setArg(partitions, 2);
-  kernels[kernelIndex].setArg<uint>(&length, 3);
-  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, 4);
-  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 6);
-  kernels[kernelIndex].setArg<uint>(&divideFlag, 7);
+  kernels[kernelIndex].setArg(array2D, 0);
+  kernels[kernelIndex].setArg(consolidatedArray ? consolidatedArray : array2D, 1);
+  kernels[kernelIndex].setArg(identity, 2);
+  kernels[kernelIndex].setArg(partitions, 3);
+  kernels[kernelIndex].setArg<uint>(&length, 4);
+  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, 5);
+  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 7);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, 8);
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
 
   for (uint i = 0; i < iterations; i++)
   {
-    kernels[kernelIndex].setArg<uint>(&i, 5);
+    kernels[kernelIndex].setArg<uint>(&i, 6);
 
     maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
     divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
@@ -238,11 +244,11 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* memor
     // set only if needed
     if (maxLocalIterations != 1)
     {
-      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 6);
+      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 7);
     }
     if (divideFlag && doMean)
     {
-      kernels[kernelIndex].setArg<uint>(&divideFlag, 7);
+      kernels[kernelIndex].setArg<uint>(&divideFlag, 8);
     }
 
     compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i))));
