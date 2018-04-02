@@ -50,8 +50,8 @@ Kernel void covarianceMatrix(
     // refer unified particle physics
     particleDeltas[absoluteNodeIndex].position = -currentComOffset[localIndex];
 
-    const Shared float* currentComOffsetPtr = (currentComOffset + localIndex);
-    const Shared float* initialComOffsetPtr = (initialComOffset + localIndex);
+    const Shared float* currentComOffsetPtr = (Shared float*)(currentComOffset + localIndex);
+    const Shared float* initialComOffsetPtr = (Shared float*)(initialComOffset + localIndex);
     Device float* matrixRow = (matrixData + 9 * absoluteNodeIndex);
 
     uint offset = 0;
@@ -67,9 +67,9 @@ Kernel void covarianceMatrix(
 }
 
 void setAdjugateMatrix(
-  Device float* matrixAdjugateCofactor,
-  Device float* matrix2,
-  const Device float* matrixData)
+  Thread float* matrixAdjugateCofactor,
+  Thread float* matrix2,
+  const Shared float* matrixData)
 {
   const char mod3[5] = { 0, 1, 2, 0, 1 };
   uint offset = 0;
@@ -94,7 +94,7 @@ void setAdjugateMatrix(
   }
 }
 
-float getGamma(const Device float* matrix2, const Device float* matrixPtr, const float determinant)
+float getGamma(const Thread float* matrix2, const Shared float* matrixPtr, const float determinant)
 {
   float mat_inf = 0,
     mat_one = 0,
@@ -130,38 +130,38 @@ float getGamma(const Device float* matrix2, const Device float* matrixPtr, const
 /*
 @kernel Matrix SVD decomposition kernel.
 @param matrixData Matrix data output.
-@param matrixTempInput1 Temporary array 1.
-@param matrixTempInput2 Temporary array 2.
 @param iterations Iterations for the solver.
 @param length Rigid body count.
 */
 Kernel void rigidSolver(
   Device float* matrixData,
-  Device float* matrixTempInput1,
-  Device float* matrixTempInput2,
   const uint iterations,
   const uint length)
 {
-  uint index = threadIndex();
-  const uint grid = groupSize();
-  const uint originalIndex = index;
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
 
-  for (uint it = 0; it < iterations; it++)
+  Shared float localMatrix[COMPUTE_MAX_THREADS * 9];
+  Shared float* matrixPtr = (localMatrix + localIndex * 9);
+
+  float matrix1Arr[9];
+  float matrix2Arr[9];
+
+  if (index < length)
   {
-    const uint m = 0;
-    index = originalIndex + grid*m;
-
-    if (index < length)
+    const uint indexOffset = index * 9;
+    for (uint i = 0; i < 9; i++)
     {
-      Device float* matrix1;
-      Device float* matrix2;
-      Device float* matrixPtr = (matrixData + index * 9);
+      matrixPtr[i] = matrixData[indexOffset + i];
+    }
 
-      matrix1 = (it & 1) ? matrixTempInput2 : matrixTempInput1;
-      matrix2 = (it & 1) ? matrixTempInput1 : matrixTempInput2;
+    for (uint it = 0; it < iterations; it++)
+    {
+      Thread float* matrix1;
+      Thread float* matrix2;
 
-      matrix1 += index * 9;
-      matrix2 += index * 9;
+      matrix1 = (it & 1) ? matrix2Arr : matrix1Arr;
+      matrix2 = (it & 1) ? matrix1Arr : matrix2Arr;
 
       setAdjugateMatrix(matrix1, matrix2, matrixPtr);
 
@@ -169,16 +169,16 @@ Kernel void rigidSolver(
       const float gamma = getGamma(matrix2, matrixPtr, determinant);
       const float g1 = gamma * .5f;
       const float g2 = .5f / (gamma * determinant);
-      uint matIndex = 0;
 
-      for (uint i = 0; i < 3; i++)
+      for (uint i = 0; i < 9; i++)
       {
-        for (uint j = 0; j < 3; j++)
-        {
-          matrixPtr[matIndex] = g1 * matrixPtr[matIndex] + g2 * matrix2[matIndex];
-          matIndex++;
-        }
+        matrixPtr[i] = g1 * matrixPtr[i] + g2 * matrix2[i];
       }
+    }
+
+    for (uint i = 0; i < 9; i++)
+    {
+      matrixData[indexOffset + i] = matrixPtr[i];
     }
   }
 }
@@ -229,8 +229,7 @@ Kernel void setDeltaPosition(
     for (uint i = 0; i < 3; i++)
     {
       const Device float* particleMatrix = matrixData + i;
-      const float3 product = initialComOffset[localIndex] * constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
-      comOffsetCrossQPtr[i] = product.x + product.y + product.z;
+      comOffsetCrossQPtr[i] = dot(initialComOffset[localIndex], constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]));
     }
 
     particleDeltas[absoluteNodeIndex].position += comOffsetCrossQ;
