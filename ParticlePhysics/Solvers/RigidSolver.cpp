@@ -130,9 +130,7 @@ void RigidSolver::solve()
     compute->configureSize(workgroupSize, workgroupCount, totalEntities);
 
     ComputeMemory* buffers[] = {
-      particlesTemp[0].device(),
-      covarianceMatrix.device(),
-      particlesTemp[1].device()
+      particlesTemp[0].device()
     };
 
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
