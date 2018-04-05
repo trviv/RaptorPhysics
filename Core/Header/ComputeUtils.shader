@@ -328,14 +328,14 @@ Kernel void sumIrregular2DKernel(
 /*
 @kernel Store offsets in an array from section data.
 @param sectionOffsets Section offsets output.
-@param sectionData Section data.
+@param entityLocation Section data.
 @param length Current particle position.
 */
 /*
 Kernel void sectionOffsetsKernel(
 Device uint* sectionOffsets,
 Device uint* sectionOffsetCount,
-const Device SectionData* sectionData,
+const Device EntityLocation* entityLocation,
 const uint length)
 {
 const uint localIndex = threadLocalIndex();
@@ -357,21 +357,21 @@ if (localIndex == 0)
 compactOffsets[COMPUTE_MAX_THREADS] = compactOffsets[COMPUTE_MAX_THREADS - 1];
 if (multiple > 0)
 {
-compactOffsets[COMPUTE_MAX_THREADS] += getInstanceId(sectionData[gridOffset].identity);
+compactOffsets[COMPUTE_MAX_THREADS] += getInstanceId(entityLocation[gridOffset].identity);
 }
 }
 localMemBarrier();
 
 if (index < length)
 {
-localSectionOffsets[localIndex] = sectionData[index].offsets[SECTION_DATA_NODE];
-localSectionCounts[localIndex] = sectionData[index].counts[SECTION_DATA_NODE];
-const uint instanceCount = getInstanceId(sectionData[index].identity);
+localSectionOffsets[localIndex] = entityLocation[index].offsets[SECTION_DATA_NODE];
+localSectionCounts[localIndex] = entityLocation[index].counts[SECTION_DATA_NODE];
+const uint instanceCount = getInstanceId(entityLocation[index].identity);
 
 compactOffsets[localIndex] = compactOffsets[COMPUTE_MAX_THREADS];
 for (uint i = 0; i < localIndex; i++)
 {
-compactOffsets[localIndex] += getInstanceId(sectionData[gridOffset + i].identity);
+compactOffsets[localIndex] += getInstanceId(entityLocation[gridOffset + i].identity);
 }
 
 const uint nodeCount = localSectionCounts[localIndex] / instanceCount;
@@ -384,7 +384,7 @@ sectionOffsets[compactOffsets[localIndex] + i] = localSectionOffsets[localIndex]
 localMemBarrier();
 if (index == length)
 {
-sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(sectionData[index - 1].identity);
+sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(entityLocation[index - 1].identity);
 }
 }
 }

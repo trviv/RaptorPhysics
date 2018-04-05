@@ -44,9 +44,9 @@ protected:
   DeviceArray<ParticleSharedData>   entitySharedData;
 
   /*@member Per entity shared data info.*/
-  DeviceArray<SectionData>          entitySectionData;
+  DeviceArray<EntityLocation>       entityLocations;
 
-  vector<SectionData>               updates;
+  vector<EntityLocation>            updates;
 
   template<class BaseType> void expand(IndexType index, vector<BaseType>& list)
   {

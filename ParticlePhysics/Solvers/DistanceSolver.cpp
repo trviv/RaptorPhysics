@@ -64,7 +64,7 @@ void DistanceSolver::solve()
         constrainIndices.device(),
         constrainCoefficients.device(),
         partitions.device(),
-        entitySectionData.device()
+        entityLocations.device()
       };
       uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);

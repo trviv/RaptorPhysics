@@ -47,7 +47,7 @@ public:
 
   ~Solver();
 
-  virtual void commit(const SectionData& sectionData);
+  virtual void commit();
 
   virtual void create(ComputeInterface* compute) = 0;
 

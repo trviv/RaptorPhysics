@@ -3,6 +3,7 @@
 
 #include "../Solvers/Solver.h"
 #include "PhysicsEntity.h"
+#include "../Solvers/CollisionSolver.h"
 
 enum GlobalOffsetsEnum
 {
@@ -35,10 +36,7 @@ class PhysicsSystem : protected ShaderEntity, public Window
   ComputeInterface*               compute;
 
   /*@member Memory sections which needs updation.*/
-  vector<SectionData>             updates;
-
-  /*@member Common solver entity data offsets.*/
-  vector<SectionData>             entitySectionData;
+  vector<EntityLocation>          updates;
 
   /*@member Memory allocators used by the system.*/
   vector<SharedAllocator*>        allocators;
@@ -49,6 +47,10 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member uint solvers in the system.*/
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
 
+  /*@member Collision solver for the system.*/
+  CollisionSolver                 collisionSolver;
+
+  /*@member Registered entities.*/
   vector<PhysicsEntity*>          entities[SOLVER_MAX];
 
   /*@member Number of unique nodes in the system.*/
@@ -56,9 +58,6 @@ class PhysicsSystem : protected ShaderEntity, public Window
 
   /*@member Number of instanced nodes in the system.*/
   uint                            instanceNodeCount;
-
-  /*@member Total entities in the system.*/
-  uint                            totalEntityCount;
 
   /*@member Entity ids available for reuse.*/
   vector<uint>                    availableEntityIds;

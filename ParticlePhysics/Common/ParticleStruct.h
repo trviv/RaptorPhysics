@@ -58,13 +58,13 @@ static uint getSolverType(const IdentityInfo particleIdentity)
 /*
 @struct Allocation data shared by all the particles of an entity.
 */
-struct SectionData_t
+struct EntityLocation_t
 {
   PartitionInfo node;
   PartitionInfo connection;
 };
 
-typedef struct SectionData_t SectionData;
+typedef struct EntityLocation_t EntityLocation;
 
 
 /*
@@ -128,7 +128,17 @@ typedef struct ParticleStruct_t ParticleStruct;
 
 struct DEFAULT_ALIGN ParticleRigidData_t
 {
-  float3  initialComOffset;
+  union
+  {
+    struct
+    {
+      float3  initialComOffset;
+    };
+    struct
+    {
+      uint    reserved[4];
+    };
+  };
 };
 
 typedef struct ParticleRigidData_t ParticleRigidData;

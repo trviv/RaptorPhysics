@@ -9,7 +9,6 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 {
   nodeCount = 0;
   instanceNodeCount = 0;
-  totalEntityCount = 0;
   availableEntityIds.clear();
 
   for (uint i = 0; i < SOLVER_MAX; i++)
@@ -97,16 +96,13 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
     allocator->particleAllocator.create(multiplier * 1024);
     allocator->constrainAllocator.create(multiplier * 1024, multiplier * 128);
     allocators.push_back(allocator);
+    collisionSolver.init(compute, allocator);
   }
 
   Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(entity->solver);
 
   // create section data to issue updates
-  SectionData entitySectionData;
-  SectionData systemUpdateInfo;
-
-  entitySectionData.node.offset = solver->nodes();
-  entitySectionData.connection.offset = solver->connectionCount();
+  EntityLocation systemUpdateInfo;
 
   // add entity shared data to the system
   solver->entitySharedData.host()->push_back(entity->entitySharedData.host()->at(0));
@@ -135,16 +131,12 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   // increment total node count
   nodeCount += mMax(entity->constrainConstants.host()->size(), entity->particleRigidData.host()->size());
 
-  solver->commit(entitySectionData);
+  solver->commit();
 
   systemUpdateInfo.node.count = nodeCount - systemUpdateInfo.node.offset;
 
-  entitySectionData.node.count = solver->nodes() - entitySectionData.node.offset;
-  entitySectionData.connection.count = solver->connectionCount() - entitySectionData.connection.offset;
-
   // register entity properties
   entities[mCeilExpOf2((uint)entity->solver) + 1].push_back(entity);
-  this->entitySectionData.push_back(entitySectionData);
   updates.push_back(systemUpdateInfo);
 
   return entityId;
@@ -173,7 +165,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     }
     PartitionInfo partition;
     partition.offset = solver->lastPartition().end();
-    partition.count = solver->entitySectionData.host()->at(solverId).node.count;
+    partition.count = solver->entityLocations.host()->at(solverId).node.count;
 
     solver->partitions.host()->push_back(partition);
     instanceNodeCount += entityPositions->size();
@@ -199,7 +191,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   }
 
   globalOffsets.syncDevice();
-  updates.push_back(SectionData());
+  updates.push_back(EntityLocation());
 }
 
 void PhysicsSystem::step()
@@ -212,7 +204,7 @@ void PhysicsSystem::step()
     ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
-    for (const SectionData& section : updates)
+    for (const EntityLocation& section : updates)
     {
       // reset position delta for entity
       float zero = 0;
@@ -222,8 +214,8 @@ void PhysicsSystem::step()
       compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
         0, instanceNodeCount * sizeof(ParticleDifferential), &zero, sizeof(float));
     }
-    updates.clear();
   }
+
   step(.066f);
 
   compute->sync();
@@ -270,6 +262,17 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
+  if (updates.size()) // copy initial positions
+  {
+    SharedAllocator* allocator = allocators[0];
+
+    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), 0, 0,
+      instanceNodeCount * sizeof(ParticleStruct));
+
+    updates.clear();
+  }
+
   // block to integrate
   {
     SharedAllocator* allocator = allocators[0];
@@ -279,6 +282,7 @@ void PhysicsSystem::step(float timeStep)
 
     ComputeMemory* buffers[] = {
       allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
@@ -293,5 +297,7 @@ void PhysicsSystem::step(float timeStep)
     kernels[0].setArg<float>(&timeStep, bufferCount);
     kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
     compute->execute(kernels[0], workgroupSize, workgroupCount);
+
+    collisionSolver.solve(instanceNodeCount, globalOffsets.device());
   }
 }

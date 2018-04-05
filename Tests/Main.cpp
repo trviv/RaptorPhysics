@@ -9,7 +9,7 @@ SharedAllocator allocator(compute);
 allocator.constrainAllocator.create(1024, 1024 * 16);
 allocator.particleAllocator.create(1024);
 
-PartitionInfo sectionData;
+PartitionInfo entityLocation;
 LinearSolver<ushort, float, float> cons(compute, &allocator);
 
 cons.create(compute);
@@ -38,7 +38,7 @@ cons.setConstant(1, 25);
 cons.setConstant(2, -11);
 cons.setConstant(3, 15);
 
-cons.commit(sectionData);
+cons.commit(entityLocation);
 
 cons.addConnection(0, 0, 2);
 cons.addConnection(1, 1, 7);
@@ -48,7 +48,7 @@ cons.addConnection(1, 0, 5);
 cons.setConstant(0, 11);
 cons.setConstant(1, 13);
 
-cons.commit(sectionData);
+cons.commit(entityLocation);
 
 cons.solve();
 }*/

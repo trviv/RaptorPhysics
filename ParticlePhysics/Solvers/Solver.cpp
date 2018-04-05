@@ -13,7 +13,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
 
   entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
 
-  particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
+  particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
   particleIdentities.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY), true);
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
@@ -32,7 +32,7 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   partitionsCount.create(compute, NULL, true);
   partitionsCount.host()->reserve(1);
   partitionsCount.host()->resize(1);
-  entitySectionData.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
+  entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
 
   iterations = 1;
 
@@ -48,11 +48,11 @@ Solver<IndexType, CoefficientType, VariableType>::~Solver()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-void Solver<IndexType, CoefficientType, VariableType>::commit(const SectionData& sectionData)
+void Solver<IndexType, CoefficientType, VariableType>::commit()
 {
   flatArray<CoefficientType>(*constrainCoefficients.host(), rawConstrainCoefficients);
 
-  SectionData updateInfo;
+  EntityLocation updateInfo;
 
   updateInfo.node.offset = nodes();
   updateInfo.node.count = constrainConstants.host()->size() - nodes();
@@ -61,14 +61,14 @@ void Solver<IndexType, CoefficientType, VariableType>::commit(const SectionData&
   updateInfo.connection.count = constrainCoefficients.host()->size() - connectionCount();
 
   updates.push_back(updateInfo);
-  entitySectionData.host()->push_back(updateInfo);
+  entityLocations.host()->push_back(updateInfo);
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 void Solver<IndexType, CoefficientType, VariableType>::update()
 {
   // arrays to be exported to device
-  for (const SectionData& section : updates)
+  for (const EntityLocation& section : updates)
   {
     if (rawConstrainConnections.size() && section.connection.count)
     {
@@ -117,7 +117,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   partitions.syncDevice();
   (*partitionsCount.host())[0] = partitions.host()->size();
   partitionsCount.syncDevice();
-  entitySectionData.syncDevice();
+  entityLocations.syncDevice();
 
   updates.clear();
 }
@@ -125,7 +125,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
 template<class IndexType, class CoefficientType, class VariableType>
 uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
 {
-  return entitySectionData.host()->size();
+  return entityLocations.host()->size();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
@@ -140,7 +140,7 @@ uint Solver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()cons
   template Solver<x, y, z>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type); \
   template Solver<x, y, z>::~Solver(); \
   classPrefix(x, y, z)::update(); \
-  classPrefix(x, y, z)::commit(const SectionData& sectionData); \
+  classPrefix(x, y, z)::commit(); \
   template uint Solver<x, y, z>::newEntityId(); \
   template uint Solver<x, y, z>::newEntityInstanceId()const;
 

@@ -12,6 +12,7 @@ struct PartitionInfo_t
 {
   /*@member Offset.*/
   uint  offset;
+
   /*@member Count.*/
   uint  count;
 

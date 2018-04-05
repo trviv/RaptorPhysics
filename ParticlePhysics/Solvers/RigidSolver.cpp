@@ -12,7 +12,7 @@ static uint matrix3x3UtilId;
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
-  iterations = 4;
+  iterations = 2;
   maxPerInstanceNodes = 0;
   create(compute);
 
@@ -99,7 +99,7 @@ void RigidSolver::solve()
       particlesTemp[1].device(),
       particleRigidData.device(),
       partitions.device(),
-      entitySectionData.device()
+      entityLocations.device()
     };
 
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -153,7 +153,7 @@ void RigidSolver::solve()
       particlesTemp[0].device(),
       particleRigidData.device(),
       partitions.device(),
-      entitySectionData.device()
+      entityLocations.device()
     };
 
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -174,7 +174,7 @@ void RigidSolver::update()
 {
   Solver::update();
 
-  for (const SectionData& section : *entitySectionData.host())
+  for (const EntityLocation& section : *entityLocations.host())
   {
     if (section.node.count > maxPerInstanceNodes)
     {
