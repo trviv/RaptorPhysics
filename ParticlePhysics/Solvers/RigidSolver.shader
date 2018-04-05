@@ -5,12 +5,12 @@
 @kernel Compute covariance matrix.
 @param matrixData Matrix data output.
 @param particleDeltas Change in particle position.
-@param particlesPredicted Current particle position.
+@param particlesPredicted Integrated particle position.
 @param particleIdentities Particle identifiers.
 @param particlesTemp Current particle position.
 @param rigidBodyData Rigid body data.
 @param partitions Instance partition data.
-@param sectionData Entity section data.
+@param entityLocation Entity section data.
 @param length Rigid body count.
 */
 Kernel void covarianceMatrix(
@@ -21,7 +21,7 @@ Kernel void covarianceMatrix(
   const Device ParticleStruct*    particlesTemp,
   const Device ParticleRigidData* rigidBodyData,
   const Device PartitionInfo*     partitions,
-  const Device SectionData*       sectionData,
+  const Device EntityLocation*    entityLocation,
   const uint length)
 {
   const uint index = threadIndex();
@@ -36,12 +36,12 @@ Kernel void covarianceMatrix(
     const uint solverId = getSolverId(identity);
     const uint entityId = getEntityId(identity);
 
-    const SectionData localSectionData = sectionData[solverId];
+    const EntityLocation localEntityLocation = entityLocation[solverId];
 
     const uint absoluteNodeOffset = partitions[entityId].offset;
-    const uint relativeNodeIndex = index % localSectionData.node.count;
+    const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-    const uint commonNodeIndex = localSectionData.node.offset + relativeNodeIndex;
+    const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
     currentComOffset[localIndex] = particlesPredicted[absoluteNodeIndex].position - particlesTemp[entityId].position;
     initialComOffset[localIndex] = rigidBodyData[commonNodeIndex].initialComOffset;
@@ -165,6 +165,7 @@ Kernel void rigidSolver(
 
       setAdjugateMatrix(matrix1, matrix2, matrixPtr);
 
+      //float determinant = matrixPtr[0] * matrix1[0] + matrixPtr[1] * matrix1[1] + matrixPtr[2] * matrix1[2];
       const float determinant = matrix1[0] + matrix1[1] + matrix1[2];
       const float gamma = getGamma(matrix2, matrixPtr, determinant);
       const float g1 = gamma * .5f;
@@ -190,7 +191,7 @@ Kernel void rigidSolver(
 @param matrixData Instance transformation matrix data.
 @param rigidBodyData Rigid body data.
 @param partitions Instance partition data.
-@param sectionData Entity section data.
+@param entityLocation Entity section data.
 @param length Rigid body count.
 */
 Kernel void setDeltaPosition(
@@ -199,7 +200,7 @@ Kernel void setDeltaPosition(
   const Device float*             matrixData,
   const Device ParticleRigidData* rigidBodyData,
   const Device PartitionInfo*     partitions,
-  const Device SectionData*       sectionData,
+  const Device EntityLocation*    entityLocation,
   const uint length)
 {
   const uint index = threadIndex();
@@ -212,12 +213,12 @@ Kernel void setDeltaPosition(
     const uint solverId = getSolverId(identity);
     const uint entityId = getEntityId(identity);
 
-    const SectionData localSectionData = sectionData[solverId];
+    const EntityLocation localEntityLocation = entityLocation[solverId];
 
     const uint absoluteNodeOffset = partitions[entityId].offset;
-    const uint relativeNodeIndex = index % localSectionData.node.count;
+    const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-    const uint commonNodeIndex = localSectionData.node.offset + relativeNodeIndex;
+    const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
     matrixData += 9 * entityId;
 

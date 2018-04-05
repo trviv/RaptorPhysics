@@ -30,7 +30,7 @@ VariableType getDelta(
 @param constrainNodes Buffer containing constrain header data.
 @param indexArray Buffer containing constrain index data.
 @param coefficients Buffer containing constrain magnitude data.
-@param sectionData Buffer containing entity boundary info.
+@param entityLocation Buffer containing entity boundary info.
 @param nodeCount Total nodes in the solver.
 */
 Kernel void distanceSolverSpring(
@@ -41,7 +41,7 @@ Kernel void distanceSolverSpring(
   const Device IndexType*           indexArray,
   const Device CoefficientType*     coefficients,
   const Device PartitionInfo*       partitions,
-  const Device SectionData*         sectionData,
+  const Device EntityLocation*      entityLocation,
   const uint                        nodeCount)
 {
   Shared VariableType oldValues[COMPUTE_MAX_THREADS];
@@ -56,17 +56,17 @@ Kernel void distanceSolverSpring(
     const uint solverId = getSolverId(identity);
     const uint entityId = getEntityId(identity);
 
-    const SectionData localSectionData = sectionData[solverId];
+    const EntityLocation localEntityLocation = entityLocation[solverId];
 
     const uint absoluteNodeOffset = partitions[entityId].offset;
-    const uint relativeNodeIndex = index % localSectionData.node.count;
+    const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-    const uint commonNodeIndex = localSectionData.node.offset + relativeNodeIndex;
+    const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
     oldValues[localIndex] = oldPositions[absoluteNodeIndex].position;
 
     const ConstrainStruct constrain = constrainNodes[commonNodeIndex];
-    const uint commonConnectionIndex = localSectionData.connection.offset + constrainOffset(constrain);
+    const uint commonConnectionIndex = localEntityLocation.connection.offset + constrainOffset(constrain);
     const uint count = constrainCount(constrain);
 
     if (coefficients[commonConnectionIndex]) // if self movement allowed

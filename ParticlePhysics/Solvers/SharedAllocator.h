@@ -31,6 +31,7 @@ template<class IndexType, class CoefficientType> struct ConstrainAllocator
 struct ParticleAllocator
 {
   ComputeHeap partitions;
+  ComputeHeap partitionsPredicted;
   ComputeHeap particleSharedHeap;
   ComputeHeap particleHeap;
   ComputeHeap particleIdentities;
@@ -42,6 +43,7 @@ struct ParticleAllocator
 
   ParticleAllocator(ComputeInterface* compute)
     :partitions(compute),
+    partitionsPredicted(compute),
     particleSharedHeap(compute),
     particleHeap(compute),
     particleIdentities(compute),
@@ -54,6 +56,7 @@ struct ParticleAllocator
   void create(uint initialParticles)
   {
     partitions.create(initialParticles * sizeof(ParticleSharedData));
+    partitionsPredicted.create(initialParticles * sizeof(ParticleSharedData));
     particleSharedHeap.create(initialParticles * sizeof(ParticleSharedData));
     particleHeap.create(initialParticles*sizeof(ParticleStruct));
     particleIdentities.create(initialParticles*sizeof(IdentityInfo));
@@ -73,8 +76,9 @@ enum SharedComputeHeapEnum
   COMPUTE_HEAP_CONSTRAIN_COEFFICIENTS,
 
   COMPUTE_HEAP_PARTITIONS,
-  COMPUTE_HEAP_PARTICLE_SHARED,
   COMPUTE_HEAP_PARTICLE,
+  COMPUTE_HEAP_PARTICLE_PREDICTED,
+  COMPUTE_HEAP_PARTICLE_SHARED,
   COMPUTE_HEAP_PARTICLE_IDENTITY,
   COMPUTE_HEAP_PARTICLE_DELTA,
   COMPUTE_HEAP_PARTICLE_DIFF,
@@ -109,10 +113,12 @@ public:
 
     case COMPUTE_HEAP_PARTITIONS:
       return &particleAllocator.partitions;
-    case COMPUTE_HEAP_PARTICLE_SHARED:
-      return &particleAllocator.particleSharedHeap;
     case COMPUTE_HEAP_PARTICLE:
       return &particleAllocator.particleHeap;
+    case COMPUTE_HEAP_PARTICLE_PREDICTED:
+      return &particleAllocator.partitionsPredicted;
+    case COMPUTE_HEAP_PARTICLE_SHARED:
+      return &particleAllocator.particleSharedHeap;
     case COMPUTE_HEAP_PARTICLE_IDENTITY:
       return &particleAllocator.particleIdentities;
     case COMPUTE_HEAP_PARTICLE_DELTA:

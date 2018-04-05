@@ -210,7 +210,7 @@ void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D
 
 void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
 {
-  sumIrregular2D(compute, array2D, NULL, identity, partitions, length, maxPartitionLength, doMean);
+  sumIrregular2D(compute, array2D, array2D, identity, partitions, length, maxPartitionLength, doMean);
 }
 
 void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, uint length, uint maxPartitionLength, bool doMean)
@@ -223,7 +223,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL];
 
   kernels[kernelIndex].setArg(array2D, 0);
-  kernels[kernelIndex].setArg(consolidatedArray ? consolidatedArray : array2D, 1);
+  kernels[kernelIndex].setArg(consolidatedArray, 1);
   kernels[kernelIndex].setArg(identity, 2);
   kernels[kernelIndex].setArg(partitions, 3);
   kernels[kernelIndex].setArg<uint>(&length, 4);
@@ -251,7 +251,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array
       kernels[kernelIndex].setArg<uint>(&divideFlag, 8);
     }
 
-    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i))));
+    compute->configureSize(workgroupSize, workgroupCount, 2 * (uint)mCeil(float(length) / ((1 << i))));
     compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
     if (iterations - i <= maxThreadsPerGroupExponent) break;

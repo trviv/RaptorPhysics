@@ -64,15 +64,11 @@ void RigidBody::initCube(const real dimensions[], const uint subdivision[], cons
               if (tempx < 0 || tempx >= signedSubdivision[0]) continue;
 
               int index1 = tempx + (tempy*signedSubdivision[0]) + (tempz*signedSubdivision[0] * signedSubdivision[1]);
-              Real3 pos2 = top_left + (del[0] * (float)tempx) + (del[1] * (float)tempy) + (del[2] * (float)tempz);
 
-              if (index1 == index) continue;
+              if (index == index1) continue;
 
-              if (index1 > index)
-              {
-                connectionElements.push_back(index);
-                connectionElements.push_back(index1);
-              }
+              connectionElements.push_back(index);
+              connectionElements.push_back(index1);
             }
           }
         }
@@ -118,11 +114,8 @@ void RigidBody::render(ParticleStruct* particles)
   glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
   glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
 
-  glDisable(GL_DEPTH_TEST);
+  glEnable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
-  glDisable(GL_LIGHTING);
-  glDisable(GL_POINT_SMOOTH);
-  glDisable(GL_CULL_FACE);
 
   glPushMatrix();
   displayShader.bind();
@@ -136,7 +129,7 @@ void RigidBody::render(ParticleStruct* particles)
     GL_CHECK(glEnableVertexAttribArray(0));
     GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
     displayElements.bind();
-    GL_CHECK(glDrawElements(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL));
+    GL_CHECK(glDrawElements(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL));
     displayElements.unbind();
     GL_CHECK(glDisableVertexAttribArray(0));
     //displayVertex.unbind();

@@ -66,29 +66,36 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       {
         addConnection(index, index + 1, x_len);
         addConnection(index + 1, index, x_len);
-        connectionElements.push_back(index);
-        connectionElements.push_back(index + 1);
       }
       if (y + 1 < subdivision[1])
       {
         addConnection(index, index + subdivision[0], y_len);
         addConnection(index + subdivision[0], index, y_len);
-        connectionElements.push_back(index);
-        connectionElements.push_back(index + subdivision[0]);
+
+        if (false && x + 1 >= subdivision[0])
+        {
+          connectionElements.push_back(index);
+          connectionElements.push_back(index + subdivision[0]);
+          connectionElements.push_back(index + subdivision[0] - 1);
+        }
       }
       if (x + 1 < subdivision[0] && y + 1 < subdivision[1])
       {
         addConnection(index, index + subdivision[0] + 1, diag_len);
         addConnection(index + subdivision[0] + 1, index, diag_len);
+
+        connectionElements.push_back(index);
+        connectionElements.push_back(index + subdivision[0]);
+        connectionElements.push_back(index + subdivision[0] + 1);
+
         connectionElements.push_back(index);
         connectionElements.push_back(index + subdivision[0] + 1);
+        connectionElements.push_back(index + 1);
       }
       if (x >= 1 && y + 1 < subdivision[1])
       {
         addConnection(index, index + subdivision[0] - 1, diag_len);
         addConnection(index + subdivision[0] - 1, index, diag_len);
-        connectionElements.push_back(index);
-        connectionElements.push_back(index + subdivision[0] - 1);
       }
 
       index++;
@@ -115,11 +122,8 @@ void Cloth::render(ParticleStruct* particles)
   glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
   glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
 
-  glDisable(GL_DEPTH_TEST);
+  glEnable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
-  glDisable(GL_LIGHTING);
-  glDisable(GL_POINT_SMOOTH);
-  glDisable(GL_CULL_FACE);
 
   glPushMatrix();
   displayShader.bind();
@@ -133,7 +137,7 @@ void Cloth::render(ParticleStruct* particles)
     GL_CHECK(glEnableVertexAttribArray(0));
     GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
     displayElements.bind();
-    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
+    GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
     displayElements.unbind();
     GL_CHECK(glDisableVertexAttribArray(0));
     //displayVertex.unbind();

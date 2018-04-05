@@ -1,32 +1,38 @@
-#ifndef PHYSICS_SYSTEM_SHADER
-#define PHYSICS_SYSTEM_SHADER
+#ifndef COLLISION_SOLVER_SHADER
+#define COLLISION_SOLVER_SHADER
 
-Kernel void integrate(
+/*
+@kernel Apply boundary constrain.
+@param particles Initial particle position.
+@param particlesPredicted Integrated particle position.
+@param particleIdentities Particle identifiers.
+@param particleSharedData Particle entity shared data.
+@param particleAuxData Additional particle data.
+@param partitions Instance partition data.
+@param entityLocation Buffer containing entity boundary info.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void boundaryCollisionKernel(
   Device ParticleStruct*            particles,
   Device ParticleStruct*            particlesPredicted,
-  Device IdentityInfo*              particleIdentities,
-  Device ParticleStruct*            particleDeltas,
-  Device ParticleDifferential*      particleDiff,
+  const Device IdentityInfo*        particleIdentities,
   const Device ParticleSharedData*  particleSharedData,
   const Device ParticleAuxData*     particleAuxData,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const uint4*                      globalOffsets,
-  const float                       timeStep,
   const uint                        nodeCount)
 {
   const uint index = threadIndex();
   const uint localIndex = threadLocalIndex();
-  Shared float3 velocity[COMPUTE_MAX_THREADS];
-  Shared float3 position[COMPUTE_MAX_THREADS];
 
   if (index < nodeCount)
   {
     const IdentityInfo identity = particleIdentities[index];
 
     const uint solverType = getSolverType(identity);
-    const uint globalNodeOffset = globalOffsets[solverType].x;
     const uint globalSolverOffset = globalOffsets[solverType].z;
+    const uint globalNodeOffset = globalOffsets[solverType].x;
     const uint globalInstanceOffset = globalOffsets[solverType].y;
 
     const uint solverId = globalSolverOffset + getSolverId(identity);
@@ -42,14 +48,14 @@ Kernel void integrate(
 
     if (invMass) // only if movable
     {
-      position[localIndex] = particlesPredicted[absoluteNodeIndex].position + particleDeltas[absoluteNodeIndex].position;
+      float dely = 0.f;
 
-      velocity[localIndex] = (position[localIndex] - particles[absoluteNodeIndex].position) / timeStep;
-      velocity[localIndex] += constructFloat3(0.f, 6 * -0.98f, 0.f) * timeStep;
-      velocity[localIndex] *= sharedData.velocityDamping;
-
-      particles[absoluteNodeIndex].position = position[localIndex];
-      particlesPredicted[absoluteNodeIndex].position = position[localIndex] + velocity[localIndex] * timeStep;
+      if (particlesPredicted[absoluteNodeIndex].position.y <= -2.f)
+      {
+        dely = -2.f - particlesPredicted[absoluteNodeIndex].position.y;
+        particles[absoluteNodeIndex].position.y += dely;
+        particlesPredicted[absoluteNodeIndex].position.y += dely;
+      }
     }
   }
 }
