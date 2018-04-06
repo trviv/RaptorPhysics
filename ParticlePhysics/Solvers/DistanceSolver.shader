@@ -53,12 +53,12 @@ Kernel void distanceSolverSpring(
   if (index < nodeCount)
   {
     const IdentityInfo identity = particleIdentities[index];
-    const uint solverId = getSolverId(identity);
-    const uint entityId = getInstanceId(identity);
+    const uint entityId = getEntityId(identity);
+    const uint instanceId = getInstanceId(identity);
 
-    const EntityLocation localEntityLocation = entityLocation[solverId];
+    const EntityLocation localEntityLocation = entityLocation[entityId];
 
-    const uint absoluteNodeOffset = partitions[entityId].offset;
+    const uint absoluteNodeOffset = partitions[instanceId].offset;
     const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
     const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;

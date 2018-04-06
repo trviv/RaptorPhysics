@@ -166,7 +166,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   uint width = 0;
   const uint parts = 30;
-  int elements = 0;
+  uint elements = 0;
   Real3 sum = 0;
 
   for (int i = 0; i < parts; i++)

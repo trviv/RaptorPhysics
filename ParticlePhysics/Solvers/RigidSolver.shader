@@ -33,17 +33,17 @@ Kernel void covarianceMatrix(
   if (index < length)
   {
     const IdentityInfo identity = particleIdentities[index];
-    const uint solverId = getSolverId(identity);
-    const uint entityId = getInstanceId(identity);
+    const uint entityId = getEntityId(identity);
+    const uint instanceId = getInstanceId(identity);
 
-    const EntityLocation localEntityLocation = entityLocation[solverId];
+    const EntityLocation localEntityLocation = entityLocation[entityId];
 
-    const uint absoluteNodeOffset = partitions[entityId].offset;
+    const uint absoluteNodeOffset = partitions[instanceId].offset;
     const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
     const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
-    currentComOffset[localIndex] = particlesPredicted[absoluteNodeIndex].position - particlesTemp[entityId].position;
+    currentComOffset[localIndex] = particlesPredicted[absoluteNodeIndex].position - particlesTemp[instanceId].position;
     initialComOffset[localIndex] = rigidBodyData[commonNodeIndex].initialComOffset;
 
     // set delta now because com is available, and will be overwritten later
@@ -200,17 +200,17 @@ Kernel void setDeltaPosition(
   if (index < length)
   {
     const IdentityInfo identity = particleIdentities[index];
-    const uint solverId = getSolverId(identity);
-    const uint entityId = getInstanceId(identity);
+    const uint entityId = getEntityId(identity);
+    const uint instanceId = getInstanceId(identity);
 
-    const EntityLocation localEntityLocation = entityLocation[solverId];
+    const EntityLocation localEntityLocation = entityLocation[entityId];
 
-    const uint absoluteNodeOffset = partitions[entityId].offset;
+    const uint absoluteNodeOffset = partitions[instanceId].offset;
     const uint relativeNodeIndex = index % localEntityLocation.node.count;
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
     const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
-    matrixData += 9 * entityId;
+    matrixData += 9 * instanceId;
 
     initialComOffset[localIndex] = rigidBodyData[commonNodeIndex].initialComOffset;
 
