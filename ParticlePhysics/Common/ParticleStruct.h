@@ -23,9 +23,9 @@ struct IdentityInfo_t
     identity[1] = -1;
   }
 
-  void setSolverId(uint solver, uint solverId)
+  void setEntityId(uint solver, uint entityId)
   {
-    identity[0] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (solverId & PHYSICS_ENTITY_ID_MASK);
+    identity[0] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
   }
 
   void setInstanceId(uint instanceId)
@@ -44,7 +44,7 @@ static uint getInstanceId(const IdentityInfo particleIdentity)
   return particleIdentity.identity[1];
 }
 
-static uint getSolverId(const IdentityInfo particleIdentity)
+static uint getEntityId(const IdentityInfo particleIdentity)
 {
   return particleIdentity.identity[0] & PHYSICS_ENTITY_ID_MASK;
 }

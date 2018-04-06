@@ -110,7 +110,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   // update information
   systemUpdateInfo.node.offset = nodeCount;
 
-  entityId.setSolverId(entity->solver, solver->newEntityId());
+  entityId.setEntityId(entity->solver, solver->newEntityId());
 
   // append data
   solver->rawConstrainConnections.insert(solver->rawConstrainConnections.end(),
@@ -145,9 +145,9 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
 void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, const ushort instanceCount, const Matrix4* instanceTransforms)
 {
   // get entity
-  const uint solverId = getSolverId(registeredEntityId);
+  const uint entityId = getEntityId(registeredEntityId);
   const SolverType solverType = (SolverType)(1 << (getSolverType(registeredEntityId) - 1));
-  const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][solverId];
+  const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][entityId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
   Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(solverType);
 
@@ -165,7 +165,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     }
     PartitionInfo partition;
     partition.offset = solver->lastPartition().end();
-    partition.count = solver->entityLocations.host()->at(solverId).node.count;
+    partition.count = solver->entityLocations.host()->at(entityId).node.count;
 
     solver->partitions.host()->push_back(partition);
     instanceNodeCount += entityPositions->size();
@@ -239,7 +239,7 @@ void PhysicsSystem::render()
       for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
       {
         IdentityInfo identity = solversUint[i]->particleIdentities.host()->at(partition.offset);
-        uint solverId = getSolverId(identity);
+        uint solverId = getEntityId(identity);
         ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
 
         entities[i][solverId]->render(pos);
