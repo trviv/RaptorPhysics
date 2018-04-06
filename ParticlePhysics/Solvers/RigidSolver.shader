@@ -67,7 +67,6 @@ Kernel void covarianceMatrix(
 }
 
 void setAdjugateMatrix(
-  Thread float* matrixAdjugateCofactor,
   Thread float* matrix2,
   const Shared float* matrixData)
 {
@@ -88,7 +87,6 @@ void setAdjugateMatrix(
         matrixData[mod3[i + 2] * 3 + mod3[j + 1]];
 
       matrix2[offset] = cellValue;
-      matrixAdjugateCofactor[offset] = cellValue * matrixData[offset];
       offset++;
     }
   }
@@ -144,8 +142,7 @@ Kernel void rigidSolver(
   Shared float localMatrix[COMPUTE_MAX_THREADS * 9];
   Shared float* matrixPtr = (localMatrix + localIndex * 9);
 
-  float matrix1Arr[9];
-  float matrix2Arr[9];
+  float matrix2[9];
 
   if (index < length)
   {
@@ -157,15 +154,9 @@ Kernel void rigidSolver(
 
     for (uint it = 0; it < iterations; it++)
     {
-      Thread float* matrix1;
-      Thread float* matrix2;
+      setAdjugateMatrix(matrix2, matrixPtr);
 
-      matrix1 = (it & 1) ? matrix2Arr : matrix1Arr;
-      matrix2 = (it & 1) ? matrix1Arr : matrix2Arr;
-
-      setAdjugateMatrix(matrix1, matrix2, matrixPtr);
-
-      const float determinant = matrix1[0] + matrix1[1] + matrix1[2];
+      const float determinant = matrix2[0] * matrixPtr[0] + matrix2[1] * matrixPtr[1] + matrix2[2] * matrixPtr[2];
       const float gamma = getGamma(matrix2, matrixPtr, determinant);
       const float g1 = gamma * .5f;
       const float g2 = .5f / (gamma * determinant);

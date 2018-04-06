@@ -93,7 +93,7 @@ void RigidBody::initCube(const real dimensions[], const uint subdivision[], cons
     rigidData.initialComOffset = (*points)[i] - com;
     particleRigidData.host()->push_back(rigidData);
   }
-  //(*points)[prev_value_count] -= real(.5);
+  (*points)[prev_value_count] -= real(.5);
 
 #ifdef ENABLE_RENDERING
   displayVertex.gen();
