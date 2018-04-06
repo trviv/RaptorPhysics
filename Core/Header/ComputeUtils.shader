@@ -227,6 +227,7 @@ Kernel void sumIrregular2DKernel(
   Device StructType* consolidatedArray,
   const Device IdentityStructType* array2DIdentity,
   const Device PartitionInfo* partitionArray,
+  const Device uint* partitionCount,
   const uint length,
   const uint maxPartitionLength,
   const uint iteration,
@@ -238,86 +239,110 @@ Kernel void sumIrregular2DKernel(
   const int originalIndex = threadLocalIndex();
   maxLocalIterations = maxLocalIterations << 1;
 
-  const int maxIdentity = (groupIndex() + 1) * ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength);
-  const int offset = partitionArray[groupIndex()  * ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength)].offset;
+  const uint perGroupPartitions = ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength);
+  const uint minIdentity = groupIndex() * perGroupPartitions;
+  const uint maxIdentity = minIdentity + perGroupPartitions;
 
-  for (uint i = 0; i < maxLocalIterations; i++)
+  if (minIdentity < partitionCount[0])
   {
-    uint width = (1 << maxPower);
-    int index1 = (originalIndex << maxPower) + offset;
-    int index2 = index1 + (width >> 1);
+    const int offset = partitionArray[minIdentity].offset;
 
-    if (index1 < length)
+    for (uint i = 0; i < maxLocalIterations; i++)
     {
-      uint identity1 = IDENTITY_FUNCTION(array2DIdentity[index1]IDENTITY_STRUCT_MEMBER);
+      uint width = (1 << maxPower);
+      int index1 = (originalIndex << maxPower) + offset;
+      int index2 = index1 + (width >> 1);
 
-      if (identity1 < maxIdentity)
+      if (index1 < length)
       {
-        if (backwards) // add the remaining elements which are located at 2^ locations
-        {
-          // treat this index as second
-          index2 = index1;
-          // treat partition as the destination
-          index1 = partitionArray[identity1].offset;
-        }
+        uint identity1 = IDENTITY_FUNCTION(array2DIdentity[index1]IDENTITY_STRUCT_MEMBER);
 
-        if (index2 < length)
+        if (identity1 < maxIdentity)
         {
-          if (identity1 == IDENTITY_FUNCTION(array2DIdentity[index2]IDENTITY_STRUCT_MEMBER))
+          if (backwards) // add the remaining elements which are located at 2^ locations
           {
-            bool add = !backwards;
-            const int diff = index2 - index1;
-            if (backwards)
-            {
-              if (diff < width && diff >= (width >> 1) && ((index1 - offset) & ((width << 1) - 1)))
-              {
-                add = true;
-              }
-            }
+            // treat this index as second
+            index2 = index1;
+            // treat partition as the destination
+            index1 = partitionArray[identity1].offset;
+          }
 
-            if (add)
+          if (index2 < length)
+          {
+            if (identity1 == IDENTITY_FUNCTION(array2DIdentity[index2]IDENTITY_STRUCT_MEMBER))
             {
-              ADD_FUNCTION(array2D[index1]STRUCT_MEMBER, array2D[index2]STRUCT_MEMBER);
-            }
-
-            if (maxPower == 1 && backwards && diff < width)
-            {
-              if (divideFlag)
+              bool add = !backwards;
+              const int diff = index2 - index1;
+              if (backwards)
               {
-                float div = partitionArray[identity1].count;
-                DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+                if (diff < width && diff >= (width >> 1) && ((index1 - offset) & ((width << 1) - 1)))
+                {
+                  add = true;
+                }
               }
-              if (consolidatedArray != array2D)
+
+              if (add)
               {
-                COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
+                ADD_FUNCTION(array2D[index1]STRUCT_MEMBER, array2D[index2]STRUCT_MEMBER);
+              }
+
+              if (maxPower == 1 && backwards && diff < width)
+              {
+                if (divideFlag)
+                {
+                  float div = partitionArray[identity1].count;
+                  DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+                }
+                if (consolidatedArray != array2D)
+                {
+                  COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
+                }
               }
             }
           }
         }
       }
-    }
 
-    if (!backwards)
-    {
-      if (width >= maxPartitionLength)
+      if (!backwards)
       {
-        backwards = true;
+        if (width >= maxPartitionLength)
+        {
+          backwards = true;
+        }
+        else
+        {
+          maxPower++;
+        }
       }
       else
       {
-        maxPower++;
+        maxPower--;
+      }
+
+      if (maxLocalIterations > 1)
+      {
+        barrier(CLK_GLOBAL_MEM_FENCE);
       }
     }
-    else
-    {
-      maxPower--;
-    }
-
-    if (maxLocalIterations > 1)
-    {
-      barrier(CLK_GLOBAL_MEM_FENCE);
-    }
   }
+
+
+  /*if (divideFlag)
+  {
+  const uint offset = originalIndex + minIdentity;
+  if (offset < maxIdentity && offset < partitionCount[0])
+  {
+  const uint identity1 = IDENTITY_FUNCTION(array2DIdentity[offset]IDENTITY_STRUCT_MEMBER);
+  const uint index1 = partitionArray[identity1].offset;
+  const float div = partitionArray[identity1].count;
+  DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+
+  if (consolidatedArray != array2D)
+  {
+  COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
+  }
+  }
+  }*/
 }
 
 

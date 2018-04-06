@@ -12,7 +12,7 @@ static uint matrix3x3UtilId;
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
-  iterations = 2;
+  iterations = 8;
   maxPerInstanceNodes = 0;
   create(compute);
 
@@ -39,12 +39,12 @@ void RigidSolver::create(ComputeInterface* compute)
     positionSetting[ComputeUtilStructType] = "ParticleStruct";
     positionSetting[ComputeUtilStructMember] = "position";
     positionSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
-    positionSetting[ComputeUtilIdentityFunction] = "getEntityId";
+    positionSetting[ComputeUtilIdentityFunction] = "getInstanceId";
 
     map<ComputeUtilKey, string> matrix3x3Setting;
     matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
     matrix3x3Setting[ComputeUtilIdentityStructType] = "IdentityInfo";
-    matrix3x3Setting[ComputeUtilIdentityFunction] = "getEntityId";
+    matrix3x3Setting[ComputeUtilIdentityFunction] = "getInstanceId";
     matrix3x3Setting[ComputeUtilCustomAddFunction] = "addMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
@@ -79,7 +79,7 @@ void RigidSolver::solve()
 
   // calculate current COM
   ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
-    particleIdentities.device(), partitions.device(), count, maxPerInstanceNodes, true);
+    particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nMean:\n");
@@ -116,7 +116,7 @@ void RigidSolver::solve()
   // consolidate matrix for each body
   // add all n * 9 values to form = 3x3 matrix
   ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), particlesTemp[0].device(),
-    particleIdentities.device(), partitions.device(), count, maxPerInstanceNodes, true);
+    particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
 
 #ifdef DEBUG_RIGID_SOLVER
   printf("\nM:\n");

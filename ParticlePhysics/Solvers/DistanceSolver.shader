@@ -54,7 +54,7 @@ Kernel void distanceSolverSpring(
   {
     const IdentityInfo identity = particleIdentities[index];
     const uint solverId = getSolverId(identity);
-    const uint entityId = getEntityId(identity);
+    const uint entityId = getInstanceId(identity);
 
     const EntityLocation localEntityLocation = entityLocation[solverId];
 

@@ -34,7 +34,7 @@ Kernel void covarianceMatrix(
   {
     const IdentityInfo identity = particleIdentities[index];
     const uint solverId = getSolverId(identity);
-    const uint entityId = getEntityId(identity);
+    const uint entityId = getInstanceId(identity);
 
     const EntityLocation localEntityLocation = entityLocation[solverId];
 
@@ -165,7 +165,6 @@ Kernel void rigidSolver(
 
       setAdjugateMatrix(matrix1, matrix2, matrixPtr);
 
-      //float determinant = matrixPtr[0] * matrix1[0] + matrixPtr[1] * matrix1[1] + matrixPtr[2] * matrix1[2];
       const float determinant = matrix1[0] + matrix1[1] + matrix1[2];
       const float gamma = getGamma(matrix2, matrixPtr, determinant);
       const float g1 = gamma * .5f;
@@ -211,7 +210,7 @@ Kernel void setDeltaPosition(
   {
     const IdentityInfo identity = particleIdentities[index];
     const uint solverId = getSolverId(identity);
-    const uint entityId = getEntityId(identity);
+    const uint entityId = getInstanceId(identity);
 
     const EntityLocation localEntityLocation = entityLocation[solverId];
 

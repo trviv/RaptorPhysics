@@ -28,9 +28,9 @@ struct IdentityInfo_t
     identity[0] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (solverId & PHYSICS_ENTITY_ID_MASK);
   }
 
-  void setEntityId(uint entityId)
+  void setInstanceId(uint instanceId)
   {
-    identity[1] = entityId & PHYSICS_ENTITY_ID_MASK;
+    identity[1] = instanceId;
   }
 
 #endif
@@ -39,9 +39,9 @@ struct IdentityInfo_t
 typedef struct IdentityInfo_t IdentityInfo;
 typedef struct IdentityInfo_t PhysicsEntityId;
 
-static uint getEntityId(const IdentityInfo particleIdentity)
+static uint getInstanceId(const IdentityInfo particleIdentity)
 {
-  return particleIdentity.identity[1] & PHYSICS_ENTITY_ID_MASK;
+  return particleIdentity.identity[1];
 }
 
 static uint getSolverId(const IdentityInfo particleIdentity)

@@ -154,7 +154,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
     PhysicsEntityId entityInstanceId = registeredEntityId;
-    entityInstanceId.setEntityId(solver->newEntityInstanceId());
+    entityInstanceId.setInstanceId(solver->newEntityInstanceId());
 
     for (const Real3& position : *entityPositions)
     {

@@ -30,7 +30,7 @@ Kernel void integrate(
     const uint globalInstanceOffset = globalOffsets[solverType].y;
 
     const uint solverId = globalSolverOffset + getSolverId(identity);
-    const uint entityId = globalInstanceOffset + getEntityId(identity);
+    const uint entityId = globalInstanceOffset + getInstanceId(identity);
 
     const ParticleSharedData sharedData = particleSharedData[solverId];
 

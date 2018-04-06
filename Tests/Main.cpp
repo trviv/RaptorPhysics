@@ -162,10 +162,11 @@ void testIrregular2DMean(ComputeInterface* compute)
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
   DeviceArray<IdentityInfo>   particleIdentities(compute, NULL, true);
   DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
+  DeviceArray<uint>           partitionCount(compute, NULL, true);
 
-  uint width = 1;
-  const uint parts = 1021;
-  const int elements = (parts * (parts + 1)) >> 1;
+  uint width = 0;
+  const uint parts = 30;
+  int elements = 0;
   Real3 sum = 0;
 
   for (int i = 0; i < parts; i++)
@@ -174,10 +175,14 @@ void testIrregular2DMean(ComputeInterface* compute)
     section.offset = i ? partitions.host()->at(i - 1).offset + width : 0;
     section.count = width + 1;
     partitions.host()->push_back(section);
+    elements += width + 1;
     width++;
   }
 
   particles.host()->reserve(elements);
+  partitionCount.host()->reserve(1);
+  partitionCount.host()->push_back(parts);
+  partitionCount.syncDevice();
 
   uint sectionIndex = 0;
   vector<PartitionInfo> &partitionsHost = *partitions.host();
@@ -196,7 +201,7 @@ void testIrregular2DMean(ComputeInterface* compute)
     }
 
     IdentityInfo particleIdentity;
-    particleIdentity.setEntityId(sectionIndex);
+    particleIdentity.setInstanceId(sectionIndex);
     particleIdentities.host()->push_back(particleIdentity);
 
     particlesHost.push_back(particle);
@@ -216,11 +221,11 @@ void testIrregular2DMean(ComputeInterface* compute)
   utilSetting[ComputeUtilStructMember] = "position";
 
   utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
-  utilSetting[ComputeUtilIdentityFunction] = "getEntityId";
+  utilSetting[ComputeUtilIdentityFunction] = "getInstanceId";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), elements, width, true);
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), partitionCount.device(), elements, width, true);
 
   particles.syncHost();
   compute->sync();
