@@ -17,14 +17,6 @@ public:
   /*
   @function Initialize a cube.
   @param dimensions Cube dimensions.
-  @param subdivision Subdivision across each dimension.
-  @param mass Entity mass.
-  */
-  void initCube(const real dimensions[], const uint subdivision[], const real mass);
-
-  /*
-  @function Initialize a cube.
-  @param dimensions Cube dimensions.
   @param particleRadius Radius for each particle.
   @param mass Entity mass.
   */

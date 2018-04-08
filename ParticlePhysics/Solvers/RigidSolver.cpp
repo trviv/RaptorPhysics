@@ -12,7 +12,7 @@ static uint matrix3x3UtilId;
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
-  iterations = 8;
+  iterations = 4;
   maxPerInstanceNodes = 0;
   create(compute);
 
@@ -74,100 +74,105 @@ void RigidSolver::solve()
 
   compute->configureSize(workgroupSize, workgroupCount, count);
 
-  // copy to aux buffer to find new COM
-  compute->copyBuffer(particles.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
-
-  // calculate current COM
-  ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
-    particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
-
-#ifdef DEBUG_RIGID_SOLVER
-  printf("\nMean:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[1].device(), 3, 4, 3 * totalEntities);
-  particlesTemp[0].syncHost();
-  particlesTemp[1].syncHost();
-  compute->sync();
-#endif
-
-  // calculate covariance matrix
+  //TODO: Perperly implement this loop. Which should perhaps fix wobbling
+  for (uint iteration = 0; iteration < 1; iteration++)
   {
-    ComputeMemory* buffers[] = {
-      covarianceMatrix.device(),
-      particleDeltas.device(),
-      particles.device(),
-      particleIdentities.device(),
-      particlesTemp[1].device(),
-      particleRigidData.device(),
-      partitions.device(),
-      entityLocations.device()
-    };
+    // copy to aux buffer to find new COM
+    compute->copyBuffer(particles.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
 
-    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArgs(buffers, bufferOffset);
-    kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArg<uint>(&count, bufferOffset);
-    compute->execute(kernels[RIGID_SOLVER_KERNEL_COVARIANCE], workgroupSize, workgroupCount);
+    // calculate current COM
+    ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
+      particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
+
+#ifdef DEBUG_RIGID_SOLVER
+    printf("\nMean:\n");
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[1].device(), 3, 4, 3 * totalEntities);
+    particlesTemp[0].syncHost();
+    particlesTemp[1].syncHost();
+    compute->sync();
+#endif
+
+    // calculate covariance matrix
+    {
+      ComputeMemory* buffers[] = {
+        covarianceMatrix.device(),
+        particleDeltas.device(),
+        particles.device(),
+        particleIdentities.device(),
+        particlesTemp[1].device(),
+        particleRigidData.device(),
+        partitions.device(),
+        entityLocations.device()
+      };
+
+      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArgs(buffers, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_COVARIANCE].setArg<uint>(&count, bufferOffset);
+      compute->execute(kernels[RIGID_SOLVER_KERNEL_COVARIANCE], workgroupSize, workgroupCount);
+    }
+
+#ifdef DEBUG_RIGID_SOLVER
+    covarianceMatrix.syncHost();
+    compute->sync();
+#endif
+
+    // consolidate matrix for each body
+    // add all n * 9 values to form = 3x3 matrix
+    ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), particlesTemp[0].device(),
+      particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
+
+#ifdef DEBUG_RIGID_SOLVER
+    printf("\nM:\n");
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
+    covarianceMatrix.syncHost();
+    compute->sync();
+#endif
+
+    {
+      size_t workgroupSize[3], workgroupCount[3];
+      compute->configureSize(workgroupSize, workgroupCount, totalEntities);
+
+      ComputeMemory* buffers[] = {
+        particlesTemp[0].device()
+      };
+
+      uint svdIterations = iterations;
+
+      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&svdIterations, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&totalEntities, bufferOffset + 1);
+      compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
+    }
+
+#ifdef DEBUG_RIGID_SOLVER
+    printf("\nQ:\n");
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
+    compute->sync();
+#endif
+
+    {
+      ComputeMemory* buffers[] = {
+        particleDeltas.device(),
+        particleIdentities.device(),
+        particlesTemp[0].device(),
+        particleRigidData.device(),
+        partitions.device(),
+        entityLocations.device()
+      };
+
+      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
+      compute->execute(kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
+    }
+
+#ifdef DEBUG_RIGID_SOLVER
+    printf("\nDeltas:\n");
+    ComputeUtil::get(positionUtilId)->showMatrix(compute, particleDeltas.device(), 3, 4, count * 3);
+    compute->sync();
+#endif
   }
-
-#ifdef DEBUG_RIGID_SOLVER
-  covarianceMatrix.syncHost();
-  compute->sync();
-#endif
-
-  // consolidate matrix for each body
-  // add all n * 9 values to form = 3x3 matrix
-  ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), particlesTemp[0].device(),
-    particleIdentities.device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
-
-#ifdef DEBUG_RIGID_SOLVER
-  printf("\nM:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
-  covarianceMatrix.syncHost();
-  compute->sync();
-#endif
-
-  {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, totalEntities);
-
-    ComputeMemory* buffers[] = {
-      particlesTemp[0].device()
-    };
-
-    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&iterations, bufferOffset);
-    kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&totalEntities, bufferOffset + 1);
-    compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_RIGID_SOLVER
-  printf("\nQ:\n");
-  ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
-  compute->sync();
-#endif
-
-  {
-    ComputeMemory* buffers[] = {
-      particleDeltas.device(),
-      particleIdentities.device(),
-      particlesTemp[0].device(),
-      particleRigidData.device(),
-      partitions.device(),
-      entityLocations.device()
-    };
-
-    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
-    kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
-    compute->execute(kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_RIGID_SOLVER
-  printf("\nDeltas:\n");
-  ComputeUtil::get(positionUtilId)->showMatrix(compute, particleDeltas.device(), 3, 4, count * 3);
-  compute->sync();
-#endif
-
 }
 
 void RigidSolver::update()

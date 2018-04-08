@@ -118,7 +118,8 @@ struct DEFAULT_ALIGN ParticleStruct_t
     };
     struct
     {
-      uint    reserved[4];
+      uint    reserved[3];
+      float   radius;
     };
   };
 };

@@ -61,8 +61,10 @@ add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} 
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/DistanceSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/RigidSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/CollisionSolver.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/display_vert.glsl"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/display_frag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/ParticleVert.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/ParticleFrag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidVert.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeHeader.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeUtils.shader"
   $<TARGET_FILE_DIR:${PROJECT_STRING}>)

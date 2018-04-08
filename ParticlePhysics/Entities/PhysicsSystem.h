@@ -96,6 +96,13 @@ public:
 
 #ifdef ENABLE_RENDERING
 
+  Texture displayPositionBuffer;
+  Vertex  displayVertex;
+  Shader  displayShader;
+  Face    displayElements;
+
+  void createSphere(float radius);
+
   /*@function Render all registered entities.*/
   void render();
 

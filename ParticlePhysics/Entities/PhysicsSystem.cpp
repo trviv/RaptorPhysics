@@ -156,13 +156,15 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     PhysicsEntityId entityInstanceId = registeredEntityId;
     entityInstanceId.setInstanceId(solver->newEntityInstanceId());
 
-    for (const Real3& position : *entityPositions)
+    for (uint i = 0; i < entityPositions->size(); i++)
     {
       ParticleStruct particle;
-      instanceTransforms[instance].transformPos(particle.position, position);
+      instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
       solver->particles.host()->push_back(particle);
       solver->particleIdentities.host()->push_back(entityInstanceId);
+      particle.radius = solver->particleAuxData.host()->at(i).radius;
     }
+
     PartitionInfo partition;
     partition.offset = solver->lastPartition().end();
     partition.count = solver->entityLocations.host()->at(entityId).node.count;
@@ -225,6 +227,62 @@ void PhysicsSystem::step()
 
 #ifdef ENABLE_RENDERING
 
+void PhysicsSystem::createSphere(float radius)
+{
+  vector<float> sphereVertices;
+  vector<float> sphereNormals;
+  vector<float> sphereTexcoords;
+  vector<uint>  sphereIndices;
+
+  uint rings = 12;
+  uint sectors = 12;
+
+  const float R = 1.f / (float)(rings - 1);
+  const float S = 1.f / (float)(sectors - 1);
+  uint r;
+  uint s;
+
+  sphereVertices.resize(rings * sectors * 3);
+  sphereNormals.resize(rings * sectors * 3);
+  sphereTexcoords.resize(rings * sectors * 2);
+  vector<GLfloat>::iterator v = sphereVertices.begin();
+  vector<GLfloat>::iterator n = sphereNormals.begin();
+  vector<GLfloat>::iterator t = sphereTexcoords.begin();
+
+  for (r = 0; r < rings; r++)
+  {
+    for (s = 0; s < sectors; s++)
+    {
+      const float y = sin(-M_PI_2 + M_PI * r * R);
+      const float x = cos(2 * M_PI * s * S) * sin(M_PI * r * R);
+      const float z = sin(2 * M_PI * s * S) * sin(M_PI * r * R);
+
+      *t++ = s*S;
+      *t++ = r*R;
+
+      *v++ = x * radius;
+      *v++ = y * radius;
+      *v++ = z * radius;
+
+      *n++ = x;
+      *n++ = y;
+      *n++ = z;
+    }
+  }
+
+  sphereIndices.resize(rings * sectors * 4);
+  vector<GLuint>::iterator i = sphereIndices.begin();
+  for (r = 0; r < rings; r++) for (s = 0; s < sectors; s++)
+  {
+    *i++ = r * sectors + s;
+    *i++ = r * sectors + (s + 1);
+    *i++ = (r + 1) * sectors + (s + 1);
+    *i++ = (r + 1) * sectors + s;
+  }
+  displayVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
+  displayElements.copyData(&sphereIndices[0], sphereIndices.size());
+}
+
 void PhysicsSystem::render()
 {
   for (uint i = 0; i < SOLVER_MAX; i++)
@@ -232,17 +290,54 @@ void PhysicsSystem::render()
     if (solversUint[i])
     {
       uint elements = solversUint[i]->lastPartition().end();
+
       if (!elements) continue;
 
       solversUint[i]->particles.syncHost(0, elements);
 
-      for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
       {
-        IdentityInfo identity = solversUint[i]->particleIdentities.host()->at(partition.offset);
-        uint solverId = getEntityId(identity);
-        ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
+        // display particles
+        uint offset = solversUint[i]->particles.device()->getOffset() / sizeof(ParticleStruct);
+        ParticleStruct* particles = &((*solversUint[i]->particles.host())[0]);
+        displayPositionBuffer.copy((float*)particles, 0, 0, 16, ceil(float(elements) / 16));
 
-        entities[i][solverId]->render(pos);
+        GLfloat model_mat[16], proj_mat[16];
+        glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
+        glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
+
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+
+        glPushMatrix();
+        displayShader.bind();
+        displayShader.set("modelViewMatrix", model_mat);
+        displayShader.set("projectionMatrix", proj_mat);
+        displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
+
+        displayVertex.bind();
+        GL_CHECK(glEnableVertexAttribArray(0));
+        GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
+        displayElements.bind();
+        GL_CHECK(glDrawElementsInstanced(GL_QUADS, displayElements.count(), GL_UNSIGNED_INT, 0, elements));
+        displayElements.unbind();
+        GL_CHECK(glDisableVertexAttribArray(0));
+        displayVertex.unbind();
+
+        displayShader.unbind();
+        glPopMatrix();
+      }
+
+      if (false)
+      {
+        // display solid
+        for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
+        {
+          IdentityInfo identity = solversUint[i]->particleIdentities.host()->at(partition.offset);
+          uint solverId = getEntityId(identity);
+          ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
+
+          entities[i][solverId]->render(pos);
+        }
       }
     }
   }
@@ -271,6 +366,19 @@ void PhysicsSystem::step(float timeStep)
       instanceNodeCount * sizeof(ParticleStruct));
 
     updates.clear();
+
+#ifdef ENABLE_RENDERING
+    uint width = 16;
+    uint height = (uint)ceil(float(instanceNodeCount) / 16);
+    displayVertex.gen();
+    displayElements.gen();
+    displayPositionBuffer.init(width, height);
+    displayPositionBuffer.gen();
+    createSphere(1.f);
+
+    displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
+#endif
+
   }
 
   // block to integrate

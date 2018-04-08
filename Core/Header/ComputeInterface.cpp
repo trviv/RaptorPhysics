@@ -548,4 +548,12 @@ ComputeMemory ComputeInterface::createMemoryFromGLBuffer(GLuint glObject)
   computeCheckError(status, 0);
   return ret;
 }
+
+ComputeMemory ComputeInterface::createMemoryFromGLTexture(GLuint glObject)
+{
+  ComputeStatus status;
+  ComputeMemory ret(clCreateFromGLTexture(context, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, glObject, &status));
+  computeCheckError(status, 0);
+  return ret;
+}
 #endif
