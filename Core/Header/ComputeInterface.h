@@ -203,7 +203,11 @@ public:
   uint maxThreadsPerGroup()const;
 
 #ifdef ENABLE_RENDERING
+
   ComputeMemory createMemoryFromGLBuffer(GLuint glObject);
+
+  ComputeMemory createMemoryFromGLTexture(GLuint glObject);
+
 #endif
 };
 

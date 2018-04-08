@@ -125,11 +125,13 @@ float getGamma(const Thread float* matrix2, const Shared float* matrixPtr, const
   return sqrt(sqr((adj_one * adj_inf) / (mat_one * mat_inf)) / fabs(determinant));
 }
 
+//TODO: Use a better SVD solver, this one becomes unstable with com offset<1
 /*
 @kernel Matrix SVD decomposition kernel.
 @param matrixData Matrix data output.
 @param iterations Iterations for the solver.
 @param length Rigid body count.
+@info Based on Computing the Polar Decomposition with Applications Nicholas J. Higham 1986
 */
 Kernel void rigidSolver(
   Device float* matrixData,
@@ -157,7 +159,8 @@ Kernel void rigidSolver(
       setAdjugateMatrix(matrix2, matrixPtr);
 
       const float determinant = matrix2[0] * matrixPtr[0] + matrix2[1] * matrixPtr[1] + matrix2[2] * matrixPtr[2];
-      const float gamma = getGamma(matrix2, matrixPtr, determinant);
+      // TODO: Some issue with gamma calculation half is stable
+      const float gamma = .5f;// getGamma(matrix2, matrixPtr, determinant);
       const float g1 = gamma * .5f;
       const float g2 = .5f / (gamma * determinant);
 

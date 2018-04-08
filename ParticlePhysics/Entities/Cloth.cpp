@@ -36,6 +36,9 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   vector<Real3> pointPosition;
 
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1]);
+  const float minRadius = (x_len < y_len ? x_len : y_len) / 2;
+
+  (*entitySharedData.host())[0].sharedRadius = minRadius;
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
@@ -45,7 +48,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       addConnection(index, index, y ? perParticleInvMass : 0);
       ParticleAuxData auxData;
       auxData.invMass = rawConstrainCoefficients[index][0];
-      auxData.radius = 0;
+      auxData.radius = minRadius;
       particleAuxData.host()->push_back(auxData);
       index++;
     }
@@ -110,7 +113,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   displayElements.gen();
   displayElements.copyData((GLuint*)&connectionElements[0], connectionElements.size());
 
-  displayShader.init("display_vert.glsl", "display_frag.glsl");
+  displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
 #endif
 }
 
@@ -130,18 +133,15 @@ void Cloth::render(ParticleStruct* particles)
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
 
-  uint instances = 1;
-  for (uint i = 0; i < instances; i++)
-  {
-    //displayVertex.bind();
-    GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
-    displayElements.bind();
-    GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
-    displayElements.unbind();
-    GL_CHECK(glDisableVertexAttribArray(0));
-    //displayVertex.unbind();
-  }
+  //displayVertex.bind();
+  GL_CHECK(glEnableVertexAttribArray(0));
+  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
+  displayElements.bind();
+  GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
+  displayElements.unbind();
+  GL_CHECK(glDisableVertexAttribArray(0));
+  //displayVertex.unbind();
+
   displayShader.unbind();
   glPopMatrix();
 }

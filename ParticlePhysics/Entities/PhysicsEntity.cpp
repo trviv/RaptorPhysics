@@ -10,7 +10,7 @@ PhysicsEntity::PhysicsEntity()
   solver = SOLVER_NULL;
 
   ParticleSharedData sharedData;
-  sharedData.velocityDamping = .99f;
+  sharedData.velocityDamping = .98f;
   sharedData.sharedInvMass = 0.f;
   sharedData.sharedRadius = 0.f;
   sharedData.invMassIsShared = 0;
