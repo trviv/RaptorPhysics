@@ -6,10 +6,12 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_SUM_1D_KERNEL                  0
 #define COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL          1
 #define COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL        2
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL  3
-#define COMPUTE_UTIL_SHOW_MATRIX_KERNEL             4
-#define COMPUTE_UTIL_SECTION_OFFSET                 5
-#define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS    6
+#define COMPUTE_UTIL_SHOW_MATRIX_KERNEL             3
+#define COMPUTE_UTIL_SECTION_OFFSET                 4
+#define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS    5
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1  6
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2  7
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3  8
 
 string getKeyName(ComputeUtilKey key)
 {
@@ -91,8 +93,18 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
     kernelNames.push_back("sumRegular2DKernel");
 
-    //util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
-    //kernelNames.push_back("parallelPrefixSum1D");
+    util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1] = kernelNames.size();
+    kernelNames.push_back("prefixGroupScanKernel");
+
+    util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2] = kernelNames.size();
+    kernelNames.push_back("prefixTopScanKernel");
+
+    util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3] = kernelNames.size();
+    kernelNames.push_back("prefixAddOffsetKernel");
+
+    util.localArrays.clear();
+    util.localArrays.reserve(1);
+    util.localArrays.push_back(NULL);
 
     util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = kernelNames.size();
     kernelNames.push_back("consolidateFromPartitionsKernel");
@@ -259,53 +271,6 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array
   }
 }
 
-/*void ComputeUtil::prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean)
-{
-const uint iterations = mCeilExpOf2(length);
-const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
-
-uint backwards = 0;
-uint maxLocalIterations = 1;
-const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL];
-
-kernels[kernelIndex].setArg(memory, 0);
-kernels[kernelIndex].setArg<uint>(&length, 1);
-kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
-
-size_t workgroupSize[3];
-size_t workgroupCount[3];
-
-for (uint i = 0; i < iterations; i++)
-{
-maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
-
-kernels[kernelIndex].setArg<uint>(&i, 2);
-if (maxLocalIterations != 1)
-{
-kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
-}
-
-compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << (i / 2)) * 2)));
-compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-
-if (iterations - i <= maxThreadsPerGroupExponent) break;
-}
-}*/
-
-/*void ComputeUtil::createSectionOffsets(ComputeInterface* compute, ComputeMemory* sectionOffsets, ComputeMemory* sectionOffsetCount, ComputeMemory* sections, uint sectionCount)
-{
-size_t workgroupSize[3];
-size_t workgroupCount[3];
-const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SECTION_OFFSET];
-
-compute->configureSize(workgroupSize, workgroupCount, compute->maxThreadsPerGroup());
-kernels[kernelIndex].setArg(sectionOffsets, 0);
-kernels[kernelIndex].setArg(sectionOffsetCount, 1);
-kernels[kernelIndex].setArg(sections, 2);
-kernels[kernelIndex].setArg<uint>(&sectionCount, 3);
-compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-}*/
-
 void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost)
 {
   size_t workgroupSize[3];
@@ -322,6 +287,89 @@ void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMe
   };
   kernels[kernelIndex].setArgs(buffers, 4);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+}
+
+#define PREFIX_TEMP_GROUP_SUM   0
+//#define DEBUG_PREFIX_SCAN
+
+void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length)
+{
+  if (!localArrays[PREFIX_TEMP_GROUP_SUM])
+  {
+    localArrays[PREFIX_TEMP_GROUP_SUM] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[PREFIX_TEMP_GROUP_SUM])->create(compute, NULL, true);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[PREFIX_TEMP_GROUP_SUM];
+
+  uint groupCount = (length + (compute->maxThreadsPerGroup() << 1) - 1) / (compute->maxThreadsPerGroup() << 1);
+  uint maxGroupCount = 2 << mCeilExpOf2(groupCount);
+
+  groupSum->resize(maxGroupCount, false);
+
+  {
+    size_t workgroupSize[3];
+    size_t workgroupCount[3];
+
+    compute->configureSize(workgroupSize, workgroupCount, length);
+
+    ComputeMemory* buffers[] = { array1D, groupSum->device(), array1D };
+
+    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1];
+
+    kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+    kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
+
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PREFIX_SCAN
+    groupSum->syncHost();
+    compute->sync();
+#endif
+
+  }
+
+  {
+    size_t workgroupSize[3];
+    size_t workgroupCount[3];
+
+    compute->configureSize(workgroupSize, workgroupCount, compute->maxThreadsPerGroup());
+
+    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2];
+    //uint topIterations = ceil(float(length) / (compute->maxThreadsPerGroup() * 2048));
+    kernels[kernelIndex].setArg(groupSum->device(), 0);
+    kernels[kernelIndex].setArg<uint>(&groupCount, 1);
+    kernels[kernelIndex].setArg<uint>(&maxGroupCount, 2);
+    //kernels[kernelIndex].setArg<uint>(&topIterations, 3);
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PREFIX_SCAN
+    groupSum->syncHost();
+    compute->sync();
+#endif
+
+  }
+
+  if (groupCount > 2)
+  {
+    size_t workgroupSize[3];
+    size_t workgroupCount[3];
+
+    compute->configureSize(workgroupSize, workgroupCount, compute->maxThreadsPerGroup() * ((2 * groupCount) - 2));
+
+    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3];
+
+    kernels[kernelIndex].setArg(array1D, 0);
+    kernels[kernelIndex].setArg(groupSum->device(), 1);
+    kernels[kernelIndex].setArg<uint>(&length, 2);
+    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+  }
+}
+
+
+void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length)
+{
+
 }
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)

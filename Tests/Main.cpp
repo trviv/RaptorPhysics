@@ -270,39 +270,6 @@ void testIrregular2DMean(ComputeInterface* compute)
   printf("Consolidation test passed!\n");
 }
 
-/*void testPrefixSum1D(ComputeInterface* compute)
-{
-DeviceArray<float> data(compute, NULL, true);
-const int elements = 12;
-std::vector<float> prefixSum;
-std::vector<float> original;
-
-data.host()->reserve(elements);
-for (int i = 0; i < elements; i++)
-{
-data.host()->push_back(1.f);// float(rand()) / RAND_MAX);
-original.push_back(data.host()->at(i));
-prefixSum.push_back(i ? (prefixSum[i - 1] + data.host()->at(i)) : data.host()->at(i));
-}
-
-data.syncDevice();
-
-map<ComputeUtilKey, string> utilSetting;
-utilSetting[ComputeUtilStructType] = "float";
-uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-
-ComputeUtil::get(templateId)->prefixSum1D(compute, data.device(), elements, true);
-
-data.syncHost();
-compute->sync();
-
-for (uint i = 0; i < data.host()->size(); i++)
-{
-std::cout << original[i] << " " << prefixSum[i] << " " << data.host()->at(i) << "\n";
-//assert(prefixSum[i] == data.host()->at(0));
-}
-}*/
-
 /*void testSectionOffsets(ComputeInterface* compute)
 {
 printf("\nTesting section offset:\n");
@@ -366,6 +333,46 @@ assert(offsetOutput[i] == offsets.host()->at(i));
 printf("Section offset test passed!\n");
 }*/
 
+void test1DPrefixScan(ComputeInterface* compute)
+{
+  printf("\nTesting 1D prefix scan:\n");
+
+  DeviceArray<uint> data(compute, NULL, true);
+  vector<uint> prefixSum;
+  const int elements = 1025 * 2048;
+  uint sum = 0;
+
+  data.host()->reserve(elements);
+  for (int i = 0; i < elements; i++)
+  {
+    data.host()->push_back(rand());
+    prefixSum.push_back(sum);
+    sum += data.host()->at(i);
+  }
+
+  data.syncDevice();
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
+
+  data.syncHost();
+  compute->sync();
+
+  for (uint i = 0; i < prefixSum.size(); i++)
+  {
+    if (abs((float)prefixSum[i] - data.host()->at(i)) > .00001f)
+    {
+      std::cout << i << " " << prefixSum[i] << " " << data.host()->at(i) << "\n";
+      assert(0);
+    }
+  }
+
+  printf("1D prefix scan test passed!\n");
+}
+
 int main(int argc, char** argv)
 {
   compute = new ComputeInterface();
@@ -375,7 +382,7 @@ int main(int argc, char** argv)
   test1DMean(compute);
   testRegular2DMean(compute);
   testIrregular2DMean(compute);
-  //testPrefixSum1D(compute);
+  test1DPrefixScan(compute);
   //testEquation(compute);
 
   return 0;

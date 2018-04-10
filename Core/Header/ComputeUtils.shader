@@ -86,8 +86,8 @@ Kernel void sumRegular2DKernel(
   maxLocalIterations = maxLocalIterations << 1;
 
   const uint arraysPerGroup = ((COMPUTE_MAX_THREADS << 1) / subArrayElements);
-  const uint maxIdentity = (groupIndex() + 1) * arraysPerGroup;
-  const uint offset = groupIndex() * arraysPerGroup * subArrayElements;
+  const uint maxIdentity = (threadGroupIndex() + 1) * arraysPerGroup;
+  const uint offset = threadGroupIndex() * arraysPerGroup * subArrayElements;
 
   for (uint i = 0; i < maxLocalIterations; i++)
   {
@@ -157,7 +157,7 @@ Kernel void sumRegular2DKernel(
   if (divideFlag && originalIndex < arraysPerGroup)
   {
     const float divisor = subArrayElements;
-    DIV_FUNCTION(array2D[(groupIndex() * arraysPerGroup + originalIndex) * subArrayElements]STRUCT_MEMBER, divisor);
+    DIV_FUNCTION(array2D[(threadGroupIndex() * arraysPerGroup + originalIndex) * subArrayElements]STRUCT_MEMBER, divisor);
   }
 }
 
@@ -240,7 +240,7 @@ Kernel void sumIrregular2DKernel(
   maxLocalIterations = maxLocalIterations << 1;
 
   const uint perGroupPartitions = ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength);
-  const uint minIdentity = groupIndex() * perGroupPartitions;
+  const uint minIdentity = threadGroupIndex() * perGroupPartitions;
   const uint maxIdentity = minIdentity + perGroupPartitions;
 
   if (minIdentity < partitionCount[0])
@@ -364,7 +364,7 @@ const Device EntityLocation* entityLocation,
 const uint length)
 {
 const uint localIndex = threadLocalIndex();
-const uint multiplier = ceil(((float)length) / groupSize());
+const uint multiplier = ceil(((float)length) / threadGroupSize());
 
 Shared uint localSectionOffsets[COMPUTE_MAX_THREADS];
 Shared uint localSectionCounts[COMPUTE_MAX_THREADS];
@@ -414,6 +414,153 @@ sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(entityLoc
 }
 }
 */
+
+uint scanExclusive(Shared uint* localArray1D, const uint elements, const int localIndex, const uint groupSize)
+{
+  uint blockSum;
+  uint offset = 1;
+
+  // build sum in place up the tree
+  for (uint eIndex = elements >> 1; eIndex > 0; eIndex >>= 1, offset <<= 1)
+  {
+    localMemBarrier();
+    for (uint i = localIndex; i < eIndex; i += groupSize)
+    {
+      const uint index1 = (offset * ((i << 1) + 1)) - 1;
+
+      localArray1D[paddedIndex(index1 + offset)] += localArray1D[paddedIndex(index1)];
+    }
+  }
+
+  localMemBarrier();
+  if (localIndex == 0)
+  {
+    const uint lastElement = paddedIndex(elements - 1);
+    blockSum = localArray1D[lastElement];
+    localArray1D[lastElement] = 0;
+  }
+
+  localMemBarrier();
+  offset >>= 1;
+
+  for (uint eIndex = 1; eIndex < elements; eIndex <<= 1, offset >>= 1)
+  {
+    localMemBarrier();
+    for (uint i = localIndex; i < eIndex; i += groupSize)
+    {
+      uint index1 = (offset * ((i << 1) + 1)) - 1;
+      uint index2 = index1 + offset;
+      index1 = paddedIndex(index1);
+      index2 = paddedIndex(index2);
+
+      uint temp = localArray1D[index1];
+
+      localArray1D[index1] = localArray1D[index2];
+      localArray1D[index2] += temp;
+    }
+  }
+
+  localMemBarrier();
+  return blockSum;
+}
+
+/*
+@kernel Parallel prefix scan all the elements within the group.
+@param destination Output array.
+@param sumBuffer Buffer storing output of the last group element.
+@param array1D Input array.
+@param length Total number of array elements.
+*/
+Kernel void prefixGroupScanKernel(
+  Device uint* destination,
+  Device uint* sumBuffer,
+  const Device uint* array1D,
+  const uint length)
+{
+  const uint index = threadIndex() << 1;
+  const uint localIndex = threadLocalIndex() << 1;
+  const uint localIndex1 = paddedIndex(localIndex);
+  const uint localIndex2 = paddedIndex(localIndex + 1);
+
+  const uint groupSize = threadGroupSize();
+  const uint groupIndex = threadGroupIndex();
+
+  Shared uint localArray1D[COMPUTE_MAX_THREADS << 1];
+
+  localArray1D[localIndex1] = (index < length) ? array1D[index] : 0;
+  localArray1D[localIndex2] = ((index + 1) < length) ? array1D[index + 1] : 0;
+
+  const uint sum = scanExclusive(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
+
+  if (localIndex == 0)
+  {
+    sumBuffer[groupIndex] = sum;
+  }
+  if (index < length)
+  {
+    destination[index] = localArray1D[localIndex1];
+  }
+  if ((index + 1) < length)
+  {
+    destination[index + 1] = localArray1D[localIndex2];
+  }
+}
+
+/*
+@kernel Parallel prefix scan all the elements within the group.
+@param sumBuffer Output array.
+@param prefixGroupCount .
+@param maxPrefixGroupCount .
+*/
+Kernel void prefixTopScanKernel(
+  Device uint* sumBuffer,
+  const uint prefixGroupCount,
+  const uint maxPrefixGroupCount)
+{
+  Shared uint localData[8 * 1024];
+  uint localIndex = threadLocalIndex();
+  const uint groupSize = threadGroupSize();
+
+  for (uint i = localIndex; i < maxPrefixGroupCount; i += prefixGroupCount)
+  {
+    localData[paddedIndex(i)] = (i < prefixGroupCount) ? sumBuffer[i] : 0;
+  }
+  localMemBarrier();
+
+  const uint sum = scanExclusive(localData, maxPrefixGroupCount, localIndex, groupSize);
+  for (uint i = localIndex; i < prefixGroupCount; i += groupSize)
+  {
+    sumBuffer[i] = localData[paddedIndex(i)];
+  }
+  localIndex += groupSize;
+
+  const uint index = threadIndex();
+  if (index == 0)
+  {
+    sumBuffer[prefixGroupCount] = sum;
+  }
+}
+
+/*
+@kernel Parallel prefix scan all the elements within the group.
+@param destination Output array.
+@param blockSum Buffer storing output of the last group element..
+@param length Total number of array elements.
+*/
+Kernel void prefixAddOffsetKernel(
+  Device uint* destination,
+  Device uint* blockSum,
+  const uint length)
+{
+  const uint index = threadIndex() + (threadGroupSize() << 1);
+  const uint groupIndex = 2 + threadGroupIndex();
+  const uint localBlockSum = blockSum[(groupIndex >> 1)];
+
+  if (index < length)
+  {
+    destination[index] += localBlockSum;
+  }
+}
 
 Kernel void showMatrix(Device float* array, const uint rowLength, const uint strideIn4Byte, const uint length)
 {

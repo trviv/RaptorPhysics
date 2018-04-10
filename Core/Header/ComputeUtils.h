@@ -3,6 +3,7 @@
 
 #include "Math.h"
 #include "ShaderEntity.h"
+#include "DeviceArray.h"
 
 enum ComputeUtilKey
 {
@@ -25,7 +26,9 @@ enum ComputeUtilKey
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[7];
+  uint kernelIndices[9];
+
+  vector<void*> localArrays;
 
 public:
 
@@ -44,6 +47,10 @@ public:
   //void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
 
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
+
+  void prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length);
+
+  void radixSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
 
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
 };
