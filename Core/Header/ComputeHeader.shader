@@ -11,12 +11,12 @@ static uint threadLocalIndex()
   return get_local_id(0);
 }
 
-static uint groupSize()
+static uint threadGroupSize()
 {
   return get_local_size(0);
 }
 
-static uint groupIndex()
+static uint threadGroupIndex()
 {
   return get_group_id(0);
 }
@@ -45,6 +45,14 @@ void localMemBarrier()
 #define DEFAULT_ALIGN         ALIGN(16)
 
 #define constructFloat3       (float3)
+
+#define NUM_BANKS       32
+#define LOG_NUM_BANKS   5
+
+inline const uint paddedIndex(const uint n)
+{
+  return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+}
 
 float sqr(const float x)
 {
