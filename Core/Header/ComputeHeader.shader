@@ -56,7 +56,7 @@ void localMemBarrier()
 
 inline const uint paddedIndex(const uint n)
 {
-  return n;// +(((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+  return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
 }
 
 float sqr(const float x)

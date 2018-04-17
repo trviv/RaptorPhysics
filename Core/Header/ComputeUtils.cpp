@@ -21,6 +21,9 @@ vector<string>      computeConfig;
 #define RADIX_TEMP_GROUP_SUM    1
 #define RADIX_TEMP_PREFIX_SUM   2
 
+#define RADIX_SORT_BIT_COUNT    4
+#define RADIX_SORT_BIT_VALUE    (1 << RADIX_SORT_BIT_COUNT)
+
 string getKeyName(ComputeUtilKey key)
 {
   switch (key)
@@ -122,6 +125,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
       util.kernelIndices[COMPUTE_UTIL_RADIX_SORT2] = kernelNames.size();
       kernelNames.push_back("radixSort32BitGlobalShuffleKernel");
+
+      oldType.push_back("SortBitValue");
+      newType.push_back(to_string(RADIX_SORT_BIT_VALUE));
     }
 
     util.localArrays.clear();
@@ -388,7 +394,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D
     kernels[kernelIndex].setArg<uint>(&length, 2);
     compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
   }
-}
+  }
 
 void ComputeUtil::bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length)
 {
@@ -434,12 +440,12 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
 #endif
 
-}
+  }
 
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[RADIX_TEMP_GROUP_SUM];
   DeviceArray<uint>* localPrefixSums = (DeviceArray<uint>*)localArrays[RADIX_TEMP_PREFIX_SUM];
 
-  localSumBuffer->resize(4 * workgroupCount[0], false);
+  localSumBuffer->resize(RADIX_SORT_BIT_VALUE * workgroupCount[0], false);
   localPrefixSums->resize(length, false);
 
   kernels[kernelIndex1].setArg(localSumBuffer->device(), 2);
@@ -450,16 +456,15 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   kernels[kernelIndex2].setArg(localSumBuffer->device(), 2);
   kernels[kernelIndex2].setArg(localPrefixSums->device(), 3);
-  kernels[kernelIndex2].setArg<uint>(&blockSize, 5);
-  kernels[kernelIndex2].setArg<uint>(&length, 6);
+  kernels[kernelIndex2].setArg<uint>(&length, 5);
 
-  for (uint i = 0; i < 30; i += 2)
+  for (uint i = 0; i < 32; i += RADIX_SORT_BIT_COUNT)
   {
-    kernels[kernelIndex1].setArg(i & 2 ? array1D : destination, 0);
-    kernels[kernelIndex1].setArg(i & 2 ? destination : array1D, 1);
+    kernels[kernelIndex1].setArg((i & RADIX_SORT_BIT_COUNT) ? array1D : destination, 0);
+    kernels[kernelIndex1].setArg((i & RADIX_SORT_BIT_COUNT) ? destination : array1D, 1);
 
-    kernels[kernelIndex2].setArg(i & 2 ? array1D : destination, 0);
-    kernels[kernelIndex2].setArg(i & 2 ? destination : array1D, 1);
+    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? array1D : destination, 0);
+    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? destination : array1D, 1);
 
     kernels[kernelIndex1].setArg<uint>(&i, 4);
 
@@ -467,15 +472,15 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     compute->execute(kernels[kernelIndex1], workgroupSize, workgroupCount);
 
 #ifdef DEBUG_RADIX_SORT
-    localSumBuffer.syncHost();
-    localPrefixSums.syncHost();
+    localSumBuffer->syncHost();
+    localPrefixSums->syncHost();
     compute->sync();
 #endif
 
-    prefixScan1D(compute, localSumBuffer->device(), workgroupCount[0] * 4);
+    prefixScan1D(compute, localSumBuffer->device(), workgroupCount[0] * RADIX_SORT_BIT_VALUE);
 
 #ifdef DEBUG_RADIX_SORT
-    localSumBuffer.syncHost();
+    localSumBuffer->syncHost();
     compute->sync();
 #endif
 
@@ -485,12 +490,12 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     compute->execute(kernels[kernelIndex2], workgroupSize, workgroupCount);
 
 #ifdef DEBUG_RADIX_SORT
-    localPrefixSums.syncHost();
+    localPrefixSums->syncHost();
     compute->sync();
 #endif
 
   }
-}
+  }
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
 {
