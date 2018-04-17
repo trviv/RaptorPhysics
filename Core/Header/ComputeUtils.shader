@@ -161,51 +161,6 @@ Kernel void sumRegular2DKernel(
   }
 }
 
-/*@kernel Sum all the array elements.*/
-/*
-Kernel void parallelPrefixSum1D(
-Device StructType* array,
-const uint length,
-const uint iteration,
-const uint maxLocalIterations)
-{
-const uint originalIndex = threadIndex();
-
-for (uint i = 0; i < maxLocalIterations; i++)
-{
-const uint currentIteration = iteration + i;
-const uint stride = (1 << currentIteration);
-//uint index1 = originalIndex << (1 + currentIteration);
-uint index1 = ((1 + originalIndex) << (((currentIteration & 1) ^ 1) + currentIteration)) - 1;
-uint index2 = index1 - stride;
-
-//printf("1: %d %d %d\n", originalIndex, index1, index2);
-if (index1 < length && ((currentIteration & 1) == 0 || (originalIndex & 1)))
-{
-printf("2: %d %d %d\n", originalIndex, index1, index2);
-ADD_FUNCTION(array[index1]STRUCT_MEMBER, array[index2]STRUCT_MEMBER);
-}
-
-if (currentIteration)
-{
-//printf("3: %d %d\n", index1, index2);
-index1 = ((originalIndex) << ((((currentIteration - 1) & 1) ^ 1) + currentIteration - 1)) + 1;
-index2 = index1 + (stride >> 1);
-if (index2 < length)
-{
-printf("4: %d %d %d\n", originalIndex, index2, index1);
-ADD_FUNCTION(array[index2]STRUCT_MEMBER, array[index1]STRUCT_MEMBER);
-}
-}
-
-if (maxLocalIterations > 1)
-{
-globalMemBarrier();
-}
-}
-}
-*/
-
 Kernel void consolidateFromPartitionsKernel(
   const Device StructType* source,
   Device StructType* destination,
@@ -417,7 +372,7 @@ sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(entityLoc
 
 #ifdef StructTypeIntegral
 
-StructType localPrefixSum(Shared StructType* localArray1D, const uint elements, const int localIndex, const uint groupSize)
+StructType groupPrefixSum(Shared StructType* localArray1D, const uint elements, const int localIndex, const uint groupSize)
 {
   StructType blockSum;
   uint offset = 1;
@@ -489,7 +444,7 @@ Kernel void prefixGroupScanKernel(
   localArray1D[localIndex1] = (index < length) ? array1D[index] : 0;
   localArray1D[localIndex2] = ((index + 1) < length) ? array1D[index + 1] : 0;
 
-  const StructType sum = localPrefixSum(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
+  const StructType sum = groupPrefixSum(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
 
   if (localIndex == 0)
   {
@@ -525,7 +480,7 @@ Kernel void prefixTopScanKernel(
     localData[paddedIndex(i)] = (i < prefixGroupCount) ? sumBuffer[i] : 0;
   }
 
-  const StructType sum = localPrefixSum(localData, maxPrefixGroupCount, localIndex, groupSize);
+  const StructType sum = groupPrefixSum(localData, maxPrefixGroupCount, localIndex, groupSize);
 
   for (uint i = localIndex; i < prefixGroupCount; i += groupSize)
   {
@@ -571,17 +526,17 @@ Kernel void radixSort32BitLocalSortKernel(
 {
   const uint index1 = threadIndex() << 1;
   const uint index2 = index1 + 1;
-  const uint localIndex = threadLocalIndex() << 1;
-  const uint localIndex1 = paddedIndex(localIndex);
-  const uint localIndex2 = paddedIndex(localIndex + 1);
 
-  Shared SortNode32 localSortNodes[COMPUTE_MAX_THREADS];
-  Shared uint localCount[4][COMPUTE_MAX_THREADS];
-  Shared uint sums[4];
-  Shared SortNode32 resetSortNode;
+  const uint localIndex1 = paddedIndex(threadLocalIndex() << 1);
+  const uint localIndex2 = paddedIndex((threadLocalIndex() << 1) + 1);
+
   Shared uint sum;
+  Shared uint sums[SortBitValue];
+  Shared SortNode32 resetSortNode;
+  Shared uint localCount[3][COMPUTE_MAX_THREADS << 1];
+  Shared SortNode32 localSortNodes[COMPUTE_MAX_THREADS];
 
-  if (localIndex == 0)
+  if (localIndex1 == 0)
   {
     resetSortNode32(&resetSortNode);
     sum = 0;
@@ -592,24 +547,31 @@ Kernel void radixSort32BitLocalSortKernel(
   localSortNodes[localIndex1] = (index1 < length) ? array1D[index1] : resetSortNode;
   localSortNodes[localIndex2] = (index2 < length) ? array1D[index2] : resetSortNode;
 
-  const uint localKey1 = (localSortNodes[localIndex1].key >> rightShift) & 0x3;
-  const uint localKey2 = (localSortNodes[localIndex2].key >> rightShift) & 0x3;
+  const uint localKey1 = (localSortNodes[localIndex1].key >> rightShift) & (SortBitValue - 1);
+  const uint localKey2 = (localSortNodes[localIndex2].key >> rightShift) & (SortBitValue - 1);
 
-  for (uint bit = 0; bit < 4; bit++)
+  for (uint bit = 0; bit < SortBitValue; bit++)
   {
-    localCount[bit][localIndex1] = (localKey1 == bit);
-    localCount[bit][localIndex2] = (localKey2 == bit);
-  }
+    localCount[2][localIndex1] = (localKey1 == bit);
+    localCount[2][localIndex2] = (localKey2 == bit);
 
-  for (uint bit = 0; bit < 4; bit++)
-  {
-    const uint localSum = localPrefixSum(localCount[bit], blockSize, localIndex >> 1, blockSize);
+    const uint localSum = groupPrefixSum(localCount[2], blockSize, threadLocalIndex(), blockSize);
 
-    if (localIndex == 0)
+    if (localKey1 == bit)
+    {
+      localCount[0][localIndex1] = localCount[2][localIndex1];
+    }
+
+    if (localKey2 == bit)
+    {
+      localCount[1][localIndex2] = localCount[2][localIndex2];
+    }
+
+    if (localIndex1 == 0)
     {
       sums[bit] = sum;
       sum += localSum;
-      localSumBuffer[threadGroupCount() * bit + threadGroupIndex()] = localSum;
+      localSumBuffer[(threadGroupCount() * bit) + threadGroupIndex()] = localSum;
     }
   }
 
@@ -618,18 +580,18 @@ Kernel void radixSort32BitLocalSortKernel(
 
   localMemBarrier();
 
-  localSortNodes[localCount[localKey1][localIndex1] + sums[localKey1]] = tempNode1;
-  localSortNodes[localCount[localKey2][localIndex2] + sums[localKey2]] = tempNode2;
+  localSortNodes[paddedIndex(localCount[0][localIndex1] + sums[localKey1])] = tempNode1;
+  localSortNodes[paddedIndex(localCount[1][localIndex2] + sums[localKey2])] = tempNode2;
 
   if (index1 < length)
   {
     destination[index1] = localSortNodes[localIndex1];
-    localPrefixSums[index1] = localCount[localKey1][localIndex1];
+    localPrefixSums[index1] = localCount[0][localIndex1];
   }
   if (index2 < length)
   {
     destination[index2] = localSortNodes[localIndex2];
-    localPrefixSums[index2] = localCount[localKey2][localIndex2];
+    localPrefixSums[index2] = localCount[1][localIndex2];
   }
 }
 
@@ -639,7 +601,6 @@ Kernel void radixSort32BitGlobalShuffleKernel(
   const Device uint* localSumBuffer,
   Device uint* localPrefixSums,
   const uint rightShift,
-  const uint blockSize,
   const uint length)
 {
   const uint index = threadIndex();
@@ -647,11 +608,10 @@ Kernel void radixSort32BitGlobalShuffleKernel(
   if (index < length)
   {
     const SortNode32 localSortNode = array1D[index];
-    const uint localKey = (localSortNode.key >> rightShift) & 0x3;
+    const uint localKey = (localSortNode.key >> rightShift) & (SortBitValue - 1);
+    const uint localPrefixSum = localPrefixSums[index] + localSumBuffer[(threadGroupCount() * localKey) + threadGroupIndex()];
 
-    localPrefixSums[index] += localSumBuffer[(threadGroupCount() * localKey) + threadGroupIndex()];
-
-    destination[localPrefixSums[index]] = localSortNode;
+    destination[localPrefixSum] = localSortNode;
   }
 }
 
