@@ -21,6 +21,11 @@ static uint threadGroupIndex()
   return get_group_id(0);
 }
 
+static uint threadGroupCount()
+{
+  return get_num_groups(0);
+}
+
 void globalMemBarrier()
 {
   barrier(CLK_GLOBAL_MEM_FENCE);
@@ -51,7 +56,7 @@ void localMemBarrier()
 
 inline const uint paddedIndex(const uint n)
 {
-  return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+  return n;// +(((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
 }
 
 float sqr(const float x)

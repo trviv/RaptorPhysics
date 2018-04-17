@@ -37,4 +37,22 @@ struct PartitionInfo_t
 
 typedef struct PartitionInfo_t PartitionInfo;
 
+struct SortNode32_t
+{
+  uint key;
+  uint value;
+};
+
+typedef struct SortNode32_t SortNode32;
+
+#ifdef COMPUTE_SHADER_SCOPE
+
+void resetSortNode32(Shared SortNode32* node)
+{
+  node->key   = -1;
+  node->value = -1;
+}
+
+#endif
+
 #endif

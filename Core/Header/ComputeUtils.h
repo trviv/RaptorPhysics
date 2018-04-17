@@ -9,6 +9,7 @@ enum ComputeUtilKey
 {
   ComputeUtilStructType,
   ComputeUtilStructMember,
+  ComputeUtilStructTypeIntegral,
 
   ComputeUtilIdentityStructType,
   ComputeUtilIdentityStructMember,
@@ -26,8 +27,7 @@ enum ComputeUtilKey
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[9];
-
+  uint kernelIndices[12];
   vector<void*> localArrays;
 
 public:
@@ -44,13 +44,13 @@ public:
 
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean = false);
 
-  //void prefixSum1D(ComputeInterface* compute, ComputeMemory* memory, uint length, bool doMean = false);
-
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 
   void prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length);
 
-  void radixSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
+  void bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
+
+  void radixSort32Bit(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* array1D, uint length);
 
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
 };

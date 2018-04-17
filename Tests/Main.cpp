@@ -1,5 +1,6 @@
 #include "Core.h"
 #include "../ParticlePhysics/Common/ParticleStruct.h"
+#include <algorithm>
 
 static ComputeInterface* compute;
 
@@ -354,6 +355,7 @@ void test1DPrefixScan(ComputeInterface* compute)
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
+  utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
   ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
@@ -373,6 +375,100 @@ void test1DPrefixScan(ComputeInterface* compute)
   printf("1D prefix scan test passed!\n");
 }
 
+bool sortFunction(SortNode32 i, SortNode32 j)
+{
+  return (i.key < j.key);
+}
+
+/*void test1DBitonicSort32Bit(ComputeInterface* compute)
+{
+printf("\nTesting 1D bitonic sort:\n");
+
+DeviceArray<SortNode32> data(compute, NULL, true);
+vector<uint> prefixSum;
+const int elements = 1024;
+
+data.host()->reserve(elements);
+for (int i = 0; i < elements; i++)
+{
+data.host()->push_back(SortNode32());
+data.host()->back().key = rand();
+data.host()->back().value = i;
+prefixSum.push_back(0);
+}
+
+data.syncDevice();
+
+map<ComputeUtilKey, string> utilSetting;
+utilSetting[ComputeUtilStructType] = "uint";
+uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+ComputeUtil::get(templateId)->bitonicSort32Bit(compute, data.device(), elements);
+
+data.syncHost();
+compute->sync();
+
+for (uint i = 0; i < prefixSum.size(); i++)
+{
+//if (abs((float)prefixSum[i] - data.host()->at(i)) > .00001f)
+{
+//std::cout << i << " " << prefixSum[i] << " " << data.host()->at(i) << "\n";
+std::cout << i << " " << data.host()->at(i).key << " " << data.host()->at(i).value << "\n";
+//assert(0);
+}
+}
+
+printf("1D bitonic sort test passed!\n");
+}*/
+
+void test1DRadixSort32Bit(ComputeInterface* compute)
+{
+  printf("\nTesting 1D radix sort:\n");
+
+  DeviceArray<SortNode32> destination(compute, NULL, true);
+  DeviceArray<SortNode32> data(compute, NULL, true);
+  vector<SortNode32> sortedData;
+  const int elements = 2049 * 1023;
+
+  data.host()->reserve(elements);
+  destination.resize(elements, false);
+
+  for (int i = 0; i < elements; i++)
+  {
+    data.host()->push_back(SortNode32());
+    data.host()->back().key = rand();
+    data.host()->back().value = i;
+
+    sortedData.push_back(data.host()->at(i));
+  }
+
+  data.syncDevice();
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  utilSetting[ComputeUtilStructTypeIntegral] = "1";
+  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+  ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
+
+  destination.syncHost();
+  compute->sync();
+
+  std::sort(sortedData.begin(), sortedData.end(), sortFunction);
+
+  for (uint i = 0; i < sortedData.size(); i++)
+  {
+    if (abs((float)sortedData[i].key - destination.host()->at(i).key) > .00001f)
+    {
+      std::cout << i << " " << sortedData.at(i).key << " " << sortedData.at(i).value << " " <<
+        destination.host()->at(i).key << " " << destination.host()->at(i).value << "\n";
+      assert(0);
+    }
+  }
+
+  printf("1D radix sort test passed!\n");
+}
+
 int main(int argc, char** argv)
 {
   compute = new ComputeInterface();
@@ -383,6 +479,8 @@ int main(int argc, char** argv)
   testRegular2DMean(compute);
   testIrregular2DMean(compute);
   test1DPrefixScan(compute);
+  //test1DBitonicSort32Bit(compute);
+  test1DRadixSort32Bit(compute);
   //testEquation(compute);
 
   return 0;
