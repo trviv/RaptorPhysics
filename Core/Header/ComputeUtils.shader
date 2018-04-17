@@ -415,9 +415,11 @@ sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(entityLoc
 }
 */
 
-uint scanExclusive(Shared uint* localArray1D, const uint elements, const int localIndex, const uint groupSize)
+#ifdef StructTypeIntegral
+
+StructType localPrefixSum(Shared StructType* localArray1D, const uint elements, const int localIndex, const uint groupSize)
 {
-  uint blockSum;
+  StructType blockSum;
   uint offset = 1;
 
   // build sum in place up the tree
@@ -427,7 +429,6 @@ uint scanExclusive(Shared uint* localArray1D, const uint elements, const int loc
     for (uint i = localIndex; i < eIndex; i += groupSize)
     {
       const uint index1 = (offset * ((i << 1) + 1)) - 1;
-
       localArray1D[paddedIndex(index1 + offset)] += localArray1D[paddedIndex(index1)];
     }
   }
@@ -440,7 +441,6 @@ uint scanExclusive(Shared uint* localArray1D, const uint elements, const int loc
     localArray1D[lastElement] = 0;
   }
 
-  localMemBarrier();
   offset >>= 1;
 
   for (uint eIndex = 1; eIndex < elements; eIndex <<= 1, offset >>= 1)
@@ -453,8 +453,7 @@ uint scanExclusive(Shared uint* localArray1D, const uint elements, const int loc
       index1 = paddedIndex(index1);
       index2 = paddedIndex(index2);
 
-      uint temp = localArray1D[index1];
-
+      StructType temp = localArray1D[index1];
       localArray1D[index1] = localArray1D[index2];
       localArray1D[index2] += temp;
     }
@@ -472,9 +471,9 @@ uint scanExclusive(Shared uint* localArray1D, const uint elements, const int loc
 @param length Total number of array elements.
 */
 Kernel void prefixGroupScanKernel(
-  Device uint* destination,
-  Device uint* sumBuffer,
-  const Device uint* array1D,
+  Device StructType* destination,
+  Device StructType* sumBuffer,
+  const Device StructType* array1D,
   const uint length)
 {
   const uint index = threadIndex() << 1;
@@ -485,12 +484,12 @@ Kernel void prefixGroupScanKernel(
   const uint groupSize = threadGroupSize();
   const uint groupIndex = threadGroupIndex();
 
-  Shared uint localArray1D[COMPUTE_MAX_THREADS << 1];
+  Shared StructType localArray1D[COMPUTE_MAX_THREADS << 1];
 
   localArray1D[localIndex1] = (index < length) ? array1D[index] : 0;
   localArray1D[localIndex2] = ((index + 1) < length) ? array1D[index + 1] : 0;
 
-  const uint sum = scanExclusive(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
+  const StructType sum = localPrefixSum(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
 
   if (localIndex == 0)
   {
@@ -513,29 +512,27 @@ Kernel void prefixGroupScanKernel(
 @param maxPrefixGroupCount .
 */
 Kernel void prefixTopScanKernel(
-  Device uint* sumBuffer,
+  Device StructType* sumBuffer,
   const uint prefixGroupCount,
   const uint maxPrefixGroupCount)
 {
-  Shared uint localData[8 * 1024];
-  uint localIndex = threadLocalIndex();
+  Shared StructType localData[4 * 1024];
+  const uint localIndex = threadLocalIndex();
   const uint groupSize = threadGroupSize();
 
   for (uint i = localIndex; i < maxPrefixGroupCount; i += prefixGroupCount)
   {
     localData[paddedIndex(i)] = (i < prefixGroupCount) ? sumBuffer[i] : 0;
   }
-  localMemBarrier();
 
-  const uint sum = scanExclusive(localData, maxPrefixGroupCount, localIndex, groupSize);
+  const StructType sum = localPrefixSum(localData, maxPrefixGroupCount, localIndex, groupSize);
+
   for (uint i = localIndex; i < prefixGroupCount; i += groupSize)
   {
     sumBuffer[i] = localData[paddedIndex(i)];
   }
-  localIndex += groupSize;
 
-  const uint index = threadIndex();
-  if (index == 0)
+  if (threadIndex() == 0)
   {
     sumBuffer[prefixGroupCount] = sum;
   }
@@ -548,17 +545,189 @@ Kernel void prefixTopScanKernel(
 @param length Total number of array elements.
 */
 Kernel void prefixAddOffsetKernel(
-  Device uint* destination,
-  Device uint* blockSum,
+  Device StructType* destination,
+  Device StructType* blockSum,
   const uint length)
 {
   const uint index = threadIndex() + (threadGroupSize() << 1);
   const uint groupIndex = 2 + threadGroupIndex();
-  const uint localBlockSum = blockSum[(groupIndex >> 1)];
+  const StructType localBlockSum = blockSum[(groupIndex >> 1)];
 
   if (index < length)
   {
     destination[index] += localBlockSum;
+  }
+}
+
+Kernel void radixSort32BitLocalSortKernel(
+  Device SortNode32* destination,
+  Device SortNode32* array1D,
+  Device uint* localSumBuffer,
+  Device uint* localPrefixSums,
+  const uint rightShift,
+  const uint maxBlockDepth,
+  const uint blockSize,
+  const uint length)
+{
+  const uint index1 = threadIndex() << 1;
+  const uint index2 = index1 + 1;
+  const uint localIndex = threadLocalIndex() << 1;
+  const uint localIndex1 = paddedIndex(localIndex);
+  const uint localIndex2 = paddedIndex(localIndex + 1);
+
+  Shared SortNode32 localSortNodes[COMPUTE_MAX_THREADS];
+  Shared uint localCount[4][COMPUTE_MAX_THREADS];
+  Shared uint sums[4];
+  Shared SortNode32 resetSortNode;
+  Shared uint sum;
+
+  if (localIndex == 0)
+  {
+    resetSortNode32(&resetSortNode);
+    sum = 0;
+  }
+
+  localMemBarrier();
+
+  localSortNodes[localIndex1] = (index1 < length) ? array1D[index1] : resetSortNode;
+  localSortNodes[localIndex2] = (index2 < length) ? array1D[index2] : resetSortNode;
+
+  const uint localKey1 = (localSortNodes[localIndex1].key >> rightShift) & 0x3;
+  const uint localKey2 = (localSortNodes[localIndex2].key >> rightShift) & 0x3;
+
+  for (uint bit = 0; bit < 4; bit++)
+  {
+    localCount[bit][localIndex1] = (localKey1 == bit);
+    localCount[bit][localIndex2] = (localKey2 == bit);
+  }
+
+  for (uint bit = 0; bit < 4; bit++)
+  {
+    const uint localSum = localPrefixSum(localCount[bit], blockSize, localIndex >> 1, blockSize);
+
+    if (localIndex == 0)
+    {
+      sums[bit] = sum;
+      sum += localSum;
+      localSumBuffer[threadGroupCount() * bit + threadGroupIndex()] = localSum;
+    }
+  }
+
+  const SortNode32 tempNode1 = localSortNodes[localIndex1];
+  const SortNode32 tempNode2 = localSortNodes[localIndex2];
+
+  localMemBarrier();
+
+  localSortNodes[localCount[localKey1][localIndex1] + sums[localKey1]] = tempNode1;
+  localSortNodes[localCount[localKey2][localIndex2] + sums[localKey2]] = tempNode2;
+
+  if (index1 < length)
+  {
+    destination[index1] = localSortNodes[localIndex1];
+    localPrefixSums[index1] = localCount[localKey1][localIndex1];
+  }
+  if (index2 < length)
+  {
+    destination[index2] = localSortNodes[localIndex2];
+    localPrefixSums[index2] = localCount[localKey2][localIndex2];
+  }
+}
+
+Kernel void radixSort32BitGlobalShuffleKernel(
+  Device SortNode32* destination,
+  const Device SortNode32* array1D,
+  const Device uint* localSumBuffer,
+  Device uint* localPrefixSums,
+  const uint rightShift,
+  const uint blockSize,
+  const uint length)
+{
+  const uint index = threadIndex();
+
+  if (index < length)
+  {
+    const SortNode32 localSortNode = array1D[index];
+    const uint localKey = (localSortNode.key >> rightShift) & 0x3;
+
+    localPrefixSums[index] += localSumBuffer[(threadGroupCount() * localKey) + threadGroupIndex()];
+
+    destination[localPrefixSums[index]] = localSortNode;
+  }
+}
+
+#endif
+
+Kernel void bitonicSort32BitKernel(
+  Device SortNode32* array1D,
+  const uint multiplier,
+  const uint minDepth,
+  const uint maxDepth,
+  const uint length)
+{
+  // the number of threads for the kernel
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+
+#define MAX_LOCAL_NODES (COMPUTE_MAX_THREADS * 4)
+
+  Shared SortNode32 localNode[MAX_LOCAL_NODES];
+
+  for (uint m = 0; m < multiplier; m++)
+  {
+    const uint index1 = (m*MAX_LOCAL_NODES + index) << 1;
+    const uint localIndex1 = (m*MAX_LOCAL_NODES + localIndex) << 1;
+    //printf("_ %d _", index1);
+    if (index1 < length)
+    {
+      localNode[localIndex1] = array1D[index1];
+    }
+    else
+    {
+      localNode[localIndex1].key = -1;
+    }
+    if ((index1 + 1) < length)
+    {
+      localNode[localIndex1 + 1] = array1D[index1 + 1];
+    }
+    else
+    {
+      localNode[localIndex1 + 1].key = -1;
+    }
+  }
+
+  localMemBarrier();
+
+  for (uint d = minDepth; d < maxDepth; d++)
+  {
+    for (int d2 = d; d2 >= minDepth; d2--)
+    {
+      const uint offset = 1 << d2;
+
+      for (uint m = 0; m < multiplier; m++)
+      {
+        const uint index1 = (localIndex + m * MAX_LOCAL_NODES) << d2;
+        const uint index2 = index1 + offset;
+
+        //printf("_ %d _", index1);
+
+        if (localNode[index1].key < localNode[index2].key)
+        {
+          const SortNode32 temp = localNode[index1];
+          localNode[index1] = localNode[index2];
+          localNode[index2] = temp;
+        }
+      }
+
+      localMemBarrier();
+    }
+  }
+
+  for (uint m = 0; m < multiplier; m++)
+  {
+    const uint index1 = (m*MAX_LOCAL_NODES + index) << 1;
+    const uint localIndex1 = (m*MAX_LOCAL_NODES + localIndex) << 1;
+    array1D[index1] = localNode[localIndex1];
+    array1D[index1 + 1] = localNode[localIndex1 + 1];
   }
 }
 
