@@ -47,10 +47,11 @@ typedef struct SortNode32_t SortNode32;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-void resetSortNode32(Shared SortNode32* node)
+SortNode32 defaultSortNode()
 {
-  node->key   = -1;
-  node->value = -1;
+  SortNode32 ret;
+  ret.key = -1;
+  ret.value = -1;
 }
 
 #endif

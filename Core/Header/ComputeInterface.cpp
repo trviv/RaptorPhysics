@@ -540,6 +540,15 @@ uint ComputeInterface::maxThreadsPerGroup()const
   return 1024;
 }
 
+uint ComputeInterface::maxCores()const
+{
+  uint ret = 0;
+  size_t retSize = 0;
+  ComputeStatus status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(int), &ret, &retSize);
+  computeCheckError(status, 0);
+  return 32;
+}
+
 #ifdef ENABLE_RENDERING
 ComputeMemory ComputeInterface::createMemoryFromGLBuffer(GLuint glObject)
 {

@@ -340,7 +340,7 @@ void test1DPrefixScan(ComputeInterface* compute)
 
   DeviceArray<uint> data(compute, NULL, true);
   vector<uint> prefixSum;
-  const int elements = 1025 * 2048;
+  const int elements = 1024 * 1024;
   uint sum = 0;
 
   data.host()->reserve(elements);
@@ -358,7 +358,15 @@ void test1DPrefixScan(ComputeInterface* compute)
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
-  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
+  compute->sync();
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Prefix scan");
+    ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
+    compute->sync();
+  }
+  ProfileManager::dumpAll(stdout);
+  ProfileManager::Increment_Frame_Counter();
 
   data.syncHost();
   compute->sync();
@@ -428,7 +436,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   DeviceArray<SortNode32> destination(compute, NULL, true);
   DeviceArray<SortNode32> data(compute, NULL, true);
   vector<SortNode32> sortedData;
-  const int elements = 2049 * 1023;
+  const int elements = 1024 * 1024;
 
   data.host()->reserve(elements);
   destination.resize(elements, false);
@@ -443,6 +451,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   }
 
   data.syncDevice();
+  compute->sync();
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
@@ -450,7 +459,27 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
   ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
+  compute->sync();
 
+  uint iterations = 20;
+  float cumulativeTime = 0;
+  for (uint i = 0; i < iterations; i++)
+  {
+    data.syncDevice();
+    compute->sync();
+
+    ProfileManager::Reset();
+    {
+      ProfileBlock("Radix sort");
+      ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
+      compute->sync();
+    }
+    cumulativeTime += ProfileManager::Get_Time_Since_Reset();
+    ProfileManager::dumpAll(stdout);
+    ProfileManager::Increment_Frame_Counter();
+  }
+
+  printf("Average: %f\n", cumulativeTime / iterations);
   destination.syncHost();
   compute->sync();
 
