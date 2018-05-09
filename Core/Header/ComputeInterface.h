@@ -202,6 +202,8 @@ public:
 
   uint maxThreadsPerGroup()const;
 
+  uint maxCores()const;
+
 #ifdef ENABLE_RENDERING
 
   ComputeMemory createMemoryFromGLBuffer(GLuint glObject);

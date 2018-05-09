@@ -1,3 +1,4 @@
+
 #ifndef COMPUTE_UTILS_H
 #define COMPUTE_UTILS_H
 
@@ -372,50 +373,158 @@ sectionOffsetCount[0] = compactOffsets[localIndex - 1] + getInstanceId(entityLoc
 
 #ifdef StructTypeIntegral
 
-StructType groupPrefixSum(Shared StructType* localArray1D, const uint elements, const int localIndex, const uint groupSize)
+const StructType subGroupPrefixScan(volatile Shared StructType* localArray1D, const uint localIndex, const uint subGroupLocalIndex)
 {
-  StructType blockSum;
-  uint offset = 1;
-
-  // build sum in place up the tree
-  for (uint eIndex = elements >> 1; eIndex > 0; eIndex >>= 1, offset <<= 1)
+  if (subGroupLocalIndex >= 1)
   {
-    localMemBarrier();
-    for (uint i = localIndex; i < eIndex; i += groupSize)
-    {
-      const uint index1 = (offset * ((i << 1) + 1)) - 1;
-      localArray1D[paddedIndex(index1 + offset)] += localArray1D[paddedIndex(index1)];
-    }
+    localArray1D[localIndex] += localArray1D[localIndex - 1];
   }
+  if (subGroupLocalIndex >= 2)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 2];
+  }
+  if (subGroupLocalIndex >= 4)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 4];
+  }
+  if (subGroupLocalIndex >= 8)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 8];
+  }
+  if (subGroupLocalIndex >= 16)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 16];
+  }
+
+  return localArray1D[localIndex];
+}
+
+StructType groupPrefixScan(Shared StructType* localArray1D, const uint localIndex, const uint elements)
+{
+  const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+
+  const StructType subGroupSum = subGroupPrefixScan(localArray1D, localIndex, subGroupLocalIndex);
+  localMemBarrier();
+
+  // copy last element from each sub group to first sub group's local space
+  if (subGroupLocalIndex == (COMPUTE_SUB_GROUP_SIZE - 1))
+  {
+    localArray1D[subGroupIndex] = subGroupSum;
+  }
+  localMemBarrier();
+
+  // prefix scan first sub group
+  if (localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
+  {
+    const StructType prev = localArray1D[localIndex];
+    subGroupPrefixScan(localArray1D, localIndex, localIndex);
+    localArray1D[localIndex] -= prev;
+  }
+  localMemBarrier();
+
+  // add scanned values to each return value
+  return subGroupSum + localArray1D[subGroupIndex];
+}
+
+void subGroupReduce(volatile Shared StructType* localArray1D, const uint localIndex, const uint groupSize)
+{
+  const uint subGroupLocalIndex = localIndex & (groupSize - 1);
+
+  //if (subGroupLocalIndex < 16)
+  {
+    const StructType temp = localArray1D[localIndex + 16];
+    localArray1D[localIndex] += temp;// localArray1D[subGroupLocalIndex + 16];
+  }
+
+  //if (subGroupLocalIndex < 8)
+  {
+    const StructType temp = localArray1D[localIndex + 8];
+    localArray1D[localIndex] += temp;// localArray1D[subGroupLocalIndex + 8];
+  }
+
+  //if (subGroupLocalIndex < 4)
+  {
+    const StructType temp = localArray1D[localIndex + 4];
+    localArray1D[localIndex] += temp;// localArray1D[subGroupLocalIndex + 4];
+  }
+
+  //if (subGroupLocalIndex < 2)
+  {
+    const StructType temp = localArray1D[localIndex + 2];
+    localArray1D[localIndex] += temp;// localArray1D[subGroupLocalIndex + 2];
+  }
+
+  //if (subGroupLocalIndex < 1)
+  {
+    const StructType temp = localArray1D[localIndex + 1];
+    localArray1D[localIndex] += temp;// localArray1D[subGroupLocalIndex + 1];
+  }
+  //}
+}
+
+void groupReduce(volatile Shared StructType* localArray1D, const uint localIndex, const uint elements)
+{
+  /*const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+
+  // per sub group prefix scan
+  if (localIndex < elements)
+  subGroupReduce(localArray1D, localIndex, COMPUTE_SUB_GROUP_SIZE);
 
   localMemBarrier();
-  if (localIndex == 0)
+
+  // copy last element from each sub group to first sub group's local space
+  if (subGroupLocalIndex == 0)
   {
-    const uint lastElement = paddedIndex(elements - 1);
-    blockSum = localArray1D[lastElement];
-    localArray1D[lastElement] = 0;
+  //localArray1D[subGroupIndex] = localArray1D[localIndex];
+  localArray1D[subGroupIndex] = (subGroupIndex < (elements >> COMPUTE_SUB_GROUP_EXP)) ? localArray1D[localIndex] : 0;
+  //localArray1D[subGroupIndex] = subGroupIndex < (elements >> COMPUTE_SUB_GROUP_EXP) ? localArray1D[localIndex] : 0;
   }
-
-  offset >>= 1;
-
-  for (uint eIndex = 1; eIndex < elements; eIndex <<= 1, offset >>= 1)
-  {
-    localMemBarrier();
-    for (uint i = localIndex; i < eIndex; i += groupSize)
-    {
-      uint index1 = (offset * ((i << 1) + 1)) - 1;
-      uint index2 = index1 + offset;
-      index1 = paddedIndex(index1);
-      index2 = paddedIndex(index2);
-
-      StructType temp = localArray1D[index1];
-      localArray1D[index1] = localArray1D[index2];
-      localArray1D[index2] += temp;
-    }
-  }
-
   localMemBarrier();
-  return blockSum;
+
+  // prefix scan first sub group
+  if (subGroupIndex == 0 && localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
+  {
+  subGroupReduce(localArray1D, localIndex, COMPUTE_SUB_GROUP_SIZE);
+  }
+  localMemBarrier();
+
+  return;*/
+
+  if (localIndex < 512 && elements > 512)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 512];
+    localMemBarrier();
+  }
+
+  if (localIndex < 256 && elements > 256)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 256];
+    localMemBarrier();
+  }
+
+  if (localIndex < 128 && elements > 128)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 128];
+  }
+  localMemBarrier();
+
+  if (localIndex < 64 && elements > 64)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 64];
+  }
+  localMemBarrier();
+
+  if (localIndex < 32)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 32];
+    localArray1D[localIndex] += localArray1D[localIndex + 16];
+    localArray1D[localIndex] += localArray1D[localIndex + 8];
+    localArray1D[localIndex] += localArray1D[localIndex + 4];
+    localArray1D[localIndex] += localArray1D[localIndex + 2];
+    localArray1D[localIndex] += localArray1D[localIndex + 1];
+  }
 }
 
 /*
@@ -426,37 +535,24 @@ StructType groupPrefixSum(Shared StructType* localArray1D, const uint elements, 
 @param length Total number of array elements.
 */
 Kernel void prefixGroupScanKernel(
-  Device StructType* destination,
   Device StructType* sumBuffer,
   const Device StructType* array1D,
   const uint length)
 {
-  const uint index = threadIndex() << 1;
-  const uint localIndex = threadLocalIndex() << 1;
-  const uint localIndex1 = paddedIndex(localIndex);
-  const uint localIndex2 = paddedIndex(localIndex + 1);
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
 
-  const uint groupSize = threadGroupSize();
-  const uint groupIndex = threadGroupIndex();
+  Shared StructType localArray1D[COMPUTE_MAX_THREADS];
 
-  Shared StructType localArray1D[COMPUTE_MAX_THREADS << 1];
+  localArray1D[localIndex] = (index < length) ? array1D[index] : 0;
 
-  localArray1D[localIndex1] = (index < length) ? array1D[index] : 0;
-  localArray1D[localIndex2] = ((index + 1) < length) ? array1D[index + 1] : 0;
+  localMemBarrier();
 
-  const StructType sum = groupPrefixSum(localArray1D, COMPUTE_MAX_THREADS << 1, localIndex >> 1, groupSize);
+  groupReduce(localArray1D, localIndex, COMPUTE_MAX_THREADS);
 
   if (localIndex == 0)
   {
-    sumBuffer[groupIndex] = sum;
-  }
-  if (index < length)
-  {
-    destination[index] = localArray1D[localIndex1];
-  }
-  if ((index + 1) < length)
-  {
-    destination[index + 1] = localArray1D[localIndex2];
+    sumBuffer[threadGroupIndex()] = localArray1D[0];
   }
 }
 
@@ -471,25 +567,14 @@ Kernel void prefixTopScanKernel(
   const uint prefixGroupCount,
   const uint maxPrefixGroupCount)
 {
-  Shared StructType localData[4 * 1024];
+  Shared StructType localData[COMPUTE_MAX_THREADS];
   const uint localIndex = threadLocalIndex();
   const uint groupSize = threadGroupSize();
 
-  for (uint i = localIndex; i < maxPrefixGroupCount; i += prefixGroupCount)
-  {
-    localData[paddedIndex(i)] = (i < prefixGroupCount) ? sumBuffer[i] : 0;
-  }
-
-  const StructType sum = groupPrefixSum(localData, maxPrefixGroupCount, localIndex, groupSize);
-
   for (uint i = localIndex; i < prefixGroupCount; i += groupSize)
   {
-    sumBuffer[i] = localData[paddedIndex(i)];
-  }
-
-  if (threadIndex() == 0)
-  {
-    sumBuffer[prefixGroupCount] = sum;
+    localData[paddedIndex(i)] = (i < prefixGroupCount) ? sumBuffer[i] : 0;
+    sumBuffer[i] = groupPrefixScan(localData, localIndex, COMPUTE_MAX_THREADS);
   }
 }
 
@@ -504,94 +589,173 @@ Kernel void prefixAddOffsetKernel(
   Device StructType* blockSum,
   const uint length)
 {
-  const uint index = threadIndex() + (threadGroupSize() << 1);
-  const uint groupIndex = 2 + threadGroupIndex();
-  const StructType localBlockSum = blockSum[(groupIndex >> 1)];
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+  const StructType localBlockSum = (threadGroupIndex() > 0) ? blockSum[threadGroupIndex() - 1] : 0;
+
+  Shared StructType localArray1D[COMPUTE_MAX_THREADS];
+
+  const StructType originalValue = (index < length) ? destination[index] : 0;
+  localArray1D[localIndex] = originalValue;
+
+  const StructType sum = groupPrefixScan(localArray1D, localIndex, COMPUTE_MAX_THREADS);
 
   if (index < length)
   {
-    destination[index] += localBlockSum;
+    destination[index] = sum + localBlockSum - originalValue;
   }
 }
 
+
+#define PrefixPackingShift 2
+#define PrefixPackingShifted 4
+#define PrefixPackingBits  (32 / PrefixPackingShifted)
+#define RadixPrefixScanType uint
+#define RadixPrefixScanTypeSize 1
+
+const RadixPrefixScanType subGroupPrefixScanRadix(volatile Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint subGroupLocalIndex)
+{
+  if (subGroupLocalIndex >= 1)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 1];
+  }
+  if (subGroupLocalIndex >= 2)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 2];
+  }
+  if (subGroupLocalIndex >= 4)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 4];
+  }
+  if (subGroupLocalIndex >= 8)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 8];
+  }
+  if (subGroupLocalIndex >= 16)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex - 16];
+  }
+
+  return localArray1D[localIndex];
+}
+
+RadixPrefixScanType groupPrefixScanRadix(Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint elements)
+{
+  const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+
+  const RadixPrefixScanType subGroupSum = subGroupPrefixScanRadix(localArray1D, localIndex, subGroupLocalIndex);
+  localMemBarrier();
+
+  // copy last element from each sub group to first sub group's local space
+  if (subGroupLocalIndex == (COMPUTE_SUB_GROUP_SIZE - 1))
+  {
+    localArray1D[subGroupIndex] = subGroupSum;
+  }
+  localMemBarrier();
+
+  // prefix scan first sub group
+  if (localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
+  {
+    const RadixPrefixScanType prev = localArray1D[localIndex];
+    subGroupPrefixScanRadix(localArray1D, localIndex, localIndex);
+    localArray1D[localIndex] -= prev;
+  }
+  localMemBarrier();
+
+  // add scanned values to each return value
+  return subGroupSum + localArray1D[subGroupIndex];
+}
+
+void groupReduceRadix(volatile Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint elements)
+{
+  /*if (localIndex < 512 && elements > 512)
+  {
+  localArray1D[localIndex] += localArray1D[localIndex + 512];
+  }
+  localMemBarrier();
+
+  if (localIndex < 256 && elements > 256)
+  {
+  localArray1D[localIndex] += localArray1D[localIndex + 256];
+  }
+  localMemBarrier();
+  */
+  /*if (localIndex < 128 && elements > 128)
+  {
+  localArray1D[localIndex] += localArray1D[localIndex + 128];
+  }
+  localMemBarrier();*/
+
+  if (localIndex < 64 && elements > 64)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 64];
+  }
+  localMemBarrier();
+
+  if (localIndex < 32)
+  {
+    localArray1D[localIndex] += localArray1D[localIndex + 32];
+    localArray1D[localIndex] += localArray1D[localIndex + 16];
+    localArray1D[localIndex] += localArray1D[localIndex + 8];
+    localArray1D[localIndex] += localArray1D[localIndex + 4];
+    localArray1D[localIndex] += localArray1D[localIndex + 2];
+    localArray1D[localIndex] += localArray1D[localIndex + 1];
+  }
+}
+
+uint setLocalCount(const uint localKey, const uint keyPrefix)
+{
+  return 1 << (localKey << 3);
+  // (localKey == keyPrefix) | ((localKey == (keyPrefix + 1)) << 8) | ((localKey == (keyPrefix + 2)) << 16) | ((localKey == (keyPrefix + 3)) << 24);
+}
+
 Kernel void radixSort32BitLocalSortKernel(
-  Device SortNode32* destination,
-  Device SortNode32* array1D,
+  const Device SortNode32* array1D,
   Device uint* localSumBuffer,
-  Device uint* localPrefixSums,
   const uint rightShift,
-  const uint maxBlockDepth,
-  const uint blockSize,
   const uint length)
 {
-  const uint index1 = threadIndex() << 1;
-  const uint index2 = index1 + 1;
+  const uint localIndex = threadLocalIndex();
+  const uint maxBlocks = (uint)ceil((float)(length) / BlockSize);
+  const uint indexStride = BlockSize * threadGroupCount();
 
-  const uint localIndex1 = paddedIndex(threadLocalIndex() << 1);
-  const uint localIndex2 = paddedIndex((threadLocalIndex() << 1) + 1);
+  Shared RadixPrefixScanType localCount[BlockSize];
 
-  Shared uint sum;
-  Shared uint sums[SortBitValue];
-  Shared SortNode32 resetSortNode;
-  Shared uint localCount[3][COMPUTE_MAX_THREADS << 1];
-  Shared SortNode32 localSortNodes[COMPUTE_MAX_THREADS];
-
-  if (localIndex1 == 0)
+  for (uint index = threadIndex(); index < length; index += indexStride)
   {
-    resetSortNode32(&resetSortNode);
-    sum = 0;
-  }
+    const uint localKey = (((index < length) ? array1D[index] : defaultSortNode()).key >> rightShift) & (SortBitValue - 1);
+    //RadixPrefixScanType first;
 
-  localMemBarrier();
+    //for (uint j = 0; j < RadixPrefixScanTypeSize; j++)
+    //((Shared uint*)(localCount + localIndex))[j] = setLocalCount(localKey, PrefixPackingShifted * j);
+    localCount[localIndex] = setLocalCount(localKey, 0);
 
-  localSortNodes[localIndex1] = (index1 < length) ? array1D[index1] : resetSortNode;
-  localSortNodes[localIndex2] = (index2 < length) ? array1D[index2] : resetSortNode;
-
-  const uint localKey1 = (localSortNodes[localIndex1].key >> rightShift) & (SortBitValue - 1);
-  const uint localKey2 = (localSortNodes[localIndex2].key >> rightShift) & (SortBitValue - 1);
-
-  for (uint bit = 0; bit < SortBitValue; bit++)
-  {
-    localCount[2][localIndex1] = (localKey1 == bit);
-    localCount[2][localIndex2] = (localKey2 == bit);
-
-    const uint localSum = groupPrefixSum(localCount[2], blockSize, threadLocalIndex(), blockSize);
-
-    if (localKey1 == bit)
+    //if (localIndex == 0)
     {
-      localCount[0][localIndex1] = localCount[2][localIndex1];
+      //first = localCount[0];
     }
+    localMemBarrier();
 
-    if (localKey2 == bit)
+    groupReduceRadix(localCount, localIndex, BlockSize);
+
+    if (localIndex == 0)
     {
-      localCount[1][localIndex2] = localCount[2][localIndex2];
+      const uint blockOffset = (index / BlockSize);
+      //const RadixPrefixScanType privateCount = localCount[0] - first;
+      const RadixPrefixScanType privateCount = localCount[0];
+      for (uint i = 0; i < RadixPrefixScanTypeSize; i++)
+      {
+        //const uint4 count = convert_uint4(as_uchar4(((const Thread uint*)&privateCount)[i])) + convert_uint4(as_uchar4(((const Thread uint*)&first)[i]));
+        const uint4 count = convert_uint4(as_uchar4(((const Thread uint*)&privateCount)[i]));
+        const uint* countPtr = (const Thread uint*)&count;
+        for (uint p = 0; p < PrefixPackingShifted; p++)
+        {
+          localSumBuffer[maxBlocks * (i * PrefixPackingShifted + p) + blockOffset] = countPtr[p];
+        }
+      }
     }
-
-    if (localIndex1 == 0)
-    {
-      sums[bit] = sum;
-      sum += localSum;
-      localSumBuffer[(threadGroupCount() * bit) + threadGroupIndex()] = localSum;
-    }
-  }
-
-  const SortNode32 tempNode1 = localSortNodes[localIndex1];
-  const SortNode32 tempNode2 = localSortNodes[localIndex2];
-
-  localMemBarrier();
-
-  localSortNodes[paddedIndex(localCount[0][localIndex1] + sums[localKey1])] = tempNode1;
-  localSortNodes[paddedIndex(localCount[1][localIndex2] + sums[localKey2])] = tempNode2;
-
-  if (index1 < length)
-  {
-    destination[index1] = localSortNodes[localIndex1];
-    localPrefixSums[index1] = localCount[0][localIndex1];
-  }
-  if (index2 < length)
-  {
-    destination[index2] = localSortNodes[localIndex2];
-    localPrefixSums[index2] = localCount[1][localIndex2];
+    localMemBarrier();
   }
 }
 
@@ -599,19 +763,44 @@ Kernel void radixSort32BitGlobalShuffleKernel(
   Device SortNode32* destination,
   const Device SortNode32* array1D,
   const Device uint* localSumBuffer,
-  Device uint* localPrefixSums,
   const uint rightShift,
   const uint length)
 {
-  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+  const uint maxBlocks = (uint)ceil((float)(length) / BlockSize);
+  const uint indexStride = BlockSize * threadGroupCount();
 
-  if (index < length)
+  Shared RadixPrefixScanType localCount[BlockSize];
+
+  RadixPrefixScanType localSums;
+  SortNode32 localSortNode;
+
+  for (uint index = threadIndex(); index < length; index += indexStride)
   {
-    const SortNode32 localSortNode = array1D[index];
+    localSortNode = (index < length) ? array1D[index] : defaultSortNode();
     const uint localKey = (localSortNode.key >> rightShift) & (SortBitValue - 1);
-    const uint localPrefixSum = localPrefixSums[index] + localSumBuffer[(threadGroupCount() * localKey) + threadGroupIndex()];
 
-    destination[localPrefixSum] = localSortNode;
+    //for (uint j = 0; j < RadixPrefixScanTypeSize; j++)
+    //((Thread uint*)&localSums)[j] = -setLocalCount(localKey, PrefixPackingShifted * j);
+    localSums = -setLocalCount(localKey, 0);
+
+    localCount[localIndex] = -localSums;
+    localSums += groupPrefixScanRadix(localCount, localIndex, BlockSize);
+
+    if (index < length)
+    {
+      const uint localSum = localSumBuffer[(maxBlocks * localKey) + (index / BlockSize)];
+
+      uint count = ((Thread uint*)&localSums)[localKey >> PrefixPackingShift];
+      count >>= ((localKey & (PrefixPackingShifted - 1)) * PrefixPackingBits);
+      count &= ((1 << PrefixPackingBits) - 1);
+
+      //if ((rightShift == 0) || (index != (count + localSum)))
+      //{
+      destination[count + localSum] = localSortNode;
+      //}
+    }
+    localMemBarrier();
   }
 }
 

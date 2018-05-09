@@ -36,6 +36,11 @@ void localMemBarrier()
   barrier(CLK_LOCAL_MEM_FENCE);
 }
 
+void localMemFence()
+{
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+}
+
 #define Kernel  __kernel
 #define Device  __global
 #define Const   __constant
@@ -43,20 +48,22 @@ void localMemBarrier()
 #define Thread  __private
 
 #define COMPUTE_SHADER_SCOPE
-#define COMPUTE_MAX_THREADS   1024
-#define COMPUTE_EPSILON       0.000001f
+#define COMPUTE_MAX_THREADS     1024
+#define COMPUTE_SUB_GROUP_SIZE  32
+#define COMPUTE_SUB_GROUP_EXP   5
+#define COMPUTE_EPSILON         0.000001f
 
 #define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
 #define DEFAULT_ALIGN         ALIGN(16)
 
 #define constructFloat3       (float3)
 
-#define NUM_BANKS       32
-#define LOG_NUM_BANKS   5
+#define NUM_BANKS       16
+#define LOG_NUM_BANKS   4
 
 inline const uint paddedIndex(const uint n)
 {
-  return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+  return n;// +(((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
 }
 
 float sqr(const float x)
