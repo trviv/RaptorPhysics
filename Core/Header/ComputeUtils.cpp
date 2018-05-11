@@ -420,6 +420,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   const uint localSortThreads = workgroupSize[0];
   const uint globalShuffleThreads = workgroupSize[0];
+  const uint blockScale = 1;
 
   if (!localArrays[RADIX_TEMP_GROUP_SUM])
   {
@@ -457,7 +458,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
     kernels[kernelIndex1].setArg<uint>(&i, 2);
 
-    workgroupSize[0] = localSortThreads;
+    workgroupSize[0] = localSortThreads * blockScale;
     uint old = workgroupCount[0];
     workgroupCount[0] = compute->maxCores();
     compute->execute(kernels[kernelIndex1], workgroupSize, workgroupCount);
@@ -477,7 +478,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
     kernels[kernelIndex2].setArg<uint>(&i, 3);
 
-    workgroupSize[0] = globalShuffleThreads;
+    workgroupSize[0] = globalShuffleThreads * blockScale;
     old = workgroupCount[0];
     workgroupCount[0] = compute->maxCores();
     compute->execute(kernels[kernelIndex2], workgroupSize, workgroupCount);
