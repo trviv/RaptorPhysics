@@ -436,7 +436,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   DeviceArray<SortNode32> destination(compute, NULL, true);
   DeviceArray<SortNode32> data(compute, NULL, true);
   vector<SortNode32> sortedData;
-  const int elements = 1024 * 1024;
+  const int elements = 1024 * 1024 * 4;
 
   data.host()->reserve(elements);
   destination.resize(elements, false);
@@ -444,7 +444,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   for (int i = 0; i < elements; i++)
   {
     data.host()->push_back(SortNode32());
-    data.host()->back().key = rand();
+    data.host()->back().key = rand() | (rand() << 16);
     data.host()->back().value = i;
 
     sortedData.push_back(data.host()->at(i));
@@ -461,7 +461,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
   compute->sync();
 
-  uint iterations = 20;
+  uint iterations = 0;
   float cumulativeTime = 0;
   for (uint i = 0; i < iterations; i++)
   {
@@ -479,7 +479,10 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
     ProfileManager::Increment_Frame_Counter();
   }
 
-  printf("Average: %f\n", cumulativeTime / iterations);
+  float mean = cumulativeTime / iterations;
+  printf("Average: %f\n", mean);
+  printf("Elts/sec: %f\n", elements * 1000.f / mean);
+  printf("Bandwidth util: %f\n", 4 * 2 * (elements * 1000.f / mean) * (3 * 32 / 4) / float(1024 * 1024 * 1024));
   destination.syncHost();
   compute->sync();
 

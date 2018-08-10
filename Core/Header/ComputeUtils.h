@@ -27,7 +27,7 @@ enum ComputeUtilKey
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[12];
+  uint kernelIndices[13];
   vector<void*> localArrays;
 
 public:
