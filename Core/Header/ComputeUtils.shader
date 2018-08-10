@@ -1,4 +1,3 @@
-
 #ifndef COMPUTE_UTILS_H
 #define COMPUTE_UTILS_H
 
@@ -575,304 +574,396 @@ Kernel void prefixAddOffsetKernel(
 }
 
 
-#define PrefixPackingShift 2
-#define PrefixPackingShifted 4
-#define PrefixPackingBits  (32 / PrefixPackingShifted)
-#define RadixPrefixScanType uint
-#define RadixPrefixScanTypeSize 1
-#define RadixBlockScale 1
+#define BusAlignedFetch
+#define UsePackedKeys
+//#define CoalescedWrites
 
-const RadixPrefixScanType subGroupPrefixScanRadix(volatile Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint subGroupLocalIndex)
+#if defined(BusAlignedFetch) && defined(CoalescedWrites)
+#undef BankConflictShift
+#define BankConflictShift RadixPrefixScanPackingExp
+#endif
+
+#define PackedParts         4
+#define PackedBits          (32 / PackedParts)
+#define RadixScanIterations (1 << (SortBits-2))
+#define RadixPackedType     uint
+#define LaneWidth           (1<<LaneWidthExp)
+#define SortBitValue        (1<<SortBits)
+
+#if RadixPrefixScanPackingExp > RadixReductionPackingExp
+#define FetchAlignmentExp (1<<RadixPrefixScanPackingExp)
+#else
+#define FetchAlignmentExp (1<<RadixReductionPackingExp)
+#endif
+
+const RadixPackedType lanePrefixScanRadix(volatile Shared RadixPackedType* localArray1D, const ushort localIndex)
 {
-  if (subGroupLocalIndex >= 1)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex - 1];
-  }
-  if (subGroupLocalIndex >= 2)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex - 2];
-  }
-  if (subGroupLocalIndex >= 4)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex - 4];
-  }
-  if (subGroupLocalIndex >= 8)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex - 8];
-  }
-  if (subGroupLocalIndex >= 16)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex - 16];
-  }
+  volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
+
+  *localArray1DPtr += *(localArray1DPtr - 1);
+  *localArray1DPtr += *(localArray1DPtr - 2);
+  *localArray1DPtr += *(localArray1DPtr - 4);
+  *localArray1DPtr += *(localArray1DPtr - 8);
+  *localArray1DPtr += *(localArray1DPtr - 16);
 
   return localArray1D[localIndex];
 }
 
-RadixPrefixScanType groupPrefixScanRadix(Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint elements)
+void laneReduceRadix(volatile Shared StructType* localArray1D, const ushort localIndex)
 {
-  const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
 
-  const RadixPrefixScanType subGroupSum = subGroupPrefixScanRadix(localArray1D, localIndex, subGroupLocalIndex);
-  localMemBarrier();
-
-  // copy last element from each sub group to first sub group's local space
-  if (subGroupLocalIndex == (COMPUTE_SUB_GROUP_SIZE - 1))
-  {
-    localArray1D[subGroupIndex] = subGroupSum;
-  }
-  localMemBarrier();
-
-  // prefix scan first sub group
-  if (localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
-  {
-    const RadixPrefixScanType prev = localArray1D[localIndex];
-    subGroupPrefixScanRadix(localArray1D, localIndex, localIndex);
-    localArray1D[localIndex] -= prev;
-  }
-  localMemBarrier();
-
-  // add scanned values to each return value
-  return subGroupSum + localArray1D[subGroupIndex];
+  *localArray1DPtr += *(localArray1DPtr + 16);
+  *localArray1DPtr += *(localArray1DPtr + 8);
+  *localArray1DPtr += *(localArray1DPtr + 4);
+  *localArray1DPtr += *(localArray1DPtr + 2);
+  *localArray1DPtr += *(localArray1DPtr + 1);
 }
 
-void subGroupReduceRadix(volatile Shared StructType* localArray1D, const uint localIndex, const uint groupSize)
+uint setLocalCount(const uchar localKey, const uchar keyPrefix)
 {
-  //const uint subGroupLocalIndex = localIndex & (groupSize - 1);
-
-  //if (subGroupLocalIndex < 16 && groupSize > 16)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 16];
-  }
-
-  //if (subGroupLocalIndex < 8 && groupSize > 8)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 8];
-  }
-
-  //if (subGroupLocalIndex < 4 && groupSize > 4)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 4];
-  }
-
-  //if (subGroupLocalIndex < 2 && groupSize > 2)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 2];
-  }
-
-  //if (subGroupLocalIndex < 1)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 1];
-  }
-  //}
-}
-
-void groupReduceRadix(volatile Shared RadixPrefixScanType* localArray1D, const uint localIndex, const uint elements)
-{
-  /*const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
-
-  //if (subGroupLocalIndex == 0)
-  {
-  //localArray1D[localIndex] += localArray1D[localIndex + 32];
-  localArray1D[localIndex] += localArray1D[localIndex + 16];
-  localArray1D[localIndex] += localArray1D[localIndex + 8];
-  localArray1D[localIndex] += localArray1D[localIndex + 4];
-  localArray1D[localIndex] += localArray1D[localIndex + 2];
-  localArray1D[localIndex] += localArray1D[localIndex + 1];
-  }
-  localMemBarrier();
-
-  if (localIndex == 0)
-  {
-  localArray1D[0] += localArray1D[32];
-  localArray1D[0] += localArray1D[64];
-  //localArray1D[0] += localArray1D[128];
-  }
-
-  return;*/
-
-  /*const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
-
-  //localMemBarrier();
-
-  // per sub group prefix scan
-  //if (localIndex < elements)
-  {
-  subGroupReduceRadix(localArray1D, localIndex, COMPUTE_SUB_GROUP_SIZE);
-  }
-  localMemBarrier();
-
-  // copy last element from each sub group to first sub group's local space
-  if (subGroupLocalIndex == 0)
-  {
-  localArray1D[subGroupIndex] = (elements >> COMPUTE_SUB_GROUP_EXP) < subGroupIndex ? localArray1D[localIndex] : 0;
-  }
-  localMemBarrier();
-
-  // prefix scan first sub group
-  if (localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
-  {
-  subGroupReduceRadix(localArray1D, localIndex, (elements >> COMPUTE_SUB_GROUP_EXP));
-  }
-
-  return;
-  */
-
-  /*if (localIndex < 512 && elements > 512)
-  {
-  localArray1D[localIndex] += localArray1D[localIndex + 512];
-  }
-  localMemBarrier();
-
-  if (localIndex < 256 && elements > 256)
-  {
-  localArray1D[localIndex] += localArray1D[localIndex + 256];
-  }
-  localMemBarrier();
-  */
-  /*if (localIndex < 128 && elements > 128)
-  {
-  localArray1D[localIndex] += localArray1D[localIndex + 128];
-  }
-  localMemBarrier();*/
-
-  if (localIndex < 64 && elements > 64)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 64];
-  }
-  localMemBarrier();
-
-  if (localIndex < 32)
-  {
-    localArray1D[localIndex] += localArray1D[localIndex + 32];
-    localArray1D[localIndex] += localArray1D[localIndex + 16];
-    localArray1D[localIndex] += localArray1D[localIndex + 8];
-    localArray1D[localIndex] += localArray1D[localIndex + 4];
-    localArray1D[localIndex] += localArray1D[localIndex + 2];
-    localArray1D[localIndex] += localArray1D[localIndex + 1];
-  }
-}
-
-uint setLocalCount(const uint localKey, const uint keyPrefix)
-{
-  //return (localKey == keyPrefix) | ((localKey == (keyPrefix + 1)) << 8) | ((localKey == (keyPrefix + 2)) << 16) | ((localKey == (keyPrefix + 3)) << 24);
+#if RadixScanIterations == 1
   return 1 << (localKey << 3);
+#else
+  return ((localKey & 0xFC) == keyPrefix) ? (1 << ((localKey & 3) << 3)) : 0;
+#endif
 }
 
-Kernel void radixSort32BitLocalSortKernel(
-  const Device SortNode32* array1D,
-  Device uint* localSumBuffer,
+#ifdef UsePackedKeys
+#define getKey(keys, index)       ((keys >> (index * SortBits)) & (SortBitValue - 1))
+#define setKey(keys, index, key)  keys |= ((key & (SortBitValue - 1)) << (index * SortBits))
+#else
+#define getKey(keys, index)       keys[i]
+#define setKey(keys, index, key)  keys[i] = key
+#endif
+
+Kernel void radixSort32BitReduceKernel(
+  Device SortNode32* source,
+  volatile Device uint* localSumBuffer,
   const uint rightShift,
   const uint length)
 {
-  const uint localIndex = threadLocalIndex();
-  const uint maxBlocks = (uint)ceil((float)(length) / BlockSize);
-  const uint indexStride = BlockSize * threadGroupCount() * RadixBlockScale;
+  // local index of the thread within a lane instance
+  const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
+  // lane instance id
+  const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
 
-  Shared RadixPrefixScanType localCount[RadixBlockScale * BlockSize];
-  //RadixPrefixScanType first;
+  const uint maxBlocks = (uint)ceil(((float)length) / LaneWidth);
+  const uint blocksPerGroup = (uint)ceil(((float)maxBlocks) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount()));
 
-  for (uint index = threadIndex(); index < length; index += indexStride)
+  uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << LaneWidthExp;
+  const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << LaneWidthExp);
+  startIndex += localIndexInLane;
+
+  const ushort laneCountOffsetInTG = laneIndex << (LaneWidthExp + BankConflictShift);
+  const ushort laneIndexOffsetInTG = laneIndex << SortBits;
+
+  Shared RadixPackedType localCountHeap[(RadixBlockInstances << LaneWidthExp) << BankConflictShift];
+  Shared RadixPackedType* localCount = LaneWidth + localCountHeap + laneCountOffsetInTG;
+  Shared uint threadgroupLocalCountTotals[RadixBlockInstances << SortBits];
+
+  localCount[localIndexInLane - LaneWidth] = 0;
+
+  // clear block sums for the first thread of each group
+  if (localIndexInLane < SortBitValue)
   {
-    const uint localKey = (((index < length) ? array1D[index] : defaultSortNode()).key >> rightShift) & (SortBitValue - 1);
+    threadgroupLocalCountTotals[laneIndex * SortBitValue + localIndexInLane] = 0;
+  }
 
-    //for (uint j = 0; j < RadixPrefixScanTypeSize; j++)
-    //((Shared uint*)(localCount + localIndex))[j] = setLocalCount(localKey, PrefixPackingShifted * j);
-    localCount[localIndex] = setLocalCount(localKey, 0);
+  // for each sub block
+  for (uint index = startIndex; index < endIndex;)
+  {
+#ifdef UsePackedKeys
+    uint localKeys = 0;
+#else
+    uchar localKeys[1 << RadixReductionPackingExp];
+#endif
 
-    if (localIndex == 0)
+    // accumulate the local key occurrence for multiple successive elements
+    for (uchar i = 0; i < (1 << RadixReductionPackingExp); i++, index += LaneWidth)
     {
-      //first = localCount[0];
-    }
-    localMemBarrier();
-
-#if RadixBlockScale == 1
-    groupReduceRadix(localCount, localIndex, BlockSize);
-#else
-    groupReduceRadix(localCount + BlockSize * (localIndex / BlockSize), localIndex & (BlockSize - 1), BlockSize);
-#endif
-
-#if RadixBlockScale == 1
-    if (localIndex == 0)
-#else
-    if ((localIndex & (BlockSize - 1)) == 0 && index < length)
-#endif
-    {
-      const uint blockOffset = (index / BlockSize);
-
-#if RadixBlockScale == 1
-      //const RadixPrefixScanType privateCount = localCount[0] - first;
-      const RadixPrefixScanType privateCount = localCount[0];
-#else
-      //const RadixPrefixScanType privateCount = localCount[0] - first;
-      const RadixPrefixScanType privateCount = localCount[BlockSize * (localIndex / BlockSize)];
-#endif
-
-      for (uint i = 0; i < RadixPrefixScanTypeSize; i++)
+      uchar localKey;
+      if (index < length)
       {
-        //const uint4 count = convert_uint4(as_uchar4(((const Thread uint*)&privateCount)[i])) + convert_uint4(as_uchar4(((const Thread uint*)&first)[i]));
-        const uint4 count = convert_uint4(as_uchar4(((const Thread uint*)&privateCount)[i]));
-        const uint* countPtr = (const Thread uint*)&count;
-        for (uint p = 0; p < PrefixPackingShifted; p++)
+        localKey = source[index].key >> rightShift;
+      }
+      else
+      {
+        localKey = defaultSortNode().key >> rightShift;
+      }
+      setKey(localKeys, i, (localKey & (SortBitValue - 1)));
+    }
+
+#if RadixScanIterations*PackedParts >= 256
+    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+#else
+    for (uchar j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+#endif
+    {
+      RadixPackedType count = 0;
+
+      for (uchar i = 0; i < (1 << RadixReductionPackingExp); i++)
+      {
+        count += setLocalCount(getKey(localKeys, i), j);
+      }
+      localCount[localIndexInLane] = count;
+
+      laneReduceRadix(localCount, localIndexInLane);
+
+      if (localIndexInLane == 0)
+      {
+        ushort offset = laneIndexOffsetInTG + j;
+
+        // subtract first to account potential 8 bit overflow
+        // add first to 32 bit converted value
+        uchar4 temp = as_uchar4(localCount[0] - count);
+        ushort4 sum = convert_ushort4(temp);
+        temp = as_uchar4(count);
+        sum += (ushort4)(temp.x, temp.y, temp.z, temp.w);
+
+        threadgroupLocalCountTotals[offset++] += sum.x;
+        threadgroupLocalCountTotals[offset++] += sum.y;
+        threadgroupLocalCountTotals[offset++] += sum.z;
+        threadgroupLocalCountTotals[offset++] += sum.w;
+      }
+    }
+  }
+
+  if (localIndexInLane < SortBitValue)
+  {
+    const uint sumBufferIndex = laneIndex + (localIndexInLane * threadGroupCount() + threadGroupIndex()) * RadixBlockInstances;
+    const ushort offset = laneIndexOffsetInTG + localIndexInLane;
+
+    localSumBuffer[sumBufferIndex] = threadgroupLocalCountTotals[offset];
+  }
+}
+
+inline void fetchNodes(SortNode32 localSortNodes[], const Device SortNode32* source, const uint index, const uint length)
+{
+  if (index + ((1 << RadixPrefixScanPackingExp) - 1) < length)
+  {
+#if RadixPrefixScanPackingExp == 1
+    const uint4 nodes = *((Device uint4*)(source + index));
+#elif RadixPrefixScanPackingExp == 2
+    const uint8 nodes = *((Device uint8*)(source + index));
+#elif RadixPrefixScanPackingExp == 3
+    const uint16 nodes = *((Device uint16*)(source + index));
+#endif
+    for (uchar w = 0; w < (1 << RadixPrefixScanPackingExp); w++)
+    {
+      localSortNodes[w] = ((const Thread SortNode32*)&nodes)[w];
+    }
+  }
+  else
+  {
+    for (uchar w = 0; w < (1 << RadixPrefixScanPackingExp); w++)
+    {
+      localSortNodes[w] = ((index + w) < length) ? source[index + w] : defaultSortNode();
+    }
+  }
+}
+
+Kernel void radixSort32BitSortKernel(
+  volatile Device SortNode32* destination,
+  const Device SortNode32* source,
+  const Device uint* localSumBuffer,
+  const uint rightShift,
+  const uint length)
+{
+  // local index of the thread within a lane instance
+  const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
+  // lane instance id
+  const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
+
+  const uint maxBlocks = (uint)ceil(((float)length) / LaneWidth);
+  const uint blocksPerGroup = (uint)ceil(((float)maxBlocks) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount()));
+
+  uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << LaneWidthExp;
+  const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << LaneWidthExp);
+  startIndex += localIndexInLane;
+
+  const ushort laneIndexOffsetInTG = laneIndex << SortBits;
+  const ushort laneSortNodeOffsetInTG = laneIndex << (LaneWidthExp + RadixPrefixScanPackingExp);
+
+  SortNode32 localSortNodes[1 << RadixPrefixScanPackingExp];
+
+  Shared SortNode32 localSortNodesHeap[(RadixBlockInstances << LaneWidthExp) << RadixPrefixScanPackingExp];
+#ifdef CoalescedWrites
+  Shared SortNode32* swapSourceOffset = localSortNodesHeap + laneSortNodeOffsetInTG + (localIndexInLane << RadixPrefixScanPackingExp);
+  Shared SortNode32* swapDestOffset = localSortNodesHeap + laneSortNodeOffsetInTG + localIndexInLane;
+#endif
+
+#if defined(BusAlignedFetch) && defined(CoalescedWrites)
+  Shared RadixPackedType* localCountHeap = (Shared RadixPackedType*)localSortNodesHeap;
+  const ushort instanceCountOffset = LaneWidth + (laneIndex << (LaneWidthExp + BankConflictShift + 1));
+#else
+  Shared RadixPackedType localCountHeap[(RadixBlockInstances << LaneWidthExp) << BankConflictShift];
+  const ushort instanceCountOffset = LaneWidth + (laneIndex << (LaneWidthExp + BankConflictShift));
+#endif
+
+#ifndef BusAlignedFetch
+  Shared SortNode32* offsettedLocalSortNodes = localSortNodesHeap + laneSortNodeOffsetInTG;
+#endif
+
+  Shared uint threadgroupLocalCountTotals[RadixBlockInstances << SortBits];
+  Shared uint *threadgroupLocalCountTotalsForInstance = threadgroupLocalCountTotals + laneIndexOffsetInTG;
+  Shared RadixPackedType *localPrefixCount = localCountHeap + instanceCountOffset;// LaneWidth * ((1 << BankConflictShift) - 1) + instanceCountOffset;
+
+#if defined(BusAlignedFetch) && defined(CoalescedWrites)
+#else
+  localPrefixCount[localIndexInLane - LaneWidth] = 0;
+#endif
+
+  if (localIndexInLane < SortBitValue)
+  {
+    // prefix scan instance values per bit
+    const uint sumBufferIndex = threadGroupIndex() * RadixBlockInstances + laneIndex + (localIndexInLane * threadGroupCount() * RadixBlockInstances);
+    const ushort offset = laneIndexOffsetInTG + localIndexInLane;
+
+    threadgroupLocalCountTotals[offset] = localSumBuffer[sumBufferIndex];
+  }
+
+#ifdef BusAlignedFetch
+  for (uint index = startIndex + (localIndexInLane << RadixPrefixScanPackingExp) - localIndexInLane; index < endIndex; index += (LaneWidth << RadixPrefixScanPackingExp))
+#else
+  for (uint index = startIndex; index < endIndex; index += (LaneWidth << RadixPrefixScanPackingExp))
+#endif
+  {
+
+#ifdef BusAlignedFetch
+    // accumulated local key occurrence
+    fetchNodes(localSortNodes, source, index, length);
+#else
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      const uint indexOffset = index + (i * LaneWidth);
+      offsettedLocalSortNodes[localIndexInLane + (i * LaneWidth)] = (indexOffset < length) ? source[indexOffset] : defaultSortNode();
+    }
+
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      localSortNodes[i] = offsettedLocalSortNodes[(localIndexInLane * (1 << RadixPrefixScanPackingExp)) + i];
+    }
+#endif
+
+    uint destOffset[1 << RadixPrefixScanPackingExp];
+
+#if RadixScanIterations*PackedParts >= 256
+    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+#else
+    for (uchar j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+#endif
+    {
+
+#if defined(BusAlignedFetch) && defined(CoalescedWrites)
+      localPrefixCount[localIndexInLane - LaneWidth] = 0;
+#endif
+
+      RadixPackedType reduceSum = 0;
+
+#ifdef UsePackedKeys
+      uint localKeys = 0;
+      uint localKeyValid = 0;
+#else
+      uchar localKeys[1 << RadixPrefixScanPackingExp];
+      uchar localKeyValid[1 << RadixPrefixScanPackingExp];
+#endif
+
+      for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+      {
+        const char localKey = (localSortNodes[i].key >> rightShift) & (SortBitValue - 1);
+        setKey(localKeys, i, localKey);
+
+        const uint sum = setLocalCount(localKey, j);
+        reduceSum += sum;
+
+#ifdef UsePackedKeys
+        if (sum != 0)
+          localKeyValid |= (1 << i);
+#else
+        localKeyValid[i] = (sum != 0);
+#endif
+      }
+
+      localPrefixCount[localIndexInLane] = reduceSum;
+
+      uint prefixScan = lanePrefixScanRadix(localPrefixCount, localIndexInLane) - reduceSum;
+
+      for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+      {
+#ifdef UsePackedKeys
+        if (localKeyValid & (1 << i))
+#else
+        if (localKeyValid[i])
+#endif
         {
-          localSumBuffer[maxBlocks * (i * PrefixPackingShifted + p) + blockOffset] = countPtr[p];
+          const uchar localKey = getKey(localKeys, i);
+
+          uchar count = (prefixScan >> ((localKey & (PackedParts - 1)) * PackedBits));
+          count &= ((1 << PackedBits) - 1);
+
+          destOffset[i] = threadgroupLocalCountTotalsForInstance[localKey] + count;
+          prefixScan += setLocalCount(localKey, j);
         }
+      }
+
+      if (localIndexInLane == (LaneWidth - 1))
+      {
+        prefixScan -= reduceSum;
+        const ushort start = laneIndexOffsetInTG + j;
+        const ushort end = start + 4;
+        for (ushort i = start; i < end; i++)
+        {
+          threadgroupLocalCountTotals[i] += ((prefixScan & ((1 << PackedBits) - 1)) + (reduceSum & ((1 << PackedBits) - 1)));
+          prefixScan >>= PackedBits;
+          reduceSum >>= PackedBits;
+        }
+      }
+    }
+
+#ifdef CoalescedWrites
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      swapSourceOffset[i].key = destOffset[i];
+    }
+
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      destOffset[i] = swapDestOffset[i * LaneWidth].key;
+    }
+
+#ifdef BusAlignedFetch
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      swapSourceOffset[i] = localSortNodes[i];
+    }
+
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      localSortNodes[i] = swapDestOffset[i * LaneWidth];
+    }
+#endif
+
+#endif
+
+    for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
+    {
+      if (destOffset[i] < length)
+      {
+#ifdef BusAlignedFetch
+        destination[destOffset[i]] = localSortNodes[i];
+#else
+#ifdef CoalescedWrites
+        destination[destOffset[i]] = offsettedLocalSortNodes[localIndex + (i * LaneWidth)];
+#else
+        destination[destOffset[i]] = localSortNodes[i];
+#endif
+#endif
       }
     }
   }
 }
 
-Kernel void radixSort32BitGlobalShuffleKernel(
-  Device SortNode32* destination,
-  const Device SortNode32* array1D,
-  const Device uint* localSumBuffer,
-  const uint rightShift,
-  const uint length)
-{
-  const uint localIndex = threadLocalIndex();
-  const uint maxBlocks = (uint)ceil((float)(length) / BlockSize);
-  const uint indexStride = BlockSize * threadGroupCount() * RadixBlockScale;
-
-  Shared RadixPrefixScanType localCount[RadixBlockScale * BlockSize];
-
-  RadixPrefixScanType localSums;
-  SortNode32 localSortNode;
-
-  for (uint index = threadIndex(); index < length; index += indexStride)
-  {
-    localSortNode = (index < length) ? array1D[index] : defaultSortNode();
-    const uint localKey = (localSortNode.key >> rightShift) & (SortBitValue - 1);
-
-    //for (uint j = 0; j < RadixPrefixScanTypeSize; j++)
-    //((Thread uint*)&localSums)[j] = -setLocalCount(localKey, PrefixPackingShifted * j);
-    localSums = -setLocalCount(localKey, 0);
-
-    localCount[localIndex] = -localSums;
-
-#if RadixBlockScale == 1
-    localSums += groupPrefixScanRadix(localCount, localIndex, BlockSize);
-#else
-    localSums += groupPrefixScanRadix(localCount + BlockSize * (localIndex / BlockSize), localIndex & (BlockSize - 1), BlockSize);
-#endif
-
-    if (index < length)
-    {
-      const uint localSum = localSumBuffer[(maxBlocks * localKey) + (index / BlockSize)];
-
-      uint count = ((Thread uint*)&localSums)[localKey >> PrefixPackingShift];
-      count >>= ((localKey & (PrefixPackingShifted - 1)) * PrefixPackingBits);
-      count &= ((1 << PrefixPackingBits) - 1);
-
-      //if ((rightShift == 0) || (index != (count + localSum)))
-      //{
-      destination[count + localSum] = localSortNode;
-      //}
-    }
-    localMemBarrier();
-  }
-}
 
 #endif
 
