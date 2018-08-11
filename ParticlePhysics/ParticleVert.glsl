@@ -6,6 +6,7 @@ uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 
 uniform sampler2D particlePos;
+uniform sampler2D particleCol;
 
 in int gl_InstanceID;
 out vec4 col;

@@ -1,6 +1,23 @@
 #ifndef COLLISION_SOLVER_SHADER
 #define COLLISION_SOLVER_SHADER
 
+Kernel void assignMortonCodeKernel(
+  Device BVHLeafInfo*           bvhLeafs,
+  const Device ParticleStruct*  particles,
+  const uint length)
+{
+  const uint index = threadIndex();
+
+  if (index < length)
+  {
+    BVHLeafInfo bvhLeaf;
+    bvhLeaf.mortonCode = get32BitMortonCode(particles + index);
+    bvhLeaf.index = index;
+
+    bvhLeafs[index] = bvhLeaf;
+  }
+}
+
 /*
 @kernel Apply boundary constrain.
 @param particles Initial particle position.
@@ -49,7 +66,8 @@ Kernel void boundaryCollisionKernel(
     if (invMass) // only if movable
     {
       float dely = 0.f;
-
+      //float rand;
+      //particlesPredicted[absoluteNodeIndex].position.z += .01f * modf(10000.f * modf(particlesPredicted[absoluteNodeIndex].position.x + particlesPredicted[absoluteNodeIndex].position.y, &dely), &dely);
       if (particlesPredicted[absoluteNodeIndex].position.y <= -2.f)
       {
         dely = -2.f - particlesPredicted[absoluteNodeIndex].position.y;
