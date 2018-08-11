@@ -42,6 +42,10 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   }
 
   collisionSolver = new CollisionSolver();// new LBVHSolver();
+#ifdef ENABLE_RENDERING
+  renderParticles = true;
+  renderSolids = false;
+#endif
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -301,6 +305,7 @@ void PhysicsSystem::render()
 
       solversUint[i]->particles.syncHost(0, elements);
 
+      if (renderParticles)
       {
         // display particles
         uint offset = solversUint[i]->particles.device()->getOffset() / sizeof(ParticleStruct);
@@ -334,7 +339,7 @@ void PhysicsSystem::render()
         glPopMatrix();
       }
 
-      if (false)
+      if (renderSolids)
       {
         // display solid
         for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
@@ -384,9 +389,16 @@ void PhysicsSystem::step(float timeStep)
     displayColorBuffer.init(width, height);
     displayColorBuffer.gen();
     //displayColorBuffer.copy(&tf[0], 0, 0, width, height);
-    createSphere(1.f);
 
-    displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
+    if (renderParticles)
+    {
+      createSphere(1.f);
+      displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
+    }
+    else if (renderSolids)
+    {
+      displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
+    }
 #endif
 
   }

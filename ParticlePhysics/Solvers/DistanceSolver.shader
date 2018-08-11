@@ -44,9 +44,6 @@ Kernel void distanceSolverSpring(
   const Device EntityLocation*      entityLocation,
   const uint                        nodeCount)
 {
-  Shared VariableType oldValues[COMPUTE_MAX_THREADS];
-  Shared VariableType sums[COMPUTE_MAX_THREADS];
-
   const uint index = threadIndex();
   const uint localIndex = threadLocalIndex();
 
@@ -63,7 +60,8 @@ Kernel void distanceSolverSpring(
     const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
     const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
 
-    oldValues[localIndex] = oldPositions[absoluteNodeIndex].position;
+    VariableType oldValue = oldPositions[absoluteNodeIndex].position;
+    VariableType sum = 0;
 
     const ConstrainStruct constrain = constrainNodes[commonNodeIndex];
     const uint commonConnectionIndex = localEntityLocation.connection.offset + constrainOffset(constrain);
@@ -71,22 +69,20 @@ Kernel void distanceSolverSpring(
 
     if (coefficients[commonConnectionIndex]) // if self movement allowed
     {
-      sums[localIndex] = 0;
-
       for (uint i = 1; i < count; i++)
       {
         const uint absoluteConnectionNodeIndex = absoluteNodeOffset + indexArray[commonConnectionIndex + i];
 
-        sums[localIndex] += getDelta(oldValues[localIndex],
+        sum += getDelta(oldValue,
           oldPositions[absoluteConnectionNodeIndex].position,
           coefficients[commonConnectionIndex + i]);
       }
-      oldValues[localIndex] += sums[localIndex] * (successiveOverRealaxation / count);
+      oldValue += sum * (successiveOverRealaxation / count);
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
-    newPositions[absoluteNodeIndex].position = oldValues[localIndex];
+    newPositions[absoluteNodeIndex].position = oldValue;
   }
 }
 
