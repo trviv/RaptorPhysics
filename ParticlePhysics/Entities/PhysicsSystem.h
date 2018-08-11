@@ -3,7 +3,7 @@
 
 #include "../Solvers/Solver.h"
 #include "PhysicsEntity.h"
-#include "../Solvers/CollisionSolver.h"
+#include "../Solvers/Collision/CollisionSolver.h"
 
 enum GlobalOffsetsEnum
 {
@@ -12,16 +12,20 @@ enum GlobalOffsetsEnum
   GLOBAL_SOLVER_OFFSET
 };
 
+
+/*
+@class Class representing a basic uint4.
+*/
 struct uint4
 {
   uint value[4];
 
-  uint& operator[](int index)
+  uint& operator[](const int index)
   {
     return value[index];
   }
 
-  const uint& operator[](int index)const
+  const uint& operator[](const int index)const
   {
     return value[index];
   }
@@ -48,7 +52,7 @@ class PhysicsSystem : protected ShaderEntity, public Window
   Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
 
   /*@member Collision solver for the system.*/
-  CollisionSolver                 collisionSolver;
+  CollisionSolver*                collisionSolver;
 
   /*@member Registered entities.*/
   vector<PhysicsEntity*>          entities[SOLVER_MAX];
@@ -97,6 +101,7 @@ public:
 #ifdef ENABLE_RENDERING
 
   Texture displayPositionBuffer;
+  Texture displayColorBuffer;
   Vertex  displayVertex;
   Shader  displayShader;
   Face    displayElements;

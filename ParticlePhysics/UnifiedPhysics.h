@@ -9,6 +9,9 @@
 #include "Solvers/RigidSolver.h"
 #include "Solvers/SharedAllocator.h"
 
+#include "Solvers/Collision/CollisionSolver.h"
+#include "Solvers/Collision/LBVHSolver.h"
+
 #include "Common/ConstrainStruct.h"
 #include "Common/ParticleStruct.h"
 

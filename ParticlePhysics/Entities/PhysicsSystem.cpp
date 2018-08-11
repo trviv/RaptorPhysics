@@ -4,6 +4,8 @@
 #include "../Solvers/DistanceSolver.h"
 #include "../Solvers/RigidSolver.h"
 
+#include "../Solvers/Collision/LBVHSolver.h"
+
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   : compute(compute)
 {
@@ -38,6 +40,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
       (*globalOffsets.host())[i][j] = 0;
     }
   }
+
+  collisionSolver = new CollisionSolver();// new LBVHSolver();
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -50,6 +54,8 @@ PhysicsSystem::~PhysicsSystem()
       entities[s][i] = NULL;
     }
   }
+
+  delete collisionSolver;
 }
 
 void* PhysicsSystem::getSolver(SolverType type)
@@ -96,7 +102,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
     allocator->particleAllocator.create(multiplier * 1024);
     allocator->constrainAllocator.create(multiplier * 1024, multiplier * 128);
     allocators.push_back(allocator);
-    collisionSolver.init(compute, allocator);
+    collisionSolver->init(compute, allocator);
   }
 
   Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(entity->solver);
@@ -313,6 +319,7 @@ void PhysicsSystem::render()
         displayShader.set("modelViewMatrix", model_mat);
         displayShader.set("projectionMatrix", proj_mat);
         displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
+        displayShader.activateTexture("particleCol", 1, displayColorBuffer);
 
         displayVertex.bind();
         GL_CHECK(glEnableVertexAttribArray(0));
@@ -374,6 +381,9 @@ void PhysicsSystem::step(float timeStep)
     displayElements.gen();
     displayPositionBuffer.init(width, height);
     displayPositionBuffer.gen();
+    displayColorBuffer.init(width, height);
+    displayColorBuffer.gen();
+    //displayColorBuffer.copy(&tf[0], 0, 0, width, height);
     createSphere(1.f);
 
     displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
@@ -406,6 +416,6 @@ void PhysicsSystem::step(float timeStep)
     kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
     compute->execute(kernels[0], workgroupSize, workgroupCount);
 
-    collisionSolver.solve(instanceNodeCount, globalOffsets.device());
+    collisionSolver->solve(instanceNodeCount, globalOffsets.device());
   }
 }
