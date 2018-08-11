@@ -105,6 +105,8 @@ public:
   Vertex  displayVertex;
   Shader  displayShader;
   Face    displayElements;
+  bool    renderParticles;
+  bool    renderSolids;
 
   void createSphere(float radius);
 

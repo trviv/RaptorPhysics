@@ -13,17 +13,19 @@
 */
 struct ConstrainStruct_t
 {
-  unsigned int value;
+  uint value;
 };
 
 typedef struct ConstrainStruct_t ConstrainStruct;
 
-static unsigned int constrainOffset(const ConstrainStruct ref)
+/*@function Extract constrain offset data.*/
+static uint constrainOffset(const ConstrainStruct ref)
 {
   return ref.value & CONSTRAIN_OFFSET_MASK;
 }
 
-static unsigned int constrainCount(const ConstrainStruct ref)
+/*@function Extract constrain count data.*/
+static uint constrainCount(const ConstrainStruct ref)
 {
   return ref.value >> CONSTRAIN_OFFSET_BITS;
 }
