@@ -499,7 +499,12 @@ void ComputeInterface::copyFromHost(ComputeMemory* destin, size_t destinOffset, 
 
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount)
 {
-  const uint maxThreads = maxThreadsPerGroup();
+  configureSize(workgroupSize, workgroupCount, threadCount, maxThreadsPerGroup());
+}
+
+void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount, const uint maxThreadsPerThreadgroup)
+{
+  const uint maxThreads = maxThreadsPerThreadgroup;
   const uint width = 32;
   const uint height = maxThreads / width;
 

@@ -4,6 +4,13 @@
 
 static ComputeInterface* compute;
 
+void printStats(float mean, uint elements, uint rwCount, uint sizeOfElements)
+{
+  printf("Average time    : %f ms\n", mean);
+  printf("Elts/sec        : %f M\n", elements * 1000.f / (mean * 1000 * 1000));
+  printf("Bandwidth util  : %f GB/s\n", (rwCount * sizeOfElements * elements) * (1000.f / mean) / float(1024 * 1024 * 1024));
+}
+
 /*void testEquation(ComputeInterface* compute)
 {
 SharedAllocator allocator(compute);
@@ -54,13 +61,45 @@ cons.commit(entityLocation);
 cons.solve();
 }*/
 
-void test1DMean(ComputeInterface* compute)
+void testBandwidthRW(ComputeInterface* compute)
+{
+  printf("\nRead/Write bandwidth test:\n");
+
+  DeviceArray<float> data(compute, NULL, false);
+  const int elements = 1024 * 1024 * 32;
+
+  data.resize(elements, false);
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+  uint iterations = 10;
+
+  ProfileManager::Reset();
+  {
+    ProfileBlock("R/W Bandwidth");
+    for (uint i = 0; i < iterations; i++)
+    {
+      compute->copyBuffer(data.device(), data.device(), 0, 0, elements * sizeof(uint));
+    }
+  }
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  printStats(mean, elements, 2, sizeof(uint));
+}
+
+template<class DataType> void test1DMean(ComputeInterface* compute)
 {
   printf("\nTesting 1D mean:\n");
 
-  DeviceArray<float> data(compute, NULL, true);
-  const int elements = 1234567;
-  float sum = 0;
+  DeviceArray<DataType> data(compute, NULL, true);
+  DeviceArray<DataType> backupData(compute, NULL, false);
+
+  const int elements = 1024 * 1024 * 16;
+  DataType sum = 0;
+  uint iterations = 20;
 
   data.host()->reserve(elements);
   for (int i = 0; i < elements; i++)
@@ -70,19 +109,37 @@ void test1DMean(ComputeInterface* compute)
   }
   sum /= elements;
 
+  backupData.resize(elements, false);
   data.syncDevice();
+  compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
   map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilBatchSize] = "1";
   utilSetting[ComputeUtilStructType] = "float";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements);
+
+  compute->sync();
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Reduce scan");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, true);
+    }
+  };
+
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  printStats(mean, elements, 1, sizeof(DataType));
 
   ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, true);
-
   data.syncHost(0, 1);
   compute->sync();
 
   std::cout << sum << " " << data.host()->at(0) << "\n";
-  assert(abs(sum - data.host()->at(0)) <= .00001f);
+  assert(abs(sum - data.host()->at(0)) <= .001f);
 
   printf("1D array mean test passed!\n");
 }
@@ -135,6 +192,7 @@ void testRegular2DMean(ComputeInterface* compute)
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
+  utilSetting[ComputeUtilStructMemberType] = "float3";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
@@ -220,9 +278,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
-
-  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
+  utilSetting[ComputeUtilStructMemberType] = "float3";
   utilSetting[ComputeUtilIdentityFunction] = "getInstanceId";
+  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
@@ -334,40 +392,53 @@ assert(offsetOutput[i] == offsets.host()->at(i));
 printf("Section offset test passed!\n");
 }*/
 
-void test1DPrefixScan(ComputeInterface* compute)
+template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 {
   printf("\nTesting 1D prefix scan:\n");
 
-  DeviceArray<uint> data(compute, NULL, true);
-  vector<uint> prefixSum;
-  const int elements = 1024 * 1024;
-  uint sum = 0;
+  DeviceArray<DataType> data(compute, NULL, true);
+  DeviceArray<DataType> backupData(compute, NULL, false);
+  vector<DataType> prefixSum;
+
+  const int elements = 1024 * 1024 * 16;
+  DataType sum = 0;
+  const uint iterations = 20;
 
   data.host()->reserve(elements);
-  for (int i = 0; i < elements; i++)
+  for (uint i = 0; i < elements; i++)
   {
     data.host()->push_back(rand());
     prefixSum.push_back(sum);
     sum += data.host()->at(i);
   }
 
+  backupData.resize(elements, false);
   data.syncDevice();
+  compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
   map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilBatchSize] = "4";
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), elements);
 
   compute->sync();
   ProfileManager::Reset();
   {
     ProfileBlock("Prefix scan");
-    ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
-    compute->sync();
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), elements);
+    }
   }
-  ProfileManager::dumpAll(stdout);
-  ProfileManager::Increment_Frame_Counter();
+  compute->sync();
 
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  printStats(mean, elements, 2, sizeof(uint));
+
+  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
   data.syncHost();
   compute->sync();
 
@@ -506,11 +577,13 @@ int main(int argc, char** argv)
   compute = new ComputeInterface();
   compute->create(1);
 
+  testBandwidthRW(compute);
   //testSectionOffsets(compute);
-  test1DMean(compute);
+  //testBandwidthRead(compute);
+  test1DMean<float>(compute);
   testRegular2DMean(compute);
   testIrregular2DMean(compute);
-  test1DPrefixScan(compute);
+  test1DPrefixScan<uint>(compute);
   //test1DBitonicSort32Bit(compute);
   test1DRadixSort32Bit(compute);
   //testEquation(compute);

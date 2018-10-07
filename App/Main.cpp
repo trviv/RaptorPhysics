@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 
     cloth->initXY(dim, subdivision1, 1);
 
-    int clothInstances = 2;
+    int clothInstances = 10;
     for (int i = 0; i < clothInstances; i++)
     {
       Matrix4 matrix;
@@ -56,14 +56,19 @@ int main(int argc, char** argv)
 
     matrixTransforms.clear();
 
-    rigidBody->initCube(dim, .25, 1);
-    int rbInstances = 1;
+    rigidBody->initCube(dim, .05, 1);
+    int rbInstances = 10;
     for (int i = 0; i < rbInstances; i++)
     {
       Matrix4 matrix;
-      float randx = 1 * i;// (2 * float(rand()) / RAND_MAX) - 1;
-      float randy = 0;// float(rand()) / RAND_MAX;
-      float randz = 0;// (2 * float(rand()) / RAND_MAX) - 1;
+      //float randx = 1 * i;// (2 * float(rand()) / RAND_MAX) - 1;
+      //float randy = 0;// float(rand()) / RAND_MAX;
+      //float randz = 0;// (2 * float(rand()) / RAND_MAX) - 1;
+
+      float randx = (2 * float(rand()) / RAND_MAX) - 1;
+      float randy = float(rand()) / RAND_MAX;
+      float randz = (2 * float(rand()) / RAND_MAX) - 1;
+
       matrix.set(Matrix3::getIdentity(), Real3(randx * simSize, randy * simSize, randz * simSize));
       matrixTransforms.push_back(matrix);
     }

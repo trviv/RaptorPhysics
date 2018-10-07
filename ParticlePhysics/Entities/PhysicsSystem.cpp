@@ -41,7 +41,9 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
     }
   }
 
-  collisionSolver = new CollisionSolver();// new LBVHSolver();
+  //collisionSolver = new LBVHSolver();
+  collisionSolver = new CollisionSolver();
+
 #ifdef ENABLE_RENDERING
   renderParticles = true;
   renderSolids = false;

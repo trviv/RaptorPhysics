@@ -9,6 +9,7 @@ enum ComputeUtilKey
 {
   ComputeUtilStructType,
   ComputeUtilStructMember,
+  ComputeUtilStructMemberType,
   ComputeUtilStructTypeIntegral,
 
   ComputeUtilIdentityStructType,
@@ -18,6 +19,9 @@ enum ComputeUtilKey
   ComputeUtilCustomAddFunction,
   ComputeUtilCustomCopyFunction,
   ComputeUtilCustomDivFunction,
+
+  ComputeUtilBatchSize,
+  ComputeUtilSkipParallelPrimitives,
 
   ComputeUtilMaxKey
 };
@@ -29,6 +33,7 @@ class ComputeUtil : protected ShaderEntity
 {
   uint kernelIndices[13];
   vector<void*> localArrays;
+  uint batchSize;
 
 public:
 

@@ -1,4 +1,5 @@
 #include "ComputeUtils.h"
+#include "ComputeUtilsShared.h"
 
 vector<ComputeUtil> computeUtils;
 vector<string>      computeConfig;
@@ -9,17 +10,21 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_SHOW_MATRIX_KERNEL               3
 #define COMPUTE_UTIL_SECTION_OFFSET                   4
 #define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS      5
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1   6
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2   7
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3   8
-#define COMPUTE_UTIL_RADIX_SORT1                      9
-#define COMPUTE_UTIL_RADIX_SORT2                      10
-#define COMPUTE_UTIL_BITONIC_SORT                     11
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL    6
+#define COMPUTE_UTIL_RADIX_SORT1                      7
+#define COMPUTE_UTIL_RADIX_SORT2                      8
+#define COMPUTE_UTIL_BITONIC_SORT                     9
 
-
-#define PREFIX_TEMP_GROUP_SUM   0
-#define RADIX_TEMP_GROUP_SUM    1
-#define RADIX_TEMP_PREFIX_SUM   2
+enum UtilTemporaryBuffer
+{
+  UtilTempPrefixGroupSum,
+  UtilTempPrefixGroupStatus,
+  UtilTempRadixGroupSum,
+  UtilTempRadixPrefixGroupSum,
+  UtilTempReduceSum,
+  UtilTempReduceStatus,
+  UtilTempBufferMax
+};
 
 #define RADIX_SORT_BIT_COUNT          4
 #define RADIX_BLOCK_EXP               5
@@ -33,6 +38,8 @@ string getKeyName(ComputeUtilKey key)
   {
   case ComputeUtilStructType:
     return "StructType";
+  case ComputeUtilStructMemberType:
+    return "MemberStructType";
   case ComputeUtilStructMember:
     return "StructMember";
   case ComputeUtilStructTypeIntegral:
@@ -51,6 +58,15 @@ string getKeyName(ComputeUtilKey key)
     return "CopyFunction";
   case ComputeUtilCustomDivFunction:
     return "DivFunction";
+
+  case ComputeUtilBatchSize:
+    return "BatchSize";
+
+  case ComputeUtilSkipParallelPrimitives:
+    return "SkipParallelPrimitives";
+
+  default:
+    assert("Enumeration not defined!" && 0);
   }
   return "";
 }
@@ -62,7 +78,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   vector<string> newType;
   vector<string> kernelNames;
 
-  util.includeFiles.insert(util.includeFiles.begin(), "ComputeHeader.shader");
+  util.includeFiles.push_back("ComputeHeader.shader");
+  util.includeFiles.push_back("ComputeShared.h");
+
   if (includeFiles)
   {
     for (auto i : *includeFiles)
@@ -70,6 +88,12 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       util.includeFiles.push_back(i);
     }
   }
+
+  util.includeFiles.push_back("ComputeUtilsShared.h");
+  util.includeFiles.push_back("PrefixScan.shader");
+  util.includeFiles.push_back("Reduce.shader");
+  util.includeFiles.push_back("ComplexReduce.shader");
+  util.includeFiles.push_back("RadixSort.shader");
 
   string key;
 
@@ -83,7 +107,6 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     }
   }
 
-  util.includeFiles.insert(util.includeFiles.begin() + 1, "ComputeShared.h");
   for (const string& include : util.includeFiles)
   {
     key += ":" + include;
@@ -101,58 +124,76 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
   kernelNames.push_back("showMatrix");
 
+  // if parallel primitives enabled, use size tuned for best performance
+  if (dataMap.find(ComputeUtilSkipParallelPrimitives) != dataMap.end())
+  {
+    util.batchSize = 4;
+  }
+  else
+  {
+    util.batchSize = 1;
+  }
+
+  // override if specified
+  if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())
+  {
+    util.batchSize = atoi(dataMap[ComputeUtilBatchSize].c_str());
+  }
+
+  oldType.push_back(getKeyName(ComputeUtilBatchSize));
+  newType.push_back(to_string(util.batchSize));
+
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
   {
-    util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
-    kernelNames.push_back("sum1DKernel");
-
-    util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
-    kernelNames.push_back("sumRegular2DKernel");
-
-    if (dataMap.find(ComputeUtilStructTypeIntegral) != dataMap.end())
+    if (dataMap.find(ComputeUtilSkipParallelPrimitives) == dataMap.end())
     {
-      util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1] = kernelNames.size();
-      kernelNames.push_back("prefixGroupScanKernel");
+      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("reduce");
 
-      util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2] = kernelNames.size();
-      kernelNames.push_back("prefixTopScanKernel");
+      util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("reduce2DKernel");
 
-      util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3] = kernelNames.size();
-      kernelNames.push_back("prefixAddOffsetKernel");
+      if (dataMap.find(ComputeUtilStructTypeIntegral) != dataMap.end())
+      {
+        util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
+        kernelNames.push_back("prefixGroupScanKernel");
 
-      util.kernelIndices[COMPUTE_UTIL_BITONIC_SORT] = kernelNames.size();
-      kernelNames.push_back("bitonicSort32BitKernel");
+        util.kernelIndices[COMPUTE_UTIL_BITONIC_SORT] = kernelNames.size();
+        kernelNames.push_back("bitonicSort32BitKernel");
 
-      util.kernelIndices[COMPUTE_UTIL_RADIX_SORT1] = kernelNames.size();
-      kernelNames.push_back("radixSort32BitReduceKernel");
+        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT1] = kernelNames.size();
+        kernelNames.push_back("radixSort32BitReduceKernel");
 
-      util.kernelIndices[COMPUTE_UTIL_RADIX_SORT2] = kernelNames.size();
-      kernelNames.push_back("radixSort32BitSortKernel");
+        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT2] = kernelNames.size();
+        kernelNames.push_back("radixSort32BitSortKernel");
 
-      oldType.push_back("SortBits");
-      newType.push_back(to_string(RADIX_SORT_BIT_COUNT));
+        oldType.push_back("SortBits");
+        newType.push_back(to_string(RADIX_SORT_BIT_COUNT));
 
-      oldType.push_back("LaneWidthExp");
-      newType.push_back(to_string(RADIX_BLOCK_EXP));
+        oldType.push_back("LaneWidthExp");
+        newType.push_back(to_string(RADIX_BLOCK_EXP));
 
-      oldType.push_back("RadixBlockInstances");
-      newType.push_back(to_string(RADIX_BLOCK_INST));
+        oldType.push_back("RadixBlockInstances");
+        newType.push_back(to_string(RADIX_BLOCK_INST));
 
-      oldType.push_back("RadixReductionPackingExp");
-      newType.push_back(to_string(RADIX_REDUCTION_PACKING_EXP));
+        oldType.push_back("RadixReductionPackingExp");
+        newType.push_back(to_string(RADIX_REDUCTION_PACKING_EXP));
 
-      oldType.push_back("RadixPrefixScanPackingExp");
-      newType.push_back(to_string(RADIX_PREFIX_SCAN_PACKING_EXP));
+        oldType.push_back("RadixPrefixScanPackingExp");
+        newType.push_back(to_string(RADIX_PREFIX_SCAN_PACKING_EXP));
 
-      oldType.push_back("BankConflictShift");
-      newType.push_back(to_string(2));
+        oldType.push_back("BankConflictShift");
+        newType.push_back(to_string(2));
+      }
     }
 
     util.localArrays.clear();
-    util.localArrays.reserve(3);
-    util.localArrays.push_back(NULL);
-    util.localArrays.push_back(NULL);
-    util.localArrays.push_back(NULL);
+    util.localArrays.reserve(UtilTempBufferMax);
+
+    for (uint i = 0; i < UtilTempBufferMax; i++)
+    {
+      util.localArrays.push_back(NULL);
+    }
 
     util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = kernelNames.size();
     kernelNames.push_back("consolidateFromPartitionsKernel");
@@ -164,10 +205,10 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     }
   }
 
+  util.programs.push_back(compute->createTemplateProgram("ComputeUtils.shader", &oldType, &newType, &util.includeFiles));
   for (const string& kernelName : kernelNames)
   {
     logComputeMessage(kernelName.c_str());
-    util.programs.push_back(compute->createTemplateProgram("ComputeUtils.shader", &oldType, &newType, &util.includeFiles));
     util.kernels.push_back(util.programs[0].createKernel(kernelName.c_str()));
   }
 
@@ -186,42 +227,47 @@ ComputeUtil* ComputeUtil::get(uint templateId)
 
 void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint length, bool doMean)
 {
-  const uint iterations = mCeilExpOf2(length);
-  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
+  if (!localArrays[UtilTempReduceSum])
+  {
+    localArrays[UtilTempReduceSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL, true);
 
-  uint divideFlag = 0;
-  uint maxLocalIterations = 1;
+    localArrays[UtilTempReduceStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL, true);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempReduceStatus];
+
+  uint groupCount = (length + REDUCE_COMPUTE_THREADS - 1) / REDUCE_COMPUTE_THREADS;
+
+  groupSum->resize(groupCount * 2, false);
+  groupStatus->resize(groupCount, false);
+
+  uint zero = 0;
+  uint mean = doMean ? 1 : 0;
+  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+
+  ComputeMemory* buffers[] = { array1D, groupSum->device(), groupStatus->device() };
+
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
 
-  kernels[kernelIndex].setArg(array1D, 0);
-  kernels[kernelIndex].setArg<uint>(&length, 1);
-  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
-  kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&mean, 1 + sizeof(buffers) / sizeof(ComputeMemory*));
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, length, REDUCE_COMPUTE_THREADS);
+  workgroupSize[0] = REDUCE_COMPUTE_THREADS;
 
-  for (uint i = 0; i < iterations; i++)
-  {
-    maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
-    kernels[kernelIndex].setArg<uint>(&i, 2);
-    if (maxLocalIterations != 1)
-    {
-      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 3);
-    }
+#ifdef DEBUG_REDUCE
+  groupSum->syncHost();
+  compute->sync();
+#endif
 
-    divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
-    if (divideFlag && doMean) // set only if needed
-    {
-      kernels[kernelIndex].setArg<uint>(&divideFlag, 4);
-    }
-
-    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i) * 2)));
-    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-
-    if (iterations - i <= maxThreadsPerGroupExponent) break;
-  }
 }
 
 void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D, uint length, uint subArrayElements, bool doMean)
@@ -343,75 +389,45 @@ void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMe
 
 void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length)
 {
-  if (!localArrays[PREFIX_TEMP_GROUP_SUM])
+  if (!localArrays[UtilTempPrefixGroupSum])
   {
-    localArrays[PREFIX_TEMP_GROUP_SUM] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[PREFIX_TEMP_GROUP_SUM])->create(compute, NULL, true);
+    localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL, true);
+
+    localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL, false);
   }
 
-  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[PREFIX_TEMP_GROUP_SUM];
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = (length + compute->maxThreadsPerGroup() - 1) / compute->maxThreadsPerGroup();
-  uint maxGroupCount = 1 << mCeilExpOf2(groupCount);
+  uint groupCount = (length + PREFIX_SCAN_COMPUTE_THREADS*batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
 
-  groupSum->resize(maxGroupCount, false);
+  groupSum->resize(groupCount * 2, false);
+  groupStatus->resize(groupCount, false);
 
-  {
-    size_t workgroupSize[3];
-    size_t workgroupCount[3];
+  uint zero = 0;
+  compute->setBuffer(groupStatus->device(), PREFIX_SCAN_STATUS_INVALID, groupCount * sizeof(uint), &zero, sizeof(uint));
 
-    compute->configureSize(workgroupSize, workgroupCount, length);
+  ComputeMemory* buffers[] = { array1D, groupSum->device(), groupStatus->device() };
 
-    ComputeMemory* buffers[] = { groupSum->device(), array1D };
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL];
 
-    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL1];
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
 
-    kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
-    kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
+  size_t workgroupSize[3] = { 1, 1, 1 };
+  size_t workgroupCount[3] = { 1, 1, 1 };
+  workgroupSize[0] = PREFIX_SCAN_COMPUTE_THREADS;
+  workgroupCount[0] = groupCount;
 
-    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
 #ifdef DEBUG_PREFIX_SCAN
-    groupSum->syncHost();
-    compute->sync();
+  groupSum->syncHost();
+  compute->sync();
 #endif
 
-  }
-
-  {
-    size_t workgroupSize[3];
-    size_t workgroupCount[3];
-
-    compute->configureSize(workgroupSize, workgroupCount, compute->maxThreadsPerGroup());
-
-    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL2];
-    //uint topIterations = ceil(float(length) / (compute->maxThreadsPerGroup() * 2048));
-    kernels[kernelIndex].setArg(groupSum->device(), 0);
-    kernels[kernelIndex].setArg<uint>(&groupCount, 1);
-    kernels[kernelIndex].setArg<uint>(&maxGroupCount, 2);
-    //kernels[kernelIndex].setArg<uint>(&topIterations, 3);
-    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-
-#ifdef DEBUG_PREFIX_SCAN
-    groupSum->syncHost();
-    compute->sync();
-#endif
-
-  }
-
-  {
-    size_t workgroupSize[3];
-    size_t workgroupCount[3];
-
-    compute->configureSize(workgroupSize, workgroupCount, length);
-
-    const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL3];
-
-    kernels[kernelIndex].setArg(array1D, 0);
-    kernels[kernelIndex].setArg(groupSum->device(), 1);
-    kernels[kernelIndex].setArg<uint>(&length, 2);
-    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-  }
 }
 
 void ComputeUtil::bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length)
@@ -431,20 +447,20 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   const uint localSortThreads = (1 << RADIX_BLOCK_EXP);
 
-  if (!localArrays[RADIX_TEMP_GROUP_SUM])
+  if (!localArrays[UtilTempRadixGroupSum])
   {
 
 #ifdef DEBUG_RADIX_SORT
     localArrays[RADIX_TEMP_GROUP_SUM] = new DeviceArray<uint>();
     ((DeviceArray<uint>*)localArrays[RADIX_TEMP_GROUP_SUM])->create(compute, NULL, true);
 #else
-    localArrays[RADIX_TEMP_GROUP_SUM] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[RADIX_TEMP_GROUP_SUM])->create(compute, NULL, false);
+    localArrays[UtilTempRadixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL, false);
 #endif
 
-  }
+}
 
-  DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[RADIX_TEMP_GROUP_SUM];
+  DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
   uint zero = 0;
   localSumBuffer->resize(compute->maxCores() * 4 * RADIX_BLOCK_INST * (1 << RADIX_SORT_BIT_COUNT), false);

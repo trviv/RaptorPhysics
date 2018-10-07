@@ -38,16 +38,18 @@ void RigidSolver::create(ComputeInterface* compute)
     map<ComputeUtilKey, string> positionSetting;
     positionSetting[ComputeUtilStructType] = "ParticleStruct";
     positionSetting[ComputeUtilStructMember] = "position";
-    positionSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
+    positionSetting[ComputeUtilStructMemberType] = "float3";
     positionSetting[ComputeUtilIdentityFunction] = "getInstanceId";
+    positionSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
 
     map<ComputeUtilKey, string> matrix3x3Setting;
     matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
-    matrix3x3Setting[ComputeUtilIdentityStructType] = "IdentityInfo";
     matrix3x3Setting[ComputeUtilIdentityFunction] = "getInstanceId";
     matrix3x3Setting[ComputeUtilCustomAddFunction] = "addMatrix3x3";
-    matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
+    matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
+    matrix3x3Setting[ComputeUtilIdentityStructType] = "IdentityInfo";
+    matrix3x3Setting[ComputeUtilSkipParallelPrimitives] = "SkipParallelPrimitives";
 
     positionUtilId = ComputeUtil::create(compute, positionSetting, &include);
     matrix3x3UtilId = ComputeUtil::create(compute, matrix3x3Setting, &include);
