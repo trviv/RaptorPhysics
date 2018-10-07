@@ -196,6 +196,8 @@ public:
 
   void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount);
 
+  void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount, const uint maxThreadsPerThreadgroup);
+
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
   void sync();
