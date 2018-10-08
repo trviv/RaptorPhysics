@@ -56,16 +56,13 @@ add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} 
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeUtilsShared.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ConstrainStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Common/ParticleStruct.h"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Entities/PhysicsSystem.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/LinearSolver.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/DistanceSolver.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/RigidSolver.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeHeader.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComputeUtils.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/PrefixScan.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/Reduce.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/ComplexReduce.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Header/RadixSort.shader"
+  #"${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Entities/PhysicsSystem.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeHeader.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeUtils.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/PrefixScan.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/Reduce.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComplexReduce.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/RadixSort.shader"
   $<TARGET_FILE_DIR:${PROJECT_STRING}>)
 
 target_link_libraries(${PROJECT_STRING} ${ADDITIONAL_LIBRARY} ${OpenCL_LIBRARY})
