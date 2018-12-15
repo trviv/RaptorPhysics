@@ -6,6 +6,7 @@ set(CURRENT_DIRECTORY "${CURRENT_DIRECTORY}/${PROJECT_STRING}")
 
 #get subdirectories
 subdirlist(SUBDIRS ${CURRENT_DIRECTORY})
+groupfiles(${CURRENT_DIRECTORY})
 
 #if some directory is to be included
 if(ADDITIONAL_INCLUDE_DIR)
@@ -30,12 +31,6 @@ if(ADDITIONAL_INCLUDE_DIR)
 endif(ADDITIONAL_INCLUDE_DIR)
 
 message("List of subdirectories: ${SUBDIRS}")
-
-#code to include subdirectories to the project
-foreach(SUBDIR ${SUBDIRS})
-  file(GLOB_RECURSE dir_files ${SUBDIR}/*.h ${SUBDIR}/*.cu ${SUBDIR}/*.cpp)
-  source_group(${SUBDIR} FILES ${dir_files})
-endforeach(SUBDIR ${SUBDIRS})
 
 if(CUSTOM_DEFINITIONS)
   add_definitions(${CUSTOM_DEFINITIONS})
