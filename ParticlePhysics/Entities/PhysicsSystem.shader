@@ -16,9 +16,8 @@ Kernel void integrate(
   const uint                        nodeCount)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
-  Shared float3 velocity[COMPUTE_MAX_THREADS];
-  Shared float3 position[COMPUTE_MAX_THREADS];
+
+  float3 velocity, position;
 
   if (index < nodeCount)
   {
@@ -40,14 +39,14 @@ Kernel void integrate(
 
     if (invMass) // only if movable
     {
-      position[localIndex] = particlesPredicted[nodeLocator.absoluteNodeIndex].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
+      position = particlesPredicted[nodeLocator.absoluteNodeIndex].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
 
-      velocity[localIndex] = (position[localIndex] - particles[nodeLocator.absoluteNodeIndex].position) / timeStep;
-      velocity[localIndex] += constructFloat3(0.f, 6 * -0.98f, 0.f) * timeStep;
-      velocity[localIndex] *= sharedData.velocityDamping;
+      velocity = (position - particles[nodeLocator.absoluteNodeIndex].position) / timeStep;
+      velocity += constructFloat3(0.f, 6 * -0.98f, 0.f) * timeStep;
+      velocity *= sharedData.velocityDamping;
 
-      particles[nodeLocator.absoluteNodeIndex].position = position[localIndex];
-      particlesPredicted[nodeLocator.absoluteNodeIndex].position = position[localIndex] + velocity[localIndex] * timeStep;
+      particles[nodeLocator.absoluteNodeIndex].position = position;
+      particlesPredicted[nodeLocator.absoluteNodeIndex].position = position + velocity * timeStep;
     }
   }
 }
