@@ -172,9 +172,9 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     {
       ParticleStruct particle;
       instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
+      particle.radius = solver->particleAuxData.host()->at(i).radius;
       solver->particles.host()->push_back(particle);
       solver->particleIdentities.host()->push_back(entityInstanceId);
-      particle.radius = solver->particleAuxData.host()->at(i).radius;
     }
 
     PartitionInfo partition;
@@ -312,7 +312,7 @@ void PhysicsSystem::render()
         // display particles
         uint offset = solversUint[i]->particles.device()->getOffset() / sizeof(ParticleStruct);
         ParticleStruct* particles = &((*solversUint[i]->particles.host())[0]);
-        displayPositionBuffer.copy((float*)particles, 0, 0, 16, ceil(float(elements) / 16));
+        displayPositionBuffer.copy((float*)particles, 0, 0, 16, ((elements + 15) / 16));
 
         GLfloat model_mat[16], proj_mat[16];
         glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
@@ -383,7 +383,7 @@ void PhysicsSystem::step(float timeStep)
 
 #ifdef ENABLE_RENDERING
     uint width = 16;
-    uint height = (uint)ceil(float(instanceNodeCount) / 16);
+    uint height = (instanceNodeCount + 15) / 16;
     displayVertex.gen();
     displayElements.gen();
     displayPositionBuffer.init(width, height);
