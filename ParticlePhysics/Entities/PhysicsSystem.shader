@@ -29,27 +29,25 @@ Kernel void integrate(
     const uint globalSolverOffset = globalOffsets[solverType].z;
     const uint globalInstanceOffset = globalOffsets[solverType].y;
 
-    const uint entityId = globalSolverOffset + getEntityId(identity);
-    const uint instanceId = globalInstanceOffset + getInstanceId(identity);
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    nodeIdentity.entityId += globalSolverOffset;
+    nodeIdentity.instanceId += globalInstanceOffset;
 
-    const ParticleSharedData sharedData = particleSharedData[entityId];
+    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const uint absoluteNodeOffset = globalNodeOffset + partitions[instanceId].offset;
-    const uint relativeNodeIndex = index % entityLocation[entityId].node.count;
-    const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-
-    const float invMass = getInvMass(&sharedData, particleAuxData, entityLocation[entityId].node.offset + relativeNodeIndex);
+    const float invMass = getInvMass(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 
     if (invMass) // only if movable
     {
-      position[localIndex] = particlesPredicted[absoluteNodeIndex].position + particleDeltas[absoluteNodeIndex].position;
+      position[localIndex] = particlesPredicted[nodeLocator.absoluteNodeIndex].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
 
-      velocity[localIndex] = (position[localIndex] - particles[absoluteNodeIndex].position) / timeStep;
+      velocity[localIndex] = (position[localIndex] - particles[nodeLocator.absoluteNodeIndex].position) / timeStep;
       velocity[localIndex] += constructFloat3(0.f, 6 * -0.98f, 0.f) * timeStep;
       velocity[localIndex] *= sharedData.velocityDamping;
 
-      particles[absoluteNodeIndex].position = position[localIndex];
-      particlesPredicted[absoluteNodeIndex].position = position[localIndex] + velocity[localIndex] * timeStep;
+      particles[nodeLocator.absoluteNodeIndex].position = position[localIndex];
+      particlesPredicted[nodeLocator.absoluteNodeIndex].position = position[localIndex] + velocity[localIndex] * timeStep;
     }
   }
 }

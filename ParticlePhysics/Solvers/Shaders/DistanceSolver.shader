@@ -27,6 +27,7 @@ VariableType getDelta(
 @kernel Solve distance constrain using spring equation.
 @param newPositions Position output buffer for this iteration.
 @param oldPositions Position input buffer for this iteration.
+@param particleIdentities Particle identifiers.
 @param constrainNodes Buffer containing constrain header data.
 @param indexArray Buffer containing constrain index data.
 @param coefficients Buffer containing constrain magnitude data.
@@ -49,21 +50,14 @@ Kernel void distanceSolverSpring(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    const uint entityId = getEntityId(identity);
-    const uint instanceId = getInstanceId(identity);
+    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particleIdentities[index]);
+    const EntityLocation localEntityLocation = entityLocation[nodeIdentity.entityId];
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, localEntityLocation.node);
 
-    const EntityLocation localEntityLocation = entityLocation[entityId];
-
-    const uint absoluteNodeOffset = partitions[instanceId].offset;
-    const uint relativeNodeIndex = index % localEntityLocation.node.count;
-    const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-    const uint commonNodeIndex = localEntityLocation.node.offset + relativeNodeIndex;
-
-    VariableType oldValue = oldPositions[absoluteNodeIndex].position;
+    VariableType oldValue = oldPositions[nodeLocator.absoluteNodeIndex].position;
     VariableType sum = 0;
 
-    const ConstrainStruct constrain = constrainNodes[commonNodeIndex];
+    const ConstrainStruct constrain = constrainNodes[nodeLocator.commonNodeIndex];
     const uint commonConnectionIndex = localEntityLocation.connection.offset + constrainOffset(constrain);
     const uint count = constrainCount(constrain);
 
@@ -71,7 +65,7 @@ Kernel void distanceSolverSpring(
     {
       for (uint i = 1; i < count; i++)
       {
-        const uint absoluteConnectionNodeIndex = absoluteNodeOffset + indexArray[commonConnectionIndex + i];
+        const uint absoluteConnectionNodeIndex = nodeLocator.absoluteNodeOffset + indexArray[commonConnectionIndex + i];
 
         sum += getDelta(oldValue,
           oldPositions[absoluteConnectionNodeIndex].position,
@@ -82,7 +76,7 @@ Kernel void distanceSolverSpring(
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
-    newPositions[absoluteNodeIndex].position = oldValue;
+    newPositions[nodeLocator.absoluteNodeIndex].position = oldValue;
   }
 }
 

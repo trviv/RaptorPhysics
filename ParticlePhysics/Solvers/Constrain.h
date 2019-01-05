@@ -24,17 +24,17 @@ public:
 
   uint offset()
   {
-    return value&CONSTRAIN_OFFSET_MASK;
+    return value & CONSTRAIN_OFFSET_MASK;
   }
 
   void setOffset(const uint offset)
   {
-    value = ((value&(-1 ^ CONSTRAIN_OFFSET_MASK)) | (offset&CONSTRAIN_OFFSET_MASK));
+    value = ((value & (-1 ^ CONSTRAIN_OFFSET_MASK)) | (offset & CONSTRAIN_OFFSET_MASK));
   }
 
   void setCount(const uint count)
   {
-    value = ((value&CONSTRAIN_OFFSET_MASK) | (count << CONSTRAIN_OFFSET_BITS));
+    value = ((value & CONSTRAIN_OFFSET_MASK) | (count << CONSTRAIN_OFFSET_BITS));
   }
 };
 
