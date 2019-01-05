@@ -25,25 +25,23 @@ Kernel void covarianceMatrix(
   const uint length)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
 
-  Shared float3 currentComOffset[COMPUTE_MAX_THREADS];
-  Shared float3 initialComOffset[COMPUTE_MAX_THREADS];
+  float3 currentComOffset, initialComOffset;
 
   if (index < length)
   {
     const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particleIdentities[index]);
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    currentComOffset[localIndex] = particlesPredicted[nodeLocator.absoluteNodeIndex].position - particlesTemp[nodeIdentity.instanceId].position;
-    initialComOffset[localIndex] = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
+    currentComOffset = particlesPredicted[nodeLocator.absoluteNodeIndex].position - particlesTemp[nodeIdentity.instanceId].position;
+    initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
     // set delta now because com is available, and will be overwritten later
     // refer unified particle physics
-    particleDeltas[nodeLocator.absoluteNodeIndex].position = -currentComOffset[localIndex];
+    particleDeltas[nodeLocator.absoluteNodeIndex].position = -currentComOffset;
 
-    const Shared float* currentComOffsetPtr = (Shared float*)(currentComOffset + localIndex);
-    const Shared float* initialComOffsetPtr = (Shared float*)(initialComOffset + localIndex);
+    const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
+    const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
     Device float* matrixRow = (matrixData + 9 * nodeLocator.absoluteNodeIndex);
 
     uint offset = 0;
@@ -60,7 +58,7 @@ Kernel void covarianceMatrix(
 
 void setAdjugateMatrix(
   Thread float* matrix2,
-  const Shared float* matrixData)
+  const Thread float* matrixData)
 {
   const char mod3[5] = { 0, 1, 2, 0, 1 };
   uint offset = 0;
@@ -84,7 +82,7 @@ void setAdjugateMatrix(
   }
 }
 
-float getGamma(const Thread float* matrix2, const Shared float* matrixPtr, const float determinant)
+float getGamma(const Thread float* matrix2, const Thread float* matrixPtr, const float determinant)
 {
   float mat_inf = 0,
     mat_one = 0,
@@ -131,40 +129,36 @@ Kernel void rigidSolver(
   const uint length)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
 
-  Shared float localMatrix[COMPUTE_MAX_THREADS * 9];
-  Shared float* matrixPtr = (localMatrix + localIndex * 9);
-
-  float matrix2[9];
+  float localMatrix[9], matrix2[9];
 
   if (index < length)
   {
     const uint indexOffset = index * 9;
     for (uint i = 0; i < 9; i++)
     {
-      matrixPtr[i] = matrixData[indexOffset + i];
+      localMatrix[i] = matrixData[indexOffset + i];
     }
 
     for (uint it = 0; it < iterations; it++)
     {
-      setAdjugateMatrix(matrix2, matrixPtr);
+      setAdjugateMatrix(matrix2, localMatrix);
 
-      const float determinant = matrix2[0] * matrixPtr[0] + matrix2[1] * matrixPtr[1] + matrix2[2] * matrixPtr[2];
+      const float determinant = matrix2[0] * localMatrix[0] + matrix2[1] * localMatrix[1] + matrix2[2] * localMatrix[2];
       // TODO: Some issue with gamma calculation half is stable
-      const float gamma = .5f;// getGamma(matrix2, matrixPtr, determinant);
+      const float gamma = .5f;// getGamma(matrix2, localMatrix, determinant);
       const float g1 = gamma * .5f;
       const float g2 = .5f / (gamma * determinant);
 
       for (uint i = 0; i < 9; i++)
       {
-        matrixPtr[i] = g1 * matrixPtr[i] + g2 * matrix2[i];
+        localMatrix[i] = g1 * localMatrix[i] + g2 * matrix2[i];
       }
     }
 
     for (uint i = 0; i < 9; i++)
     {
-      matrixData[indexOffset + i] = matrixPtr[i];
+      matrixData[indexOffset + i] = localMatrix[i];
     }
   }
 }
@@ -189,8 +183,8 @@ Kernel void setDeltaPosition(
   const uint length)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
-  Shared float3 initialComOffset[COMPUTE_MAX_THREADS];
+
+  float3 initialComOffset;
 
   if (index < length)
   {
@@ -199,7 +193,7 @@ Kernel void setDeltaPosition(
 
     matrixData += 9 * nodeIdentity.instanceId;
 
-    initialComOffset[localIndex] = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
+    initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
     float3 comOffsetCrossQ;
     Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
@@ -207,7 +201,7 @@ Kernel void setDeltaPosition(
     for (uint i = 0; i < 3; i++)
     {
       const Device float* particleMatrix = matrixData + i;
-      comOffsetCrossQPtr[i] = dot(initialComOffset[localIndex], constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]));
+      comOffsetCrossQPtr[i] = dot(initialComOffset, constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]));
     }
 
     particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;

@@ -41,7 +41,6 @@ Kernel void boundaryCollisionKernel(
   const uint                        nodeCount)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
 
   if (index < nodeCount)
   {
