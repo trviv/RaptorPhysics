@@ -14,43 +14,43 @@
 #ifdef COMPUTE_SHADER_SCOPE
 
 #ifdef StructMember
-#define STRUCT_MEMBER .StructMember
+#define STRUCT_MEMBER           .StructMember
 #else
 #define STRUCT_MEMBER
 #endif
 
 #ifndef MemberStructType
-#define MemberStructType StructType
+#define MemberStructType        StructType
 #endif
 
 #ifdef IdentityStructMember
-#define IDENTITY_STRUCT_MEMBER .IdentityStructMember
+#define IDENTITY_STRUCT_MEMBER  .IdentityStructMember
 #else
 #define IDENTITY_STRUCT_MEMBER
 #endif
 
 #ifdef IdentityFunction
-#define IDENTITY_FUNCTION(x) IdentityFunction(x)
+#define IDENTITY_FUNCTION(x)    IdentityFunction(x)
 #else
 #define IDENTITY_FUNCTION(x)
 #endif
 
 #ifdef AddFunction
-#define ADD_FUNCTION(x, y) AddFunction(&(x), &(y))
+#define ADD_FUNCTION(x, y)      AddFunction(&(x), &(y))
 #else
-#define ADD_FUNCTION(x, y) x += y
+#define ADD_FUNCTION(x, y)      x += y
 #endif
 
 #ifdef CopyFunction
-#define COPY_FUNCTION(x, y) CopyFunction(&(x), &(y))
+#define COPY_FUNCTION(x, y)     CopyFunction(&(x), &(y))
 #else
-#define COPY_FUNCTION(x, y) x = y
+#define COPY_FUNCTION(x, y)     x = y
 #endif
 
 #ifdef DivFunction
-#define DIV_FUNCTION(x, y) DivFunction(&(x), &(y))
+#define DIV_FUNCTION(x, y)      DivFunction(&(x), &(y))
 #else
-#define DIV_FUNCTION(x, y) x /= y
+#define DIV_FUNCTION(x, y)      x /= y
 #endif
 
 #if MemberStructType == uint

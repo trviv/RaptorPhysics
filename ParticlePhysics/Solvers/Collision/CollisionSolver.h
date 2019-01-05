@@ -3,16 +3,18 @@
 
 #include "../../Common/ParticleStruct.h"
 #include "../SharedAllocator.h"
+#include "CollisionSolverShared.h"
 
 /*!
-@class Class to solve collision.
+@class Class to solve collisions.
 */
 class CollisionSolver : public ShaderEntity
 {
 protected:
 
-  ComputeInterface* compute;
-  SharedAllocator*  allocator;
+  ComputeInterface*         compute;
+  SharedAllocator*          allocator;
+  DeviceArray <BVHLeafInfo> particleData;
 
 public:
 

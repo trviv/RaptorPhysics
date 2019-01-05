@@ -10,8 +10,6 @@
 */
 class LBVHSolver : public CollisionSolver
 {
-  DeviceArray <BVHLeafInfo> particleData;
-
 public:
 
   ~LBVHSolver();

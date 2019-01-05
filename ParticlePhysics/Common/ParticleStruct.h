@@ -173,6 +173,55 @@ float getInvMass(const Thread ParticleSharedData* particleSharedData, const Devi
   return particleAuxData[index].invMass;
 }
 
+/*
+@struct Uncompressed identity data for directl use at runtime.
+*/
+struct ParticleNodeIdentity_t
+{
+  uint entityId;
+  uint instanceId;
+};
+
+typedef struct ParticleNodeIdentity_t ParticleNodeIdentity;
+
+inline ParticleNodeIdentity uncompressToNodeIdentity(const IdentityInfo identity)
+{
+  ParticleNodeIdentity nodeIdentity;
+
+  nodeIdentity.entityId = getEntityId(identity);
+  nodeIdentity.instanceId = getInstanceId(identity);
+
+  return nodeIdentity;
+}
+
+/*
+@struct Node index for various use.
+*/
+struct ParticleNodeLocator_t
+{
+  /*@member Offset to first node of the entity instance, in the physics system.*/
+  uint absoluteNodeOffset;
+  /*@member Index to this node's property in the entity instance ,in the physics system.*/
+  uint absoluteNodeIndex;
+  /*@member Index to this node's shader property in the entity, in the physics system.*/
+  uint commonNodeIndex;
+};
+
+typedef struct ParticleNodeLocator_t ParticleNodeLocator;
+
+inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint partitionInstanceOffset, const PartitionInfo nodeEntityLocation)
+{
+  ParticleNodeLocator locator;
+
+  uint relativeNodeIndex;
+  locator.absoluteNodeOffset  = partitionInstanceOffset;
+  relativeNodeIndex           = nodeIndex % nodeEntityLocation.count;
+  locator.absoluteNodeIndex   = partitionInstanceOffset + relativeNodeIndex;
+  locator.commonNodeIndex     = nodeEntityLocation.offset + relativeNodeIndex;
+
+  return locator;
+}
+
 #endif
 
 #endif

@@ -64,7 +64,7 @@ Kernel void bitonicSort32BitKernel(
   {
     const uint index1 = (m*MAX_LOCAL_NODES + index) << 1;
     const uint localIndex1 = (m*MAX_LOCAL_NODES + localIndex) << 1;
-    //printf("_ %d _", index1);
+
     if (index1 < length)
     {
       localNode[localIndex1] = array1D[index1];
@@ -95,8 +95,6 @@ Kernel void bitonicSort32BitKernel(
       {
         const uint index1 = (localIndex + m * MAX_LOCAL_NODES) << d2;
         const uint index2 = index1 + offset;
-
-        //printf("_ %d _", index1);
 
         if (localNode[index1].key < localNode[index2].key)
         {

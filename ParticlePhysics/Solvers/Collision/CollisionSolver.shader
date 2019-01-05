@@ -46,33 +46,31 @@ Kernel void boundaryCollisionKernel(
   if (index < nodeCount)
   {
     const IdentityInfo identity = particleIdentities[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
     const uint solverType = getSolverType(identity);
     const uint globalSolverOffset = globalOffsets[solverType].z;
     const uint globalNodeOffset = globalOffsets[solverType].x;
     const uint globalInstanceOffset = globalOffsets[solverType].y;
 
-    const uint entityId = globalSolverOffset + getEntityId(identity);
-    const uint instanceId = globalInstanceOffset + getInstanceId(identity);
+    nodeIdentity.entityId += globalSolverOffset;
+    nodeIdentity.instanceId += globalInstanceOffset;
 
-    const ParticleSharedData sharedData = particleSharedData[entityId];
+    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const uint absoluteNodeOffset = globalNodeOffset + partitions[instanceId].offset;
-    const uint relativeNodeIndex = index % entityLocation[entityId].node.count;
-    const uint absoluteNodeIndex = absoluteNodeOffset + relativeNodeIndex;
-
-    const float invMass = getInvMass(&sharedData, particleAuxData, entityLocation[entityId].node.offset + relativeNodeIndex);
+    const float invMass = getInvMass(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 
     if (invMass) // only if movable
     {
       float dely = 0.f;
       //float rand;
       //particlesPredicted[absoluteNodeIndex].position.z += .01f * modf(10000.f * modf(particlesPredicted[absoluteNodeIndex].position.x + particlesPredicted[absoluteNodeIndex].position.y, &dely), &dely);
-      if (particlesPredicted[absoluteNodeIndex].position.y <= -2.f)
+      if (particlesPredicted[nodeLocator.absoluteNodeIndex].position.y <= -2.f)
       {
-        dely = -2.f - particlesPredicted[absoluteNodeIndex].position.y;
-        particles[absoluteNodeIndex].position.y += dely;
-        particlesPredicted[absoluteNodeIndex].position.y += dely;
+        dely = -2.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
+        particles[nodeLocator.absoluteNodeIndex].position.y += dely;
+        particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
       }
     }
   }
