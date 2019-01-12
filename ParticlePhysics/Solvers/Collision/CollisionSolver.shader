@@ -103,15 +103,16 @@ Kernel void buildUniformGrid(
 @param nodeCount Total nodes in the solver.
 */
 Kernel void boundaryCollisionKernel(
-  Device ParticleStruct*            particles,
-  Device ParticleStruct*            particlesPredicted,
-  const Device IdentityInfo*        particleIdentities,
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const uint4*                      globalOffsets,
-  const uint                        nodeCount)
+  Device ParticleStruct*              particles,
+  Device ParticleStruct*              particlesPredicted,
+  const Device IdentityInfo*          particleIdentities,
+  const Device ParticleCollisionData* particleCollisionData,
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleAuxData*       particleAuxData,
+  const Device PartitionInfo*         partitions,
+  const Device EntityLocation*        entityLocation,
+  Const PhySystemOffsets*             globalOffsets,
+  const uint                          nodeCount)
 {
   const uint index = threadIndex();
 
@@ -120,18 +121,17 @@ Kernel void boundaryCollisionKernel(
     const IdentityInfo identity = particleIdentities[index];
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
-    const uint globalSolverOffset = globalOffsets[nodeIdentity.solverType].z;
-    const uint globalNodeOffset = globalOffsets[nodeIdentity.solverType].x;
-    const uint globalInstanceOffset = globalOffsets[nodeIdentity.solverType].y;
+    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
-    nodeIdentity.entityId += globalSolverOffset;
-    nodeIdentity.instanceId += globalInstanceOffset;
+    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     const ParticleAuxData auxData = particleAuxData[nodeLocator.commonNodeIndex];
     const float invMass = getInvMassUsingThreadAux(&sharedData, &auxData);
+    const ParticleCollisionData collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     if (invMass) // only if movable
     {
@@ -142,7 +142,7 @@ Kernel void boundaryCollisionKernel(
       {
         dely = -0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
         //dely = 1.f;
-        particles[nodeLocator.absoluteNodeIndex].position.y += dely;
+        //particles[nodeLocator.absoluteNodeIndex].position.y += dely;
         particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
         //particles[nodeLocator.absoluteNodeIndex].position -= dely*auxData.sdfGradient2*auxData.sdfMagnitude*.01f;

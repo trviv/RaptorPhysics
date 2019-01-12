@@ -5,32 +5,6 @@
 #include "PhysicsEntity.h"
 #include "../Solvers/Collision/CollisionSolver.h"
 
-enum GlobalOffsetsEnum
-{
-  GLOBAL_NODE_OFFSET,
-  GLOBAL_INSTANCE_OFFSET,
-  GLOBAL_SOLVER_OFFSET
-};
-
-
-/*
-@class Class representing a basic uint4.
-*/
-struct uint4
-{
-  uint value[4];
-
-  uint& operator[](const int index)
-  {
-    return value[index];
-  }
-
-  const uint& operator[](const int index)const
-  {
-    return value[index];
-  }
-};
-
 /*
 @class Class representing a system simulating physical entities.
 */
@@ -67,7 +41,7 @@ class PhysicsSystem : protected ShaderEntity, public Window
   vector<uint>                    availableEntityIds;
 
   /*@member Offsets for different solvers.*/
-  DeviceArray<uint4>              globalOffsets;
+  DeviceArray<PhySystemOffsets>   globalOffsets;
 
   /*@function Take one simulation step.*/
   void step();

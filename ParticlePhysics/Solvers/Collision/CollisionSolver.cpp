@@ -90,6 +90,7 @@ void CollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
