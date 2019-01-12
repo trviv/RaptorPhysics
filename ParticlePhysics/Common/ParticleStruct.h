@@ -79,27 +79,52 @@ struct DEFAULT_ALIGN GroupData_t
 typedef struct GroupData_t GroupData;
 
 
+struct DEFAULT_ALIGN ParticleCollisionData_t
+{
+  union
+  {
+    struct
+    {
+      float3  sdfGradient;
+    };
+    struct
+    {
+      float dummy[3];
+      float sdfMagnitude;
+    };
+  };
+  float3  sdfGradient2;
+};
+
+typedef struct ParticleCollisionData_t ParticleCollisionData;
+
+
 /*
 @struct Data shared by all the particles of an entity.
 */
 struct DEFAULT_ALIGN ParticleSharedData_t
 {
   /*@member If mass is shared by particles of a body.*/
-  uint    invMassIsShared;
+  uint  invMassIsShared;
   /*@member Shared inverse mass.*/
-  float   sharedInvMass;
+  float sharedInvMass;
 
   /*@member If radius is shared by particles of a body.*/
-  uint    radiusIsShared;
+  uint  radiusIsShared;
   /*@member Shared radius.*/
-  float   sharedRadius;
+  float sharedRadius;
 
   /*@member Stiffness for spring constraint.*/
-  float   stiffness;
+  float stiffness;
   /*@member Viscosity for fluid constraint.*/
-  float   viscosity;
+  float viscosity;
   /*@member Velocity damping.*/
-  float   velocityDamping;
+  float velocityDamping;
+
+  /*@member If SDF is shared by particles of a body.*/
+  uint  collisionDataIsShared;
+  /*@member Shared radius.*/
+  ParticleCollisionData sharedCollisionData;
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;
@@ -145,16 +170,6 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 typedef struct ParticleRigidData_t ParticleRigidData;
 
 
-struct DEFAULT_ALIGN ParticleCollisionData_t
-{
-  float3  sdfGradient;
-  float3  sdfGradient2;
-  float   sdfMagnitude;
-};
-
-typedef struct ParticleCollisionData_t ParticleCollisionData;
-
-
 struct DEFAULT_ALIGN ParticleAuxData_t
 {
   float   invMass;
@@ -190,6 +205,15 @@ float getInvMassUsingThreadAux(const Thread ParticleSharedData* particleSharedDa
     return particleSharedData->sharedInvMass;
   }
   return particleAuxData->invMass;
+}
+
+ParticleCollisionData getSDFUsingDeviceCollision(const Thread ParticleSharedData* particleSharedData, const Device ParticleCollisionData* particleCollisionData, const uint index)
+{
+  if (particleSharedData->collisionDataIsShared)
+  {
+    return particleSharedData->sharedCollisionData;
+  }
+  return particleCollisionData[index];
 }
 
 /*
@@ -235,14 +259,23 @@ inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint parti
   ParticleNodeLocator locator;
 
   uint relativeNodeIndex;
-  locator.absoluteNodeOffset  = partitionInstanceOffset;
-  relativeNodeIndex           = nodeIndex % nodeEntityLocation.count;
-  locator.absoluteNodeIndex   = partitionInstanceOffset + relativeNodeIndex;
-  locator.commonNodeIndex     = nodeEntityLocation.offset + relativeNodeIndex;
+  locator.absoluteNodeOffset = partitionInstanceOffset;
+  relativeNodeIndex = nodeIndex % nodeEntityLocation.count;
+  locator.absoluteNodeIndex = partitionInstanceOffset + relativeNodeIndex;
+  locator.commonNodeIndex = nodeEntityLocation.offset + relativeNodeIndex;
 
   return locator;
 }
 
 #endif
+
+struct DEFAULT_ALIGN PhySystemOffsets_t
+{
+  uint globalNodeOffset;
+  uint globalInstanceOffset;
+  uint globalSolverOffset;
+};
+
+typedef struct PhySystemOffsets_t PhySystemOffsets;
 
 #endif

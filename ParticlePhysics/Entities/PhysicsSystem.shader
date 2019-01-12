@@ -11,7 +11,7 @@ Kernel void integrate(
   const Device ParticleAuxData*     particleAuxData,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
-  Const uint4*                      globalOffsets,
+  Const PhySystemOffsets*           globalOffsets,
   const float                       timeStep,
   const uint                        nodeCount)
 {
@@ -24,15 +24,13 @@ Kernel void integrate(
     const IdentityInfo identity = particleIdentities[index];
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
-    const uint globalNodeOffset = globalOffsets[nodeIdentity.solverType].x;
-    const uint globalSolverOffset = globalOffsets[nodeIdentity.solverType].z;
-    const uint globalInstanceOffset = globalOffsets[nodeIdentity.solverType].y;
+    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
-    nodeIdentity.entityId += globalSolverOffset;
-    nodeIdentity.instanceId += globalInstanceOffset;
+    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 

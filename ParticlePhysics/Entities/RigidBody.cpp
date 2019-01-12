@@ -36,6 +36,7 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   (*entitySharedData.host())[0].sharedInvMass = perParticleInvMass;
   (*entitySharedData.host())[0].radiusIsShared = 1;
   (*entitySharedData.host())[0].sharedRadius = particleRadius;
+  (*entitySharedData.host())[0].collisionDataIsShared = 0;
 
   for (int z = 0; z < signedSubdivision[2]; z++)
   {
@@ -91,12 +92,14 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
         normal[0] = 1;
         }
         }*/
-        colData.sdfMagnitude = normal.length()*particleRadius;
-        if (colData.sdfMagnitude > 0)
+        float magnitude = normal.length()*particleRadius;
+        if (magnitude > 0)
         {
           normal.normalize();
         }
         colData.sdfGradient = normal;// *particleRadius;// Real3(nx, ny, nz);
+        colData.sdfMagnitude = magnitude;
+
         //auxData.sdfGradient *= -1;
         particleCollisionData.host()->push_back(colData);
 

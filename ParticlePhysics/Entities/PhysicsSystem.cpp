@@ -35,10 +35,9 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
-    for (uint j = 0; j < 3; j++)
-    {
-      (*globalOffsets.host())[i][j] = 0;
-    }
+    (*globalOffsets.host())[i].globalNodeOffset = 0;
+    (*globalOffsets.host())[i].globalInstanceOffset = 0;
+    (*globalOffsets.host())[i].globalSolverOffset = 0;
   }
 
   //collisionSolver = new LBVHSolver();
@@ -202,9 +201,9 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       cumulativeSolver += localSolver->newEntityId();
       cumulativeInstance += localSolver->newEntityInstanceId();
     }
-    (*globalOffsets.host())[i][GLOBAL_NODE_OFFSET] = cumulativeNode;
-    (*globalOffsets.host())[i][GLOBAL_SOLVER_OFFSET] = cumulativeSolver;
-    (*globalOffsets.host())[i][GLOBAL_INSTANCE_OFFSET] = cumulativeInstance;
+    (*globalOffsets.host())[i].globalNodeOffset = cumulativeNode;
+    (*globalOffsets.host())[i].globalSolverOffset = cumulativeSolver;
+    (*globalOffsets.host())[i].globalInstanceOffset = cumulativeInstance;
   }
 
   globalOffsets.syncDevice();
@@ -233,7 +232,7 @@ void PhysicsSystem::step()
     }
   }
 
-  step(.066f);
+  step(1.f / 30.f);
 
   compute->sync();
   ProfileManager::dumpAll(stdout);
@@ -395,6 +394,8 @@ void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
 
+  collisionSolver->solve(instanceNodeCount, globalOffsets.device());
+
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     if (solversUint[i])
@@ -469,7 +470,5 @@ void PhysicsSystem::step(float timeStep)
     kernels[0].setArg<float>(&timeStep, bufferCount);
     kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
     compute->execute(kernels[0], workgroupSize, workgroupCount);
-
-    collisionSolver->solve(instanceNodeCount, globalOffsets.device());
   }
 }
