@@ -82,5 +82,6 @@ typedef struct
 
 #define atomicLoad(location)        atomic_add (location, 0)
 #define atomicSave(location, value) atomic_xchg(location, value)
+#define atomicAdd(location, value)  atomic_add (location, value)
 
 #endif

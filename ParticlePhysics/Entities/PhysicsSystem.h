@@ -102,8 +102,11 @@ public:
 
   Texture displayPositionBuffer;
   Texture displayColorBuffer;
+  Texture displayAuxBuffer;
   Vertex  displayVertex;
+  Vertex  displayLineVertex;
   Shader  displayShader;
+  Shader  displayLineShader;
   Face    displayElements;
   bool    renderParticles;
   bool    renderSolids;
