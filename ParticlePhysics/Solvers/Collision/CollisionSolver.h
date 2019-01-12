@@ -15,6 +15,9 @@ protected:
   ComputeInterface*         compute;
   SharedAllocator*          allocator;
   DeviceArray <BVHLeafInfo> particleData;
+  DeviceArray <uint>          gridParticleIndices;
+  DeviceArray <uint>          gridCellParticleCount;
+  uint                        gridSize;
 
 public:
 
@@ -22,7 +25,7 @@ public:
 
   virtual void init(ComputeInterface* compute, SharedAllocator* allocator);
 
-  virtual void build(uint instanceNodeCount);
+  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
 
   virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets);
 };

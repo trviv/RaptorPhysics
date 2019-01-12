@@ -30,9 +30,9 @@ protected:
   DeviceArray<IdentityInfo>         particleIdentities;
   DeviceArray<ParticleStruct>       particleDeltas;
   DeviceArray<ParticleDifferential> particleDifferential;
-  DeviceArray<ParticleAuxData>      particleAuxData;
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];
+  DeviceArray<ParticleCollisionData>particleCollisionData;
 
   DeviceArray<PartitionInfo>        partitions;
   DeviceArray<uint>                 partitionsCount;
@@ -42,6 +42,7 @@ protected:
 
   /*@member Per entity simulation property.*/
   DeviceArray<ParticleSharedData>   entitySharedData;
+  DeviceArray<ParticleAuxData>      particleAuxData;
 
   /*@member Per entity shared data info.*/
   DeviceArray<EntityLocation>       entityLocations;

@@ -211,8 +211,8 @@ public:
   /// Get the axis with maximum value
   AXIS  longestAxis()const
   {
-    if (x >= y && x >= z)      return X;
-    else if (y >= x && y >= z) return Y;
+    if (abs(x) >= abs(y) && abs(x) >= abs(z))       return X;
+    else if (abs(y) >= abs(x) && abs(y) >= abs(z))  return Y;
     return Z;
   }
 

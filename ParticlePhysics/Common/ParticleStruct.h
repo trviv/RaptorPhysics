@@ -145,6 +145,16 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 typedef struct ParticleRigidData_t ParticleRigidData;
 
 
+struct DEFAULT_ALIGN ParticleCollisionData_t
+{
+  float3  sdfGradient;
+  float3  sdfGradient2;
+  float   sdfMagnitude;
+};
+
+typedef struct ParticleCollisionData_t ParticleCollisionData;
+
+
 struct DEFAULT_ALIGN ParticleAuxData_t
 {
   float   invMass;
@@ -164,13 +174,22 @@ typedef struct ParticleDifferential_t ParticleDifferential;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-float getInvMass(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)
+float getInvMassUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)
 {
   if (particleSharedData->invMassIsShared)
   {
     return particleSharedData->sharedInvMass;
   }
   return particleAuxData[index].invMass;
+}
+
+float getInvMassUsingThreadAux(const Thread ParticleSharedData* particleSharedData, const Thread ParticleAuxData* particleAuxData)
+{
+  if (particleSharedData->invMassIsShared)
+  {
+    return particleSharedData->sharedInvMass;
+  }
+  return particleAuxData->invMass;
 }
 
 /*
@@ -180,6 +199,7 @@ struct ParticleNodeIdentity_t
 {
   uint entityId;
   uint instanceId;
+  uint solverType;
 };
 
 typedef struct ParticleNodeIdentity_t ParticleNodeIdentity;
@@ -190,6 +210,7 @@ inline ParticleNodeIdentity uncompressToNodeIdentity(const IdentityInfo identity
 
   nodeIdentity.entityId = getEntityId(identity);
   nodeIdentity.instanceId = getInstanceId(identity);
+  nodeIdentity.solverType = getSolverType(identity);
 
   return nodeIdentity;
 }

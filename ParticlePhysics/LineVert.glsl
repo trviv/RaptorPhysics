@@ -1,0 +1,29 @@
+#version 330
+
+layout(location=0) in vec3 position;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+uniform sampler2D particlePos;
+uniform sampler2D particleSDFGrad;
+
+in int gl_VertexID;
+in int gl_InstanceID;
+out vec4 col;
+
+void main()
+{
+  vec4 pos = texelFetch(particlePos, ivec2(gl_InstanceID & 0xF, gl_InstanceID >> 4), 0);
+
+  if (gl_VertexID>0)
+  {
+  	vec4 gradient = texelFetch(particleSDFGrad, ivec2(gl_InstanceID & 0xF, gl_InstanceID >> 4), 0);
+	pos += vec4(gradient.xyz, 1.0f) * (gradient.w * 2.f);
+  }
+
+  pos = projectionMatrix * modelViewMatrix * vec4(pos.xyz, 1.f);
+
+  gl_Position = pos;
+  col = vec4(1.f, 0.f, 0.f, 1.f);
+}

@@ -60,7 +60,6 @@ void setAdjugateMatrix(
   Thread float* matrix2,
   const Thread float* matrixData)
 {
-  const char mod3[5] = { 0, 1, 2, 0, 1 };
   uint offset = 0;
 
   for (uint i = 0; i < 3; i++)
@@ -71,10 +70,10 @@ void setAdjugateMatrix(
       // https://en.wikipedia.org/wiki/Adjugate_matrix
 
       float cellValue =
-        matrixData[mod3[i + 1] * 3 + mod3[j + 1]] *
-        matrixData[mod3[i + 2] * 3 + mod3[j + 2]] -
-        matrixData[mod3[i + 1] * 3 + mod3[j + 2]] *
-        matrixData[mod3[i + 2] * 3 + mod3[j + 1]];
+        matrixData[((i + 1) % 3) * 3 + ((j + 1) % 3)] *
+        matrixData[((i + 2) % 3) * 3 + ((j + 2) % 3)] -
+        matrixData[((i + 1) % 3) * 3 + ((j + 2) % 3)] *
+        matrixData[((i + 2) % 3) * 3 + ((j + 1) % 3)];
 
       matrix2[offset] = cellValue;
       offset++;
@@ -144,7 +143,13 @@ Kernel void rigidSolver(
     {
       setAdjugateMatrix(matrix2, localMatrix);
 
-      const float determinant = matrix2[0] * localMatrix[0] + matrix2[1] * localMatrix[1] + matrix2[2] * localMatrix[2];
+      float determinant = matrix2[0] * localMatrix[0] + matrix2[1] * localMatrix[1] + matrix2[2] * localMatrix[2];
+      const bool detNegative = determinant < 0.f;
+      determinant = max(fabs(determinant), .0001f);
+      if (detNegative)
+      {
+        determinant = -determinant;
+      }
       // TODO: Some issue with gamma calculation half is stable
       const float gamma = .5f;// getGamma(matrix2, localMatrix, determinant);
       const float g1 = gamma * .5f;
@@ -178,6 +183,7 @@ Kernel void setDeltaPosition(
   const Device IdentityInfo*      particleIdentities,
   const Device float*             matrixData,
   const Device ParticleRigidData* rigidBodyData,
+  Device ParticleCollisionData*   particleCollisionData,
   const Device PartitionInfo*     partitions,
   const Device EntityLocation*    entityLocation,
   const uint length)
@@ -197,14 +203,21 @@ Kernel void setDeltaPosition(
 
     float3 comOffsetCrossQ;
     Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
+    const float3 sdfGradientIn = particleCollisionData[nodeLocator.commonNodeIndex].sdfGradient;
+    float sdfGradientOut[3];
 
     for (uint i = 0; i < 3; i++)
     {
       const Device float* particleMatrix = matrixData + i;
-      comOffsetCrossQPtr[i] = dot(initialComOffset, constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]));
+      const float3 column = constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
+      comOffsetCrossQPtr[i] = dot(initialComOffset, column);
+      sdfGradientOut[i] = dot(sdfGradientIn, col);
     }
 
     particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;
+
+    const float3 gradientOut = normalize((float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
+    particleCollisionData[nodeLocator.commonNodeIndex].sdfGradient2 = gradientOut;
   }
 }
 

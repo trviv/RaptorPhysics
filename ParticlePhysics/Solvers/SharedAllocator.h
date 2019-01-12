@@ -39,6 +39,7 @@ struct ParticleAllocator
   ComputeHeap particleDifferentialHeap;
 
   ComputeHeap particleRigidData;
+  ComputeHeap particleCollisionData;
   ComputeHeap particleAuxData;
 
   ParticleAllocator(ComputeInterface* compute)
@@ -50,6 +51,7 @@ struct ParticleAllocator
     particleDeltaHeap(compute),
     particleDifferentialHeap(compute),
     particleRigidData(compute),
+    particleCollisionData(compute),
     particleAuxData(compute)
   {}
 
@@ -63,6 +65,7 @@ struct ParticleAllocator
     particleDeltaHeap.create(initialParticles*sizeof(ParticleStruct));
     particleDifferentialHeap.create(initialParticles*sizeof(ParticleDifferential));
     particleRigidData.create(initialParticles*sizeof(ParticleRigidData));
+    particleCollisionData.create(initialParticles*sizeof(ParticleCollisionData));
     particleAuxData.create(initialParticles*sizeof(ParticleAuxData));
   }
 };
@@ -83,6 +86,7 @@ enum SharedComputeHeapEnum
   COMPUTE_HEAP_PARTICLE_DELTA,
   COMPUTE_HEAP_PARTICLE_DIFF,
   COMPUTE_HEAP_PARTICLE_RIGID,
+  COMPUTE_HEAP_PARTICLE_COLLISION,
   COMPUTE_HEAP_PARTICLE_AUX
 };
 
@@ -127,6 +131,8 @@ public:
       return &particleAllocator.particleDifferentialHeap;
     case COMPUTE_HEAP_PARTICLE_RIGID:
       return &particleAllocator.particleRigidData;
+    case COMPUTE_HEAP_PARTICLE_COLLISION:
+      return &particleAllocator.particleCollisionData;
     case COMPUTE_HEAP_PARTICLE_AUX:
       return &particleAllocator.particleAuxData;
     }

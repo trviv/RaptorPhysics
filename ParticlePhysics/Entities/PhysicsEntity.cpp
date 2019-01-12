@@ -6,6 +6,7 @@ PhysicsEntity::PhysicsEntity()
   entitySharedData.create(NULL, NULL, true);
   particleAuxData.create(NULL, NULL, true);
   particleRigidData.create(NULL, NULL, true);
+  particleCollisionData.create(NULL, NULL, true);
 
   solver = SOLVER_NULL;
 

@@ -48,6 +48,13 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
         setConstant(index, newPosition);
         pointPosition.push_back(newPosition);
 
+        float nx, ny, nz;
+        nx = (x == 0) ? -1.f : (x == (signedSubdivision[0] - 1) ? 1.f : 0);
+        ny = (y == 0) ? 1.f : (y == (signedSubdivision[1] - 1) ? -1.f : 0);
+        nz = (z == 0) ? 1.f : (z == (signedSubdivision[2] - 1) ? -1.f : 0);
+        Real3 normal(nx, ny, nz);
+
+#ifdef ENABLE_RENDERING
         for (int zn = -1; zn < 2; zn++)
         {
           int tempz = z + zn;
@@ -70,6 +77,28 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
             }
           }
         }
+#endif
+
+        ParticleCollisionData colData;
+        /*if ((normal[0] == normal[1]) && (normal[0] == normal[2]) && (normal[0] == 0))
+        {
+        Real3 axis(x - signedSubdivision[0] / 2, y - signedSubdivision[1] / 2, z - signedSubdivision[2] / 2);
+        //axis *= -1;
+        normal = axis;
+        //normal[axis.longestAxis()] = 0;
+        if (normal[0] == normal[1] == normal[2] == 0)
+        {
+        normal[0] = 1;
+        }
+        }*/
+        colData.sdfMagnitude = normal.length()*particleRadius;
+        if (colData.sdfMagnitude > 0)
+        {
+          normal.normalize();
+        }
+        colData.sdfGradient = normal;// *particleRadius;// Real3(nx, ny, nz);
+        //auxData.sdfGradient *= -1;
+        particleCollisionData.host()->push_back(colData);
 
         ParticleAuxData auxData;
         auxData.invMass = perParticleInvMass;
@@ -127,14 +156,12 @@ void RigidBody::render(ParticleStruct* particles)
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
 
-  //displayVertex.bind();
   GL_CHECK(glEnableVertexAttribArray(0));
   GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
   displayElements.bind();
   GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, 0, 1));
   displayElements.unbind();
   GL_CHECK(glDisableVertexAttribArray(0));
-  //displayVertex.unbind();
 
   displayShader.unbind();
   glPopMatrix();

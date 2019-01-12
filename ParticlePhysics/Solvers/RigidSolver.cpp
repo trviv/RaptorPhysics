@@ -9,6 +9,8 @@ static uint matrix3x3UtilId;
 #define RIGID_SOLVER_KERNEL_DETERMINE_MATRIX    1
 #define RIGID_SOLVER_KERNEL_SET_DELTA_POSITION  2
 
+#define RIGID_SVD_SOLVER_ITERATIONS             8
+
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
@@ -138,7 +140,7 @@ void RigidSolver::solve()
         particlesTemp[0].device()
       };
 
-      uint svdIterations = iterations;
+      uint svdIterations = RIGID_SVD_SOLVER_ITERATIONS;
 
       uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
@@ -159,6 +161,7 @@ void RigidSolver::solve()
         particleIdentities.device(),
         particlesTemp[0].device(),
         particleRigidData.device(),
+        particleCollisionData.device(),
         partitions.device(),
         entityLocations.device()
       };

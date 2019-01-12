@@ -28,6 +28,8 @@ SolverData(), compute(compute), allocator(allocator), type(type)
   particlesTemp[1].create(compute, NULL, false);
 #endif
 
+  particleCollisionData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION), true);
+
   partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS), true);
   partitionsCount.create(compute, NULL, true);
   partitionsCount.host()->reserve(1);
@@ -112,6 +114,7 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   particles.syncDevice();
   particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
+  particleCollisionData.syncDevice();
   particleAuxData.syncDevice();
 
   partitions.syncDevice();

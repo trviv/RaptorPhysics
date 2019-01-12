@@ -161,6 +161,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   const SolverType solverType = (SolverType)(1 << (getSolverType(registeredEntityId) - 1));
   const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][entityId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
+  const vector<ParticleCollisionData>* entityParticleCol = entity->particleCollisionData.host();
   Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(solverType);
 
   for (uint instance = 0; instance < instanceCount; instance++)
@@ -174,7 +175,9 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
       particle.radius = solver->particleAuxData.host()->at(i).radius;
       solver->particles.host()->push_back(particle);
+
       solver->particleIdentities.host()->push_back(entityInstanceId);
+      solver->particleCollisionData.host()->push_back(entityParticleCol->at(i));
     }
 
     PartitionInfo partition;
@@ -306,6 +309,7 @@ void PhysicsSystem::render()
       if (!elements) continue;
 
       solversUint[i]->particles.syncHost(0, elements);
+      solversUint[i]->particleCollisionData.syncHost(0, elements);
 
       if (renderParticles)
       {
@@ -338,6 +342,34 @@ void PhysicsSystem::render()
         displayVertex.unbind();
 
         displayShader.unbind();
+
+        // display lines showing SDF data
+        ParticleCollisionData* particleCol = &((*solversUint[i]->particleCollisionData.host())[0]);
+        float* particleSdf = new float[elements * 4];
+        for (uint j = 0; j < elements; j++)
+        {
+          particleSdf[j * 4] = particleCol[j].sdfGradient2[0];
+          particleSdf[j * 4 + 1] = particleCol[j].sdfGradient2[1];
+          particleSdf[j * 4 + 2] = particleCol[j].sdfGradient2[2];
+          particleSdf[j * 4 + 3] = particleCol[j].sdfMagnitude;
+        }
+        displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));
+
+        displayLineShader.bind();
+        displayLineShader.set("modelViewMatrix", model_mat);
+        displayLineShader.set("projectionMatrix", proj_mat);
+        displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
+        displayLineShader.activateTexture("particleSDFGrad", 1, displayAuxBuffer);
+
+        displayLineVertex.bind();
+        GL_CHECK(glEnableVertexAttribArray(0));
+        GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
+        GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
+        GL_CHECK(glDisableVertexAttribArray(0));
+        displayLineVertex.unbind();
+
+        displayLineShader.unbind();
+
         glPopMatrix();
       }
 
@@ -385,21 +417,29 @@ void PhysicsSystem::step(float timeStep)
     uint width = 16;
     uint height = (instanceNodeCount + 15) / 16;
     displayVertex.gen();
+    displayLineVertex.gen();
     displayElements.gen();
     displayPositionBuffer.init(width, height);
     displayPositionBuffer.gen();
     displayColorBuffer.init(width, height);
     displayColorBuffer.gen();
-    //displayColorBuffer.copy(&tf[0], 0, 0, width, height);
+    displayAuxBuffer.init(width, height);
+    displayAuxBuffer.gen();
 
     if (renderParticles)
     {
       createSphere(1.f);
+
+      float line[] = { 1, 1, 1, 1, 1, 1 };
+      displayLineVertex.copyData(line, 2, 0, 2 * sizeof(float));
+
       displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
+      displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
     }
     else if (renderSolids)
     {
       displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
+      displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
     }
 #endif
 

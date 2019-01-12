@@ -22,20 +22,19 @@ Kernel void integrate(
   if (index < nodeCount)
   {
     const IdentityInfo identity = particleIdentities[index];
-
-    const uint solverType = getSolverType(identity);
-    const uint globalNodeOffset = globalOffsets[solverType].x;
-    const uint globalSolverOffset = globalOffsets[solverType].z;
-    const uint globalInstanceOffset = globalOffsets[solverType].y;
-
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+
+    const uint globalNodeOffset = globalOffsets[nodeIdentity.solverType].x;
+    const uint globalSolverOffset = globalOffsets[nodeIdentity.solverType].z;
+    const uint globalInstanceOffset = globalOffsets[nodeIdentity.solverType].y;
+
     nodeIdentity.entityId += globalSolverOffset;
     nodeIdentity.instanceId += globalInstanceOffset;
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const float invMass = getInvMass(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 
     if (invMass) // only if movable
     {
