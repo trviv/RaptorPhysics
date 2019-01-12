@@ -211,7 +211,7 @@ Kernel void setDeltaPosition(
       const Device float* particleMatrix = matrixData + i;
       const float3 column = constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
       comOffsetCrossQPtr[i] = dot(initialComOffset, column);
-      sdfGradientOut[i] = dot(sdfGradientIn, col);
+      sdfGradientOut[i] = dot(sdfGradientIn, column);
     }
 
     particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;
