@@ -141,7 +141,7 @@ Kernel void boundaryCollisionKernel(
       {
         dely = -0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
 
-        //particles[nodeLocator.absoluteNodeIndex].position.y += dely;
+        particles[nodeLocator.absoluteNodeIndex].position.y += dely;
         particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
         //particles[nodeLocator.absoluteNodeIndex].position -= collisionData.sdfGradient2*collisionData.sdfMagnitude;

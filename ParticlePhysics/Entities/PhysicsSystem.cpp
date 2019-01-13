@@ -394,24 +394,8 @@ void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
 
-  collisionSolver->solve(instanceNodeCount, globalOffsets.device());
-
-  for (uint i = 0; i < SOLVER_MAX; i++)
-  {
-    if (solversUint[i])
-    {
-      solversUint[i]->solve();
-    }
-  }
-
   if (updates.size()) // copy initial positions
   {
-    SharedAllocator* allocator = allocators[0];
-
-    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), 0, 0,
-      instanceNodeCount * sizeof(ParticleStruct));
-
     updates.clear();
 
 #ifdef ENABLE_RENDERING
@@ -444,6 +428,16 @@ void PhysicsSystem::step(float timeStep)
     }
 #endif
 
+  }
+
+  collisionSolver->solve(instanceNodeCount, globalOffsets.device());
+
+  for (uint i = 0; i < SOLVER_MAX; i++)
+  {
+    if (solversUint[i])
+    {
+      solversUint[i]->solve();
+    }
   }
 
   // block to integrate

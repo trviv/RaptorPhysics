@@ -13,7 +13,8 @@ SolverData(), compute(compute), allocator(allocator), type(type)
 
   entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
 
-  particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
+  particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
+  particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
   particleIdentities.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY), true);
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
@@ -112,6 +113,8 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
 
   entitySharedData.syncDevice();
   particles.syncDevice();
+  particlesPredicted.resize(particles.size(), false);
+  compute->copyBuffer(particles.device(), particlesPredicted.device(), 0, 0, particles.size() * sizeof(ParticleStruct));
   particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
   particleCollisionData.syncDevice();

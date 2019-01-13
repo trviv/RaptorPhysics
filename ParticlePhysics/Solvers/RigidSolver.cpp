@@ -82,7 +82,7 @@ void RigidSolver::solve()
   for (uint iteration = 0; iteration < 1; iteration++)
   {
     // copy to aux buffer to find new COM
-    compute->copyBuffer(particles.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
+    compute->copyBuffer(particlesPredicted.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
 
     // calculate current COM
     ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
@@ -101,7 +101,7 @@ void RigidSolver::solve()
       ComputeMemory* buffers[] = {
         covarianceMatrix.device(),
         particleDeltas.device(),
-        particles.device(),
+        particlesPredicted.device(),
         particleIdentities.device(),
         particlesTemp[1].device(),
         particleRigidData.device(),
