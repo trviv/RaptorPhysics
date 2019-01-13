@@ -51,7 +51,7 @@ void DistanceSolver::solve()
   for (uint i = 0; i < iterations; i++)
   {
     ComputeMemory* newPosition = particlesTemp[i & 1].device();
-    ComputeMemory* oldPosition = (i == 0) ? particles.device() : particlesTemp[(i + 1) & 1].device();
+    ComputeMemory* oldPosition = (i == 0) ? particlesPredicted.device() : particlesTemp[(i + 1) & 1].device();
 
     if (i == 0)
     {
@@ -93,7 +93,7 @@ void DistanceSolver::solve()
   { // calculate position deltas
     ComputeMemory* buffers[] = {
       particleDeltas.device(),
-      particles.device(),
+      particlesPredicted.device(),
       particlesTemp[(iterations - 1) & 1].device()
     };
     uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);

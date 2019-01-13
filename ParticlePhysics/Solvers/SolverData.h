@@ -27,6 +27,7 @@ protected:
 
   // related to particle instances
   DeviceArray<ParticleStruct>       particles;
+  DeviceArray<ParticleStruct>       particlesPredicted;
   DeviceArray<IdentityInfo>         particleIdentities;
   DeviceArray<ParticleStruct>       particleDeltas;
   DeviceArray<ParticleDifferential> particleDifferential;
