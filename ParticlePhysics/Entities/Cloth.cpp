@@ -40,6 +40,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 
   (*entitySharedData.host())[0].radiusIsShared = 1;
   (*entitySharedData.host())[0].sharedRadius = minRadius;
+  (*entitySharedData.host())[0].invMassIsShared = 0;
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
@@ -64,6 +65,10 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       Real3 newPosition = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5f : 0));
       setConstant(index, newPosition);
       pointPosition.push_back(newPosition);
+      ParticleCollisionData colData;
+      colData.sdfMagnitude = 0;
+      colData.sdfGradient2 = 0.f;
+      particleCollisionData.host()->push_back(colData);
 
       // add twice because constrain is solved only once
       if (x + 1 < subdivision[0])

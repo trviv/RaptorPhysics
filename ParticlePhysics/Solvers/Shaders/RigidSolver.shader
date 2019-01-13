@@ -217,7 +217,7 @@ Kernel void setDeltaPosition(
     particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;
 
     const float3 gradientOut = normalize((float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
-    particleCollisionData[nodeLocator.commonNodeIndex].sdfGradient2 = gradientOut;
+    particleCollisionData[nodeLocator.absoluteNodeIndex].sdfGradient2 = gradientOut;
   }
 }
 
