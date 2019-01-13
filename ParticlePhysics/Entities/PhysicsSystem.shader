@@ -39,7 +39,7 @@ Kernel void integrate(
       position = particlesPredicted[nodeLocator.absoluteNodeIndex].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
 
       velocity = (position - particles[nodeLocator.absoluteNodeIndex].position) / timeStep;
-      velocity += constructFloat3(0.f, 6 * -0.98f, 0.f) * timeStep;
+      velocity += constructFloat3(0.f, -0.98f, 0.f) * timeStep;
       velocity *= sharedData.velocityDamping;
 
       particles[nodeLocator.absoluteNodeIndex].position = position;

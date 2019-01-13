@@ -136,17 +136,16 @@ Kernel void boundaryCollisionKernel(
     if (invMass) // only if movable
     {
       float dely = 0.f;
-      //float rand;
-      //particlesPredicted[absoluteNodeIndex].position.z += .01f * modf(10000.f * modf(particlesPredicted[absoluteNodeIndex].position.x + particlesPredicted[absoluteNodeIndex].position.y, &dely), &dely);
+
       if (particlesPredicted[nodeLocator.absoluteNodeIndex].position.y <= -0.f)
       {
         dely = -0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
-        //dely = 1.f;
+
         //particles[nodeLocator.absoluteNodeIndex].position.y += dely;
         particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
-        //particles[nodeLocator.absoluteNodeIndex].position -= dely*auxData.sdfGradient2*auxData.sdfMagnitude*.01f;
-        //particlesPredicted[nodeLocator.absoluteNodeIndex].position -= dely*auxData.sdfGradient2*auxData.sdfMagnitude*.01f;
+        //particles[nodeLocator.absoluteNodeIndex].position -= collisionData.sdfGradient2*collisionData.sdfMagnitude;
+        //particlesPredicted[nodeLocator.absoluteNodeIndex].position -= collisionData.sdfGradient2*collisionData.sdfMagnitude;
       }
     }
   }
