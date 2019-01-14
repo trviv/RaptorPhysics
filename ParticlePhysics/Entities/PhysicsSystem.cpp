@@ -26,7 +26,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   vector<string> newType = { "uint", "float", "float3" };
   vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
   registerShader(compute, "PhysicsSystem.shader", &oldType, &newType);
-  kernels.push_back(programs[0].createKernel("integrate"));
+  kernels.push_back(programs[0].createKernel("startStep"));
+  kernels.push_back(programs[0].createKernel("endStep"));
 
   globalOffsets.create(compute, NULL, true);
   globalOffsets.resize(SOLVER_MAX, false);
@@ -390,6 +391,58 @@ void PhysicsSystem::render()
 
 #endif
 
+void PhysicsSystem::integrate(float timeStep)
+{
+  SharedAllocator* allocator = allocators[0];
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+
+  ComputeMemory* buffers[] = {
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
+    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
+    globalOffsets.device()
+  };
+  uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+  kernels[0].setArgs(buffers, bufferCount);
+  kernels[0].setArg<float>(&timeStep, bufferCount);
+  kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
+  compute->execute(kernels[0], workgroupSize, workgroupCount);
+}
+
+void PhysicsSystem::differentiate(float timeStep)
+{
+  SharedAllocator* allocator = allocators[0];
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+
+  ComputeMemory* buffers[] = {
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
+    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
+    globalOffsets.device()
+  };
+  uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+  kernels[1].setArgs(buffers, bufferCount);
+  kernels[1].setArg<float>(&timeStep, bufferCount);
+  kernels[1].setArg<uint>(&instanceNodeCount, bufferCount + 1);
+  compute->execute(kernels[1], workgroupSize, workgroupCount);
+}
+
 void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
@@ -430,6 +483,8 @@ void PhysicsSystem::step(float timeStep)
 
   }
 
+  integrate(timeStep);
+
   collisionSolver->solve(instanceNodeCount, globalOffsets.device());
 
   for (uint i = 0; i < SOLVER_MAX; i++)
@@ -440,29 +495,5 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
-  // block to integrate
-  {
-    SharedAllocator* allocator = allocators[0];
-
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
-
-    ComputeMemory* buffers[] = {
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-      allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-      globalOffsets.device()
-    };
-    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[0].setArgs(buffers, bufferCount);
-    kernels[0].setArg<float>(&timeStep, bufferCount);
-    kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
-    compute->execute(kernels[0], workgroupSize, workgroupCount);
-  }
+  differentiate(timeStep);
 }
