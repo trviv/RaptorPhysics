@@ -49,6 +49,12 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@function Get solver instance for a solver type.*/
   void* getSolver(SolverType type);
 
+  /*@function Perform differentiation step.*/
+  void differentiate(float timeStep);
+
+  /*@function Perform integration step.*/
+  void integrate(float timeStep);
+
 public:
 
   /*@constructor Create a new physics system using a compute interface.*/
