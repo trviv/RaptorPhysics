@@ -421,7 +421,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-  ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), elements);
+  ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
 
   compute->sync();
   ProfileManager::Reset();
@@ -429,7 +429,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
     ProfileBlock("Prefix scan");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), elements);
+      ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
     }
   }
   compute->sync();
@@ -438,7 +438,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 
   printStats(mean, elements, 2, sizeof(uint));
 
-  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), elements);
+  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), data.device(), elements);
   data.syncHost();
   compute->sync();
 

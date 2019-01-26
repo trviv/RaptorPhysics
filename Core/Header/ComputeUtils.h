@@ -7,9 +7,13 @@
 
 enum ComputeUtilKey
 {
+  // use to specify structure name
   ComputeUtilStructType,
+  // use to specify if the operation has to be done on a member of the structure type
   ComputeUtilStructMember,
+  // use to specify the datatype of the member of structure
   ComputeUtilStructMemberType,
+  // use to specify if the structure type is integral
   ComputeUtilStructTypeIntegral,
 
   ComputeUtilIdentityStructType,
@@ -51,7 +55,7 @@ public:
 
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 
-  void prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length);
+  void prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);
 
   void bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
 

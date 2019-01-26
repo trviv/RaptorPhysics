@@ -203,7 +203,7 @@ Kernel void setDeltaPosition(
 
     float3 comOffsetCrossQ;
     Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
-    const float3 sdfGradientIn = particleCollisionData[nodeLocator.commonNodeIndex].sdfGradient;
+    const float3 sdfGradientIn = particleCollisionData[nodeLocator.commonNodeIndex].initialSdfGradient;
     float sdfGradientOut[3];
 
     for (uint i = 0; i < 3; i++)
@@ -217,7 +217,7 @@ Kernel void setDeltaPosition(
     particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;
 
     const float3 gradientOut = normalize((float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
-    particleCollisionData[nodeLocator.absoluteNodeIndex].sdfGradient2 = gradientOut;
+    particleCollisionData[nodeLocator.absoluteNodeIndex].transformedSdfGradient = gradientOut;
   }
 }
 

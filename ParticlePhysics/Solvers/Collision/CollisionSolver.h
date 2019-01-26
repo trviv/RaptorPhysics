@@ -15,9 +15,10 @@ protected:
   ComputeInterface*         compute;
   SharedAllocator*          allocator;
   DeviceArray <BVHLeafInfo> particleData;
-  DeviceArray <uint>          gridParticleIndices;
-  DeviceArray <uint>          gridCellParticleCount;
-  uint                        gridSize;
+  DeviceArray <uint>        gridParticleIndices;
+  DeviceArray <uint>        gridCellParticleCount;
+  DeviceArray <uint>        gridCellParticleOffsets;
+  uint                      gridSize;
 
 public:
 

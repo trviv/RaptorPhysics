@@ -18,14 +18,13 @@ Kernel void assignMortonCodeKernel(
   }
 }
 
-Kernel void createGridHistogram(
+Kernel void createGridCellHistogram(
   Device uint*                      gridCellIndexCount,
-  const Device ParticleStruct*      particles,
   const Device ParticleStruct*      particlesPredicted,
   const Device IdentityInfo*        particleIdentities,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
-  Const uint4*                      globalOffsets,
+  Const PhySystemOffsets*           globalOffsets,
   const uint                        nodeCount,
   const uint                        gridSize)
 {
@@ -35,25 +34,25 @@ Kernel void createGridHistogram(
   {
     const IdentityInfo identity = particleIdentities[index];
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
-    const uint globalSolverOffset = globalOffsets[nodeIdentity.solverType].z;
-    const uint globalNodeOffset = globalOffsets[nodeIdentity.solverType].x;
-    const uint globalInstanceOffset = globalOffsets[nodeIdentity.solverType].y;
+    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
-    nodeIdentity.entityId += globalSolverOffset;
-    nodeIdentity.instanceId += globalInstanceOffset;
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-
-    const float3 particlePredictedPos = particlesPredicted[nodeLocator.absoluteNodeIndex].position;// % gridSize;
-    const uint gridCountOffset = ((uint)particlePredictedPos.z)*gridSize*gridSize + ((uint)particlePredictedPos.y)*gridSize + ((uint)particlePredictedPos.x);
+    const float positionScale = 4.f;
+    const float2 particlePredictedScaled = particlesPredicted[nodeLocator.absoluteNodeIndex].position.xy * positionScale + gridSize / 2;
+    const uint2 particlePredictedPos = clamp((uint2)(particlePredictedScaled.x, particlePredictedScaled.y), (uint2)(0, 0), (uint2)(gridSize - 1, gridSize - 1));
+    const uint gridCountOffset = particlePredictedPos.y * gridSize + particlePredictedPos.x;
 
     atomicAdd(gridCellIndexCount + gridCountOffset, 1);
   }
 }
 
-Kernel void buildUniformGrid(
-  Device uint*                      gridParticleIndices,
+Kernel void createGridArrays(
+  Device uint*                      gridCellIndexCount,
+  Device uint*                      gridCellIndices,
   Device PartitionInfo*             gridParticleIndicesOffset,
   const Device ParticleStruct*      particles,
   const Device ParticleStruct*      particlesPredicted,
@@ -67,27 +66,6 @@ Kernel void buildUniformGrid(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-
-    const uint globalSolverOffset = globalOffsets[nodeIdentity.solverType].z;
-    const uint globalNodeOffset = globalOffsets[nodeIdentity.solverType].x;
-    const uint globalInstanceOffset = globalOffsets[nodeIdentity.solverType].y;
-
-    nodeIdentity.entityId += globalSolverOffset;
-    nodeIdentity.instanceId += globalInstanceOffset;
-
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-
-    float dely = 0.f;
-    //float rand;
-    //particlesPredicted[absoluteNodeIndex].position.z += .01f * modf(10000.f * modf(particlesPredicted[absoluteNodeIndex].position.x + particlesPredicted[absoluteNodeIndex].position.y, &dely), &dely);
-    if (particlesPredicted[nodeLocator.absoluteNodeIndex].position.y <= -2.f)
-    {
-      dely = -2.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
-      particles[nodeLocator.absoluteNodeIndex].position.y += dely;
-      particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
-    }
   }
 }
 
@@ -144,8 +122,8 @@ Kernel void boundaryCollisionKernel(
         particles[nodeLocator.absoluteNodeIndex].position.y += dely;
         particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
-        //particles[nodeLocator.absoluteNodeIndex].position += collisionData.sdfGradient2 * dely;// collisionData.sdfMagnitude;
-        //particlesPredicted[nodeLocator.absoluteNodeIndex].position += collisionData.sdfGradient2 * dely; // collisionData.sdfMagnitude;
+        //particles[nodeLocator.absoluteNodeIndex].position += collisionData.transformedSdfGradient * dely;// collisionData.sdfMagnitude;
+        //particlesPredicted[nodeLocator.absoluteNodeIndex].position += collisionData.transformedSdfGradient * dely; // collisionData.sdfMagnitude;
       }
     }
   }
