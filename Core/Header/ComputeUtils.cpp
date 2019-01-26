@@ -387,7 +387,7 @@ void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMe
 
 //#define DEBUG_PREFIX_SCAN
 
-void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D, uint length)
+void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length)
 {
   if (!localArrays[UtilTempPrefixGroupSum])
   {
@@ -409,7 +409,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* array1D
   uint zero = 0;
   compute->setBuffer(groupStatus->device(), PREFIX_SCAN_STATUS_INVALID, groupCount * sizeof(uint), &zero, sizeof(uint));
 
-  ComputeMemory* buffers[] = { array1D, groupSum->device(), groupStatus->device() };
+  ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL];
 
@@ -458,7 +458,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL, false);
 #endif
 
-}
+  }
 
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
@@ -491,7 +491,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     compute->sync();
 #endif
 
-    prefixScan1D(compute, localSumBuffer->device(), compute->maxCores() * 4 * RADIX_BLOCK_INST * (1 << RADIX_SORT_BIT_COUNT));
+    prefixScan1D(compute, localSumBuffer->device(), localSumBuffer->device(), compute->maxCores() * 4 * RADIX_BLOCK_INST * (1 << RADIX_SORT_BIT_COUNT));
 
 #ifdef DEBUG_RADIX_SORT
     localSumBuffer->syncHost();

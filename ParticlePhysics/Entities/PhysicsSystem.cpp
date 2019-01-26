@@ -348,9 +348,9 @@ void PhysicsSystem::render()
         float* particleSdf = new float[elements * 4];
         for (uint j = 0; j < elements; j++)
         {
-          particleSdf[j * 4] = particleCol[j].sdfGradient2[0];
-          particleSdf[j * 4 + 1] = particleCol[j].sdfGradient2[1];
-          particleSdf[j * 4 + 2] = particleCol[j].sdfGradient2[2];
+          particleSdf[j * 4] = particleCol[j].transformedSdfGradient[0];
+          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient[1];
+          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient[2];
           particleSdf[j * 4 + 3] = particleCol[j].sdfMagnitude;
         }
         displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));

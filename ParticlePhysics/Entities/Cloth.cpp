@@ -66,9 +66,9 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       setConstant(index, newPosition);
       pointPosition.push_back(newPosition);
       ParticleCollisionData colData;
-      colData.sdfGradient = 0.f;
+      colData.initialSdfGradient = 0.f;
       colData.sdfMagnitude = 0.f;
-      colData.sdfGradient2 = 0.f;
+      colData.transformedSdfGradient = 0.f;
       particleCollisionData.host()->push_back(colData);
 
       // add twice because constrain is solved only once

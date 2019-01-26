@@ -79,21 +79,24 @@ struct DEFAULT_ALIGN GroupData_t
 typedef struct GroupData_t GroupData;
 
 
+/*
+@struct Collision data for each particle.
+*/
 struct DEFAULT_ALIGN ParticleCollisionData_t
 {
   union
   {
     struct
     {
-      float3  sdfGradient;
+      float3  initialSdfGradient;
     };
     struct
     {
-      float dummy[3];
+      float reserved[3];
       float sdfMagnitude;
     };
   };
-  float3  sdfGradient2;
+  float3  transformedSdfGradient;
 };
 
 typedef struct ParticleCollisionData_t ParticleCollisionData;
@@ -152,6 +155,9 @@ struct DEFAULT_ALIGN ParticleStruct_t
 typedef struct ParticleStruct_t ParticleStruct;
 
 
+/*
+@struct Data for rigid solver particle.
+*/
 struct DEFAULT_ALIGN ParticleRigidData_t
 {
   union
@@ -170,6 +176,9 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 typedef struct ParticleRigidData_t ParticleRigidData;
 
 
+/*
+@struct Additional data for particle.
+*/
 struct DEFAULT_ALIGN ParticleAuxData_t
 {
   float   invMass;
@@ -179,6 +188,9 @@ struct DEFAULT_ALIGN ParticleAuxData_t
 typedef struct ParticleAuxData_t ParticleAuxData;
 
 
+/*
+@struct Particle differential data.
+*/
 struct DEFAULT_ALIGN ParticleDifferential_t
 {
   float3  velocity;

@@ -9,12 +9,12 @@ static uint matrix3x3UtilId;
 #define RIGID_SOLVER_KERNEL_DETERMINE_MATRIX    1
 #define RIGID_SOLVER_KERNEL_SET_DELTA_POSITION  2
 
-#define RIGID_SVD_SOLVER_ITERATIONS             8
+#define RIGID_SVD_SOLVER_ITERATIONS             4
 
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
-  iterations = 4;
+  iterations = 2;
   maxPerInstanceNodes = 0;
   create(compute);
 
@@ -79,7 +79,7 @@ void RigidSolver::solve()
   compute->configureSize(workgroupSize, workgroupCount, count);
 
   //TODO: Perperly implement this loop. Which should perhaps fix wobbling
-  for (uint iteration = 0; iteration < 1; iteration++)
+  for (uint iteration = 0; iteration < iterations; iteration++)
   {
     // copy to aux buffer to find new COM
     compute->copyBuffer(particlesPredicted.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));

@@ -69,13 +69,15 @@ void localExclusiveScan(Thread MemberStructType *elements, MemberStructType prev
 
 /*
 @kernel Parallel prefix scan array of elements.
-@param array1D Input array.
+@param destination Output array.
+@param source Input array.
 @param sumBuffer Buffer storing output of elements in a threadgroup.
 @param statusBuffer Buffer storing status of elements in a threadgroup.
 @param length Total number of array elements.
 */
 Kernel void prefixGroupScanKernel(
-  Device StructType*                array1D,
+  Device StructType*                destination,
+  const Device StructType*          source,
   volatile Device MemberStructType* sumBuffer,
   volatile Device uint*             statusBuffer,
   const uint                        length)
@@ -87,7 +89,7 @@ Kernel void prefixGroupScanKernel(
 
   // read the values
   MemberStructType originalValues[BatchSize];
-  batchRead(originalValues, array1D, index, length);
+  batchRead(originalValues, source, index, length);
 
   const MemberStructType reduceSum = localReduce(originalValues);
   localArray1D[localIndex] = reduceSum;
@@ -144,7 +146,7 @@ Kernel void prefixGroupScanKernel(
 
   localExclusiveScan(originalValues, prefixSum);
 
-  batchWrite(originalValues, array1D, index, length);
+  batchWrite(originalValues, destination, index, length);
 }
 
 #endif
