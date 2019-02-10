@@ -149,6 +149,107 @@ Kernel void prefixGroupScanKernel(
   batchWrite(originalValues, destination, index, length);
 }
 
+#ifdef StructTypeIntegral
+
+Kernel void compactSparseArray(
+  Device uint*                      compactArrayCount,
+  Device uint*                      compactIndexArray,
+  const Device StructType*          selectionArray,
+  volatile Device MemberStructType* sumBuffer,
+  volatile Device uint*             statusBuffer,
+  const uint                        length)
+{
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+
+  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
+
+  // read the values
+  MemberStructType originalValues[BatchSize];
+  uchar statusFlag[BatchSize];
+  batchRead(originalValues, selectionArray, index, length);
+
+  // make values binary
+  for (uint i = 0; i < BatchSize; i++)
+  {
+    originalValues[i] = select((MemberStructType)(0), (MemberStructType)(1), originalValues[i]>(MemberStructType)(0));
+    statusFlag[i] = originalValues[i];
+  }
+
+  const MemberStructType reduceSum = localReduce(originalValues);
+  localArray1D[localIndex] = reduceSum;
+
+  // calculate prefix sum for the threadgroup
+  MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
+
+  // for last thread in the threadgroup
+  if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))
+  {
+    localArray1D[0] = 0;
+
+    // save current value as partial sum, or final sum for the first threadgroup
+    if (threadGroupIndex())
+    {
+      sumBuffer[threadGroupIndex() * 2] = prefixSum;
+      atomicSave(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_PARTIAL);
+    }
+    else
+    {
+      sumBuffer[threadGroupIndex() * 2 + 1] = prefixSum;
+      atomicSave(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+    }
+
+    int prevGroupIndex = threadGroupIndex() - 1;
+    // get prefix sum from previous threadgroups
+    while (prevGroupIndex > -1)
+    {
+      const uint status = atomicLoad(statusBuffer + prevGroupIndex);
+      if (status == PREFIX_SCAN_STATUS_PARTIAL)
+      {
+        ADD_FUNCTION(localArray1D[0], sumBuffer[prevGroupIndex * 2]);
+        prevGroupIndex--;
+      }
+      else if (status == PREFIX_SCAN_STATUS_FINAL)
+      {
+        ADD_FUNCTION(localArray1D[0], sumBuffer[prevGroupIndex * 2 + 1]);
+        break;
+      }
+    }
+
+    // save final sum for this threadgroup
+    if (threadGroupIndex())
+    {
+      sumBuffer[threadGroupIndex() * 2 + 1] = localArray1D[0] + prefixSum;
+      atomicSave(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+    }
+  }
+
+  if (index == (length - 1))
+  {
+    compactArrayCount[0] = localArray1D[0] + prefixSum;
+  }
+
+  localMemBarrier();
+
+  ADD_FUNCTION(prefixSum, -reduceSum);
+  ADD_FUNCTION(prefixSum, localArray1D[0]);
+
+  localExclusiveScan(originalValues, prefixSum);
+
+  const uint indexOffset = index * BatchSize;
+  const uint writeCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
+
+  for (uint i = 0; i < writeCount; i++)
+  {
+    if (statusFlag[i])
+    {
+      compactIndexArray[originalValues[i]] = index;
+    }
+  }
+}
+
+#endif
+
 #endif
 
 #endif

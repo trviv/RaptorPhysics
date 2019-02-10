@@ -43,6 +43,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@member Offsets for different solvers.*/
   DeviceArray<PhySystemOffsets>   globalOffsets;
 
+  /*@member Thread index map to absolute node index.*/
+  DeviceArray<uint>               indexMap;
+
   /*@function Take one simulation step.*/
   void step();
 

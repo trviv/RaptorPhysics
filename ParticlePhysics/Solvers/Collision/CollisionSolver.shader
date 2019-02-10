@@ -18,8 +18,10 @@ Kernel void assignMortonCodeKernel(
   }
 }
 
+
 Kernel void createGridCellHistogram(
   Device uint*                      gridCellIndexCount,
+  Device uint*                      gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
   const Device IdentityInfo*        particleIdentities,
   const Device PartitionInfo*       partitions,
@@ -46,26 +48,77 @@ Kernel void createGridCellHistogram(
     const uint2 particlePredictedPos = clamp((uint2)(particlePredictedScaled.x, particlePredictedScaled.y), (uint2)(0, 0), (uint2)(gridSize - 1, gridSize - 1));
     const uint gridCountOffset = particlePredictedPos.y * gridSize + particlePredictedPos.x;
 
+    gridParticleCellIndex[index] = gridCountOffset;
     atomicAdd(gridCellIndexCount + gridCountOffset, 1);
   }
 }
 
-Kernel void createGridArrays(
-  Device uint*                      gridCellIndexCount,
-  Device uint*                      gridCellIndices,
-  Device PartitionInfo*             gridParticleIndicesOffset,
-  const Device ParticleStruct*      particles,
-  const Device ParticleStruct*      particlesPredicted,
-  const Device IdentityInfo*        particleIdentities,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const uint4*                      globalOffsets,
+
+Kernel void createGridCellArrays(
+  Device uint*                      gridCellParticleIndices,
+  Device uint*                      gridCellParticleOffsets,
+  const Device uint*                gridParticleCellIndex,
   const uint                        nodeCount)
 {
   const uint index = threadIndex();
 
   if (index < nodeCount)
   {
+    const uint gridCountOffset = gridParticleCellIndex[index];
+    const uint offset = atomicAdd(gridCellParticleOffsets + gridCountOffset, 1);
+
+    gridCellParticleIndices[offset] = index;
+  }
+}
+
+
+Kernel void applyCollisions(
+  const Device uint*                gridCellParticleIndices,
+  const Device uint*                gridCellParticleCount,
+  const Device uint*                gridCellParticleOffsets,
+  const Device uint*                gridParticleCellIndex,
+  const Device uint*                gridCompactCellIndices,
+  Device ParticleStruct*            particlesPredicted,
+  const Device IdentityInfo*        particleIdentities,
+  const Device PartitionInfo*       partitions,
+  const Device EntityLocation*      entityLocation,
+  Const PhySystemOffsets*           globalOffsets,
+  const uint                        nodeCount,
+  const uint                        occupiedCellCount)
+{
+  const uint cellIndex = threadIndex();
+
+  if (cellIndex < occupiedCellCount)
+  {
+    /*const uint gridCellIndex = gridCompactCellIndices[cellIndex];
+
+    uint count = gridCellParticleCount[gridCellIndex];
+    uint end = gridCellParticleOffsets[gridCellIndex];
+    uint start = end + -count;
+
+    for (uint i = start; i < end; i++)
+    {
+      gridCellParticleIndices[i];
+    }
+
+    //const uint index = ;
+
+    const IdentityInfo identity = particleIdentities[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+
+    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
+
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);*/
+
+    /*const float positionScale = 4.f;
+    const float2 particlePredictedScaled = particlesPredicted[nodeLocator.absoluteNodeIndex].position.xy * positionScale + gridSize / 2;
+    const uint2 particlePredictedPos = clamp((uint2)(particlePredictedScaled.x, particlePredictedScaled.y), (uint2)(0, 0), (uint2)(gridSize - 1, gridSize - 1));
+    const uint gridCountOffset = particlePredictedPos.y * gridSize + particlePredictedPos.x;
+
+    gridParticleCellIndex[index] = gridCountOffset;
+    atomicAdd(gridCellIndexCount + gridCountOffset, 1);*/
   }
 }
 

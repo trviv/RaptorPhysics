@@ -149,7 +149,7 @@ void batchRead(Thread MemberStructType *elements, const Device StructType* array
 
 #if MemberStructType != StructType
 
-  for (uint i = 0; i < BatchSize; i++)
+  for (uint i = 0; i < writeCount; i++)
   {
     elements[i] = data[i]STRUCT_MEMBER;
   }
@@ -219,7 +219,7 @@ void batchWrite(const MemberStructType *elements, Device StructType* array1D, co
 
 #else
 
-  for (uint i = 0; i < BatchSize; i++)
+  for (uint i = 0; i < writeCount; i++)
   {
     ((Device StructType*)(array1D + indexOffset))[i]STRUCT_MEMBER = elements[i];
   }

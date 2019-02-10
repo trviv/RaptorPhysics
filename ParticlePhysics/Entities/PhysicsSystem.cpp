@@ -41,6 +41,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
     (*globalOffsets.host())[i].globalSolverOffset = 0;
   }
 
+  indexMap.create(compute, NULL, true);
+
   //collisionSolver = new LBVHSolver();
   collisionSolver = new CollisionSolver();
 
@@ -481,6 +483,7 @@ void PhysicsSystem::step(float timeStep)
     }
 #endif
 
+    indexMap.resize(instanceNodeCount, false);
   }
 
   integrate(timeStep);
