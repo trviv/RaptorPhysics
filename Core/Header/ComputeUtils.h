@@ -53,6 +53,8 @@ public:
 
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean = false);
 
+  void compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength);
+
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 
   void prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);

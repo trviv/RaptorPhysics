@@ -14,10 +14,14 @@ protected:
 
   ComputeInterface*         compute;
   SharedAllocator*          allocator;
+  ComputeHeap*              solverHeap;
   DeviceArray <BVHLeafInfo> particleData;
-  DeviceArray <uint>        gridParticleIndices;
+  DeviceArray <uint>        gridCompactCellCount;
+  DeviceArray <uint>        gridCompactCellIndices;
+  DeviceArray <uint>        gridParticleCellIndex;
   DeviceArray <uint>        gridCellParticleCount;
   DeviceArray <uint>        gridCellParticleOffsets;
+  DeviceArray <uint>        gridCellParticleIndices;
   uint                      gridSize;
 
 public:

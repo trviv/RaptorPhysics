@@ -9,11 +9,12 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL          2
 #define COMPUTE_UTIL_SHOW_MATRIX_KERNEL               3
 #define COMPUTE_UTIL_SECTION_OFFSET                   4
-#define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS      5
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL    6
-#define COMPUTE_UTIL_RADIX_SORT1                      7
-#define COMPUTE_UTIL_RADIX_SORT2                      8
-#define COMPUTE_UTIL_BITONIC_SORT                     9
+#define COMPUTE_UTIL_COMPACT_SPARSE_ARRAY             5
+#define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS      6
+#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL    7
+#define COMPUTE_UTIL_RADIX_SORT1                      8
+#define COMPUTE_UTIL_RADIX_SORT2                      9
+#define COMPUTE_UTIL_BITONIC_SORT                     10
 
 enum UtilTemporaryBuffer
 {
@@ -184,6 +185,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
         oldType.push_back("BankConflictShift");
         newType.push_back(to_string(2));
+
+        util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY] = kernelNames.size();
+        kernelNames.push_back("compactSparseArray");
       }
     }
 
@@ -367,6 +371,50 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array
   }
 }
 
+//#define DEBUG_PREFIX_SCAN
+
+void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength)
+{
+  if (!localArrays[UtilTempPrefixGroupSum])
+  {
+    localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL, true);
+
+    localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL, false);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
+
+  uint groupCount = (statusArrayLength + PREFIX_SCAN_COMPUTE_THREADS*batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
+
+  groupSum->resize(groupCount * 2, false);
+  groupStatus->resize(groupCount, false);
+
+  uint zero = 0;
+  compute->setBuffer(groupStatus->device(), PREFIX_SCAN_STATUS_INVALID, groupCount * sizeof(uint), &zero, sizeof(uint));
+
+  ComputeMemory* buffers[] = { compactArrayCount, compactIndexArray, selectionArray, groupSum->device(), groupStatus->device() };
+
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY];
+
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&statusArrayLength, sizeof(buffers) / sizeof(ComputeMemory*));
+
+  size_t workgroupSize[3] = { 1, 1, 1 };
+  size_t workgroupCount[3] = { 1, 1, 1 };
+  workgroupSize[0] = PREFIX_SCAN_COMPUTE_THREADS;
+  workgroupCount[0] = groupCount;
+
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PREFIX_SCAN
+  groupSum->syncHost();
+  compute->sync();
+#endif
+}
+
 void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost)
 {
   size_t workgroupSize[3];
@@ -384,8 +432,6 @@ void ComputeUtil::consolidateFromPartitions(ComputeInterface* compute, ComputeMe
   kernels[kernelIndex].setArgs(buffers, 4);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
-
-//#define DEBUG_PREFIX_SCAN
 
 void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length)
 {
@@ -514,7 +560,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   {
     compute->copyBuffer(array1D, destination, 0, 0, length * sizeof(SortNode32));
   }
-}
+  }
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
 {
