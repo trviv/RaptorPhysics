@@ -7,30 +7,34 @@ typedef Real3 float3;
 typedef Real3 float4;
 #endif
 
-#define PHYSICS_ENTITY_ID_MASK    0xFFFFF
-#define PHYSICS_INSTANCE_ID_SHIFT 20
+#define PHYSICS_SOLVER_ID_MASK    0xF0000000
+#define PHYSICS_SOLVER_ID_SHIFT   28
+#define PHYSICS_ENTITY_ID_MASK    0x0FFF0000
+#define PHYSICS_ENTITY_ID_SHIFT   16
+#define PHYSICS_INSTANCE_ID_MASK  0x0000FFFF
 
 
 struct IdentityInfo_t
 {
-  uint identity[2];
+  uint identity;
 
 #ifndef COMPUTE_SHADER_SCOPE
 
   IdentityInfo_t()
   {
-    identity[0] = -1;
-    identity[1] = -1;
+    identity = -1;
   }
 
   void setEntityId(uint solver, uint entityId)
   {
-    identity[0] = (mCeilExpOf2(solver) << PHYSICS_INSTANCE_ID_SHIFT) | (entityId & PHYSICS_ENTITY_ID_MASK);
+    identity = (identity & PHYSICS_INSTANCE_ID_MASK) |
+      ((solver << PHYSICS_SOLVER_ID_SHIFT) & PHYSICS_SOLVER_ID_MASK) |
+      ((entityId << PHYSICS_ENTITY_ID_SHIFT) & PHYSICS_ENTITY_ID_MASK);
   }
 
   void setInstanceId(uint instanceId)
   {
-    identity[1] = instanceId;
+    identity = (identity & (-1 ^ PHYSICS_INSTANCE_ID_MASK)) | (instanceId & PHYSICS_INSTANCE_ID_MASK);
   }
 
 #endif
@@ -41,17 +45,17 @@ typedef struct IdentityInfo_t PhysicsEntityId;
 
 static uint getInstanceId(const IdentityInfo particleIdentity)
 {
-  return particleIdentity.identity[1];
+  return particleIdentity.identity & PHYSICS_INSTANCE_ID_MASK;
 }
 
 static uint getEntityId(const IdentityInfo particleIdentity)
 {
-  return particleIdentity.identity[0] & PHYSICS_ENTITY_ID_MASK;
+  return (particleIdentity.identity & PHYSICS_ENTITY_ID_MASK) >> PHYSICS_ENTITY_ID_SHIFT;
 }
 
 static uint getSolverType(const IdentityInfo particleIdentity)
 {
-  return (particleIdentity.identity[0] >> PHYSICS_INSTANCE_ID_SHIFT) + 1;
+  return (particleIdentity.identity & PHYSICS_SOLVER_ID_MASK) >> PHYSICS_SOLVER_ID_SHIFT;
 }
 
 
@@ -133,10 +137,13 @@ struct DEFAULT_ALIGN ParticleSharedData_t
 typedef struct ParticleSharedData_t ParticleSharedData;
 
 
+#pragma pack(push)
+#pragma pack(4)
+
 /*
 @struct Base data for a particle.
 */
-struct DEFAULT_ALIGN ParticleStruct_t
+struct ParticleStruct_t
 {
   union
   {
@@ -146,7 +153,12 @@ struct DEFAULT_ALIGN ParticleStruct_t
     };
     struct
     {
-      uint    reserved[3];
+      uint          reserved[3];
+      IdentityInfo  identity;
+    };
+    struct
+    {
+      uint    reserved2[3];
       float   radius;
     };
   };
@@ -154,6 +166,7 @@ struct DEFAULT_ALIGN ParticleStruct_t
 
 typedef struct ParticleStruct_t ParticleStruct;
 
+#pragma pack(pop)
 
 /*
 @struct Data for rigid solver particle.
@@ -266,13 +279,26 @@ struct ParticleNodeLocator_t
 
 typedef struct ParticleNodeLocator_t ParticleNodeLocator;
 
-inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint partitionInstanceOffset, const PartitionInfo nodeEntityLocation)
+/*inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint partitionInstanceOffset, const PartitionInfo nodeEntityLocation)
 {
   ParticleNodeLocator locator;
 
   uint relativeNodeIndex;
   locator.absoluteNodeOffset = partitionInstanceOffset;
   relativeNodeIndex = nodeIndex % nodeEntityLocation.count;
+  locator.absoluteNodeIndex = partitionInstanceOffset + relativeNodeIndex;
+  locator.commonNodeIndex = nodeEntityLocation.offset + relativeNodeIndex;
+
+  return locator;
+}*/
+
+inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint partitionInstanceOffset, const PartitionInfo nodeEntityLocation)
+{
+  ParticleNodeLocator locator;
+
+  uint relativeNodeIndex;
+  locator.absoluteNodeOffset = partitionInstanceOffset;
+  relativeNodeIndex = (nodeIndex - partitionInstanceOffset) % nodeEntityLocation.count;
   locator.absoluteNodeIndex = partitionInstanceOffset + relativeNodeIndex;
   locator.commonNodeIndex = nodeEntityLocation.offset + relativeNodeIndex;
 

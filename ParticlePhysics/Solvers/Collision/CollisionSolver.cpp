@@ -109,7 +109,6 @@ void CollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets
       gridCellParticleCount.device(),
       gridParticleCellIndex.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       globalOffsets
@@ -202,7 +201,6 @@ void CollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),

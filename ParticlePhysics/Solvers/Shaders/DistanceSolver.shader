@@ -37,7 +37,6 @@ VariableType getDelta(
 Kernel void distanceSolverSpring(
   Device ParticleStruct*            newPositions,
   const Device ParticleStruct*      oldPositions,
-  const Device IdentityInfo*        particleIdentities,
   const Device ConstrainStruct*     constrainNodes,
   const Device IndexType*           indexArray,
   const Device CoefficientType*     coefficients,
@@ -49,11 +48,12 @@ Kernel void distanceSolverSpring(
 
   if (index < nodeCount)
   {
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particleIdentities[index]);
+    ParticleStruct oldValue = oldPositions[index];
+
+    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(oldValue.identity);
     const EntityLocation localEntityLocation = entityLocation[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, localEntityLocation.node);
 
-    VariableType oldValue = oldPositions[nodeLocator.absoluteNodeIndex].position;
     VariableType sum = 0;
 
     const ConstrainStruct constrain = constrainNodes[nodeLocator.commonNodeIndex];
@@ -66,16 +66,16 @@ Kernel void distanceSolverSpring(
       {
         const uint absoluteConnectionNodeIndex = nodeLocator.absoluteNodeOffset + indexArray[commonConnectionIndex + i];
 
-        sum += getDelta(oldValue,
+        sum += getDelta(oldValue.position,
           oldPositions[absoluteConnectionNodeIndex].position,
           coefficients[commonConnectionIndex + i]);
       }
-      oldValue += sum * (successiveOverRealaxation / count);
+      oldValue.position += sum * (successiveOverRealaxation / count);
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
-    newPositions[nodeLocator.absoluteNodeIndex].position = oldValue;
+    newPositions[index] = oldValue;
   }
 }
 
