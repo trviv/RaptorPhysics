@@ -102,7 +102,6 @@ void RigidSolver::solve()
         covarianceMatrix.device(),
         particleDeltas.device(),
         particlesPredicted.device(),
-        particleIdentities.device(),
         particlesTemp[1].device(),
         particleRigidData.device(),
         partitions.device(),
@@ -158,7 +157,6 @@ void RigidSolver::solve()
     {
       ComputeMemory* buffers[] = {
         particleDeltas.device(),
-        particleIdentities.device(),
         particlesTemp[0].device(),
         particleRigidData.device(),
         particleCollisionData.device(),

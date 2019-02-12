@@ -59,7 +59,6 @@ void DistanceSolver::solve()
       ComputeMemory* buffers[] = {
         newPosition,
         oldPosition,
-        particleIdentities.device(),
         constrainHeaders.device(),
         constrainIndices.device(),
         constrainCoefficients.device(),
@@ -83,9 +82,9 @@ void DistanceSolver::solve()
     compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SPRING], workgroupSize, workgroupCount);
 
 #if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)
-    compute->sync();
     particlesTemp[0].syncHost();
     particlesTemp[1].syncHost();
+    compute->sync();
 #endif
 
   }

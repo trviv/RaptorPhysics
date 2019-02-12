@@ -17,6 +17,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   {
     solversUshort[i] = NULL;
     solversUint[i] = NULL;
+    solverParticleRadius[i].clear();
   }
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -69,7 +70,7 @@ PhysicsSystem::~PhysicsSystem()
 void* PhysicsSystem::getSolver(SolverType type)
 {
   // get solver
-  int index = mCeilExpOf2((uint)type) + 1;
+  int index = type;
 
   if (!solversUint[index])
   {
@@ -150,7 +151,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   systemUpdateInfo.node.count = nodeCount - systemUpdateInfo.node.offset;
 
   // register entity properties
-  entities[mCeilExpOf2((uint)entity->solver) + 1].push_back(entity);
+  entities[entity->solver].push_back(entity);
   updates.push_back(systemUpdateInfo);
 
   return entityId;
@@ -160,11 +161,13 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 {
   // get entity
   const uint entityId = getEntityId(registeredEntityId);
-  const SolverType solverType = (SolverType)(1 << (getSolverType(registeredEntityId) - 1));
+  const SolverType solverType = (SolverType)getSolverType(registeredEntityId);
   const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][entityId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
   const vector<ParticleCollisionData>* entityParticleCol = entity->particleCollisionData.host();
   Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(solverType);
+
+  const uint lastPartitionOffset = solver->entityLocations.host()->at(entityId).node.offset;
 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
@@ -175,7 +178,8 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
     {
       ParticleStruct particle;
       instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
-      particle.radius = solver->particleAuxData.host()->at(i).radius;
+      particle.identity = entityInstanceId;
+      solverParticleRadius[solverType].push_back(solver->particleAuxData.host()->at(lastPartitionOffset + i).radius);
       solver->particles.host()->push_back(particle);
 
       solver->particleIdentities.host()->push_back(entityInstanceId);
@@ -318,6 +322,10 @@ void PhysicsSystem::render()
         // display particles
         uint offset = solversUint[i]->particles.device()->getOffset() / sizeof(ParticleStruct);
         ParticleStruct* particles = &((*solversUint[i]->particles.host())[0]);
+        for (uint j = 0; j < elements; j++)
+        {
+          particles[j].radius = solverParticleRadius[i][j];
+        }
         displayPositionBuffer.copy((float*)particles, 0, 0, 16, ((elements + 15) / 16));
 
         GLfloat model_mat[16], proj_mat[16];
@@ -403,7 +411,6 @@ void PhysicsSystem::integrate(float timeStep)
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
@@ -429,7 +436,6 @@ void PhysicsSystem::differentiate(float timeStep)
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),

@@ -23,7 +23,6 @@ Kernel void createGridCellHistogram(
   Device uint*                      gridCellIndexCount,
   Device uint*                      gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
-  const Device IdentityInfo*        particleIdentities,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const PhySystemOffsets*           globalOffsets,
@@ -34,8 +33,8 @@ Kernel void createGridCellHistogram(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    const ParticleStruct predicted = particlesPredicted[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(predicted.identity);
     const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
@@ -44,7 +43,7 @@ Kernel void createGridCellHistogram(
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     const float positionScale = 4.f;
-    const float2 particlePredictedScaled = particlesPredicted[nodeLocator.absoluteNodeIndex].position.xy * positionScale + gridSize / 2;
+    const float2 particlePredictedScaled = predicted.position.xy * positionScale + gridSize / 2;
     const uint2 particlePredictedPos = clamp((uint2)(particlePredictedScaled.x, particlePredictedScaled.y), (uint2)(0, 0), (uint2)(gridSize - 1, gridSize - 1));
     const uint gridCountOffset = particlePredictedPos.y * gridSize + particlePredictedPos.x;
 
@@ -98,7 +97,7 @@ Kernel void applyCollisions(
 
     for (uint i = start; i < end; i++)
     {
-      gridCellParticleIndices[i];
+    gridCellParticleIndices[i];
     }
 
     //const uint index = ;
@@ -126,7 +125,6 @@ Kernel void applyCollisions(
 @kernel Apply boundary constrain.
 @param particles Initial particle position.
 @param particlesPredicted Integrated particle position.
-@param particleIdentities Particle identifiers.
 @param particleSharedData Particle entity shared data.
 @param particleAuxData Additional particle data.
 @param partitions Instance partition data.
@@ -136,7 +134,6 @@ Kernel void applyCollisions(
 Kernel void boundaryCollisionKernel(
   Device ParticleStruct*              particles,
   Device ParticleStruct*              particlesPredicted,
-  const Device IdentityInfo*          particleIdentities,
   const Device ParticleCollisionData* particleCollisionData,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
@@ -149,8 +146,8 @@ Kernel void boundaryCollisionKernel(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    ParticleStruct particle = particles[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
 
     const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
@@ -172,7 +169,8 @@ Kernel void boundaryCollisionKernel(
       {
         dely = -0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
 
-        particles[nodeLocator.absoluteNodeIndex].position.y += dely;
+        particle.position.y += dely;
+        particles[nodeLocator.absoluteNodeIndex].position.y = particle.position.y;
         particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
         //particles[nodeLocator.absoluteNodeIndex].position += collisionData.transformedSdfGradient * dely;// collisionData.sdfMagnitude;

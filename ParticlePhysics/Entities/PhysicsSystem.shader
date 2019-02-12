@@ -4,7 +4,6 @@
 Kernel void startStep(
   Device ParticleStruct*            particles,
   Device ParticleStruct*            particlesPredicted,
-  Device IdentityInfo*              particleIdentities,
   Device ParticleStruct*            particleDeltas,
   Device ParticleDifferential*      particleDiff,
   const Device ParticleSharedData*  particleSharedData,
@@ -19,8 +18,8 @@ Kernel void startStep(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    const ParticleStruct particle = particles[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
 
     const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
@@ -32,17 +31,16 @@ Kernel void startStep(
 
     const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 
-    float3 velocity, particlePosition;
+    float3 velocity;
 
     if (invMass) // only if movable
     {
-      velocity = particleDiff[nodeLocator.absoluteNodeIndex].velocity;
+      velocity = particleDiff[index].velocity;
       velocity += constructFloat3(0.f, -0.98f, 0.f) * timeStep;
       velocity *= sharedData.velocityDamping;
 
-      particleDiff[nodeLocator.absoluteNodeIndex].velocity = velocity;
-      particlePosition = particles[nodeLocator.absoluteNodeIndex].position;
-      particlesPredicted[nodeLocator.absoluteNodeIndex].position = particlePosition + velocity * timeStep;
+      particleDiff[index].velocity = velocity;
+      particlesPredicted[index].position = particle.position + velocity * timeStep;
     }
   }
 }
@@ -50,7 +48,6 @@ Kernel void startStep(
 Kernel void endStep(
   Device ParticleStruct*            particles,
   Device ParticleStruct*            particlesPredicted,
-  Device IdentityInfo*              particleIdentities,
   Device ParticleStruct*            particleDeltas,
   Device ParticleDifferential*      particleDiff,
   const Device ParticleSharedData*  particleSharedData,
@@ -65,8 +62,8 @@ Kernel void endStep(
 
   if (index < nodeCount)
   {
-    const IdentityInfo identity = particleIdentities[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+    const ParticleStruct particle = particles[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
 
     const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
 
@@ -82,11 +79,10 @@ Kernel void endStep(
 
     if (invMass) // only if movable
     {
-      particlePositionPredicted = particlesPredicted[nodeLocator.absoluteNodeIndex].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
-      particlePosition = particles[nodeLocator.absoluteNodeIndex].position;
-      particles[nodeLocator.absoluteNodeIndex].position = particlePositionPredicted;
+      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
+      particles[index].position = particlePositionPredicted;
 
-      particleDiff[nodeLocator.absoluteNodeIndex].velocity = (particlePositionPredicted - particlePosition) / timeStep;
+      particleDiff[index].velocity = (particlePositionPredicted - particle.position) / timeStep;
     }
   }
 }

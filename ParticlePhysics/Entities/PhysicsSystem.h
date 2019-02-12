@@ -94,6 +94,9 @@ public:
   bool    renderParticles;
   bool    renderSolids;
 
+  /*@member Particle radius available for reuse.*/
+  vector<float> solverParticleRadius[SOLVER_MAX];
+
   void createSphere(float radius);
 
   /*@function Render all registered entities.*/

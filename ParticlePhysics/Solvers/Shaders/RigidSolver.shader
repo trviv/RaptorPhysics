@@ -17,7 +17,6 @@ Kernel void covarianceMatrix(
   Device float*                   matrixData,
   Device ParticleStruct*          particleDeltas,
   const Device ParticleStruct*    particlesPredicted,
-  const Device IdentityInfo*      particleIdentities,
   const Device ParticleStruct*    particlesTemp,
   const Device ParticleRigidData* rigidBodyData,
   const Device PartitionInfo*     partitions,
@@ -30,19 +29,16 @@ Kernel void covarianceMatrix(
 
   if (index < length)
   {
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particleIdentities[index]);
+    const ParticleStruct predicted = particlesPredicted[index];
+    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(predicted.identity);
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    currentComOffset = particlesPredicted[nodeLocator.absoluteNodeIndex].position - particlesTemp[nodeIdentity.instanceId].position;
+    currentComOffset = predicted.position - particlesTemp[nodeIdentity.instanceId].position;
     initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
-
-    // set delta now because com is available, and will be overwritten later
-    // refer unified particle physics
-    particleDeltas[nodeLocator.absoluteNodeIndex].position = -currentComOffset;
 
     const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
     const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
-    Device float* matrixRow = (matrixData + 9 * nodeLocator.absoluteNodeIndex);
+    Device float* matrixRow = (matrixData + 9 * index);
 
     uint offset = 0;
     for (uint i = 0; i < 3; i++)
@@ -53,6 +49,13 @@ Kernel void covarianceMatrix(
         offset++;
       }
     }
+
+    // set delta now because com is available, and will be overwritten later
+    // refer unified particle physics
+    ParticleStruct particleOut;
+    particleOut.position = -currentComOffset;
+    particleOut.identity = predicted.identity;
+    particleDeltas[index] = particleOut;
   }
 }
 
@@ -171,7 +174,6 @@ Kernel void rigidSolver(
 /*
 @kernel Set delta position for rigid body.
 @param particleDeltas Change in particle position.
-@param particleIdentities Particle identifiers.
 @param matrixData Instance transformation matrix data.
 @param rigidBodyData Rigid body data.
 @param partitions Instance partition data.
@@ -180,7 +182,6 @@ Kernel void rigidSolver(
 */
 Kernel void setDeltaPosition(
   Device ParticleStruct*          particleDeltas,
-  const Device IdentityInfo*      particleIdentities,
   const Device float*             matrixData,
   const Device ParticleRigidData* rigidBodyData,
   Device ParticleCollisionData*   particleCollisionData,
@@ -194,7 +195,9 @@ Kernel void setDeltaPosition(
 
   if (index < length)
   {
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particleIdentities[index]);
+    ParticleStruct delta = particleDeltas[index];
+
+    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(delta.identity);
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     matrixData += 9 * nodeIdentity.instanceId;
@@ -214,10 +217,11 @@ Kernel void setDeltaPosition(
       sdfGradientOut[i] = dot(sdfGradientIn, column);
     }
 
-    particleDeltas[nodeLocator.absoluteNodeIndex].position += comOffsetCrossQ;
+    delta.position += comOffsetCrossQ;
+    particleDeltas[index].position = delta.position;
 
     const float3 gradientOut = normalize((float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
-    particleCollisionData[nodeLocator.absoluteNodeIndex].transformedSdfGradient = gradientOut;
+    particleCollisionData[index].transformedSdfGradient = gradientOut;
   }
 }
 
