@@ -32,11 +32,11 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
 
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1] * subdivision[2]);
 
-  (*entitySharedData.host())[0].invMassIsShared = 1;
+  (*entitySharedData.host())[0].setInvMassIsShared(true);
   (*entitySharedData.host())[0].sharedInvMass = perParticleInvMass;
-  (*entitySharedData.host())[0].radiusIsShared = 1;
+  (*entitySharedData.host())[0].setRadiusIsShared(true);
   (*entitySharedData.host())[0].sharedRadius = particleRadius;
-  (*entitySharedData.host())[0].collisionDataIsShared = 0;
+  (*entitySharedData.host())[0].setCollisionDataIsShared(false);
 
   for (int z = 0; z < signedSubdivision[2]; z++)
   {
