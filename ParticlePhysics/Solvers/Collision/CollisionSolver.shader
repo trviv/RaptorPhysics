@@ -169,12 +169,17 @@ Kernel void boundaryCollisionKernel(
       {
         dely = -0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
 
-        particle.position.y += dely;
-        particles[nodeLocator.absoluteNodeIndex].position.y = particle.position.y;
-        particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
+        //particle.position.y += dely;
+        //particles[nodeLocator.absoluteNodeIndex].position.y = particle.position.y;
+        //particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
 
-        //particles[nodeLocator.absoluteNodeIndex].position += collisionData.transformedSdfGradient * dely;// collisionData.sdfMagnitude;
-        //particlesPredicted[nodeLocator.absoluteNodeIndex].position += collisionData.transformedSdfGradient * dely; // collisionData.sdfMagnitude;
+        if (fabs(dely) < collisionData.sdfMagnitude)
+        {
+          dely = collisionData.sdfMagnitude;
+        }
+
+        particles[nodeLocator.absoluteNodeIndex].position -= collisionData.transformedSdfGradient * dely;
+        particlesPredicted[nodeLocator.absoluteNodeIndex].position -= collisionData.transformedSdfGradient * dely;
       }
     }
   }
