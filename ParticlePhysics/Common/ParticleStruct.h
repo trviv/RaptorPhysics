@@ -108,6 +108,23 @@ struct ParticleStruct_t
       float   radius;
     };
   };
+
+#ifndef COMPUTE_SHADER_SCOPE
+  ParticleStruct_t()
+  {}
+
+  ParticleStruct_t(const ParticleStruct_t& ref)
+  {
+    *this = ref;
+  }
+
+  ParticleStruct_t& operator = (const ParticleStruct_t& ref)
+  {
+    position = ref.position;
+    identity = ref.identity;
+    return *this;
+  }
+#endif
 };
 
 typedef struct ParticleStruct_t ParticleStruct;
@@ -141,6 +158,24 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
       float   reserved2[4];
     };
   };
+
+#ifndef COMPUTE_SHADER_SCOPE
+  ParticleCollisionData_t()
+  {}
+
+  ParticleCollisionData_t(const ParticleCollisionData_t& ref)
+  {
+    *this = ref;
+  }
+
+  ParticleCollisionData_t& operator = (const ParticleCollisionData_t& ref)
+  {
+    initialSdfGradient = ref.initialSdfGradient;
+    sdfMagnitude = ref.sdfMagnitude;
+    transformedSdfGradient = ref.transformedSdfGradient;
+    return *this;
+  }
+#endif
 };
 
 typedef struct ParticleCollisionData_t ParticleCollisionData;
@@ -178,6 +213,24 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   ParticleSharedData_t()
   {
     isSharedMask = 0;
+  }
+
+  ParticleSharedData_t(const ParticleSharedData_t& ref)
+  {
+    *this = ref;
+  }
+
+  ParticleSharedData_t& operator = (const ParticleSharedData_t& ref)
+  {
+    isSharedMask = ref.isSharedMask;
+    sharedInvMass = ref.sharedInvMass;
+    sharedRadius = ref.sharedRadius;
+    stiffness = ref.stiffness;
+    viscosity = ref.viscosity;
+    velocityDamping = ref.velocityDamping;
+    sharedCollisionData = ref.sharedCollisionData;
+
+    return *this;
   }
 
   /*@function If mass is shared by particles of a body.*/
@@ -241,6 +294,22 @@ struct DEFAULT_ALIGN ParticleRigidData_t
       uint    reserved[4];
     };
   };
+
+#ifndef COMPUTE_SHADER_SCOPE
+  ParticleRigidData_t()
+  {}
+
+  ParticleRigidData_t(const ParticleRigidData_t& ref)
+  {
+    *this = ref;
+  }
+
+  ParticleRigidData_t& operator = (const ParticleRigidData_t& ref)
+  {
+    initialComOffset = ref.initialComOffset;
+    return *this;
+  }
+#endif
 };
 
 typedef struct ParticleRigidData_t ParticleRigidData;

@@ -6,7 +6,6 @@
 @param matrixData Matrix data output.
 @param particleDeltas Change in particle position.
 @param particlesPredicted Integrated particle position.
-@param particleIdentities Particle identifiers.
 @param particlesTemp Current particle position.
 @param rigidBodyData Rigid body data.
 @param partitions Instance partition data.
