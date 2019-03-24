@@ -27,7 +27,6 @@ VariableType getDelta(
 @kernel Solve distance constrain using spring equation.
 @param newPositions Position output buffer for this iteration.
 @param oldPositions Position input buffer for this iteration.
-@param particleIdentities Particle identifiers.
 @param constrainNodes Buffer containing constrain header data.
 @param indexArray Buffer containing constrain index data.
 @param coefficients Buffer containing constrain magnitude data.
