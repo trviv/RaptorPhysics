@@ -42,7 +42,7 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   {
     for (int y = 0; y < signedSubdivision[1]; y++)
     {
-      int index = z*signedSubdivision[1] * signedSubdivision[0] + y*signedSubdivision[0];
+      int index = z * signedSubdivision[1] * signedSubdivision[0] + y * signedSubdivision[0];
       for (int x = 0; x < signedSubdivision[0]; x++)
       {
         Real3 newPosition = top_left + del[0] * (float)x + del[1] * (float)y + del[2] * (float)z;
@@ -97,10 +97,10 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
         {
           normal.normalize();
         }
-        colData.initialSdfGradient = normal;// *particleRadius;// Real3(nx, ny, nz);
-        colData.sdfMagnitude = magnitude;
+        colData.initialSdfGradient = normal * magnitude;
+        colData.radius = particleRadius;
+        colData.invMass = perParticleInvMass;
 
-        //auxData.sdfGradient *= -1;
         particleCollisionData.host()->push_back(colData);
 
         ParticleAuxData auxData;

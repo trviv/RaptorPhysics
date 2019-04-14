@@ -278,8 +278,8 @@ void PhysicsSystem::createSphere(float radius)
       const float x = cos(2 * M_PI * s * S) * sin(M_PI * r * R);
       const float z = sin(2 * M_PI * s * S) * sin(M_PI * r * R);
 
-      *t++ = s*S;
-      *t++ = r*R;
+      *t++ = s * S;
+      *t++ = r * R;
 
       *v++ = x * radius;
       *v++ = y * radius;
@@ -328,6 +328,18 @@ void PhysicsSystem::render()
         }
         displayPositionBuffer.copy((float*)particles, 0, 0, 16, ((elements + 15) / 16));
 
+        // display lines showing SDF data
+        ParticleCollisionData* particleCol = &((*solversUint[i]->particleCollisionData.host())[0]);
+        float* particleSdf = new float[elements * 4];
+        for (uint j = 0; j < elements; j++)
+        {
+          particleSdf[j * 4] = particleCol[j].transformedSdfGradient[0];
+          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient[1];
+          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient[2];
+          particleSdf[j * 4 + 3] = particleCol[j].radius;
+        }
+        displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));
+
         GLfloat model_mat[16], proj_mat[16];
         glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
         glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
@@ -341,6 +353,7 @@ void PhysicsSystem::render()
         displayShader.set("projectionMatrix", proj_mat);
         displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
         displayShader.activateTexture("particleCol", 1, displayColorBuffer);
+        displayLineShader.activateTexture("particleSDFGrad", 2, displayAuxBuffer);
 
         displayVertex.bind();
         GL_CHECK(glEnableVertexAttribArray(0));
@@ -352,18 +365,6 @@ void PhysicsSystem::render()
         displayVertex.unbind();
 
         displayShader.unbind();
-
-        // display lines showing SDF data
-        ParticleCollisionData* particleCol = &((*solversUint[i]->particleCollisionData.host())[0]);
-        float* particleSdf = new float[elements * 4];
-        for (uint j = 0; j < elements; j++)
-        {
-          particleSdf[j * 4] = particleCol[j].transformedSdfGradient[0];
-          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient[1];
-          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient[2];
-          particleSdf[j * 4 + 3] = particleCol[j].sdfMagnitude;
-        }
-        displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));
 
         displayLineShader.bind();
         displayLineShader.set("modelViewMatrix", model_mat);
@@ -471,6 +472,11 @@ void PhysicsSystem::step(float timeStep)
     displayColorBuffer.gen();
     displayAuxBuffer.init(width, height);
     displayAuxBuffer.gen();
+
+    clearColor[0] = 0.7f;
+    clearColor[1] = 0.7f;
+    clearColor[2] = 0.7f;
+    clearColor[3] = 1.0f;
 
     if (renderParticles)
     {

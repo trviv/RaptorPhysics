@@ -18,8 +18,9 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedRadius = 0.f;
   sharedData.setCollisionDataIsShared(true);
   sharedData.sharedCollisionData.initialSdfGradient = float3(0, 0, 0);
-  sharedData.sharedCollisionData.sdfMagnitude = 0.f;
+  sharedData.sharedCollisionData.radius = 0.f;
   sharedData.sharedCollisionData.transformedSdfGradient = float3(0, 0, 0);
+  sharedData.sharedCollisionData.invMass = 0.f;
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);
 }

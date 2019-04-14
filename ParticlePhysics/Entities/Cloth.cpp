@@ -44,7 +44,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
-    uint index = y*subdivision[0];
+    uint index = y * subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
       addConnection(index, index, y ? perParticleInvMass : 0);
@@ -58,8 +58,8 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
-    Real3 pos = top_left + del_y*(float)y;
-    uint index = y*subdivision[0];
+    Real3 pos = top_left + del_y * (float)y;
+    uint index = y * subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
       Real3 newPosition = pos + Real3(0, 0, (((subdivision[1] - y) == 1 && (subdivision[0] - x) == 1) ? .5f : 0));
@@ -67,8 +67,9 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       pointPosition.push_back(newPosition);
       ParticleCollisionData colData;
       colData.initialSdfGradient = 0.f;
-      colData.sdfMagnitude = 0.f;
+      colData.radius = 0.f;
       colData.transformedSdfGradient = 0.f;
+      colData.invMass = particleAuxData.host()->at(index).invMass;
       particleCollisionData.host()->push_back(colData);
 
       // add twice because constrain is solved only once
