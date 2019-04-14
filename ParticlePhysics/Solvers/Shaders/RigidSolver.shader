@@ -219,8 +219,7 @@ Kernel void setDeltaPosition(
     delta.position += comOffsetCrossQ;
     particleDeltas[index].position = delta.position;
 
-    const float3 gradientOut = normalize((float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
-    particleCollisionData[index].transformedSdfGradient = gradientOut;
+    particleCollisionData[index].transformedSdfGradient = (float3)(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]);
   }
 }
 

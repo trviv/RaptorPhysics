@@ -509,13 +509,13 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   const uint height = maxThreads / width;
 
   workgroupSize[0] = width;
-  workgroupSize[1] = (uint)ceil(threadCount / float(height));
+  workgroupSize[1] = (threadCount + width - 1) / width;
   workgroupSize[2] = 1;
 
   workgroupCount[0] = 1;
   if (workgroupSize[1] > height)
   {
-    workgroupCount[0] = (uint)ceil(workgroupSize[1] / float(height));
+    workgroupCount[0] = (workgroupSize[1] + height - 1) / height;
     workgroupSize[1] = height;
   }
   workgroupSize[0] *= workgroupSize[1];

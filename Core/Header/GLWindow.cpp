@@ -46,6 +46,11 @@ void Window::init(int argc, char** argv, int width, int height,
   //glDepthFunc(GL_LEQUAL);
 
   glViewport(0, 0, (GLsizei)width, (GLsizei)height);
+
+  clearColor[0] = 0.0f;
+  clearColor[1] = 0.0f;
+  clearColor[2] = 0.0f;
+  clearColor[3] = 1.0f;
 }
 
 void Window::display()
@@ -57,7 +62,7 @@ void Window::display()
 
   glPushMatrix();
 
-  glClearColor(0, 0, 0, 1);
+  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
   glClearDepth(100.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 

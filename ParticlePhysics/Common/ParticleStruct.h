@@ -102,7 +102,7 @@ struct ParticleStruct_t
       uint          reserved[3];
       IdentityInfo  identity;
     };
-    struct
+    struct // for rendering
     {
       uint    reserved2[3];
       float   radius;
@@ -144,7 +144,7 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
     struct
     {
       float reserved1[3];
-      float sdfMagnitude;
+      float radius;
     };
   };
   union
@@ -155,7 +155,8 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
     };
     struct
     {
-      float   reserved2[4];
+      float   reserved2[3];
+      float   invMass;
     };
   };
 
@@ -171,8 +172,9 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
   ParticleCollisionData_t& operator = (const ParticleCollisionData_t& ref)
   {
     initialSdfGradient = ref.initialSdfGradient;
-    sdfMagnitude = ref.sdfMagnitude;
+    radius = ref.radius;
     transformedSdfGradient = ref.transformedSdfGradient;
+    invMass = ref.invMass;
     return *this;
   }
 #endif

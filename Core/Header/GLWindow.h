@@ -23,6 +23,7 @@ protected:
   int intial_mouse_y;
 
   float rx, ry, dx, dy, dz;
+  float clearColor[4];
 
 public:
   static int del_time;
