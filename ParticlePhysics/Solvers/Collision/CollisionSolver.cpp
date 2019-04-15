@@ -4,7 +4,6 @@
 #define COLLISION_SOLVER_CELL_ARRAYS      1
 #define COLLISION_SOLVER_APPLY_COLLISIONS 2
 #define COLLISION_SOLVER_KERNEL_BOUNDARY  3
-#define COLLISION_LBVH_SOLVER_MORTON_CODE 4
 
 //#define COLLISION_DEBUG_GRID
 
@@ -35,8 +34,8 @@ void CollisionSolver::init(ComputeInterface* compute, SharedAllocator* allocator
 
   solverHeap = new ComputeHeap(compute);
 
-  // allocate for 3*grid size + 2*number of max particles
-  solverHeap->create((3 * gridSize * gridSize + 3 * 4 * 1024 * 1024) * sizeof(uint));
+  // allocate for 3*grid size + 2*number of max particles + 1* max particles particle structure
+  solverHeap->create((3 * gridSize * gridSize * gridSize + 2 * (1 * 1024 * 1024) + 4 * (1 * 1024 * 1024)) * sizeof(uint));
 
   gridCompactCellCount.create(compute, solverHeap, true);
 #ifdef COLLISION_DEBUG_GRID
@@ -64,7 +63,7 @@ void CollisionSolver::init(ComputeInterface* compute, SharedAllocator* allocator
 
 void CollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
-  const uint gridElements = gridSize * gridSize;
+  const uint gridElements = gridSize * gridSize * gridSize;
   const uint gridSizeInBytes = gridElements * sizeof(uint);
 
   if (gridCompactCellCount.size() == 0)
@@ -95,13 +94,12 @@ void CollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets
   if (gridCellParticleIndices.size() < instanceNodeCount)
   {
     gridCellParticleIndices.resize(instanceNodeCount, false);
-    return;
   }
 
   if (particlesTemp.size() < instanceNodeCount)
   {
     particlesTemp.resize(instanceNodeCount, false);
-    return;
+    return; // skip the very first step, TODO: removing this may need some restructuring
   }
 
   uint zero = 0;
