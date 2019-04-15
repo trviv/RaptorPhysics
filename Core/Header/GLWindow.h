@@ -22,7 +22,10 @@ protected:
   int intial_mouse_x;
   int intial_mouse_y;
 
-  float rx, ry, dx, dy, dz;
+  float rx, ry;
+  float front[3];
+  float translate[3];
+  float translationRate[3];
   float clearColor[4];
 
 public:
