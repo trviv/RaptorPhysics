@@ -20,11 +20,13 @@ Kernel void assignMortonCodeKernel(
   }
 }
 
-uint2 quantizePosition(const float3 position, const uint gridSize)
+uint3 quantizePosition(const float3 position, const uint gridSize)
 {
-  const float positionScale = 1.f;
-  const float2 particlePredictedScaled = position.xy * positionScale + gridSize / 2;
-  return clamp((uint2)(particlePredictedScaled.x, particlePredictedScaled.y), (uint2)(0, 0), (uint2)(gridSize - 1, gridSize - 1));
+  const float3 particlePredictedScaled = position.xyz + gridSize / 2;
+  return clamp((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z), (uint3)(0, 0, 0), (uint3)(gridSize - 1, gridSize - 1, gridSize - 1));
+
+  //const float3 particlePredictedScaled = position.xyz + gridSize / 2;
+  //return ((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z)) % (uint3)(gridSize, gridSize, gridSize);
 }
 
 /*
@@ -50,11 +52,16 @@ Kernel void createGridCellHistogram(
 {
   const uint index = threadIndex();
 
+  //Shared char4 gridCount[1024];
+
+  //for (uint i = threadLocalIndex(); i < 1024; i += threadgroupSize())
+  //{
+  //  gridCount[i] = (char4)(0, 0, 0, 0);
+  //}
   if (index < nodeCount)
   {
-    const ParticleStruct predicted = particlesPredicted[index];
-    const uint2 quantizedPosition = quantizePosition(predicted.position, gridSize);
-    const uint gridCountOffset = quantizedPosition.y * gridSize + quantizedPosition.x;
+    const uint3 quantizedPosition = quantizePosition(particlesPredicted[index].position, gridSize);
+    const uint gridCountOffset = quantizedPosition.z * gridSize * gridSize + quantizedPosition.y * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;
     atomicAdd(gridCellIndexCount + gridCountOffset, 1);
