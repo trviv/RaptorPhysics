@@ -3,6 +3,12 @@
 int Window::del_time = 5;
 Window *main_window = NULL;
 
+#define WINDOW_MAX_TRANSLATION_RATE 1.f
+#define WINDOW_TRANSLATION_RATE     0.05f
+#define WINDOW_ROTATION_SCALE       0.005f
+
+#define clamp(x, y, z) x<y?y:(x>z?z:x);
+
 void Window::init(int argc, char** argv, int width, int height,
   const char* name)
 {
@@ -24,9 +30,12 @@ void Window::init(int argc, char** argv, int width, int height,
 
   rx = 0;
   ry = 0;
-  dx = 0;
-  dy = 0;
-  dz = .25;
+  translate[0] = 0;
+  translate[1] = 0;
+  translate[2] = .25;
+  translationRate[0] = 0.f;
+  translationRate[1] = 0.f;
+  translationRate[2] = 0.f;
 
   glutTimerFunc(del_time, glwRefreshTimer, 0);
 
@@ -42,9 +51,6 @@ void Window::init(int argc, char** argv, int width, int height,
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
-  //glEnable(GL_DEPTH_TEST);  // Enables Depth Testing
-  //glDepthFunc(GL_LEQUAL);
-
   glViewport(0, 0, (GLsizei)width, (GLsizei)height);
 
   clearColor[0] = 0.0f;
@@ -55,25 +61,25 @@ void Window::init(int argc, char** argv, int width, int height,
 
 void Window::display()
 {
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
   glPushMatrix();
 
+  translationRate[0] *= 0.8f;
+  translationRate[1] *= 0.8f;
+  translationRate[2] *= 0.8f;
+  translate[0] += translationRate[0];
+  translate[1] += translationRate[1];
+  translate[2] += translationRate[2];
+
   glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
   glClearDepth(100.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  gluPerspective(60, float(win_width) / float(win_height), 0.1, 100.0);
-  gluLookAt(0, 0, 1, 0, 0, 0, 0, 1, 0);
-
-  glViewport(0, 0, win_width, win_height);
+  glTranslatef(translate[0], translate[1], translate[2]);
   glRotatef(rx, 1, 0, 0);
   glRotatef(ry, 0, 1, 0);
-  glScalef(abs(dz), abs(dz), abs(dz));
-
   step();
   render();
 
@@ -86,6 +92,22 @@ bool Window::keyboard(unsigned char key, int x, int y)
 {
   switch (key)
   {
+  case 'w':
+    translationRate[2] -= WINDOW_TRANSLATION_RATE;
+    translationRate[2] = clamp(translationRate[2], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+    break;
+  case 's':
+    translationRate[2] += WINDOW_TRANSLATION_RATE;
+    translationRate[2] = clamp(translationRate[2], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+    break;
+  case 'a':
+    translationRate[0] -= WINDOW_TRANSLATION_RATE;
+    translationRate[0] = clamp(translationRate[0], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+    break;
+  case 'd':
+    translationRate[0] += WINDOW_TRANSLATION_RATE;
+    translationRate[0] = clamp(translationRate[0], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+    break;
   case 'r':
     return false;
     break;
@@ -102,9 +124,6 @@ bool Window::keyboard(unsigned char key, int x, int y)
     return false;
     break;
   case 'i':
-    return false;
-    break;
-  case 'd':
     return false;
     break;
   case ',':
@@ -150,8 +169,8 @@ void Window::reshape(int width, int height)
   glLoadIdentity();
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  gluPerspective(60, ((float)width) / ((float)height), .001, 100000.0);
-  gluLookAt(0, 0, 1, 0, 0, 0, 0, 1, 0);
+  gluPerspective(60, ((float)width) / ((float)height), .01, 100000.0);
+  gluLookAt(0, 0, 0, 0, 0, 1, 0, 1, 0);
   glViewport(0, 0, (GLsizei)width, (GLsizei)height);
   win_width = width;
   win_height = height;
@@ -171,19 +190,19 @@ void Window::mouseDrag(int x, int y)
   float deltaX = float(x - intial_mouse_x);
   float deltaY = float(y - intial_mouse_y);
 
-  ry += (float).01*deltaX;
-  rx += (float).01*deltaY;
+  ry += WINDOW_ROTATION_SCALE * deltaX;
+  rx -= WINDOW_ROTATION_SCALE * deltaY;
 }
 
 void Window::mouseWheel(int button, int dir, int x, int y)
 {
   if (dir > 0)
   {
-    dz *= .9f;
+    //dz *= .9f;
   }
   else
   {
-    dz /= .9f;
+    //dz /= .9f;
   }
 }
 
