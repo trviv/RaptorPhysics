@@ -12,8 +12,6 @@
 
 #define RX_PREC_DOUBLE  0 //for using double as primary data type
 
-#define ENABLE_RENDERING
-
 
 #if RX_PLF_PC
 #include <conio.h>
