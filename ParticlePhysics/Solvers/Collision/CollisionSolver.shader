@@ -22,11 +22,11 @@ Kernel void assignMortonCodeKernel(
 
 uint3 quantizePosition(const float3 position, const uint gridSize)
 {
-  const float3 particlePredictedScaled = position.xyz + gridSize / 2;
-  return clamp((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z), (uint3)(0, 0, 0), (uint3)(gridSize - 1, gridSize - 1, gridSize - 1));
-
   //const float3 particlePredictedScaled = position.xyz + gridSize / 2;
-  //return ((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z)) % (uint3)(gridSize, gridSize, gridSize);
+  //return clamp((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z), (uint3)(0, 0, 0), (uint3)(gridSize - 1, gridSize - 1, gridSize - 1));
+
+  const float3 particlePredictedScaled = fabs(position.xyz);
+  return ((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z)) % (uint3)(gridSize, gridSize, gridSize);
 }
 
 /*

@@ -18,7 +18,7 @@ void CollisionSolver::init(ComputeInterface* compute, SharedAllocator* allocator
 {
   this->compute = compute;
   this->allocator = allocator;
-  gridSize = 32;
+  gridSize = 64;
 
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");

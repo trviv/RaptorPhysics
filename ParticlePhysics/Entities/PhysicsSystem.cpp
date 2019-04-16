@@ -17,7 +17,9 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   {
     solversUshort[i] = NULL;
     solversUint[i] = NULL;
+#ifdef ENABLE_RENDERING
     solverParticleRadius[i].clear();
+#endif
   }
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -179,7 +181,9 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       ParticleStruct particle;
       instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
       particle.identity = entityInstanceId;
+#ifdef ENABLE_RENDERING
       solverParticleRadius[solverType].push_back(solver->particleAuxData.host()->at(lastPartitionOffset + i).radius);
+#endif
       solver->particles.host()->push_back(particle);
 
       solver->particleIdentities.host()->push_back(entityInstanceId);
@@ -220,6 +224,8 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 void PhysicsSystem::step()
 {
   glFinish();
+  const float lastStepTime = ProfileManager::Get_Time_Since_Reset() / 1000.f;
+
   ProfileManager::Reset();
 
   if (updates.size())
@@ -239,6 +245,7 @@ void PhysicsSystem::step()
     }
   }
 
+  //step(lastStepTime);
   step(1.f / 30.f);
 
   compute->sync();
@@ -347,7 +354,6 @@ void PhysicsSystem::render()
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
 
-        glPushMatrix();
         displayShader.bind();
         displayShader.set("modelViewMatrix", model_mat);
         displayShader.set("projectionMatrix", proj_mat);
@@ -380,8 +386,6 @@ void PhysicsSystem::render()
         displayLineVertex.unbind();
 
         displayLineShader.unbind();
-
-        glPopMatrix();
       }
 
       if (renderSolids)
