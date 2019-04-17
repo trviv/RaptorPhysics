@@ -12,28 +12,19 @@ class CollisionSolver : public ShaderEntity
 {
 protected:
 
-  ComputeInterface*             compute;
-  SharedAllocator*              allocator;
-  ComputeHeap*                  solverHeap;
-  DeviceArray <BVHLeafInfo>     particleData;
-  DeviceArray <uint>            gridCompactCellCount;
-  DeviceArray <uint>            gridCompactCellIndices;
-  DeviceArray <uint>            gridParticleCellIndex;
-  DeviceArray <uint>            gridCellParticleCount;
-  DeviceArray <uint>            gridCellParticleOffsets;
-  DeviceArray <uint>            gridCellParticleIndices;
-  DeviceArray <ParticleStruct>  particlesTemp;
-  uint                          gridSize;
+  ComputeInterface* compute;
+  SharedAllocator*  allocator;
+  ComputeHeap*      solverHeap;
 
 public:
 
-  ~CollisionSolver();
+  virtual ~CollisionSolver();
 
-  virtual void init(ComputeInterface* compute, SharedAllocator* allocator);
+  virtual void init(ComputeInterface* compute, SharedAllocator* allocator) = 0;
 
-  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
+  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
 
-  virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets);
+  virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
 };
 
 #endif

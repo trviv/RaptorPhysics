@@ -62,7 +62,7 @@ add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} 
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/DistanceSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/RigidSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Collision/CollisionSolverShared.h"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Collision/CollisionSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Collision/UniformGridCollisionSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Collision/LBVHSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/LineVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/LineFrag.glsl"

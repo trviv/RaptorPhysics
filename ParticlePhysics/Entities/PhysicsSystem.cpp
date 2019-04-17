@@ -4,6 +4,7 @@
 #include "../Solvers/DistanceSolver.h"
 #include "../Solvers/RigidSolver.h"
 
+#include "../Solvers/Collision/UniformGridCollisionSolver.h"
 #include "../Solvers/Collision/LBVHSolver.h"
 
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
@@ -46,8 +47,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-  //collisionSolver = new LBVHSolver();
-  collisionSolver = new CollisionSolver();
+  collisionSolver = new UniformGridCollisionSolver();
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;
