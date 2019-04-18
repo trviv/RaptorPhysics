@@ -3,30 +3,10 @@
 
 //#define MARK_COLLIDED_PARTICLES
 
-Kernel void assignMortonCodeKernel(
-  Device BVHLeafInfo*           bvhLeafs,
-  const Device ParticleStruct*  particles,
-  const uint length)
-{
-  const uint index = threadIndex();
-
-  if (index < length)
-  {
-    BVHLeafInfo bvhLeaf;
-    bvhLeaf.mortonCode = get32BitMortonCode(particles + index);
-    bvhLeaf.index = index;
-
-    bvhLeafs[index] = bvhLeaf;
-  }
-}
-
 uint3 quantizePosition(const float3 position, const uint gridSize)
 {
-  //const float3 particlePredictedScaled = position.xyz + gridSize / 2;
-  //return clamp((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z), (uint3)(0, 0, 0), (uint3)(gridSize - 1, gridSize - 1, gridSize - 1));
-
   const float3 particlePredictedScaled = fabs(position.xyz);
-  return ((uint3)(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z)) % (uint3)(gridSize, gridSize, gridSize);
+  return constructUint3(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z) & constructUint3(gridSize - 1, gridSize - 1, gridSize - 1);
 }
 
 /*
@@ -52,16 +32,10 @@ Kernel void createGridCellHistogram(
 {
   const uint index = threadIndex();
 
-  //Shared char4 gridCount[1024];
-
-  //for (uint i = threadLocalIndex(); i < 1024; i += threadgroupSize())
-  //{
-  //  gridCount[i] = (char4)(0, 0, 0, 0);
-  //}
   if (index < nodeCount)
   {
     const uint3 quantizedPosition = quantizePosition(particlesPredicted[index].position, gridSize);
-    const uint gridCountOffset = quantizedPosition.z * gridSize * gridSize + quantizedPosition.y * gridSize + quantizedPosition.x;
+    const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;
     atomicAdd(gridCellIndexCount + gridCountOffset, 1);
@@ -204,7 +178,7 @@ Kernel void applyCollisions(
             const ParticleCollisionData collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, particleIndex);
 
             sharedParticlesPredictedOld[localIndex] = predicted;
-            sharedParticlesCollisionRadiusMass[localIndex] = (float2)(collisionData.radius, collisionData.invMass);
+            sharedParticlesCollisionRadiusMass[localIndex] = constructFloat2(collisionData.radius, collisionData.invMass);
             sharedParticlesCollisionSdfGradient[localIndex] = collisionData.transformedSdfGradient;
           }
         }
@@ -212,7 +186,7 @@ Kernel void applyCollisions(
         {
           // if same batches, copy from local data
           sharedParticlesPredictedOld[localIndex] = predictedBase;
-          sharedParticlesCollisionRadiusMass[localIndex] = (float2)(collisionDataBase.radius, collisionDataBase.invMass);
+          sharedParticlesCollisionRadiusMass[localIndex] = constructFloat2(collisionDataBase.radius, collisionDataBase.invMass);
           sharedParticlesCollisionSdfGradient[localIndex] = collisionDataBase.transformedSdfGradient;
         }
 
