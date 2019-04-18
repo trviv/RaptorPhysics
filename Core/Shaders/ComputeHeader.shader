@@ -56,7 +56,9 @@ void localMemFence()
 #define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
 #define DEFAULT_ALIGN         ALIGN(16)
 
+#define constructFloat2       (float2)
 #define constructFloat3       (float3)
+#define constructUint3        (uint3)
 
 #define NUM_BANKS       16
 #define LOG_NUM_BANKS   4
