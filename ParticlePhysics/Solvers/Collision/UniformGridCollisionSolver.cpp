@@ -5,7 +5,7 @@
 #define UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS  2
 #define UNIFORM_GRID_COLLISION_SOLVER_KERNEL_BOUNDARY   3
 
-//#define UNIFORM_GRID_COLLISION_DEBUG_GRID
+//#define DEBUG_COLLISION_UNIFORM_GRID
 
 uint uniformGridCollisionSolverComputeUtilId;
 
@@ -37,7 +37,7 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   solverHeap->create((3 * gridSize * gridSize * gridSize + 2 * (1 * 1024 * 1024) + 4 * (1 * 1024 * 1024)) * sizeof(uint));
 
   gridCompactCellCount.create(compute, solverHeap, true);
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCompactCellIndices.create(compute, solverHeap, true);
   gridParticleCellIndex.create(compute, solverHeap, true);
   gridCellParticleCount.create(compute, solverHeap, true);
@@ -127,7 +127,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_COUNTS], workgroupSize, workgroupCount);
   }
 
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCellParticleCount.syncHost();
   gridParticleCellIndex.syncHost();
   compute->sync();
@@ -136,14 +136,14 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
   // get prefix sum for each
   ComputeUtil::get(uniformGridCollisionSolverComputeUtilId)->prefixScan1D(compute, gridCellParticleOffsets.device(), gridCellParticleCount.device(), gridElements);
 
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCellParticleOffsets.syncHost();
   compute->sync();
 #endif
 
   ComputeUtil::get(uniformGridCollisionSolverComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
 
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCompactCellIndices.syncHost();
 #endif
 
@@ -166,7 +166,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, workgroupCount);
   }
 
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCellParticleIndices.syncHost();
   gridCellParticleOffsets.syncHost();
   compute->sync();
@@ -198,7 +198,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
   }
 
-#ifdef UNIFORM_GRID_COLLISION_DEBUG_GRID
+#ifdef DEBUG_COLLISION_UNIFORM_GRID
   compute->sync();
 #endif
 }

@@ -369,6 +369,15 @@ ParticleCollisionData getSDFUsingDeviceCollision(const Thread ParticleSharedData
   return particleCollisionData[index];
 }
 
+float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)
+{
+  if (getRadiusIsShared(particleSharedData))
+  {
+    return particleSharedData->sharedRadius;
+  }
+  return particleAuxData[index].radius;
+}
+
 /*
 @struct Uncompressed identity data for directl use at runtime.
 */

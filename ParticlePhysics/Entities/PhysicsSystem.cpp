@@ -185,8 +185,6 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       solverParticleRadius[solverType].push_back(solver->particleAuxData.host()->at(lastPartitionOffset + i).radius);
 #endif
       solver->particles.host()->push_back(particle);
-
-      solver->particleIdentities.host()->push_back(entityInstanceId);
       solver->particleCollisionData.host()->push_back(entityParticleCol->at(i));
     }
 
@@ -393,7 +391,7 @@ void PhysicsSystem::render()
         // display solid
         for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
         {
-          IdentityInfo identity = solversUint[i]->particleIdentities.host()->at(partition.offset);
+          IdentityInfo identity = solversUint[i]->particles.host()->at(partition.offset).identity;
           uint solverId = getEntityId(identity);
           ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
 

@@ -21,10 +21,10 @@ template<class IndexType, class CoefficientType> struct ConstrainAllocator
 
   void create(uint initialNodes, uint initialIndices)
   {
-    constrainSectionsHeap.create(initialNodes*sizeof(Constrain));
-    constrainHeadersHeap.create(initialNodes*sizeof(Constrain));
-    constrainIndicesHeap.create(initialIndices*sizeof(IndexType));
-    constrainCoefficientsHeap.create(initialIndices*sizeof(CoefficientType));
+    constrainSectionsHeap.create(initialNodes * sizeof(Constrain));
+    constrainHeadersHeap.create(initialNodes * sizeof(Constrain));
+    constrainIndicesHeap.create(initialIndices * sizeof(IndexType));
+    constrainCoefficientsHeap.create(initialIndices * sizeof(CoefficientType));
   }
 };
 
@@ -34,7 +34,6 @@ struct ParticleAllocator
   ComputeHeap particlePredicted;
   ComputeHeap particleSharedHeap;
   ComputeHeap particleHeap;
-  ComputeHeap particleIdentities;
   ComputeHeap particleDeltaHeap;
   ComputeHeap particleDifferentialHeap;
 
@@ -47,7 +46,6 @@ struct ParticleAllocator
     particlePredicted(compute),
     particleSharedHeap(compute),
     particleHeap(compute),
-    particleIdentities(compute),
     particleDeltaHeap(compute),
     particleDifferentialHeap(compute),
     particleRigidData(compute),
@@ -60,13 +58,12 @@ struct ParticleAllocator
     partitions.create(initialParticles * sizeof(ParticleSharedData));
     particlePredicted.create(initialParticles * sizeof(ParticleStruct));
     particleSharedHeap.create(initialParticles * sizeof(ParticleSharedData));
-    particleHeap.create(initialParticles*sizeof(ParticleStruct));
-    particleIdentities.create(initialParticles*sizeof(IdentityInfo));
-    particleDeltaHeap.create(initialParticles*sizeof(ParticleStruct));
-    particleDifferentialHeap.create(initialParticles*sizeof(ParticleDifferential));
-    particleRigidData.create(initialParticles*sizeof(ParticleRigidData));
-    particleCollisionData.create(initialParticles*sizeof(ParticleCollisionData));
-    particleAuxData.create(initialParticles*sizeof(ParticleAuxData));
+    particleHeap.create(initialParticles * sizeof(ParticleStruct));
+    particleDeltaHeap.create(initialParticles * sizeof(ParticleStruct));
+    particleDifferentialHeap.create(initialParticles * sizeof(ParticleDifferential));
+    particleRigidData.create(initialParticles * sizeof(ParticleRigidData));
+    particleCollisionData.create(initialParticles * sizeof(ParticleCollisionData));
+    particleAuxData.create(initialParticles * sizeof(ParticleAuxData));
   }
 };
 
@@ -82,7 +79,6 @@ enum SharedComputeHeapEnum
   COMPUTE_HEAP_PARTICLE,
   COMPUTE_HEAP_PARTICLE_PREDICTED,
   COMPUTE_HEAP_PARTICLE_SHARED,
-  COMPUTE_HEAP_PARTICLE_IDENTITY,
   COMPUTE_HEAP_PARTICLE_DELTA,
   COMPUTE_HEAP_PARTICLE_DIFF,
   COMPUTE_HEAP_PARTICLE_RIGID,
@@ -123,8 +119,6 @@ public:
       return &particleAllocator.particlePredicted;
     case COMPUTE_HEAP_PARTICLE_SHARED:
       return &particleAllocator.particleSharedHeap;
-    case COMPUTE_HEAP_PARTICLE_IDENTITY:
-      return &particleAllocator.particleIdentities;
     case COMPUTE_HEAP_PARTICLE_DELTA:
       return &particleAllocator.particleDeltaHeap;
     case COMPUTE_HEAP_PARTICLE_DIFF:

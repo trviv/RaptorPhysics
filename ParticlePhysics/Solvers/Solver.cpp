@@ -2,7 +2,7 @@
 
 template<class IndexType, class CoefficientType, class VariableType>
 Solver<IndexType, CoefficientType, VariableType>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type) :
-SolverData(), compute(compute), allocator(allocator), type(type)
+  SolverData(), compute(compute), allocator(allocator), type(type)
 {
   constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS), true);
   constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES), true);
@@ -15,7 +15,6 @@ SolverData(), compute(compute), allocator(allocator), type(type)
 
   particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
-  particleIdentities.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_IDENTITY), true);
   particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
   particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
@@ -115,7 +114,6 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   particles.syncDevice();
   particlesPredicted.resize(particles.size(), false);
   compute->copyBuffer(particles.device(), particlesPredicted.device(), 0, 0, particles.size() * sizeof(ParticleStruct));
-  particleIdentities.syncDevice();
   particleDeltas.resize(particles.size(), false);
   particleCollisionData.syncDevice();
   particleAuxData.syncDevice();
