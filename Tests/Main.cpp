@@ -203,7 +203,7 @@ void testRegular2DMean(ComputeInterface* compute)
 
   for (int i = 0; i < parts; i++)
   {
-    if (abs(means[i][0] - particlesHost[i * width].position[0])>.00001f
+    if (abs(means[i][0] - particlesHost[i * width].position[0]) > .00001f
       || abs(means[i][1] - particlesHost[i * width].position[1]) > .00001f
       || abs(means[i][2] - particlesHost[i * width].position[2]) > .00001f)
     {
@@ -219,7 +219,6 @@ void testIrregular2DMean(ComputeInterface* compute)
   printf("\nTesting irregular 2D mean:\n");
 
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
-  DeviceArray<IdentityInfo>   particleIdentities(compute, NULL, true);
   DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
   DeviceArray<uint>           partitionCount(compute, NULL, true);
 
@@ -261,7 +260,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
     IdentityInfo particleIdentity;
     particleIdentity.setInstanceId(sectionIndex);
-    particleIdentities.host()->push_back(particleIdentity);
+    particle.identity = particleIdentity;
 
     particlesHost.push_back(particle);
     sum += particle.position;
@@ -271,7 +270,6 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   particles.syncDevice();
   partitions.syncDevice();
-  particleIdentities.syncDevice();
 
   vector<string> includes = { "ParticleStruct.h" };
   map<ComputeUtilKey, string> utilSetting;
@@ -280,11 +278,12 @@ void testIrregular2DMean(ComputeInterface* compute)
   utilSetting[ComputeUtilStructMember] = "position";
   utilSetting[ComputeUtilStructMemberType] = "float3";
   utilSetting[ComputeUtilIdentityFunction] = "getInstanceId";
-  utilSetting[ComputeUtilIdentityStructType] = "IdentityInfo";
+  utilSetting[ComputeUtilIdentityStructType] = "ParticleStruct";
+  utilSetting[ComputeUtilIdentityStructMember] = "identity";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particleIdentities.device(), partitions.device(), partitionCount.device(), elements, width, true);
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particles.device(), partitions.device(), partitionCount.device(), elements, width, true);
 
   particles.syncHost();
   compute->sync();
