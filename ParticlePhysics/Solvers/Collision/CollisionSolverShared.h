@@ -10,6 +10,18 @@
 
 #define COLLISION_COMPONENT_MORTON_CODE_MASK 1023
 
+struct XAB_t
+{
+  float3 min;
+  float3 max;
+};
+
+typedef struct XAB_t XAB;
+
+#define addXAB(a, b)  { a.min = min(a.min, b.min);}
+#define divXAB(a, b)  { }
+#define copyXAB(a, b) { a.min = b.min;}
+
 struct BVHLeafInfo_t
 {
   uint mortonCode;
