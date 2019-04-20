@@ -78,9 +78,10 @@ typedef struct
   float val[9];
 } Matrix3x3;
 
-#define addMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] += (b)->val[i]; } }
-#define divMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] /= (*b); } }
-#define copyMatrix3x3(a, b) { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
+#define addMatrix3x3(a, b)    { for (uint i = 0; i < 9; i++) { (a)->val[i] += (b)->val[i]; } }
+#define divMatrix3x3(a, b)    { for (uint i = 0; i < 9; i++) { (a)->val[i] /= (*b); } }
+#define copyMatrix3x3(a, b)   { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
+#define clearMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] = b; } }
 
 #define atomicLoad(location)        atomic_add (location, 0)
 #define atomicSave(location, value) atomic_xchg(location, value)

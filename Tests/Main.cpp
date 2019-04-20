@@ -114,7 +114,6 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
   map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilBatchSize] = "1";
   utilSetting[ComputeUtilStructType] = "float";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
   ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements);
@@ -125,7 +124,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
     ProfileBlock("Reduce scan");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, true);
+      ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements, true);
     }
   };
 
@@ -416,7 +415,6 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
   map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilBatchSize] = "4";
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);

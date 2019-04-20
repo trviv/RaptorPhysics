@@ -54,6 +54,7 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
 #endif
 
   map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilBatchSize] = "1";
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
 

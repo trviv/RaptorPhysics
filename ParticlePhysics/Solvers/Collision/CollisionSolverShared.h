@@ -26,7 +26,7 @@ struct BVHNodeInfo_t
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
 
-struct XAB_t
+struct ALIGN(8) XAB_t
 {
   float3 min;
   float3 max;
@@ -36,7 +36,7 @@ typedef struct XAB_t XAB;
 
 #define addXAB(a, b)    { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
 #define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
-#define clearXAB(a, b)  { }
+#define clearXAB(a, b)  { (a)->min = b; (a)->max = b;}
 
 static uint arrange32Bits(uint x)
 {
