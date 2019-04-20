@@ -53,6 +53,12 @@
 #define DIV_FUNCTION(x, y)      x /= y
 #endif
 
+#ifdef ClearFunction
+#define CLEAR_FUNCTION(x, y)      ClearFunction(&(x), &(y))
+#else
+#define CLEAR_FUNCTION(x, y)      CopyFunction(x, y)
+#endif
+
 #if MemberStructType == uint
 #define MemberStructType8 uint8
 #define MemberStructType4 uint4

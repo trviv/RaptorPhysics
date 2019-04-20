@@ -59,12 +59,17 @@ string getKeyName(ComputeUtilKey key)
     return "CopyFunction";
   case ComputeUtilCustomDivFunction:
     return "DivFunction";
+  case ComputeUtilCustomClearFunction:
+    return "ClearFunction";
 
   case ComputeUtilBatchSize:
     return "BatchSize";
 
   case ComputeUtilSkipParallelPrimitives:
     return "SkipParallelPrimitives";
+
+  case ComputeUtilOnlyReduce:
+    return "OnlyReduce";
 
   default:
     assert("Enumeration not defined!" && 0);
@@ -190,6 +195,12 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
         kernelNames.push_back("compactSparseArray");
       }
     }
+    else
+    if (dataMap.find(ComputeUtilOnlyReduce) != dataMap.end())
+    {
+      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("reduce");
+    }
 
     util.localArrays.clear();
     util.localArrays.reserve(UtilTempBufferMax);
@@ -199,13 +210,16 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       util.localArrays.push_back(NULL);
     }
 
-    util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = kernelNames.size();
-    kernelNames.push_back("consolidateFromPartitionsKernel");
-
-    if (dataMap.find(ComputeUtilIdentityStructType) != dataMap.end())
+    if (dataMap.find(ComputeUtilOnlyReduce) == dataMap.end())
     {
-      util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = kernelNames.size();
-      kernelNames.push_back("sumIrregular2DKernel");
+      util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = kernelNames.size();
+      kernelNames.push_back("consolidateFromPartitionsKernel");
+
+      if (dataMap.find(ComputeUtilIdentityStructType) != dataMap.end())
+      {
+        util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = kernelNames.size();
+        kernelNames.push_back("sumIrregular2DKernel");
+      }
     }
   }
 
@@ -387,7 +401,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = (statusArrayLength + PREFIX_SCAN_COMPUTE_THREADS*batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
+  uint groupCount = (statusArrayLength + PREFIX_SCAN_COMPUTE_THREADS * batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
 
   groupSum->resize(groupCount * 2, false);
   groupStatus->resize(groupCount, false);
@@ -447,7 +461,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = (length + PREFIX_SCAN_COMPUTE_THREADS*batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
+  uint groupCount = (length + PREFIX_SCAN_COMPUTE_THREADS * batchSize - 1) / (PREFIX_SCAN_COMPUTE_THREADS*batchSize);
 
   groupSum->resize(groupCount * 2, false);
   groupStatus->resize(groupCount, false);
@@ -560,7 +574,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   {
     compute->copyBuffer(array1D, destination, 0, 0, length * sizeof(SortNode32));
   }
-  }
+}
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
 {
