@@ -23,9 +23,11 @@ enum ComputeUtilKey
   ComputeUtilCustomAddFunction,
   ComputeUtilCustomCopyFunction,
   ComputeUtilCustomDivFunction,
+  ComputeUtilCustomClearFunction,
 
   ComputeUtilBatchSize,
   ComputeUtilSkipParallelPrimitives,
+  ComputeUtilOnlyReduce,
 
   ComputeUtilMaxKey
 };

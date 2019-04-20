@@ -1,7 +1,7 @@
 #ifndef COMPUTE_UTILS_REDUCE_H
 #define COMPUTE_UTILS_REDUCE_H
 
-#if !defined(SkipParallelPrimitives) && defined(StructType)
+#if (!defined(SkipParallelPrimitives) || defined(ComputeUtilOnlyReduce)) && defined(StructType)
 
 void subGroupReduce(volatile Shared MemberStructType* localArray, const uint localIndex, const uint subGroupLocalIndex)
 {
@@ -52,10 +52,10 @@ void groupReduce(volatile Shared MemberStructType* localArray, const uint localI
   {
     COPY_FUNCTION(localArray[subGroupIndex], localArray[localIndex]);
   }
-  // set non coped elements to zero
+  // set non copied elements to zero
   if (subGroupIndex == 0 && subGroupLocalIndex >= (REDUCE_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
   {
-    localArray[subGroupIndex] = 0;
+    CLEAR_FUNCTION(localArray[subGroupIndex], 0);
   }
   localMemBarrier();
 
@@ -139,11 +139,12 @@ Kernel void reduce(
   {
     if (divideFlag)
     {
-      array1D[0]STRUCT_MEMBER = DIV_FUNCTION(previousSum, length);
+      DIV_FUNCTION(previousSum, length);
+      COPY_FUNCTION(array1D[0]STRUCT_MEMBER, previousSum);
     }
     else
     {
-      array1D[0]STRUCT_MEMBER = previousSum;
+      COPY_FUNCTION(array1D[0]STRUCT_MEMBER, previousSum);
     }
   }
 }
