@@ -82,23 +82,6 @@ typedef struct
 #define divMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] /= (*b); } }
 #define copyMatrix3x3(a, b) { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
 
-#ifndef XAB_STRUCT
-#define XAB_STRUCT
-
-struct XAB_t
-{
-  float3 min;
-  float3 max;
-};
-
-typedef struct XAB_t XAB;
-
-#define addXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
-#define divXAB(a, b)  { (a)->min /= (*b); (a)->max /= (*b);}
-#define clearXAB(a, b) { }
-
-#endif
-
 #define atomicLoad(location)        atomic_add (location, 0)
 #define atomicSave(location, value) atomic_xchg(location, value)
 #define atomicAdd(location, value)  atomic_add (location, value)

@@ -1,7 +1,7 @@
 #ifndef COMPUTE_UTILS_REDUCE_H
 #define COMPUTE_UTILS_REDUCE_H
 
-#if (!defined(SkipParallelPrimitives) || defined(ComputeUtilOnlyReduce)) && defined(StructType)
+#if (!defined(SkipParallelPrimitives) || defined(OnlyReduce)) && defined(StructType)
 
 void subGroupReduce(volatile Shared MemberStructType* localArray, const uint localIndex, const uint subGroupLocalIndex)
 {
