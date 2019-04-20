@@ -130,15 +130,8 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
   kernelNames.push_back("showMatrix");
 
-  // if parallel primitives enabled, use size tuned for best performance
-  if (dataMap.find(ComputeUtilSkipParallelPrimitives) != dataMap.end())
-  {
-    util.batchSize = 4;
-  }
-  else
-  {
-    util.batchSize = 1;
-  }
+  // use size tuned for best performance
+  util.batchSize = 4;
 
   // override if specified
   if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())

@@ -172,7 +172,7 @@ Kernel void compactSparseArray(
   // make values binary
   for (uint i = 0; i < BatchSize; i++)
   {
-    originalValues[i] = select((MemberStructType)(0), (MemberStructType)(1), originalValues[i]>(MemberStructType)(0));
+    originalValues[i] = select((MemberStructType)(0), (MemberStructType)(1), originalValues[i] > (MemberStructType)(0));
     statusFlag[i] = originalValues[i];
   }
 
@@ -224,7 +224,7 @@ Kernel void compactSparseArray(
     }
   }
 
-  if (index == (length - 1))
+  if (index * BatchSize == (length - 1))
   {
     compactArrayCount[0] = localArray1D[0] + prefixSum;
   }
@@ -243,7 +243,7 @@ Kernel void compactSparseArray(
   {
     if (statusFlag[i])
     {
-      compactIndexArray[originalValues[i]] = index;
+      compactIndexArray[originalValues[i]] = index * BatchSize;
     }
   }
 }

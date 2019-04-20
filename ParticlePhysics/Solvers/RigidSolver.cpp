@@ -51,9 +51,10 @@ void RigidSolver::create(ComputeInterface* compute)
     matrix3x3Setting[ComputeUtilCustomAddFunction] = "addMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
+    matrix3x3Setting[ComputeUtilCustomClearFunction] = "clearMatrix3x3";
     matrix3x3Setting[ComputeUtilIdentityStructType] = "ParticleStruct";
     matrix3x3Setting[ComputeUtilIdentityStructMember] = "identity";
-    matrix3x3Setting[ComputeUtilSkipParallelPrimitives] = "SkipParallelPrimitives";
+    matrix3x3Setting[ComputeUtilSkipParallelPrimitives] = "1";
 
     positionUtilId = ComputeUtil::create(compute, positionSetting, &include);
     matrix3x3UtilId = ComputeUtil::create(compute, matrix3x3Setting, &include);

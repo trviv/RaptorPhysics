@@ -54,9 +54,9 @@
 #endif
 
 #ifdef ClearFunction
-#define CLEAR_FUNCTION(x, y)      ClearFunction(&(x), &(y))
+#define CLEAR_FUNCTION(x, y)      ClearFunction(&(x), y)
 #else
-#define CLEAR_FUNCTION(x, y)      CopyFunction(x, y)
+#define CLEAR_FUNCTION(x, y)      (x) = y
 #endif
 
 #if MemberStructType == uint
@@ -98,6 +98,8 @@ void batchRead(Thread MemberStructType *elements, const Device StructType* array
   * ((Thread MemberStructType8*)elements) = (MemberStructType8)(0);
 #elif BatchSize == 4
   * ((Thread MemberStructType4*)elements) = (MemberStructType4)(0);
+#elif BatchSize == 1
+  CLEAR_FUNCTION(*elements, 0);
 #endif
 
   switch (readCount)
