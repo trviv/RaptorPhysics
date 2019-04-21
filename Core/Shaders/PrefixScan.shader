@@ -131,8 +131,8 @@ Kernel void prefixGroupScanKernel(
       }
     }
 
-    // save final sum for this threadgroup
-    if (threadGroupIndex())
+    // save final sum for this threadgroup, if not first or very last
+    if (threadGroupIndex() < (threadGroupCount() - 1))
     {
       sumBuffer[threadGroupIndex() * 2 + 1] = localArray1D[0] + prefixSum;
       atomicSave(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);

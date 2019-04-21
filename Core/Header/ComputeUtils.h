@@ -47,7 +47,9 @@ public:
 
   static ComputeUtil* get(uint templateId);
 
-  void sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint length, bool doMean = false);
+  void sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean = false);
+
+  void sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean = false);
 
   void sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D, uint length, uint subArrayElements, bool doMean = false);
 

@@ -67,7 +67,8 @@ void groupReduce(volatile Shared MemberStructType* localArray, const uint localI
 }
 
 Kernel void reduce(
-  Device StructType*                array1D,
+  Device StructType*                destination,
+  const Device StructType*          source,
   volatile Device MemberStructType* sumBuffer,
   volatile Device uint*             statusBuffer,
   const uint                        length,
@@ -77,10 +78,9 @@ Kernel void reduce(
   const uint localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
-  Shared MemberStructType previousSum;
 
   MemberStructType originalValues[BatchSize];
-  batchRead(originalValues, array1D, index, length);
+  batchRead(originalValues, source, index, length);
 
   const MemberStructType reduceSum = localReduce(originalValues);
   localArray[localIndex] = reduceSum;
@@ -123,28 +123,25 @@ Kernel void reduce(
       }
     }
 
-    // save final sum for this threadgroup
-    if (threadGroupIndex())
+    // save final sum for this threadgroup, if not first or very last
+    if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
       COPY_FUNCTION(sumBuffer[threadGroupIndex() * 2 + 1], sum);
       atomicSave(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
     }
-    previousSum = sum;
-  }
 
-  localMemBarrier();
-
-  // save the reduced sum
-  if (index == (length - 1))
-  {
-    if (divideFlag)
+    // save the reduced sum
+    if (threadGroupCount() == (threadGroupIndex() + 1))
     {
-      DIV_FUNCTION(previousSum, length);
-      COPY_FUNCTION(array1D[0]STRUCT_MEMBER, previousSum);
-    }
-    else
-    {
-      COPY_FUNCTION(array1D[0]STRUCT_MEMBER, previousSum);
+      if (divideFlag)
+      {
+        DIV_FUNCTION(sum, length);
+        COPY_FUNCTION(destination[0]STRUCT_MEMBER, sum);
+      }
+      else
+      {
+        COPY_FUNCTION(destination[0]STRUCT_MEMBER, sum);
+      }
     }
   }
 }

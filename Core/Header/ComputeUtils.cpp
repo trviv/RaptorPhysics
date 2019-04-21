@@ -236,7 +236,12 @@ ComputeUtil* ComputeUtil::get(uint templateId)
   return &computeUtils[templateId];
 }
 
-void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint length, bool doMean)
+void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean)
+{
+  sum1D(compute, source, source, length, doMean);
+}
+
+void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean)
 {
   if (!localArrays[UtilTempReduceSum])
   {
@@ -250,7 +255,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint 
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempReduceStatus];
 
-  uint groupCount = (length + REDUCE_COMPUTE_THREADS - 1) / REDUCE_COMPUTE_THREADS;
+  uint groupCount = (length + REDUCE_COMPUTE_THREADS * batchSize - 1) / (REDUCE_COMPUTE_THREADS * batchSize);
 
   groupSum->resize(groupCount * 2, false);
   groupStatus->resize(groupCount, false);
@@ -259,7 +264,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint 
   uint mean = doMean ? 1 : 0;
   compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
 
-  ComputeMemory* buffers[] = { array1D, groupSum->device(), groupStatus->device() };
+  ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
 
@@ -267,10 +272,10 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* array1D, uint 
   kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
   kernels[kernelIndex].setArg<uint>(&mean, 1 + sizeof(buffers) / sizeof(ComputeMemory*));
 
-  size_t workgroupSize[3];
-  size_t workgroupCount[3];
-  compute->configureSize(workgroupSize, workgroupCount, length, REDUCE_COMPUTE_THREADS);
+  size_t workgroupSize[3] = { 1, 1, 1 };
+  size_t workgroupCount[3] = { 1, 1, 1 };
   workgroupSize[0] = REDUCE_COMPUTE_THREADS;
+  workgroupCount[0] = groupCount;
 
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
