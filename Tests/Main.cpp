@@ -97,7 +97,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   DeviceArray<DataType> data(compute, NULL, true);
   DeviceArray<DataType> backupData(compute, NULL, false);
 
-  const int elements = 1024 * 1024 * 16;
+  const int elements = 12345678;// 1024 * 1024 * 16;
   DataType sum = 0;
   uint iterations = 20;
 
@@ -398,7 +398,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   DeviceArray<DataType> backupData(compute, NULL, false);
   vector<DataType> prefixSum;
 
-  const int elements = 1024 * 1024 * 16;
+  const int elements = 12345678;// 1024 * 1024 * 16;
   DataType sum = 0;
   const uint iterations = 20;
 
@@ -449,6 +449,76 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   }
 
   printf("1D prefix scan test passed!\n");
+}
+
+template<class DataType> void test1DCompaction(ComputeInterface* compute)
+{
+  printf("\nTesting 1D compaction pass:\n");
+
+  DeviceArray<DataType> count(compute, NULL, true);
+  DeviceArray<DataType> compactIndexArray(compute, NULL, true);
+  DeviceArray<DataType> selectionArray(compute, NULL, true);
+  vector<uint> statusOutput;
+
+  const int elements = 12345678;// 1024 * 1024 * 16;
+  DataType sum = 0;
+  const uint iterations = 20;
+
+  selectionArray.host()->reserve(elements);
+  statusOutput.reserve(elements);
+  for (uint i = 0; i < elements; i++)
+  {
+    int value = rand() & 1;
+    selectionArray.host()->push_back(value);
+    if (value)
+    {
+      statusOutput.push_back(i);
+    }
+  }
+
+  count.resize(1, false);
+  selectionArray.syncDevice();
+  compactIndexArray.resize(elements, false);
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  utilSetting[ComputeUtilStructTypeIntegral] = "1";
+  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
+
+  compute->sync();
+
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Compact sparse array");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
+    }
+  }
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  printStats(mean, elements, 2, sizeof(uint));
+
+  ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
+  count.syncHost();
+  compactIndexArray.syncHost();
+  compute->sync();
+
+  assert(count.host()->at(0) == statusOutput.size());
+
+  for (uint i = 0; i < statusOutput.size(); i++)
+  {
+    if (statusOutput[i] != compactIndexArray.host()->at(i))
+    {
+      std::cout << i << " " << statusOutput[i] << " " << compactIndexArray.host()->at(i) << "\n";
+      assert(0);
+    }
+  }
+
+  printf("Compact 1D sparse array test passed!\n");
 }
 
 bool sortFunction(SortNode32 i, SortNode32 j)
@@ -504,7 +574,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   DeviceArray<SortNode32> destination(compute, NULL, true);
   DeviceArray<SortNode32> data(compute, NULL, true);
   vector<SortNode32> sortedData;
-  const int elements = 1024 * 1024 * 4;
+  const int elements = 12345678;// 1024 * 1024 * 4;
 
   data.host()->reserve(elements);
   destination.resize(elements, false);
@@ -529,7 +599,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
   compute->sync();
 
-  uint iterations = 0;
+  uint iterations = 1;
   float cumulativeTime = 0;
   for (uint i = 0; i < iterations; i++)
   {
@@ -581,6 +651,7 @@ int main(int argc, char** argv)
   testRegular2DMean(compute);
   testIrregular2DMean(compute);
   test1DPrefixScan<uint>(compute);
+  test1DCompaction<uint>(compute);
   //test1DBitonicSort32Bit(compute);
   test1DRadixSort32Bit(compute);
   //testEquation(compute);
