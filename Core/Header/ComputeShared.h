@@ -52,6 +52,7 @@ SortNode32 defaultSortNode()
   SortNode32 ret;
   ret.key = -1;
   ret.value = -1;
+  return ret;
 }
 
 #endif
