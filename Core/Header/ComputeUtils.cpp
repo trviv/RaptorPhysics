@@ -131,7 +131,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   kernelNames.push_back("showMatrix");
 
   // use size tuned for best performance
-  util.batchSize = 4;
+  util.batchSize = 8;
 
   // override if specified
   if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())
