@@ -97,6 +97,8 @@ Kernel void prefixGroupScanKernel(
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
 
+  localMemBarrier();
+
   // for last thread in the threadgroup
   if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))
   {
@@ -182,6 +184,8 @@ Kernel void compactSparseArray(
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
 
+  localMemBarrier();
+
   // for last thread in the threadgroup
   if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))
   {
@@ -216,17 +220,18 @@ Kernel void compactSparseArray(
       }
     }
 
-    // save final sum for this threadgroup
-    if (threadGroupIndex())
+    // save final sum for this threadgroup, if not first or very last
+    if (threadGroupIndex() < (threadGroupCount() - 1))
     {
       sumBuffer[threadGroupIndex() * 2 + 1] = localArray1D[0] + prefixSum;
       atomicSave(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
     }
-  }
 
-  if (index * BatchSize == (length - 1))
-  {
-    compactArrayCount[0] = localArray1D[0] + prefixSum;
+    // save the sum from last threadgroup to the output array
+    if (threadGroupIndex() == (threadGroupCount() - 1))
+    {
+      compactArrayCount[0] = localArray1D[0] + prefixSum;
+    }
   }
 
   localMemBarrier();
@@ -243,7 +248,7 @@ Kernel void compactSparseArray(
   {
     if (statusFlag[i])
     {
-      compactIndexArray[originalValues[i]] = index * BatchSize;
+      compactIndexArray[originalValues[i]] = indexOffset + i;
     }
   }
 }
