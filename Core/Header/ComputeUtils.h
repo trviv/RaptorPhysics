@@ -28,6 +28,7 @@ enum ComputeUtilKey
   ComputeUtilBatchSize,
   ComputeUtilSkipParallelPrimitives,
   ComputeUtilOnlyReduce,
+  ComputeUtilMaxWorkgroupSize,
 
   ComputeUtilMaxKey
 };
@@ -40,6 +41,7 @@ class ComputeUtil : protected ShaderEntity
   uint kernelIndices[13];
   vector<void*> localArrays;
   uint batchSize;
+  uint maxWorkgroupSize;
 
 public:
 
@@ -65,7 +67,7 @@ public:
 
   void bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
 
-  void radixSort32Bit(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* array1D, uint length);
+  void radixSort32Bit(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);
 
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
 };

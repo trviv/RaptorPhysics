@@ -59,6 +59,8 @@ void localMemFence()
 #define constructFloat2       (float2)
 #define constructFloat3       (float3)
 #define constructUint3        (uint3)
+#define constructUint2        (uint2)
+#define constructInt2         (int2)
 
 #define NUM_BANKS       16
 #define LOG_NUM_BANKS   4

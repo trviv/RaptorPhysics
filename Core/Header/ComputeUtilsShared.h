@@ -4,12 +4,10 @@
 #define PREFIX_SCAN_STATUS_INVALID  0
 #define PREFIX_SCAN_STATUS_PARTIAL  1
 #define PREFIX_SCAN_STATUS_FINAL    2
-#define PREFIX_SCAN_COMPUTE_THREADS 1024
 
 #define REDUCE_STATUS_INVALID       0
 #define REDUCE_STATUS_PARTIAL       1
 #define REDUCE_STATUS_FINAL         2
-#define REDUCE_COMPUTE_THREADS      1024
 
 #ifdef COMPUTE_SHADER_SCOPE
 
@@ -54,10 +52,13 @@
 #endif
 
 #ifdef ClearFunction
-#define CLEAR_FUNCTION(x, y)      ClearFunction(&(x), y)
+#define CLEAR_FUNCTION(x, y)    ClearFunction(&(x), y)
 #else
-#define CLEAR_FUNCTION(x, y)      (x) = y
+#define CLEAR_FUNCTION(x, y)    (x) = y
 #endif
+
+#define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
+#define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
 
 #if MemberStructType == uint
 #define MemberStructType16 uint16
