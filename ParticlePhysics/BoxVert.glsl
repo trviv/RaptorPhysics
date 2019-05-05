@@ -18,5 +18,5 @@ void main()
   vec4 pos = projectionMatrix * modelViewMatrix * vec4(((max.xyz + min.xyz) + position * (max.xyz - min.xyz)) * 0.5f, 1.f);
 
   gl_Position = pos;
-  col = vec4(1.0f, 0.f, 0.f, 0.5f);
+  col = vec4(0.0f, 0.f, 0.f, 0.50f);
 }
