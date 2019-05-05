@@ -70,6 +70,8 @@ add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} 
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/ParticleFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidFrag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/BoxVert.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/BoxFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeHeader.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeUtils.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/PrefixScan.shader"

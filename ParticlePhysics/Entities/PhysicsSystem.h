@@ -86,11 +86,18 @@ public:
   Texture displayPositionBuffer;
   Texture displayColorBuffer;
   Texture displayAuxBuffer;
+  Texture displayBoxBuffer;
+
   Vertex  displayVertex;
+  Vertex  displayBoxVertex;
   Vertex  displayLineVertex;
+
   Shader  displayShader;
+  Shader  displayBoxShader;
   Shader  displayLineShader;
+
   Face    displayElements;
+
   bool    renderParticles;
   bool    renderSolids;
 
@@ -98,6 +105,8 @@ public:
   vector<float> solverParticleRadius[SOLVER_MAX];
 
   void createSphere(float radius);
+
+  void createUnitBox();
 
   /*@function Render all registered entities.*/
   void render();

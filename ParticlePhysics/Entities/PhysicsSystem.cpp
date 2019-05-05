@@ -47,7 +47,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-  collisionSolver = new UniformGridCollisionSolver();
+  //collisionSolver = new UniformGridCollisionSolver();
+  collisionSolver = new LBVHSolver();
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;
@@ -309,6 +310,26 @@ void PhysicsSystem::createSphere(float radius)
   displayElements.copyData(&sphereIndices[0], sphereIndices.size());
 }
 
+void PhysicsSystem::createUnitBox()
+{
+  float boxVertices[] = {
+    -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, +1.0f, +1.0f,
+    +1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f,
+    +1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f,
+    +1.0f, +1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f, -1.0f,
+    +1.0f, -1.0f, +1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f,
+    +1.0f, +1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, -1.0f,
+    +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, +1.0f, +1.0f, -1.0f, +1.0f,
+    +1.0f, +1.0f, +1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, -1.0f,
+    +1.0f, +1.0f, +1.0f, -1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f,
+    +1.0f, +1.0f, +1.0f, -1.0f, +1.0f, +1.0f, +1.0f, -1.0f, +1.0f
+  };
+
+  displayBoxVertex.copyData(boxVertices, 12 * 3, 0, 3 * sizeof(float));
+}
+
 void PhysicsSystem::render()
 {
   for (uint i = 0; i < SOLVER_MAX; i++)
@@ -400,6 +421,42 @@ void PhysicsSystem::render()
       }
     }
   }
+
+  // render boundign boxes if supplied by the colision solver
+  if (collisionSolver->getBoundingBoxes())
+  {
+    DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
+    collisionBoundingBoxes->syncHost();
+
+    XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
+
+    displayBoxBuffer.copy((float*)boxes, 0, 0, 32, ((collisionBoundingBoxes->host()->size() * 2 + 31) / 32));
+
+    GLfloat model_mat[16], proj_mat[16];
+    glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
+    glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    displayBoxShader.bind();
+    displayBoxShader.set("modelViewMatrix", model_mat);
+    displayBoxShader.set("projectionMatrix", proj_mat);
+    displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
+
+    displayBoxVertex.bind();
+    GL_CHECK(glEnableVertexAttribArray(0));
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
+    GL_CHECK(glDrawArraysInstanced(GL_TRIANGLES, 0, 12 * 3, collisionBoundingBoxes->host()->size()));
+    GL_CHECK(glDisableVertexAttribArray(0));
+    displayBoxVertex.unbind();
+
+    displayBoxShader.unbind();
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  }
 }
 
 #endif
@@ -468,12 +525,16 @@ void PhysicsSystem::step(float timeStep)
     displayVertex.gen();
     displayLineVertex.gen();
     displayElements.gen();
+    displayBoxVertex.gen();
+
     displayPositionBuffer.init(width, height);
     displayPositionBuffer.gen();
     displayColorBuffer.init(width, height);
     displayColorBuffer.gen();
     displayAuxBuffer.init(width, height);
     displayAuxBuffer.gen();
+    displayBoxBuffer.init(width * 2, height);
+    displayBoxBuffer.gen();
 
     clearColor[0] = 0.7f;
     clearColor[1] = 0.7f;
@@ -495,6 +556,9 @@ void PhysicsSystem::step(float timeStep)
       displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
       displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
     }
+
+    createUnitBox();
+    displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
 #endif
 
     indexMap.resize(instanceNodeCount, false);

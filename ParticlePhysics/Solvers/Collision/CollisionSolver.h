@@ -25,6 +25,8 @@ public:
   virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
 
   virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
+
+  virtual DeviceArray<XAB>* getBoundingBoxes();
 };
 
 #endif

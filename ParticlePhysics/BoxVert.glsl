@@ -1,0 +1,22 @@
+#version 330
+
+layout(location=0) in vec3 position;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+uniform sampler2D boundingBoxes;
+
+in int gl_InstanceID;
+out vec4 col;
+
+void main()
+{
+  vec4 min = texelFetch(boundingBoxes, ivec2((gl_InstanceID*2) & 0x1F, (gl_InstanceID*2) >> 5), 0);
+  vec4 max = texelFetch(boundingBoxes, ivec2((gl_InstanceID*2 + 1) & 0x1F, (gl_InstanceID*2 + 1) >> 5), 0);
+
+  vec4 pos = projectionMatrix * modelViewMatrix * vec4(((max.xyz + min.xyz) + position * (max.xyz - min.xyz)) * 0.5f, 1.f);
+
+  gl_Position = pos;
+  col = vec4(1.0f, 0.f, 0.f, 0.5f);
+}
