@@ -8,9 +8,10 @@
 
 #endif
 
-#define COLLISION_COMPONENT_MORTON_CODE_MASK 1023
-
-struct BVHLeafInfo_t
+/*
+@struct Bounding volume hierarchy leaf data.
+*/
+struct ALIGN(8) BVHLeafInfo_t
 {
   uint mortonCode;
   uint index;
@@ -18,25 +19,51 @@ struct BVHLeafInfo_t
 
 typedef struct BVHLeafInfo_t BVHLeafInfo;
 
-
-struct BVHNodeInfo_t
+/*
+@struct Bounding volume hierarchy internal node data.
+*/
+struct DEFAULT_ALIGN BVHNodeInfo_t
 {
-  uint node[2];
+  uint child[2];
+  uint parent;
+  uint padding;
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
 
-struct ALIGN(8) XAB_t
+/*
+@struct Axis aligned bounding box data.
+*/
+struct DEFAULT_ALIGN XAB_t
 {
-  float3 min;
-  float3 max;
+  union
+  {
+    float3  min;
+    float   reserved1[4];
+  };
+  union
+  {
+    float3  max;
+    float   reserved2[4];
+  };
+
+#ifndef COMPUTE_SHADER_SCOPE
+  XAB_t()
+  {
+
+  }
+  XAB_t(const XAB_t& ref)
+  {
+
+  }
+#endif
 };
 
 typedef struct XAB_t XAB;
 
-#define addXAB(a, b)    { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
+#define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
 #define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
-#define clearXAB(a, b)  { (a)->min = b; (a)->max = b;}
+#define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
 
 static uint arrange32Bits(uint x)
 {
@@ -71,11 +98,13 @@ static uint arrange32Bits(uint x)
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-uint get32BitMortonCode(const Device ParticleStruct* particle)
+#define COLLISION_COMPONENT_MORTON_CODE_MASK 1023
+
+uint get32BitMortonCode(const int3 quantizedPosition)
 {
-  uint x = ((uint)particle->position.x) & COLLISION_COMPONENT_MORTON_CODE_MASK;
-  uint y = ((uint)particle->position.y) & COLLISION_COMPONENT_MORTON_CODE_MASK;
-  uint z = ((uint)particle->position.z) & COLLISION_COMPONENT_MORTON_CODE_MASK;
+  const uint x = quantizedPosition.x & COLLISION_COMPONENT_MORTON_CODE_MASK;
+  const uint y = quantizedPosition.y & COLLISION_COMPONENT_MORTON_CODE_MASK;
+  const uint z = quantizedPosition.z & COLLISION_COMPONENT_MORTON_CODE_MASK;
 
   return arrange32Bits(x) | (arrange32Bits(y) << 1) | (arrange32Bits(z) << 2);
 }
