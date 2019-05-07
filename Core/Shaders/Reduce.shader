@@ -55,7 +55,7 @@ void groupReduce(volatile Shared MemberStructType* localArray, const uint localI
   // set non copied elements to zero
   if (subGroupIndex == 0 && subGroupLocalIndex >= (REDUCE_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
   {
-    CLEAR_FUNCTION(localArray[subGroupIndex], 0);
+    CLEAR_FUNCTION(localArray[subGroupLocalIndex], 0);
   }
   localMemBarrier();
 
