@@ -190,7 +190,7 @@ void batchRead(Thread MemberStructType *elements, const Device StructType* array
     break;
   }
 #endif
-  case  4:
+  case 4:
   {
     *((Thread MemberStructType4*)data + 0)    = *((const Device MemberStructType4*)(array1D + indexOffset));
     break;
