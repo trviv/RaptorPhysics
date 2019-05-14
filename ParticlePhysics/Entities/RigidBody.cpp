@@ -28,7 +28,7 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   Real3 top_left(particleRadius - dimensions[0] / 2.f, dimensions[1] / 2.f - particleRadius, dimensions[2] / 2.f - particleRadius);
 
   vector<Real3> pointPosition;
-  int signedSubdivision[] = { subdivision[0], subdivision[1], subdivision[2] };
+  int signedSubdivision[] = { (int)subdivision[0], (int)subdivision[1], (int)subdivision[2] };
 
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1] * subdivision[2]);
 

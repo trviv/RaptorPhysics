@@ -3,7 +3,7 @@
 
 #include "Root.h"
 
-#if RX_PREC_FLOAT
+#if PREC_FLOAT
 
 #define mACos(x)      acosf(x)
 #define mATan2(x,y)   atan2f(x,y)

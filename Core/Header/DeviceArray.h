@@ -218,11 +218,6 @@ public:
     return hostBuffer;
   }
 
-  uint hostOffset()const
-  {
-    return offset;
-  }
-
   ComputeMemory* device()
   {
     return deviceBuffer;
