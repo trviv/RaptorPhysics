@@ -2,7 +2,6 @@
 #define COMPUTE_INTERFACE_H
 
 #include "Root.h"
-#include <CL/cl.hpp>
 
 #ifdef __APPLE__
 #ifdef USE_MINICL
@@ -17,6 +16,7 @@
 #else
 #include <CL/cl.h>
 #ifdef _WIN32
+#include <CL/cl.hpp>
 #include "CL/cl_gl.h"
 #endif //_WIN32
 #endif

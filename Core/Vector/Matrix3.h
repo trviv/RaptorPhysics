@@ -4,7 +4,7 @@
 #include "Real3.h"
 
 /// Class to represent rotational and scaling componets of matrix
-CDEF class Matrix3
+class Matrix3
 {
 protected:
   Real3 r0, r1, r2;

@@ -11,7 +11,7 @@ enum MAT_TRANS
 };
 
 /// Class representing Affine matrix for an object
-CDEF class Matrix
+class Matrix
 {
 protected:
   Matrix4 trans, itrans;

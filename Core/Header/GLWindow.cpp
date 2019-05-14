@@ -1,5 +1,7 @@
 #include "GLWindow.h"
 
+#if ENV_WIN
+
 int Window::del_time = 5;
 Window *main_window = NULL;
 
@@ -254,3 +256,5 @@ void glwMouseDrag(int x, int y)
 {
   main_window->mouseDrag(x, y);
 }
+
+#endif

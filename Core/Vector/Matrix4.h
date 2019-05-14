@@ -5,7 +5,7 @@
 
 /// Class to represent all matrix components
 /// ie translation, scaling, rotation
-CDEF class Matrix4 : public Matrix3
+class Matrix4 : public Matrix3
 {
 protected:
   Real3 pos;
