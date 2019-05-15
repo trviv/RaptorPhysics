@@ -38,9 +38,9 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1]);
   const float minRadius = (x_len < y_len ? x_len : y_len) / 2;
 
-  (*entitySharedData.host())[0].setRadiusIsShared(true);
+  setRadiusIsShared((*entitySharedData.host())[0], true);
   (*entitySharedData.host())[0].sharedRadius = minRadius;
-  (*entitySharedData.host())[0].setInvMassIsShared(false);
+  setInvMassIsShared((*entitySharedData.host())[0], false);
 
   for (uint y = 0; y < subdivision[1]; y++)
   {
@@ -66,9 +66,9 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       setConstant(index, newPosition);
       pointPosition.push_back(newPosition);
       ParticleCollisionData colData;
-      colData.initialSdfGradient = 0.f;
+      colData.initialSdfGradient = Real3(0.f);
       colData.radius = 0.f;
-      colData.transformedSdfGradient = 0.f;
+      colData.transformedSdfGradient = Real3(0.f);
       colData.invMass = particleAuxData.host()->at(index).invMass;
       particleCollisionData.host()->push_back(colData);
 

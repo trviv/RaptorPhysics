@@ -505,7 +505,7 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount, const uint maxThreadsPerThreadgroup)
 {
   const uint maxThreads = maxThreadsPerThreadgroup;
-  const uint width = 32;
+  const uint width = maxThreadsPerThreadgroup > 32 ? 32 : maxThreadsPerThreadgroup;
   const uint height = maxThreads / width;
 
   workgroupSize[0] = width;

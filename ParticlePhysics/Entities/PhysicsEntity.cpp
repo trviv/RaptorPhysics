@@ -12,14 +12,14 @@ PhysicsEntity::PhysicsEntity()
 
   ParticleSharedData sharedData;
   sharedData.velocityDamping = .98f;
-  sharedData.setInvMassIsShared(true);
+  setInvMassIsShared(sharedData, true);
   sharedData.sharedInvMass = 0.f;
-  sharedData.setRadiusIsShared(true);
+  setRadiusIsShared(sharedData, true);
   sharedData.sharedRadius = 0.f;
-  sharedData.setCollisionDataIsShared(true);
-  sharedData.sharedCollisionData.initialSdfGradient = float3(0, 0, 0);
+  setCollisionDataIsShared(sharedData, true);
+  sharedData.sharedCollisionData.initialSdfGradient = Real3(0, 0, 0);
   sharedData.sharedCollisionData.radius = 0.f;
-  sharedData.sharedCollisionData.transformedSdfGradient = float3(0, 0, 0);
+  sharedData.sharedCollisionData.transformedSdfGradient = Real3(0, 0, 0);
   sharedData.sharedCollisionData.invMass = 0.f;
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);

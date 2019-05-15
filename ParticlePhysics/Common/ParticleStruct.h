@@ -3,8 +3,6 @@
 
 #ifndef COMPUTE_SHADER_SCOPE
 #include <Core.h>
-typedef Real3 float3;
-typedef Real3 float4;
 #endif
 
 #define PHYSICS_SOLVER_ID_MASK    0xF0000000
@@ -13,35 +11,37 @@ typedef Real3 float4;
 #define PHYSICS_ENTITY_ID_SHIFT   16
 #define PHYSICS_INSTANCE_ID_MASK  0x0000FFFF
 
+#pragma pack(push, 8)
 
-struct IdentityInfo_t
+/*
+@struct Structor to uniquely represent a physical entity.
+*/
+struct ALIGN(4) IdentityInfo_t
 {
   uint identity;
-
-#ifndef COMPUTE_SHADER_SCOPE
-
-  IdentityInfo_t()
-  {
-    identity = -1;
-  }
-
-  void setEntityId(uint solver, uint entityId)
-  {
-    identity = (identity & PHYSICS_INSTANCE_ID_MASK) |
-      ((solver << PHYSICS_SOLVER_ID_SHIFT) & PHYSICS_SOLVER_ID_MASK) |
-      ((entityId << PHYSICS_ENTITY_ID_SHIFT) & PHYSICS_ENTITY_ID_MASK);
-  }
-
-  void setInstanceId(uint instanceId)
-  {
-    identity = (identity & (-1 ^ PHYSICS_INSTANCE_ID_MASK)) | (instanceId & PHYSICS_INSTANCE_ID_MASK);
-  }
-
-#endif
 };
 
 typedef struct IdentityInfo_t IdentityInfo;
 typedef struct IdentityInfo_t PhysicsEntityId;
+
+#ifndef COMPUTE_SHADER_SCOPE
+static void resetIdentity(IdentityInfo& identity)
+{
+  identity.identity = -1;
+}
+
+static void setEntityId(IdentityInfo& identity, uint solver, uint entityId)
+{
+  identity.identity = (identity.identity & PHYSICS_INSTANCE_ID_MASK) |
+    ((solver << PHYSICS_SOLVER_ID_SHIFT) & PHYSICS_SOLVER_ID_MASK) |
+    ((entityId << PHYSICS_ENTITY_ID_SHIFT) & PHYSICS_ENTITY_ID_MASK);
+}
+
+static void setInstanceId(IdentityInfo& identity, uint instanceId)
+{
+  identity.identity = (identity.identity & (-1 ^ PHYSICS_INSTANCE_ID_MASK)) | (instanceId & PHYSICS_INSTANCE_ID_MASK);
+}
+#endif
 
 static uint getInstanceId(const IdentityInfo particleIdentity)
 {
@@ -62,7 +62,7 @@ static uint getSolverType(const IdentityInfo particleIdentity)
 /*
 @struct Allocation data shared by all the particles of an entity.
 */
-struct EntityLocation_t
+struct DEFAULT_ALIGN EntityLocation_t
 {
   PartitionInfo node;
   PartitionInfo connection;
@@ -83,13 +83,10 @@ struct DEFAULT_ALIGN GroupData_t
 typedef struct GroupData_t GroupData;
 
 
-#pragma pack(push)
-#pragma pack(4)
-
 /*
 @struct Base data for a particle.
 */
-struct ParticleStruct_t
+struct DEFAULT_ALIGN ParticleStruct_t
 {
   union
   {
@@ -108,23 +105,6 @@ struct ParticleStruct_t
       float   radius;
     };
   };
-
-#ifndef COMPUTE_SHADER_SCOPE
-  ParticleStruct_t()
-  {}
-
-  ParticleStruct_t(const ParticleStruct_t& ref)
-  {
-    *this = ref;
-  }
-
-  ParticleStruct_t& operator = (const ParticleStruct_t& ref)
-  {
-    position = ref.position;
-    identity = ref.identity;
-    return *this;
-  }
-#endif
 };
 
 typedef struct ParticleStruct_t ParticleStruct;
@@ -159,25 +139,6 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
       float   invMass;
     };
   };
-
-#ifndef COMPUTE_SHADER_SCOPE
-  ParticleCollisionData_t()
-  {}
-
-  ParticleCollisionData_t(const ParticleCollisionData_t& ref)
-  {
-    *this = ref;
-  }
-
-  ParticleCollisionData_t& operator = (const ParticleCollisionData_t& ref)
-  {
-    initialSdfGradient = ref.initialSdfGradient;
-    radius = ref.radius;
-    transformedSdfGradient = ref.transformedSdfGradient;
-    invMass = ref.invMass;
-    return *this;
-  }
-#endif
 };
 
 typedef struct ParticleCollisionData_t ParticleCollisionData;
@@ -209,56 +170,29 @@ struct DEFAULT_ALIGN ParticleSharedData_t
 
   /*@member Shared collision data.*/
   ParticleCollisionData sharedCollisionData;
-
-#ifndef COMPUTE_SHADER_SCOPE
-
-  ParticleSharedData_t()
-  {
-    isSharedMask = 0;
-  }
-
-  ParticleSharedData_t(const ParticleSharedData_t& ref)
-  {
-    *this = ref;
-  }
-
-  ParticleSharedData_t& operator = (const ParticleSharedData_t& ref)
-  {
-    isSharedMask = ref.isSharedMask;
-    sharedInvMass = ref.sharedInvMass;
-    sharedRadius = ref.sharedRadius;
-    stiffness = ref.stiffness;
-    viscosity = ref.viscosity;
-    velocityDamping = ref.velocityDamping;
-    sharedCollisionData = ref.sharedCollisionData;
-
-    return *this;
-  }
-
-  /*@function If mass is shared by particles of a body.*/
-  void setInvMassIsShared(bool isShared)
-  {
-    isSharedMask = (isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_MASS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_MASS_MASK : 0);
-  }
-
-  /*@function If radius is shared by particles of a body.*/
-  void setRadiusIsShared(bool isShared)
-  {
-    isSharedMask = (isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_RADIUS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_RADIUS_MASK : 0);
-  }
-
-  /*@function If SDF is shared by particles of a body.*/
-  void setCollisionDataIsShared(bool isShared)
-  {
-    isSharedMask = (isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_COLLISION_MASK)) | (isShared ? PARTICLE_SHARED_DATA_COLLISION_MASK : 0);
-  }
-
-#endif
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;
 
-#pragma pack(pop)
+#ifndef COMPUTE_SHADER_SCOPE
+/*@function If mass is shared by particles of a body.*/
+static void setInvMassIsShared(ParticleSharedData& data, bool isShared)
+{
+  data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_MASS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_MASS_MASK : 0);
+}
+
+/*@function If radius is shared by particles of a body.*/
+static void setRadiusIsShared(ParticleSharedData& data, bool isShared)
+{
+  data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_RADIUS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_RADIUS_MASK : 0);
+}
+
+/*@function If SDF is shared by particles of a body.*/
+static void setCollisionDataIsShared(ParticleSharedData& data, bool isShared)
+{
+  data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_COLLISION_MASK)) | (isShared ? PARTICLE_SHARED_DATA_COLLISION_MASK : 0);
+}
+#endif
 
 
 #ifdef COMPUTE_SHADER_SCOPE
@@ -296,22 +230,6 @@ struct DEFAULT_ALIGN ParticleRigidData_t
       uint    reserved[4];
     };
   };
-
-#ifndef COMPUTE_SHADER_SCOPE
-  ParticleRigidData_t()
-  {}
-
-  ParticleRigidData_t(const ParticleRigidData_t& ref)
-  {
-    *this = ref;
-  }
-
-  ParticleRigidData_t& operator = (const ParticleRigidData_t& ref)
-  {
-    initialComOffset = ref.initialComOffset;
-    return *this;
-  }
-#endif
 };
 
 typedef struct ParticleRigidData_t ParticleRigidData;
@@ -320,7 +238,7 @@ typedef struct ParticleRigidData_t ParticleRigidData;
 /*
 @struct Additional data for particle.
 */
-struct DEFAULT_ALIGN ParticleAuxData_t
+struct ALIGN(8) ParticleAuxData_t
 {
   float   invMass;
   float   radius;
@@ -439,5 +357,7 @@ struct DEFAULT_ALIGN PhySystemOffsets_t
 };
 
 typedef struct PhySystemOffsets_t PhySystemOffsets;
+
+#pragma pack(pop)
 
 #endif
