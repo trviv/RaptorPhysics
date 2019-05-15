@@ -8,12 +8,15 @@ enum AXIS
   X, Y, Z
 };
 
-/// The vector class
-class Real3
+// vector structor
+struct float3
 {
-protected:
   real x, y, z, a;
+};
 
+/// The vector class
+class Real3 : public float3
+{
 public:
   /// Default constructor
   Real3()
@@ -29,6 +32,13 @@ public:
   Real3(const Real3& val)
   {
     *this = val;
+  }
+
+  /// Copy constructor
+  Real3(const float3& val)
+  {
+    set(val.x, val.y, val.z);
+    a = val.a;
   }
 
   /// Construct from vector
@@ -77,9 +87,9 @@ public:
   Real3 operator*(const Real3& val)const
   {
     Real3 ret;
-    ret.x = x*val.x;
-    ret.y = y*val.y;
-    ret.z = z*val.z;
+    ret.x = x * val.x;
+    ret.y = y * val.y;
+    ret.z = z * val.z;
     return ret;
   }
 
@@ -87,9 +97,9 @@ public:
   Real3 operator*(const real& val)const
   {
     Real3 ret;
-    ret.x = x*val;
-    ret.y = y*val;
-    ret.z = z*val;
+    ret.x = x * val;
+    ret.y = y * val;
+    ret.z = z * val;
     return ret;
   }
 
@@ -161,9 +171,10 @@ public:
   /// Get cross product
   Real3 cross(const Real3& val)const
   {
-    return  Real3(y*val.z - z*val.y,
-      z*val.x - x*val.z,
-      x*val.y - y*val.x);
+    return  Real3(
+      y * val.z - z * val.y,
+      z * val.x - x * val.z,
+      x * val.y - y * val.x);
   }
 
   /// Get square of length of vector

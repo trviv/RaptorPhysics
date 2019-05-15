@@ -105,6 +105,7 @@ void* PhysicsSystem::getSolver(SolverType type)
 PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
 {
   PhysicsEntityId entityId;
+  resetIdentity(entityId);
 
   // create memory heap allocators for the system
   if (!allocators.size())
@@ -128,7 +129,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   // update information
   systemUpdateInfo.node.offset = nodeCount;
 
-  entityId.setEntityId(entity->solver, solver->newEntityId());
+  setEntityId(entityId, entity->solver, solver->newEntityId());
 
   // append data
   solver->rawConstrainConnections.insert(solver->rawConstrainConnections.end(),
@@ -175,12 +176,14 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
     PhysicsEntityId entityInstanceId = registeredEntityId;
-    entityInstanceId.setInstanceId(solver->newEntityInstanceId());
+    setInstanceId(entityInstanceId, solver->newEntityInstanceId());
 
     for (uint i = 0; i < entityPositions->size(); i++)
     {
       ParticleStruct particle;
-      instanceTransforms[instance].transformPos(particle.position, entityPositions->at(i));
+      Real3 pos;
+      instanceTransforms[instance].transformPos(pos, entityPositions->at(i));
+      particle.position = pos;
       particle.identity = entityInstanceId;
 #ifdef ENABLE_RENDERING
       solverParticleRadius[solverType].push_back(solver->particleAuxData.host()->at(lastPartitionOffset + i).radius);
@@ -353,9 +356,9 @@ void PhysicsSystem::render()
         float* particleSdf = new float[elements * 4];
         for (uint j = 0; j < elements; j++)
         {
-          particleSdf[j * 4] = particleCol[j].transformedSdfGradient[0];
-          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient[1];
-          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient[2];
+          particleSdf[j * 4] = particleCol[j].transformedSdfGradient.x;
+          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient.y;
+          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient.z;
           particleSdf[j * 4 + 3] = particleCol[j].radius;
         }
         displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));
@@ -424,7 +427,7 @@ void PhysicsSystem::render()
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
-    displayBoxBuffer.copy((float*)boxes, 0, 0, 32, ((collisionBoundingBoxes->host()->size() * 2 + 31) / 32));
+    displayBoxBuffer.copy((float*)boxes, 0, 0, 128, ((collisionBoundingBoxes->host()->size() * 2 + 127) / 128));
 
     GLfloat model_mat[16], proj_mat[16];
     glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
@@ -527,7 +530,7 @@ void PhysicsSystem::step(float timeStep)
     displayColorBuffer.gen();
     displayAuxBuffer.init(width, height);
     displayAuxBuffer.gen();
-    displayBoxBuffer.init(width * 2, height);
+    displayBoxBuffer.init(128, (instanceNodeCount * 2 + 127) / 128);
     displayBoxBuffer.gen();
 
     clearColor[0] = 0.7f;

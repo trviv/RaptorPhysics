@@ -171,7 +171,7 @@ void testRegular2DMean(ComputeInterface* compute)
   for (int i = 0; i < elements; i++)
   {
     ParticleStruct particle;
-    particle.position = 1;
+    particle.position = Real3(1);
     if (i && (i % width) == 0)
     {
       means.push_back(sum / float(width));
@@ -202,9 +202,9 @@ void testRegular2DMean(ComputeInterface* compute)
 
   for (int i = 0; i < parts; i++)
   {
-    if (abs(means[i][0] - particlesHost[i * width].position[0]) > .00001f
-      || abs(means[i][1] - particlesHost[i * width].position[1]) > .00001f
-      || abs(means[i][2] - particlesHost[i * width].position[2]) > .00001f)
+    if (abs(means[i][0] - particlesHost[i * width].position.x) > .00001f
+      || abs(means[i][1] - particlesHost[i * width].position.y) > .00001f
+      || abs(means[i][2] - particlesHost[i * width].position.z) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particlesHost[i * width].position << "\n";
       assert(0);
@@ -249,7 +249,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   for (uint i = 0; i < elements; i++)
   {
     ParticleStruct particle;
-    particle.position = 1;
+    particle.position = Real3(1);
     if (sectionIndex < (partitionsHost.size() - 1) && i == partitionsHost[sectionIndex + 1].offset)
     {
       means.push_back(sum / float(partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));
@@ -258,7 +258,8 @@ void testIrregular2DMean(ComputeInterface* compute)
     }
 
     IdentityInfo particleIdentity;
-    particleIdentity.setInstanceId(sectionIndex);
+    resetIdentity(particleIdentity);
+    setInstanceId(particleIdentity, sectionIndex);
     particle.identity = particleIdentity;
 
     particlesHost.push_back(particle);
@@ -289,9 +290,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (uint i = 0; i < partitionsHost.size(); i++)
   {
-    if (abs(means[i][0] - particlesHost[partitionsHost[i].offset].position[0]) > .00001f
-      || abs(means[i][1] - particlesHost[partitionsHost[i].offset].position[1]) > .00001f
-      || abs(means[i][2] - particlesHost[partitionsHost[i].offset].position[2]) > .00001f)
+    if (abs(means[i][0] - particlesHost[partitionsHost[i].offset].position.x) > .00001f
+      || abs(means[i][1] - particlesHost[partitionsHost[i].offset].position.y) > .00001f
+      || abs(means[i][2] - particlesHost[partitionsHost[i].offset].position.z) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particlesHost[partitionsHost[i].offset].position << "\n";
       assert(0);
@@ -316,9 +317,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (uint i = 0; i < particlesConsolidated.host()->size(); i++)
   {
-    if (abs(means[i][0] - particlesConsolidated.host()->at(i).position[0]) > .00001f
-      || abs(means[i][1] - particlesConsolidated.host()->at(i).position[1]) > .00001f
-      || abs(means[i][2] - particlesConsolidated.host()->at(i).position[2]) > .00001f)
+    if (abs(means[i][0] - particlesConsolidated.host()->at(i).position.x) > .00001f
+      || abs(means[i][1] - particlesConsolidated.host()->at(i).position.y) > .00001f
+      || abs(means[i][2] - particlesConsolidated.host()->at(i).position.z) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particlesConsolidated.host()->at(i).position << "\n";
       assert(0);

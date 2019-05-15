@@ -81,11 +81,11 @@ typedef float real;
 #undef M_PI_2
 
 #else
-typedef unsigned int8_t   uchar;
-typedef unsigned int16_t  ushort;
-typedef unsigned int32_t  uint;
-typedef unsigned int64_t  ulong;
-typedef unsigned int16_t  half;
+typedef uint8_t   uchar;
+typedef uint16_t  ushort;
+typedef uint32_t  uint;
+typedef uint64_t  ulong;
+typedef uint16_t  half;
 
 #endif
 
