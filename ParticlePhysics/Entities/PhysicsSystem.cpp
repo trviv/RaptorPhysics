@@ -47,8 +47,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-  //collisionSolver = new UniformGridCollisionSolver();
-  collisionSolver = new LBVHSolver();
+  collisionSolver = new UniformGridCollisionSolver();
+  //collisionSolver = new LBVHSolver();
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;

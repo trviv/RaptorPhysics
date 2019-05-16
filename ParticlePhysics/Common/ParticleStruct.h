@@ -11,7 +11,7 @@
 #define PHYSICS_ENTITY_ID_SHIFT   16
 #define PHYSICS_INSTANCE_ID_MASK  0x0000FFFF
 
-#pragma pack(push, 8)
+#pragma pack(push, 4)
 
 /*
 @struct Structor to uniquely represent a physical entity.
@@ -62,6 +62,18 @@ static uint getSolverType(const IdentityInfo particleIdentity)
 /*
 @struct Allocation data shared by all the particles of an entity.
 */
+struct ALIGN(8) GroupData_t
+{
+  uint    minIdentity;
+  uint    maxIdentity;
+};
+
+typedef struct GroupData_t GroupData;
+
+
+/*
+@struct Allocation data shared by all the particles of an entity.
+*/
 struct DEFAULT_ALIGN EntityLocation_t
 {
   PartitionInfo node;
@@ -69,18 +81,6 @@ struct DEFAULT_ALIGN EntityLocation_t
 };
 
 typedef struct EntityLocation_t EntityLocation;
-
-
-/*
-@struct Allocation data shared by all the particles of an entity.
-*/
-struct DEFAULT_ALIGN GroupData_t
-{
-  uint    minIdentity;
-  uint    maxIdentity;
-};
-
-typedef struct GroupData_t GroupData;
 
 
 /*
@@ -123,8 +123,8 @@ struct DEFAULT_ALIGN ParticleCollisionData_t
     };
     struct
     {
-      float reserved1[3];
-      float radius;
+      float   reserved1[3];
+      float   radius;
     };
   };
   union
@@ -173,6 +173,8 @@ struct DEFAULT_ALIGN ParticleSharedData_t
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;
+
+#pragma pack(pop)
 
 #ifndef COMPUTE_SHADER_SCOPE
 /*@function If mass is shared by particles of a body.*/
@@ -256,7 +258,6 @@ struct DEFAULT_ALIGN ParticleDifferential_t
 };
 
 typedef struct ParticleDifferential_t ParticleDifferential;
-
 
 #ifdef COMPUTE_SHADER_SCOPE
 
@@ -357,7 +358,5 @@ struct DEFAULT_ALIGN PhySystemOffsets_t
 };
 
 typedef struct PhySystemOffsets_t PhySystemOffsets;
-
-#pragma pack(pop)
 
 #endif
