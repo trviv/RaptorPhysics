@@ -34,10 +34,10 @@
 #include <time.h>
 #include <conio.h>
 #include <windows.h>
-#include <freeglut.h>
 
 #if REN_GL
 #include <glew.h>
+#include <freeglut.h>
 #endif
 
 

@@ -106,7 +106,7 @@ string getCurrentDir(void)
   size_t len = strnlen(currentPath, 1023);
   // add an additional / at the end so that directory name does not get deleted
   currentPath[len] = '/';
-  currentPath[len+1] = NULL;
+  currentPath[len + 1] = NULL;
   len += 1;
 #else
   ssize_t len = ::readlink("/proc/self/exe", currentPath, 1023);
@@ -366,6 +366,8 @@ void ComputeInterface::create(int deviceIndex)
 {
   const uint MAX_STRING_LENGTH = 128;
 
+  string selectedDevice;
+
   // print platform info
   ComputeStatus status = clGetPlatformIDs(8, platforms, &platformCount);
   computeCheckError(status, 0);
@@ -383,57 +385,59 @@ void ComputeInterface::create(int deviceIndex)
     computeCheckError(status, 0);
 
     printf("Platform info:\n");
-    printf("  CL_PLATFORM_VENDOR:   %s\n", vendor);
-    printf("  CL_PLATFORM_NAME:     %s\n", name);
-    printf("  CL_PLATFORM_VERSION:  %s\n", version);
-  }
-  platform = platforms[0];
+    printf("  Platform vendor:  %s\n", vendor);
+    printf("  Platform name:    %s\n", name);
+    printf("  Platform version: %s\n", version);
 
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
-  computeCheckError(status, 0);
+    platform = platforms[i];
 
-  string selectedDevice;
-
-  printf("\nDevice info:\n");
-
-  // print device info and select one if not supplied
-  for (uint i=0; i<deviceCount; i++)
-  {
-    deviceId = devices[i];
-    cl_int  status;
-    size_t  maxWorkgroupSize;
-    size_t  maxComputeUnits;
-    size_t  maxWorkitemSizes[3];
-    char    deviceName[MAX_STRING_LENGTH];
-    status = clGetDeviceInfo(deviceId, CL_DEVICE_NAME, MAX_STRING_LENGTH - 1, deviceName, NULL);
+    status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
     computeCheckError(status, 0);
-    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(size_t), &maxComputeUnits, NULL);
-    computeCheckError(status, 0);
-    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &maxWorkgroupSize, NULL);
-    computeCheckError(status, 0);
-    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*3, maxWorkitemSizes, NULL);
-    computeCheckError(status, 0);
-    printf("  Device Name:        %s\n",  deviceName);
-    printf("  Compute Units:      %ld\n", maxComputeUnits);
-    printf("  Max Workgroup Size: %ld\n", maxWorkgroupSize);
-    printf("  Max Workitems:      %ld %ld %ld\n\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
-    this->maxThreadsPerWorkgroup = maxWorkgroupSize;
 
-    if (deviceIndex == -1)
+    printf("  Device info:\n");
+
+    // print device info and select one if not supplied
+    for (uint j = 0; j < deviceCount; j++)
     {
-      string name(deviceName);
-      size_t endIndex = name.find("Intel");
+      deviceId = devices[j];
+      cl_int  status;
+      size_t  maxWorkgroupSize;
+      size_t  maxComputeUnits;
+      size_t  maxWorkitemSizes[3];
+      char    deviceName[MAX_STRING_LENGTH];
+      char    deviceVendor[MAX_STRING_LENGTH];
+      status = clGetDeviceInfo(deviceId, CL_DEVICE_NAME, MAX_STRING_LENGTH - 1, deviceName, NULL);
+      computeCheckError(status, 0);
+      status = clGetDeviceInfo(deviceId, CL_DEVICE_VENDOR, MAX_STRING_LENGTH - 1, deviceVendor, NULL);
+      computeCheckError(status, 0);
+      status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(size_t), &maxComputeUnits, NULL);
+      computeCheckError(status, 0);
+      status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &maxWorkgroupSize, NULL);
+      computeCheckError(status, 0);
+      status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t) * 3, maxWorkitemSizes, NULL);
+      computeCheckError(status, 0);
+      printf("    Device Name:        %s\n", deviceName);
+      printf("    Compute Units:      %ld\n", maxComputeUnits);
+      printf("    Max Workgroup Size: %ld\n", maxWorkgroupSize);
+      printf("    Max Workitems:      %ld %ld %ld\n\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
+      this->maxThreadsPerWorkgroup = maxWorkgroupSize;
 
-      // select any other device over intel
-      if (endIndex == name.npos)
+      if (deviceIndex == -1)
       {
-        deviceIndex = i;
-      }
-    }
+        string name(deviceVendor);
+        size_t endIndex = name.find("Intel");
 
-    if (deviceIndex == i)
-    {
-      selectedDevice = deviceName;
+        // select any other device over intel
+        if (endIndex == name.npos)
+        {
+          deviceIndex = j;
+        }
+      }
+
+      if (deviceIndex == j)
+      {
+        selectedDevice = deviceName;
+      }
     }
   }
 
