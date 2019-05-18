@@ -165,6 +165,7 @@ class ComputeInterface
   ComputeDeviceId   deviceId;
   ComputeContext    context;
   ComputeQueue      queue;
+  size_t            simdGroupSize;
   size_t            maxThreadsPerWorkgroup;
 
   friend class ComputeHeap;
@@ -202,6 +203,8 @@ public:
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
   void sync();
+
+  uint simdSize()const;
 
   uint maxThreadsPerGroup()const;
 
