@@ -155,6 +155,12 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   oldType.push_back(getKeyName(ComputeUtilMaxWorkgroupSize));
   newType.push_back(to_string(util.maxWorkgroupSize));
 
+  oldType.push_back("COMPUTE_SUB_GROUP_SIZE");
+  newType.push_back(to_string(compute->simdSize()));
+
+  oldType.push_back("COMPUTE_SUB_GROUP_EXP");
+  newType.push_back(to_string(mCeilExpOf2(compute->simdSize())));
+
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
   {
     if (dataMap.find(ComputeUtilSkipParallelPrimitives) == dataMap.end())

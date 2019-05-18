@@ -48,9 +48,6 @@ void localMemFence()
 #define Thread  __private
 
 #define COMPUTE_SHADER_SCOPE
-#define COMPUTE_MAX_THREADS     1024
-#define COMPUTE_SUB_GROUP_SIZE  32
-#define COMPUTE_SUB_GROUP_EXP   5
 #define COMPUTE_EPSILON         0.000001f
 
 #define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
@@ -85,7 +82,7 @@ typedef struct
 #define copyMatrix3x3(a, b)   { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
 #define clearMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] = b; } }
 
-#define atomicLoad(location)        atomic_add (location, 0)
+#define atomicLoad(location)        atomic_or  (location, 0)
 #define atomicSave(location, value) atomic_xchg(location, value)
 #define atomicAdd(location, value)  atomic_add (location, value)
 

@@ -367,6 +367,7 @@ void ComputeInterface::create(int deviceIndex)
   const uint MAX_STRING_LENGTH = 128;
 
   string selectedDevice;
+  simdGroupSize = 16;
 
   // print platform info
   ComputeStatus status = clGetPlatformIDs(8, platforms, &platformCount);
@@ -437,6 +438,15 @@ void ComputeInterface::create(int deviceIndex)
       if (deviceIndex == j)
       {
         selectedDevice = deviceName;
+        string name(deviceVendor);
+        if (name.find("AMD") != name.npos)
+        {
+          simdGroupSize = 64;
+        }
+        if (name.find("NVIDIA") != name.npos)
+        {
+          simdGroupSize = 32;
+        }
       }
     }
   }
@@ -450,7 +460,7 @@ void ComputeInterface::create(int deviceIndex)
 
   deviceId = devices[deviceIndex];
 
-  printf("Selected device: %s\n", selectedDevice.c_str());
+  printf("Selected device:   %s\nAssumed SIMD size: %ld\n", selectedDevice.c_str(), simdGroupSize);
 
   /* Create OpenCL context */
   context = clCreateContext(NULL, 1, &deviceId, NULL, NULL, &status);
@@ -611,6 +621,11 @@ void ComputeInterface::sync()
 uint ComputeInterface::maxThreadsPerGroup()const
 {
   return maxThreadsPerWorkgroup;
+}
+
+uint ComputeInterface::simdSize()const
+{
+  return simdGroupSize;
 }
 
 uint ComputeInterface::maxCores()const
