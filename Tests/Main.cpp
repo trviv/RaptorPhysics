@@ -643,7 +643,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
 int main(int argc, char** argv)
 {
   compute = new ComputeInterface();
-  compute->create(1);
+  compute->create();
 
   testBandwidthRW(compute);
   //testSectionOffsets(compute);

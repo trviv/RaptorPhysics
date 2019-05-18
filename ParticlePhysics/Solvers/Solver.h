@@ -27,7 +27,7 @@ protected:
 
   friend class PhysicsSystem;
 
-  template<class BaseType> void flatArray(vector<BaseType>& out, const vector<vector<BaseType>>& in)
+  template<class BaseType> void flatArray(vector<BaseType>& out, const vector< vector<BaseType> >& in)
   {
     out.clear();
     for (uint i = 0; i < in.size(); i++)

@@ -98,8 +98,16 @@ const char* getStatusMessage(ComputeStatus status)
 string getCurrentDir(void)
 {
   char currentPath[1024];
-#ifdef _WIN32
+#if   ENV_WIN
   int len = GetModuleFileName(NULL, currentPath, 1024);
+#elif ENV_APPLE
+  currentPath[0] = NULL;
+  getcwd(currentPath, 1023);
+  size_t len = strnlen(currentPath, 1023);
+  // add an additional / at the end so that directory name does not get deleted
+  currentPath[len] = '/';
+  currentPath[len+1] = NULL;
+  len += 1;
 #else
   ssize_t len = ::readlink("/proc/self/exe", currentPath, 1023);
 #endif
@@ -178,7 +186,7 @@ size_t ComputeMemory::getSize()const
 
 
 ComputeHeap::ComputeHeap(ComputeInterface* compute, bool bypass)
-  : heap(NULL), compute(compute), bypass(bypass)
+  : bypass(bypass), heap(NULL), compute(compute)
 {}
 
 ComputeHeap::~ComputeHeap()
@@ -354,23 +362,24 @@ ComputeInterface::~ComputeInterface()
   }
 }
 
-void ComputeInterface::create(uint platformIndex)
+void ComputeInterface::create(int deviceIndex)
 {
-  /* Get Platform and Device Info */
+  const uint MAX_STRING_LENGTH = 128;
+
+  // print platform info
   ComputeStatus status = clGetPlatformIDs(8, platforms, &platformCount);
   computeCheckError(status, 0);
   for (uint i = 0; i < platformCount; i++)
   {
-    const uint MAX_STRING_LENGTH = 128;
     cl_int status;
     char vendor[MAX_STRING_LENGTH];
     char name[MAX_STRING_LENGTH];
     char version[MAX_STRING_LENGTH];
-    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, MAX_STRING_LENGTH, vendor, NULL);
+    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, MAX_STRING_LENGTH - 1, vendor, NULL);
     computeCheckError(status, 0);
-    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, MAX_STRING_LENGTH, name, NULL);
+    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, MAX_STRING_LENGTH - 1, name, NULL);
     computeCheckError(status, 0);
-    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, MAX_STRING_LENGTH, version, NULL);
+    status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, MAX_STRING_LENGTH - 1, version, NULL);
     computeCheckError(status, 0);
 
     printf("Platform info:\n");
@@ -378,17 +387,72 @@ void ComputeInterface::create(uint platformIndex)
     printf("  CL_PLATFORM_NAME:     %s\n", name);
     printf("  CL_PLATFORM_VERSION:  %s\n", version);
   }
-  platform = platforms[platformIndex];
+  platform = platforms[0];
 
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_DEFAULT, 8, devices, &deviceCount);
+  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
   computeCheckError(status, 0);
-  deviceId = devices[0];
+
+  string selectedDevice;
+
+  printf("\nDevice info:\n");
+
+  // print device info and select one if not supplied
+  for (uint i=0; i<deviceCount; i++)
+  {
+    deviceId = devices[i];
+    cl_int  status;
+    size_t  maxWorkgroupSize;
+    size_t  maxComputeUnits;
+    size_t  maxWorkitemSizes[3];
+    char    deviceName[MAX_STRING_LENGTH];
+    status = clGetDeviceInfo(deviceId, CL_DEVICE_NAME, MAX_STRING_LENGTH - 1, deviceName, NULL);
+    computeCheckError(status, 0);
+    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(size_t), &maxComputeUnits, NULL);
+    computeCheckError(status, 0);
+    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &maxWorkgroupSize, NULL);
+    computeCheckError(status, 0);
+    status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*3, maxWorkitemSizes, NULL);
+    computeCheckError(status, 0);
+    printf("  Device Name:        %s\n",  deviceName);
+    printf("  Compute Units:      %ld\n", maxComputeUnits);
+    printf("  Max Workgroup Size: %ld\n", maxWorkgroupSize);
+    printf("  Max Workitems:      %ld %ld %ld\n\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
+    this->maxThreadsPerWorkgroup = maxWorkgroupSize;
+
+    if (deviceIndex == -1)
+    {
+      string name(deviceName);
+      size_t endIndex = name.find("Intel");
+
+      // select any other device over intel
+      if (endIndex == name.npos)
+      {
+        deviceIndex = i;
+      }
+    }
+
+    if (deviceIndex == i)
+    {
+      selectedDevice = deviceName;
+    }
+  }
+
+  // if nothing found take the first one
+  if (deviceIndex == -1)
+  {
+    deviceIndex = 0;
+    selectedDevice = "Default";
+  }
+
+  deviceId = devices[deviceIndex];
+
+  printf("Selected device: %s\n", selectedDevice.c_str());
 
   /* Create OpenCL context */
   context = clCreateContext(NULL, 1, &deviceId, NULL, NULL, &status);
   computeCheckError(status, 0);
 
-  queue = clCreateCommandQueue(context, deviceId, 0, &status);
+  queue = clCreateCommandQueue(context, deviceId, NULL, &status);
   computeCheckError(status, 0);
 }
 
@@ -437,7 +501,7 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
     logComputeMessage("Compilation Log:\n%s\n", log);
   }
 
-  delete log;
+  delete[] log;
   computeCheckError(status, 0);
 
   return program;
@@ -542,7 +606,7 @@ void ComputeInterface::sync()
 
 uint ComputeInterface::maxThreadsPerGroup()const
 {
-  return 1024;
+  return maxThreadsPerWorkgroup;
 }
 
 uint ComputeInterface::maxCores()const

@@ -4,42 +4,42 @@ template<class IndexType, class CoefficientType, class VariableType>
 LinearSolver<IndexType, CoefficientType, VariableType>::LinearSolver(ComputeInterface* compute, SharedAllocator* allocator) :
 Solver<IndexType, CoefficientType, VariableType>(compute, allocator, SOLVER_EQUATION)
 {
-  iterations = 24;
+  this->iterations = 24;
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 void LinearSolver<IndexType, CoefficientType, VariableType>::solve()
 {
-  if (updates.size()) // update arrays
+  if (this->updates.size()) // update arrays
   {
     update();
   }
 
   uint zero = 0;
-  compute->setBuffer(constrainVariableAux[1].device(), 0, constrainVariableAux[1].size()*sizeof(VariableType), &zero, sizeof(uint));
+  this->compute->setBuffer(this->constrainVariableAux[1].device(), 0, this->constrainVariableAux[1].size()*sizeof(VariableType), &zero, sizeof(uint));
 
   size_t workgroupSize[3], workgroupCount[3];
-  uint count = nodes();
-  compute->configureSize(workgroupSize, workgroupCount, count);
-  for (uint i = 0; i < iterations; i++)
+  uint count = this->nodes();
+  this->compute->configureSize(workgroupSize, workgroupCount, count);
+  for (uint i = 0; i < this->iterations; i++)
   {
     ComputeMemory* buffers[] = {
-      constrainVariableAux[i & 1].device(),
-      constrainHeaders.device(),
-      constrainIndices.device(),
-      constrainCoefficients.device(),
-      constrainVariableAux[(i + 1) & 1].device(),
-      constrainConstants.device()
+      this->constrainVariableAux[i & 1].device(),
+      this->constrainHeaders.device(),
+      this->constrainIndices.device(),
+      this->constrainCoefficients.device(),
+      this->constrainVariableAux[(i + 1) & 1].device(),
+      this->constrainConstants.device()
     };
-    kernels[0].setArgs(buffers, 6);
-    kernels[0].setArg<uint>(&count, 6);
-    compute->execute(kernels[0], workgroupSize, workgroupCount);
+    this->kernels[0].setArgs(buffers, 6);
+    this->kernels[0].template setArg<uint>(&count, 6);
+    this->compute->execute(this->kernels[0], workgroupSize, workgroupCount);
   }
 
-  VariableType* values = new VariableType[nodes()];
-  compute->copyToHost(constrainVariableAux[(iterations - 1) & 1].device(), 0, nodes()*sizeof(VariableType), values, true);
+  VariableType* values = new VariableType[this->nodes()];
+  this->compute->copyToHost(this->constrainVariableAux[(this->iterations - 1) & 1].device(), 0, this->nodes()*sizeof(VariableType), values, true);
 
-  for (uint i = 0; i < nodes(); i++)
+  for (uint i = 0; i < this->nodes(); i++)
   {
     std::cout << values[i] << "\n";
   }
@@ -50,7 +50,7 @@ void LinearSolver<IndexType, CoefficientType, VariableType>::solve()
 template<class IndexType, class CoefficientType, class VariableType>
 void LinearSolver<IndexType, CoefficientType, VariableType>::update()
 {
-  Solver::update();
+  Solver<IndexType, CoefficientType, VariableType>::update();
 }
 
 #define classPrefix(x, y, z) template void LinearSolver<x, y, z>
