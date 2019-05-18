@@ -369,6 +369,10 @@ void ComputeInterface::create(int deviceIndex)
   string selectedDevice;
   simdGroupSize = 16;
 
+  ComputeDeviceId defaultDeviceId;
+  ComputeDeviceId selectedDeviceId;
+  int absoluteDeviceIndex = 0;
+
   // print platform info
   ComputeStatus status = clGetPlatformIDs(8, platforms, &platformCount);
   computeCheckError(status, 0);
@@ -400,7 +404,7 @@ void ComputeInterface::create(int deviceIndex)
     // print device info and select one if not supplied
     for (uint j = 0; j < deviceCount; j++)
     {
-      deviceId = devices[j];
+      ComputeDeviceId deviceId = devices[j];
       cl_int  status;
       size_t  maxWorkgroupSize;
       size_t  maxComputeUnits;
@@ -421,7 +425,6 @@ void ComputeInterface::create(int deviceIndex)
       printf("    Compute Units:      %ld\n", maxComputeUnits);
       printf("    Max Workgroup Size: %ld\n", maxWorkgroupSize);
       printf("    Max Workitems:      %ld %ld %ld\n\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
-      this->maxThreadsPerWorkgroup = maxWorkgroupSize;
 
       if (deviceIndex == -1)
       {
@@ -431,12 +434,14 @@ void ComputeInterface::create(int deviceIndex)
         // select any other device over intel
         if (endIndex == name.npos)
         {
-          deviceIndex = j;
+          deviceIndex = absoluteDeviceIndex;
         }
       }
 
-      if (deviceIndex == j)
+      if (deviceIndex == absoluteDeviceIndex)
       {
+        selectedDeviceId = deviceId;
+        this->maxThreadsPerWorkgroup = maxWorkgroupSize;
         selectedDevice = deviceName;
         string name(deviceVendor);
         if (name.find("AMD") != name.npos)
@@ -448,17 +453,23 @@ void ComputeInterface::create(int deviceIndex)
           simdGroupSize = 32;
         }
       }
+
+      if (absoluteDeviceIndex == 0)
+      {
+        defaultDeviceId = deviceId;
+      }
+      absoluteDeviceIndex++;
     }
   }
 
   // if nothing found take the first one
   if (deviceIndex == -1)
   {
-    deviceIndex = 0;
+    selectedDeviceId = defaultDeviceId;
     selectedDevice = "Default";
   }
 
-  deviceId = devices[deviceIndex];
+  deviceId = selectedDeviceId;
 
   printf("Selected device:   %s\nAssumed SIMD size: %ld\n", selectedDevice.c_str(), simdGroupSize);
 
