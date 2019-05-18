@@ -57,6 +57,7 @@
 #define CLEAR_FUNCTION(x, y)    (x) = y
 #endif
 
+#define COMPUTE_MAX_THREADS         MaxWorkgroupSize
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
 #define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
 

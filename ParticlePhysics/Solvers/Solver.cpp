@@ -2,39 +2,39 @@
 
 template<class IndexType, class CoefficientType, class VariableType>
 Solver<IndexType, CoefficientType, VariableType>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type) :
-  SolverData(), compute(compute), allocator(allocator), type(type)
+  SolverData<IndexType, CoefficientType, VariableType>(), compute(compute), allocator(allocator), type(type)
 {
-  constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS), true);
-  constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES), true);
-  constrainCoefficients.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_COEFFICIENTS), true);
-  constrainConstants.create(compute, NULL, true);
-  constrainVariableAux[0].create(compute, NULL, false);
-  constrainVariableAux[1].create(compute, NULL, false);
+  this->constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS), true);
+  this->constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES), true);
+  this->constrainCoefficients.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_COEFFICIENTS), true);
+  this->constrainConstants.create(compute, NULL, true);
+  this->constrainVariableAux[0].create(compute, NULL, false);
+  this->constrainVariableAux[1].create(compute, NULL, false);
 
-  entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
+  this->entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
 
-  particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
-  particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
-  particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
-  particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
-  particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
-  particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
+  this->particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
+  this->particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
+  this->particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
+  this->particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
+  this->particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
+  this->particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
 
 #ifdef DEBUG_SOLVERS
-  particlesTemp[0].create(compute, NULL, true);
-  particlesTemp[1].create(compute, NULL, true);
+  this->particlesTemp[0].create(compute, NULL, true);
+  this->particlesTemp[1].create(compute, NULL, true);
 #else
-  particlesTemp[0].create(compute, NULL, false);
-  particlesTemp[1].create(compute, NULL, false);
+  this->particlesTemp[0].create(compute, NULL, false);
+  this->particlesTemp[1].create(compute, NULL, false);
 #endif
 
-  particleCollisionData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION), true);
+  this->particleCollisionData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION), true);
 
-  partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS), true);
-  partitionsCount.create(compute, NULL, true);
-  partitionsCount.host()->reserve(1);
-  partitionsCount.host()->resize(1);
-  entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
+  this->partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS), true);
+  this->partitionsCount.create(compute, NULL, true);
+  this->partitionsCount.host()->reserve(1);
+  this->partitionsCount.host()->resize(1);
+  this->entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
 
   iterations = 1;
 
@@ -52,27 +52,27 @@ Solver<IndexType, CoefficientType, VariableType>::~Solver()
 template<class IndexType, class CoefficientType, class VariableType>
 void Solver<IndexType, CoefficientType, VariableType>::commit()
 {
-  flatArray<CoefficientType>(*constrainCoefficients.host(), rawConstrainCoefficients);
+  flatArray<CoefficientType>(*this->constrainCoefficients.host(), this->rawConstrainCoefficients);
 
   EntityLocation updateInfo;
 
-  updateInfo.node.offset = nodes();
-  updateInfo.node.count = constrainConstants.host()->size() - nodes();
+  updateInfo.node.offset = this->nodes();
+  updateInfo.node.count = this->constrainConstants.host()->size() - this->nodes();
 
-  updateInfo.connection.offset = connectionCount();
-  updateInfo.connection.count = constrainCoefficients.host()->size() - connectionCount();
+  updateInfo.connection.offset = this->connectionCount();
+  updateInfo.connection.count = this->constrainCoefficients.host()->size() - this->connectionCount();
 
-  updates.push_back(updateInfo);
-  entityLocations.host()->push_back(updateInfo);
+  this->updates.push_back(updateInfo);
+  this->entityLocations.host()->push_back(updateInfo);
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 void Solver<IndexType, CoefficientType, VariableType>::update()
 {
   // arrays to be exported to device
-  for (const EntityLocation& section : updates)
+  for (const EntityLocation& section : this->updates)
   {
-    if (rawConstrainConnections.size() && section.connection.count)
+    if (this->rawConstrainConnections.size() && section.connection.count)
     {
       uint indexOffset = 0;
 
@@ -81,61 +81,61 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
       {
         Constrain newConstrain(indexOffset, 0);
 
-        for (uint j = 0; j < rawConstrainConnections[constrainHeaders.host()->size()].size(); j++)
+        for (uint j = 0; j < this->rawConstrainConnections[this->constrainHeaders.host()->size()].size(); j++)
         {
-          constrainIndices.host()->push_back(rawConstrainConnections[constrainHeaders.host()->size()][j]);
+          this->constrainIndices.host()->push_back(this->rawConstrainConnections[this->constrainHeaders.host()->size()][j]);
           indexOffset++;
         }
-        newConstrain.setCount(rawConstrainConnections[constrainHeaders.host()->size()].size());
-        constrainHeaders.host()->push_back(newConstrain);
+        newConstrain.setCount(this->rawConstrainConnections[this->constrainHeaders.host()->size()].size());
+        this->constrainHeaders.host()->push_back(newConstrain);
       }
 
       // send values to device
       if (section.node.count)
       {
-        constrainHeaders.syncDevice(section.node);
-        constrainConstants.syncDevice(section.node);
+        this->constrainHeaders.syncDevice(section.node);
+        this->constrainConstants.syncDevice(section.node);
       }
       if (section.connection.count)
       {
-        constrainIndices.syncDevice(section.connection);
-        constrainCoefficients.syncDevice(section.connection);
+        this->constrainIndices.syncDevice(section.connection);
+        this->constrainCoefficients.syncDevice(section.connection);
       }
     }
   }
-  rawConstrainConnections.clear();
+  this->rawConstrainConnections.clear();
 
-  const uint count = lastPartition().end();
+  const uint count = this->lastPartition().end();
   // reset aux arrays
-  constrainVariableAux[0].resize(count, false);
-  constrainVariableAux[1].resize(count, false);
+  this->constrainVariableAux[0].resize(count, false);
+  this->constrainVariableAux[1].resize(count, false);
 
-  entitySharedData.syncDevice();
-  particles.syncDevice();
-  particlesPredicted.resize(particles.size(), false);
-  compute->copyBuffer(particles.device(), particlesPredicted.device(), 0, 0, particles.size() * sizeof(ParticleStruct));
-  particleDeltas.resize(particles.size(), false);
-  particleCollisionData.syncDevice();
-  particleAuxData.syncDevice();
+  this->entitySharedData.syncDevice();
+  this->particles.syncDevice();
+  this->particlesPredicted.resize(this->particles.size(), false);
+  this->compute->copyBuffer(this->particles.device(), this->particlesPredicted.device(), 0, 0, this->particles.size() * sizeof(ParticleStruct));
+  this->particleDeltas.resize(this->particles.size(), false);
+  this->particleCollisionData.syncDevice();
+  this->particleAuxData.syncDevice();
 
-  partitions.syncDevice();
-  (*partitionsCount.host())[0] = partitions.host()->size();
-  partitionsCount.syncDevice();
-  entityLocations.syncDevice();
+  this->partitions.syncDevice();
+  (*this->partitionsCount.host())[0] = this->partitions.host()->size();
+  this->partitionsCount.syncDevice();
+  this->entityLocations.syncDevice();
 
-  updates.clear();
+  this->updates.clear();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
 {
-  return entityLocations.host()->size();
+  return this->entityLocations.host()->size();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 uint Solver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()const
 {
-  return partitions.host()->size();
+  return this->partitions.host()->size();
 }
 
 #define classPrefix(x, y, z) template void Solver<x, y, z>

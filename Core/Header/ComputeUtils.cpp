@@ -135,7 +135,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   // use size tuned for best performance
   util.batchSize = 8;
-  util.maxWorkgroupSize = 1024;
+  util.maxWorkgroupSize = compute->maxThreadsPerGroup();
 
   // override if specified
   if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())

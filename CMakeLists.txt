@@ -1,11 +1,13 @@
-cmake_minimum_required(VERSION 2.8)
-
 project(ParticlePhysics)
+
+if (APPLE)
+  set(CMAKE_CXX_STANDARD 14)
+endif (APPLE)
 
 find_package(OpenCL REQUIRED)
 find_package(Vulkan)
 
-#code to get subdirectories
+# code to get subdirectories
 macro(SUBDIRLIST RESULT CURRENT_DIRECTORY)
   file(GLOB children RELATIVE ${CURRENT_DIRECTORY} ${CURRENT_DIRECTORY}/*)
   set(dirlist "")
@@ -19,7 +21,7 @@ endmacro(SUBDIRLIST RESULT CURRENT_DIRECTORY)
 
 macro(GROUPFILES CURRENT_DIRECTORY)
   subdirlist(SUBDIRS ${CURRENT_DIRECTORY})
-  #code to include subdirectories to the project
+  # code to include subdirectories to the project
   foreach(SUBDIR ${SUBDIRS})
     file(GLOB_RECURSE dir_files ${SUBDIR}/*.h ${SUBDIR}/*.cu ${SUBDIR}/*.cpp ${SUBDIR}/*.shader)
     foreach(filename ${dir_files})
@@ -40,6 +42,21 @@ macro(GROUPFILES CURRENT_DIRECTORY)
   endforeach(SUBDIR ${SUBDIRS})
 endmacro(GROUPFILES CURRENT_DIRECTORY)
 
+# code to add a framework
+macro(ADD_FRAMEWORK fwname appname framework_path)
+  find_library(FRAMEWORK_${fwname}
+    NAMES ${fwname}
+    PATHS ${framework_path}
+    PATH_SUFFIXES Frameworks
+    NO_DEFAULT_PATH)
+  if (${FRAMEWORK_${fwname}} STREQUAL FRAMEWORK_${fwname}-NOTFOUND)
+    MESSAGE(ERROR ": Framework ${fwname} not found")
+  else (${FRAMEWORK_${fwname}} STREQUAL FRAMEWORK_${fwname}-NOTFOUND)
+    target_link_libraries(${appname} ${FRAMEWORK_${fwname}})
+      MESSAGE(STATUS "Framework ${fwname} found at ${FRAMEWORK_${fwname}}")
+  endif (${FRAMEWORK_${fwname}} STREQUAL FRAMEWORK_${fwname}-NOTFOUND)
+endmacro(ADD_FRAMEWORK)
+
 set(CMAKE_BINARY_DIR "${CMAKE_BINARY_DIR}/bin")
 
 message(${CMAKE_BINARY_DIR})
@@ -48,51 +65,59 @@ if(OPENCL_FOUND)
 
   message("OpenCL found generating GPU code")
 
-  set(PROJECT_STRING Freeglut)
-  add_subdirectory(Freeglut)
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4003")
+  # include Freeglut and GLEW on Windows
+  if (WIN32)
+    include_directories("External/GLEW/include/GL/")
+    link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/")
 
-  include_directories("External/GLEW/include/GL/")
-  include_directories("${OpenCL_INCLUDE_DIR}")
-  if(Vulkan_FOUND)
+    set(PROJECT_STRING Freeglut)
+    add_subdirectory(Freeglut)
+
+    set(ADDITIONAL_INCLUDE_DIR Freeglut)
+    set(ADDITIONAL_LIBRARY Freeglut glew32)
+  endif (WIN32)
+
+  if (Vulkan_FOUND)
     include_directories("${Vulkan_INCLUDE_DIR}")
-  endif(Vulkan_FOUND)
-
-  link_directories("${CMAKE_BINARY_DIR}")
-  link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/")
-  link_directories("${OPENCL_INCLUDE_DIR}")
-  if(Vulkan_FOUND)
     link_directories("${Vulkan_LIBRARY}")
-  #set(OpenCL_LIBRARY ${OpenCL_LIBRARY} ${Vulkan_LIBRARY_FILE})
-  #link_directories("${CMAKE_SOURCE_DIR}/External/Vulkan/Lib")
-  endif(Vulkan_FOUND)
+  endif (Vulkan_FOUND)
 
-  set(ADDITIONAL_INCLUDE_DIR Freeglut Core)
-  set(ADDITIONAL_LIBRARY Freeglut)
+  include_directories("${OpenCL_INCLUDE_DIR}")
+  link_directories("${OPENCL_INCLUDE_DIR}")
+  link_directories("${CMAKE_BINARY_DIR}")
+
+  set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} Core)
+
+  if (APPLE)
+    include_directories("${CMAKE_SOURCE_DIR}/External/SDL/MacOS/SDL2.framework/Headers")
+  endif (APPLE)
+
   set(PROJECT_STRING Core)
   add_subdirectory(Core)
 
-  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
-  set(ADDITIONAL_LIBRARY Core Freeglut glew32)
+  if (APPLE)
+    add_framework(Foundation Core "/System/Library/Frameworks")
+    add_framework(OpenCL Core "/System/Library/Frameworks")
+    set_target_properties(Core PROPERTIES LINK_FLAGS "-F${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
+  endif (APPLE)
+
+  set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} ParticlePhysics)
+  set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} Core)
   set(PROJECT_STRING ParticlePhysics)
   add_subdirectory(ParticlePhysics)
 
-  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
   if(Vulkan_FOUND)
-    set(ADDITIONAL_LIBRARY ParticlePhysics Core Freeglut glew32 vulkan-1)
+    set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ParticlePhysics vulkan-1)
   else(Vulkan_FOUND)
-    set(ADDITIONAL_LIBRARY ParticlePhysics Core Freeglut glew32)
+    set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ParticlePhysics)
   endif(Vulkan_FOUND)
 
   set(PROJECT_EXECUTABLE TRUE)
   set(PROJECT_STRING App)
   add_subdirectory(App)
 
-  set(ADDITIONAL_INCLUDE_DIR Core Freeglut ParticlePhysics)
   if(Vulkan_FOUND)
-    set(ADDITIONAL_LIBRARY Core Freeglut glew32 vulkan-1)
-  else(Vulkan_FOUND)
-    set(ADDITIONAL_LIBRARY Core Freeglut glew32)
+    set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} vulkan-1)
   endif(Vulkan_FOUND)
   set(PROJECT_EXECUTABLE TRUE)
   set(PROJECT_STRING Tests)

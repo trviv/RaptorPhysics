@@ -34,6 +34,12 @@
 #include <time.h>
 #include <conio.h>
 #include <windows.h>
+#include <freeglut.h>
+
+#if REN_GL
+#include <glew.h>
+#endif
+
 
 #elif ENV_APPLE
 #include <_types.h>
@@ -42,14 +48,17 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#endif
+#define CL_SILENCE_DEPRECATION
+#define GL_SILENCE_DEPRECATION
 
 #if REN_GL
-#include <glew.h>
-
-#if ENV_WIN
-#include <freeglut.h>
-
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#include <OpenGL/gl3ext.h>
+#include <OpenGL/OpenGL.h>
+#define GL_RGBA32F              GL_RGBA32F_ARB
+#define glDrawArraysInstanced   glDrawArraysInstancedARB
+#define glDrawElementsInstanced glDrawElementsInstancedARB
 #endif
 
 #endif

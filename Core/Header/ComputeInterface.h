@@ -165,6 +165,7 @@ class ComputeInterface
   ComputeDeviceId   deviceId;
   ComputeContext    context;
   ComputeQueue      queue;
+  size_t            maxThreadsPerWorkgroup;
 
   friend class ComputeHeap;
 
@@ -176,7 +177,7 @@ public:
 
   ~ComputeInterface();
 
-  void create(uint platformIndex);
+  void create(int deviceIndex = -1);
 
 
   ComputeProgram createProgram(const char* sourceCode, size_t sourceSize);
