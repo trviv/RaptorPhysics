@@ -66,9 +66,11 @@ void testBandwidthRW(ComputeInterface* compute)
   printf("\nRead/Write bandwidth test:\n");
 
   DeviceArray<float> data(compute, NULL, false);
+  DeviceArray<float> outdata(compute, NULL, false);
   const int elements = 1024 * 1024 * 32;
 
   data.resize(elements, false);
+  outdata.resize(elements, false);
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
@@ -81,7 +83,7 @@ void testBandwidthRW(ComputeInterface* compute)
     ProfileBlock("R/W Bandwidth");
     for (uint i = 0; i < iterations; i++)
     {
-      compute->copyBuffer(data.device(), data.device(), 0, 0, elements * sizeof(uint));
+      compute->copyBuffer(data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
     }
   }
   compute->sync();
