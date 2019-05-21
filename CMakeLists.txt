@@ -1,3 +1,7 @@
+cmake_minimum_required(VERSION 2.8)
+cmake_policy(SET CMP0079 NEW)
+cmake_policy(SET CMP0015 NEW)
+
 project(ParticlePhysics)
 
 if (APPLE)
@@ -47,7 +51,6 @@ macro(ADD_FRAMEWORK fwname appname framework_path)
   find_library(FRAMEWORK_${fwname}
     NAMES ${fwname}
     PATHS ${framework_path}
-    PATH_SUFFIXES Frameworks
     NO_DEFAULT_PATH)
   if (${FRAMEWORK_${fwname}} STREQUAL FRAMEWORK_${fwname}-NOTFOUND)
     MESSAGE(ERROR ": Framework ${fwname} not found")
@@ -88,16 +91,14 @@ if(OPENCL_FOUND)
 
   set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} Core)
 
-  if (APPLE)
-    include_directories("${CMAKE_SOURCE_DIR}/External/SDL/MacOS/SDL2.framework/Headers")
-  endif (APPLE)
-
   set(PROJECT_STRING Core)
   add_subdirectory(Core)
 
   if (APPLE)
     add_framework(Foundation Core "/System/Library/Frameworks")
     add_framework(OpenCL Core "/System/Library/Frameworks")
+    add_framework(OpenGL Core "/System/Library/Frameworks")
+    add_framework(SDL2 Core "${CMAKE_SOURCE_DIR}/External/SDL/MacOS")
     set_target_properties(Core PROPERTIES LINK_FLAGS "-F${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
   endif (APPLE)
 
