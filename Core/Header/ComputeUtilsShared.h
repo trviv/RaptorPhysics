@@ -57,6 +57,49 @@
 #define CLEAR_FUNCTION(x, y)    (x) = y
 #endif
 
+// optimized atomics for primitives
+
+#if MemberStructType == float
+#define ATOMIC_LOAD_FUNCTION(x)     as_float(atomicLoad((volatile Device uint*)(x)))
+#define ATOMIC_LOAD_FUNCTION(x, y)  atomicStore((volatile Device uint*)(x), *((uint*)&(y)))
+
+#elif MemberStructType == uint
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((volatile Device uint*)(x))
+#define ATOMIC_LOAD_FUNCTION(x, y)  atomicStore((volatile Device uint*)(x), *((uint*)&(y)))
+
+#elif MemberStructType == int
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((volatile Device int*)(x))
+#define ATOMIC_LOAD_FUNCTION(x, y)  atomicStore((volatile Device int*)(x), *((int*)&(y)))
+
+#endif
+
+// general atomics for structures
+inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
+{
+  MemberStructType ret;
+  for (int i = 0; i<sizeof(MemberStructType); i += 4)
+  {
+    ((Thread uint*)&ret)[i] = atomicLoad(((volatile Device uint*)x) + i);
+  }
+  return ret;
+}
+
+inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStructType y)
+{
+  for (int i = 0; i<sizeof(MemberStructType); i += 4)
+  {
+    atomicStore(((volatile Device uint*)x) + i, ((Thread uint*)&y)[i]);
+  }
+}
+
+#ifndef AtomicLoadFunction
+#define ATOMIC_LOAD_FUNCTION    atomicLoadN
+#endif
+
+#ifndef AtomicStoreFunction
+#define ATOMIC_STORE_FUNCTION   atomicStoreN
+#endif
+
 #define COMPUTE_MAX_THREADS         MaxWorkgroupSize
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
 #define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
@@ -77,6 +120,22 @@
 #define MemberStructType4 float4
 #define MemberStructType2 float2
 #endif
+
+// function to write to a memory and wait until the written data is visible
+// this helps to get consistent write memory ordering on AMD GPU
+void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
+{
+  ATOMIC_STORE_FUNCTION(location, value);
+  //COPY_FUNCTION(*location, value);
+
+  MemberStructType temp;
+  do
+  {
+    temp = ATOMIC_LOAD_FUNCTION(location);
+    //COPY_FUNCTION(temp, *location);
+  }
+  while (((uint*)&temp)[0] != ((uint*)&value)[0]);
+}
 
 MemberStructType localReduce(const Thread MemberStructType *elements)
 {
