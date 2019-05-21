@@ -12,11 +12,13 @@
 #define BankConflictShift RadixPrefixScanPackingExp
 #endif
 
+#define LaneWidthExp        COMPUTE_SUB_GROUP_EXP
 #define PackedParts         4
 #define PackedBits          (32 / PackedParts)
 #define RadixScanIterations (1 << (SortBits-2))
 #define RadixPackedType     uint
 #define LaneWidth           (1<<LaneWidthExp)
+#define RadixBlockInstances (256>>LaneWidthExp)
 #define SortBitValue        (1<<SortBits)
 
 #if RadixPrefixScanPackingExp > RadixReductionPackingExp
@@ -34,6 +36,9 @@ const RadixPackedType lanePrefixScanRadix(volatile Shared RadixPackedType* local
   *localArray1DPtr += *(localArray1DPtr - 4);
   *localArray1DPtr += *(localArray1DPtr - 8);
   *localArray1DPtr += *(localArray1DPtr - 16);
+#if COMPUTE_SUB_GROUP_SIZE > 32
+  *localArray1DPtr += *(localArray1DPtr - 32);
+#endif
 
   return localArray1D[localIndex];
 }
@@ -42,6 +47,9 @@ void laneReduceRadix(volatile Shared StructType* localArray1D, const ushort loca
 {
   volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
 
+#if COMPUTE_SUB_GROUP_SIZE > 32
+  *localArray1DPtr += *(localArray1DPtr + 32);
+#endif
   *localArray1DPtr += *(localArray1DPtr + 16);
   *localArray1DPtr += *(localArray1DPtr + 8);
   *localArray1DPtr += *(localArray1DPtr + 4);

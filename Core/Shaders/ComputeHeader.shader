@@ -82,8 +82,8 @@ typedef struct
 #define copyMatrix3x3(a, b)   { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
 #define clearMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] = b; } }
 
-#define atomicLoad(location)        atomic_or  (location, 0)
-#define atomicSave(location, value) atomic_xchg(location, value)
-#define atomicAdd(location, value)  atomic_add (location, value)
+#define atomicLoad(location)          atomic_or  (location, 0)
+#define atomicStore(location, value)  atomic_xchg(location, value)
+#define atomicAdd(location, value)    atomic_add (location, value)
 
 #endif

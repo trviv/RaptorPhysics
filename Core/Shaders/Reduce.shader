@@ -96,13 +96,13 @@ Kernel void reduce(
     // save current value as partial sum, or final sum for the first threadgroup
     if (threadGroupIndex())
     {
-      COPY_FUNCTION(sumBuffer[threadGroupIndex() * 2], sum);
-      atomicSave(statusBuffer + threadGroupIndex(), REDUCE_STATUS_PARTIAL);
+      writeAndWait(&sumBuffer[threadGroupIndex() * 2], sum);
+      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_PARTIAL);
     }
     else
     {
-      COPY_FUNCTION(sumBuffer[threadGroupIndex() * 2 + 1], sum);
-      atomicSave(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
+      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], sum);
+      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
     }
 
     int prevGroupIndex = threadGroupIndex() - 1;
@@ -113,12 +113,12 @@ Kernel void reduce(
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == REDUCE_STATUS_PARTIAL)
       {
-        ADD_FUNCTION(sum, sumBuffer[prevGroupIndex * 2]);
+        ADD_FUNCTION(sum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
         prevGroupIndex--;
       }
       else if (status == REDUCE_STATUS_FINAL)
       {
-        ADD_FUNCTION(sum, sumBuffer[prevGroupIndex * 2 + 1]);
+        ADD_FUNCTION(sum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]));
         break;
       }
     }
@@ -126,8 +126,8 @@ Kernel void reduce(
     // save final sum for this threadgroup, if not first or very last
     if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
-      COPY_FUNCTION(sumBuffer[threadGroupIndex() * 2 + 1], sum);
-      atomicSave(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
+      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], sum);
+      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
     }
 
     // save the reduced sum

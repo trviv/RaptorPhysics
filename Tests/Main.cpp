@@ -66,8 +66,8 @@ void testBandwidthRW(ComputeInterface* compute)
   printf("\nRead/Write bandwidth test:\n");
 
   DeviceArray<float> data(compute, NULL, false);
-  DeviceArray<float> outdata(compute, NULL, false);
-  const int elements = 1024 * 1024 * 32;
+  DeviceArray<float> &outdata = data;//(compute, NULL, false);
+  const int elements = 1024 * 1024 * 128;
 
   data.resize(elements, false);
   outdata.resize(elements, false);
@@ -99,9 +99,9 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   DeviceArray<DataType> data(compute, NULL, true);
   DeviceArray<DataType> backupData(compute, NULL, false);
 
-  const int elements = 12345678;// 1024 * 1024 * 16;
-  DataType sum = 0;
-  uint iterations = 20;
+  const int elements = 123456789;
+  double sum = 0;
+  uint iterations = 10;
 
   data.host()->reserve(elements);
   for (int i = 0; i < elements; i++)
@@ -401,14 +401,14 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   DeviceArray<DataType> backupData(compute, NULL, false);
   vector<DataType> prefixSum;
 
-  const int elements = 12345678;// 1024 * 1024 * 16;
+  const int elements = 123456789;
   DataType sum = 0;
-  const uint iterations = 20;
+  const uint iterations = 10;
 
   data.host()->reserve(elements);
   for (uint i = 0; i < elements; i++)
   {
-    data.host()->push_back(rand());
+    data.host()->push_back(rand()&0xFF);
     prefixSum.push_back(sum);
     sum += data.host()->at(i);
   }
@@ -463,9 +463,9 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   DeviceArray<DataType> selectionArray(compute, NULL, true);
   vector<uint> statusOutput;
 
-  const int elements = 12345678;// 1024 * 1024 * 16;
+  const int elements = 123456789;
   DataType sum = 0;
-  const uint iterations = 20;
+  const uint iterations = 10;
 
   selectionArray.host()->reserve(elements);
   statusOutput.reserve(elements);
