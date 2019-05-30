@@ -131,6 +131,7 @@ void RigidSolver::solve()
     printf("\nM:\n");
     ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
     covarianceMatrix.syncHost();
+    particlesTemp[0].syncHost();
     compute->sync();
 #endif
 
