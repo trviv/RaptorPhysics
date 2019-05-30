@@ -8,6 +8,8 @@
 
 #endif
 
+#pragma pack(push, 4)
+
 /*
 @struct Bounding volume hierarchy leaf data.
 */
@@ -22,11 +24,10 @@ typedef struct BVHLeafInfo_t BVHLeafInfo;
 /*
 @struct Bounding volume hierarchy internal node data.
 */
-struct DEFAULT_ALIGN BVHNodeInfo_t
+struct ALIGN(4) BVHNodeInfo_t
 {
   uint child[2];
   uint parent;
-  uint padding;
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
@@ -46,17 +47,6 @@ struct DEFAULT_ALIGN XAB_t
     float3  max;
     float   reserved2[4];
   };
-
-#ifndef COMPUTE_SHADER_SCOPE
-  XAB_t()
-  {
-
-  }
-  XAB_t(const XAB_t& ref)
-  {
-
-  }
-#endif
 };
 
 typedef struct XAB_t XAB;
@@ -64,6 +54,8 @@ typedef struct XAB_t XAB;
 #define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
 #define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
 #define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
+
+#pragma pack(pop)
 
 static uint arrange32Bits(uint x)
 {

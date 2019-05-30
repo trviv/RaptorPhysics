@@ -47,8 +47,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-  collisionSolver = new UniformGridCollisionSolver();
-  //collisionSolver = new LBVHSolver();
+  //collisionSolver = new UniformGridCollisionSolver();
+  collisionSolver = new LBVHSolver();
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;
@@ -427,7 +427,11 @@ void PhysicsSystem::render()
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
-    displayBoxBuffer.copy((float*)boxes, 0, 0, 128, ((collisionBoundingBoxes->host()->size() * 2 + 127) / 128));
+    displayBoxBuffer.copy((float*)boxes, 0, 0, 128, ((collisionBoundingBoxes->host()->size() * 2) / 128));
+    if (((collisionBoundingBoxes->host()->size() * 2) & 127) > 0)
+    {
+      displayBoxBuffer.copy((float*)boxes, 0, ((collisionBoundingBoxes->host()->size() * 2) / 128), ((collisionBoundingBoxes->host()->size() * 2) & 127), 1);
+    }
 
     GLfloat model_mat[16], proj_mat[16];
     glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);

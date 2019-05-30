@@ -111,14 +111,17 @@ Kernel void reduce(
     while (prevGroupIndex > -1)
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
+      MemberStructType temp;
       if (status == REDUCE_STATUS_PARTIAL)
       {
-        ADD_FUNCTION(sum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
+        temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]);
+        ADD_FUNCTION(sum, temp);
         prevGroupIndex--;
       }
       else if (status == REDUCE_STATUS_FINAL)
       {
-        ADD_FUNCTION(sum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]));
+        temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]);
+        ADD_FUNCTION(sum, temp);
         break;
       }
     }

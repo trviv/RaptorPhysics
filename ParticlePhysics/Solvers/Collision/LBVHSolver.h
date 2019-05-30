@@ -10,14 +10,16 @@
 */
 class LBVHSolver : public CollisionSolver
 {
-  DeviceArray <BVHNodeInfo> treeInternalNodes;
-  DeviceArray <BVHLeafInfo> particleLeafData;
-  DeviceArray <BVHLeafInfo> particleLeafDataSorted;
-  DeviceArray <uint>        visitedInternalNodes;
-  DeviceArray <uint>        leafParentNodeIndices;
-  DeviceArray <XAB>         systemBoundingBox;
-  DeviceArray <XAB>         particleBoundingBoxes;
-  DeviceArray <XAB>         treeInternalNodeBoundingBoxes;
+  DeviceArray <ParticleStruct>  particlesTemp;
+  DeviceArray <BVHNodeInfo>     treeInternalNodes;
+  DeviceArray <BVHLeafInfo>     particleLeafData;
+  DeviceArray <BVHLeafInfo>     particleLeafDataSorted;
+  DeviceArray <uint>            visitedInternalNodes;
+  DeviceArray <uint>            leafParentNodeIndices;
+  DeviceArray <XAB>             systemBoundingBox;
+  DeviceArray <XAB>             particleBoundingBoxes;
+  DeviceArray <XAB>             particleGroupBoundingBoxes;
+  DeviceArray <XAB>             treeInternalNodeBoundingBoxes;
 public:
 
   ~LBVHSolver();

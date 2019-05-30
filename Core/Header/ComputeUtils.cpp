@@ -252,6 +252,8 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* source, uint l
   sum1D(compute, source, source, length, doMean);
 }
 
+//#define DEBUG_REDUCE
+
 void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean)
 {
   if (!localArrays[UtilTempReduceSum])
@@ -387,7 +389,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array
       kernels[kernelIndex].setArg<uint>(&divideFlag, 9);
     }
 
-    compute->configureSize(workgroupSize, workgroupCount, (uint)mCeil(float(length) / ((1 << i))));
+    compute->configureSize(workgroupSize, workgroupCount, (length + (1 << i) - 1) / (1 << i));
     compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 
     if (iterations - i <= maxThreadsPerGroupExponent) break;
@@ -515,7 +517,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   size_t workgroupCount[3] = { 1, 1, 1 };
 
   const uint localSortThreads = compute->simdSize();
-  const uint radixBlockInstances = 256/localSortThreads;
+  const uint radixBlockInstances = 256 / localSortThreads;
 
   if (!localArrays[UtilTempRadixGroupSum])
   {
