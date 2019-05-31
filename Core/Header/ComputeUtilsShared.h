@@ -61,7 +61,7 @@
 inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 {
   MemberStructType ret;
-  for (int i = 0; i < sizeof(MemberStructType); i += 4)
+  for (int i = 0; i < (int)sizeof(MemberStructType); i += 4)
   {
     ((Thread uint*)&ret)[i] = atomicLoad(((volatile Device uint*)x) + i);
   }
@@ -70,7 +70,7 @@ inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 
 inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStructType y)
 {
-  for (int i = 0; i < sizeof(MemberStructType); i += 4)
+  for (int i = 0; i < (int)sizeof(MemberStructType); i += 4)
   {
     atomicStore(((volatile Device uint*)x) + i, ((const Thread uint*)&y)[i]);
   }
@@ -125,7 +125,7 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU
-void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
+static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
 {
   //ATOMIC_STORE_FUNCTION(location, value);
   //COPY_FUNCTION(*location, value);
@@ -140,7 +140,7 @@ void writeAndWait(volatile Device MemberStructType* location, const MemberStruct
   while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0]);
 }
 
-MemberStructType localReduce(const Thread MemberStructType *elements)
+static MemberStructType localReduce(const Thread MemberStructType *elements)
 {
   MemberStructType ret = elements[0];
   for (uint i = 1; i < BatchSize; i++)
@@ -150,7 +150,7 @@ MemberStructType localReduce(const Thread MemberStructType *elements)
   return ret;
 }
 
-void batchRead(Thread MemberStructType *elements, const Device StructType* array1D, const uint index, const uint length)
+static void batchRead(Thread MemberStructType *elements, const Device StructType* array1D, const uint index, const uint length)
 {
   const uint indexOffset = index * BatchSize;
   const uint readCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
@@ -288,7 +288,7 @@ void batchRead(Thread MemberStructType *elements, const Device StructType* array
 #endif
 }
 
-void batchWrite(const MemberStructType *elements, Device StructType* array1D, const uint index, const uint length)
+static void batchWrite(const MemberStructType *elements, Device StructType* array1D, const uint index, const uint length)
 {
   const uint indexOffset = index * BatchSize;
   const uint writeCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);

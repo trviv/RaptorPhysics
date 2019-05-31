@@ -48,8 +48,8 @@ Kernel void consolidateFromPartitionsKernel(
 Kernel void bitonicSort32BitKernel(
   Device SortNode32* array1D,
   const uint multiplier,
-  const uint minDepth,
-  const uint maxDepth,
+  const int minDepth,
+  const int maxDepth,
   const uint length)
 {
   // the number of threads for the kernel
@@ -85,7 +85,7 @@ Kernel void bitonicSort32BitKernel(
 
   localMemBarrier();
 
-  for (uint d = minDepth; d < maxDepth; d++)
+  for (int d = minDepth; d < maxDepth; d++)
   {
     for (int d2 = d; d2 >= minDepth; d2--)
     {

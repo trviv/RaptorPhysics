@@ -8,7 +8,7 @@ static PhysicsSystem* physicsSystem;
 int main(int argc, char** argv)
 {
   compute = new ComputeInterface();
-  compute->create(1);
+  compute->create();
 
   physicsSystem = new PhysicsSystem(compute);
   main_window = physicsSystem;
