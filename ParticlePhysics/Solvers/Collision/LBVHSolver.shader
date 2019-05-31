@@ -87,7 +87,7 @@ Kernel void assignMortonCode(
     // floor() is needed to prevent the center cell, at (0,0,0) from being twice the size
     float3 positionRelativeToCenter = (particle.position - mergedBoxCenter) * inverseMergedBoxSize;
 
-    int3 quantizedPosition = (int3)select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f);
+    int3 quantizedPosition = convert_int3(select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f));
 
     // Clamp coordinates into [-512, 511], then convert range from [-512, 511] to [0, 1023]
     quantizedPosition = max(constructInt3(-512), min(quantizedPosition, constructInt3(511))) + constructInt3(512);

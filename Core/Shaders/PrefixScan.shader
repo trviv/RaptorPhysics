@@ -178,14 +178,15 @@ Kernel void compactSparseArray(
 
   // read the values
   MemberStructType originalValues[BatchSize];
-  uchar statusFlag[BatchSize];
+  uint statusFlag = 0;
   batchRead(originalValues, selectionArray, index, length);
 
   // make values binary
   for (uint i = 0; i < BatchSize; i++)
   {
-    originalValues[i] = select((MemberStructType)(0), (MemberStructType)(1), originalValues[i] > (MemberStructType)(0));
-    statusFlag[i] = originalValues[i];
+    originalValues[i] = originalValues[i] > (MemberStructType)(0);
+    statusFlag <<= 1;
+    statusFlag |= originalValues[i];
   }
 
   const MemberStructType reduceSum = localReduce(originalValues);
@@ -220,20 +221,18 @@ Kernel void compactSparseArray(
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
       {
-        MemberStructType temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]);
-        ADD_FUNCTION(localArray1D[0], temp);
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
         prevGroupIndex--;
       }
       else if (status == PREFIX_SCAN_STATUS_FINAL)
       {
-        MemberStructType temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]);
-        ADD_FUNCTION(localArray1D[0], temp);
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]));
         break;
       }
     }
 
     // save final sum for this threadgroup, if not first or very last
-    if (threadGroupIndex() < (threadGroupCount() - 1))
+    if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], localArray1D[0] + prefixSum);
       atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
@@ -256,9 +255,10 @@ Kernel void compactSparseArray(
   const uint indexOffset = index * BatchSize;
   const uint writeCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
 
-  for (uint i = 0; i < writeCount; i++)
+  uint mask = (1 << (BatchSize - 1));
+  for (uint i = 0; i < writeCount; i++, mask >>= 1)
   {
-    if (statusFlag[i])
+    if (statusFlag & mask)
     {
       compactIndexArray[originalValues[i]] = indexOffset + i;
     }
