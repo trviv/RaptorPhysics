@@ -26,17 +26,17 @@ static uint threadGroupCount()
   return get_num_groups(0);
 }
 
-void globalMemBarrier()
+static void globalMemBarrier()
 {
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-void localMemBarrier()
+static void localMemBarrier()
 {
   barrier(CLK_LOCAL_MEM_FENCE);
 }
 
-void localMemFence()
+static void localMemFence()
 {
   mem_fence(CLK_LOCAL_MEM_FENCE);
 }
@@ -57,6 +57,7 @@ void localMemFence()
 #define constructFloat3       (float3)
 #define constructUint3        (uint3)
 #define constructUint2        (uint2)
+#define constructInt3         (int3)
 #define constructInt2         (int2)
 
 #define NUM_BANKS       16
@@ -67,7 +68,7 @@ inline const uint paddedIndex(const uint n)
   return n;// +(((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
 }
 
-float sqr(const float x)
+static float sqr(const float x)
 {
   return x * x;
 }

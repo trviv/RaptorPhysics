@@ -1,7 +1,7 @@
 #include "GLWindow.h"
 
 #if ENV_APPLE
-#include "SDL.h"
+#import <SDL2/SDL.h>
 
 int Window::del_time = 5;
 Window *main_window = NULL;
@@ -43,12 +43,13 @@ void Window::init(int argc, char** argv, int width, int height,
 
   //index = glutCreateWindow(name);
   //glutInitWindowSize(width, height);
+  SDL_GL_CreateContext(sdl_window);
 
 //  int glew_ok = glewInit();
-//  if (glew_ok != GLEW_OK)
-//  {
-//    std::cout << "Glew Error..." << std::endl;
-//  }
+  if (sdl_window == NULL)
+  {
+    std::cout << "SDL Error..." << std::endl;
+  }
 
   rx = 0;
   ry = 0;

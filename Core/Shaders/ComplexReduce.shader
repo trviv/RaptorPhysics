@@ -9,7 +9,7 @@ Kernel void sumIrregular2DKernel(
   const Device IdentityStructType* array2DIdentity,
   const Device PartitionInfo* partitionArray,
   const Device uint* partitionCount,
-  const uint length,
+  const int length,
   const uint maxPartitionLength,
   const uint iteration,
   uint maxLocalIterations,
@@ -30,7 +30,7 @@ Kernel void sumIrregular2DKernel(
 
     for (uint i = 0; i < maxLocalIterations; i++)
     {
-      uint width = (1 << maxPower);
+      int width = (1 << maxPower);
       int index1 = (originalIndex << maxPower) + offset;
       int index2 = index1 + (width >> 1);
 

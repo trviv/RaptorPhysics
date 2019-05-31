@@ -47,7 +47,7 @@ typedef struct SortNode32_t SortNode32;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-SortNode32 defaultSortNode()
+static SortNode32 defaultSortNode()
 {
   SortNode32 ret;
   ret.key = -1;

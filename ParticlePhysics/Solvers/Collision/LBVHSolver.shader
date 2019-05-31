@@ -87,13 +87,10 @@ Kernel void assignMortonCode(
     // floor() is needed to prevent the center cell, at (0,0,0) from being twice the size
     float3 positionRelativeToCenter = (particle.position - mergedBoxCenter) * inverseMergedBoxSize;
 
-    int3 quantizedPosition;
-    quantizedPosition.x = (int)((positionRelativeToCenter.x >= 0.0f) ? positionRelativeToCenter.x : floor(positionRelativeToCenter.x));
-    quantizedPosition.y = (int)((positionRelativeToCenter.y >= 0.0f) ? positionRelativeToCenter.y : floor(positionRelativeToCenter.y));
-    quantizedPosition.z = (int)((positionRelativeToCenter.z >= 0.0f) ? positionRelativeToCenter.z : floor(positionRelativeToCenter.z));
+    int3 quantizedPosition = (int3)select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f);
 
     // Clamp coordinates into [-512, 511], then convert range from [-512, 511] to [0, 1023]
-    quantizedPosition = max(-512, min(quantizedPosition, 511)) + 512;
+    quantizedPosition = max(constructInt3(-512), min(quantizedPosition, constructInt3(511))) + constructInt3(512);
 
     //Interleave bits(assign a morton code, also known as a z-curve)
     BVHLeafInfo bvhLeaf;
