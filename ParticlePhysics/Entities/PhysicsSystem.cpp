@@ -339,6 +339,7 @@ void PhysicsSystem::render()
 
       solversUint[i]->particles.syncHost(0, elements);
       solversUint[i]->particleCollisionData.syncHost(0, elements);
+      compute->sync();
 
       if (renderParticles)
       {
@@ -349,7 +350,7 @@ void PhysicsSystem::render()
         {
           particles[j].radius = solverParticleRadius[i][j];
         }
-        displayPositionBuffer.copy((float*)particles, 0, 0, 16, ((elements + 15) / 16));
+        displayPositionBuffer.copy((float*)particles, 0, 0, elements);
 
         // display lines showing SDF data
         ParticleCollisionData* particleCol = &((*solversUint[i]->particleCollisionData.host())[0]);
@@ -361,7 +362,7 @@ void PhysicsSystem::render()
           particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient.z;
           particleSdf[j * 4 + 3] = particleCol[j].radius;
         }
-        displayAuxBuffer.copy((float*)particleSdf, 0, 0, 16, ((elements + 15) / 16));
+        displayAuxBuffer.copy((float*)particleSdf, 0, 0, elements);
 
         GLfloat model_mat[16], proj_mat[16];
         glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
@@ -424,14 +425,11 @@ void PhysicsSystem::render()
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
+    compute->sync();
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
-    displayBoxBuffer.copy((float*)boxes, 0, 0, 128, ((collisionBoundingBoxes->host()->size() * 2) / 128));
-    if (((collisionBoundingBoxes->host()->size() * 2) & 127) > 0)
-    {
-      displayBoxBuffer.copy((float*)boxes, 0, ((collisionBoundingBoxes->host()->size() * 2) / 128), ((collisionBoundingBoxes->host()->size() * 2) & 127), 1);
-    }
+    displayBoxBuffer.copy((float*)boxes, 0, 0, collisionBoundingBoxes->host()->size() * 2);
 
     GLfloat model_mat[16], proj_mat[16];
     glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);

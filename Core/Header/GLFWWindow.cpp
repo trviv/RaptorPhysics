@@ -1,11 +1,13 @@
 #include "GLWindow.h"
 
 #if ENV_APPLE
-#import <SDL2/SDL.h>
+
+#define GLFW_INCLUDE_GLCOREARB
+#include <GLFW/glfw3.h>
 
 int Window::del_time = 5;
 Window *main_window = NULL;
-SDL_Window *sdl_window = NULL;
+GLFWwindow *glfw_window = NULL;
 
 #define WINDOW_MAX_TRANSLATION_RATE 1.f
 #define WINDOW_TRANSLATION_RATE     0.05f
@@ -13,43 +15,49 @@ SDL_Window *sdl_window = NULL;
 
 #define clamp(x, y, z) x<y?y:(x>z?z:x);
 
+void error_callback(int error, const char* description)
+{
+  fprintf(stderr, "Error: %s\n", description);
+}
+
 void Window::init(int argc, char** argv, int width, int height,
   const char* name)
 {
-  SDL_Init(SDL_INIT_VIDEO);
-  
-  //glutInit(&argc, argv);
-  //glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA | GLUT_STENCIL | GLUT_ACCUM);
-  
+  if (!glfwInit())
+  {
+    return;
+  }
+  glfwSetErrorCallback(error_callback);
+
   win_width = width;
   win_height = height;
-  
-  // Create an application window with the following settings:
-  sdl_window = SDL_CreateWindow(
-                                "An SDL2 window",         // window title
-                                SDL_WINDOWPOS_UNDEFINED,  // initial x position
-                                SDL_WINDOWPOS_UNDEFINED,  // initial y position
-                                win_width,                               // width, in pixels
-                                win_height,                               // height, in pixels
-                                SDL_WINDOW_OPENGL         // flags - see below
-                                );
-  
-  SDL_GL_SetAttribute( SDL_GL_RED_SIZE,     8 );
-  SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE,   8 );
-  SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE,    8 );
-  SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE,   8 );
-  SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE,   32 );
-  SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 
-  //index = glutCreateWindow(name);
-  //glutInitWindowSize(width, height);
-  SDL_GL_CreateContext(sdl_window);
+#ifdef __APPLE__
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+  glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+//  glfwWindowHint (GLFW_DOUBLEBUFFER, GLFW_TRUE);
+//  glfwWindowHint (GLFW_RED_BITS, 32);
+//  glfwWindowHint (GLFW_GREEN_BITS, 32);
+//  glfwWindowHint (GLFW_BLUE_BITS, 32);
+//  glfwWindowHint (GLFW_ALPHA_BITS, 32);
+//  glfwWindowHint (GLFW_DEPTH_BITS, 32);
+//  glfwWindowHint (GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint (GLFW_CLIENT_API, GLFW_OPENGL_API);
+#endif
 
-//  int glew_ok = glewInit();
-  if (sdl_window == NULL)
+  glfw_window = glfwCreateWindow(width, height, "Particle physics", NULL, NULL);
+
+  if (!glfw_window)
   {
-    std::cout << "SDL Error..." << std::endl;
+    std::cout << "Error: Creating GLFW window..." << std::endl;
+    glfwTerminate();
+    return;
   }
+
+  glfwMakeContextCurrent(glfw_window);
+  glfwSwapInterval(1);
 
   rx = 0;
   ry = 0;
@@ -60,14 +68,14 @@ void Window::init(int argc, char** argv, int width, int height,
   translationRate[1] = 0.f;
   translationRate[2] = 0.f;
 
-  /*glutTimerFunc(del_time, glwRefreshTimer, 0);
-
-  glutDisplayFunc(glwDisplay);
-  glutKeyboardFunc(glwKeyboard);
-  glutMouseWheelFunc(glwMouseWheel);
-  glutMouseFunc(glwMouse);
-  glutMotionFunc(glwMouseDrag);
-  glutReshapeFunc(glwReshape);*/
+//  glutTimerFunc(del_time, glwRefreshTimer, 0);
+//
+//  glutDisplayFunc(glwDisplay);
+//  glutKeyboardFunc(glwKeyboard);
+//  glutMouseWheelFunc(glwMouseWheel);
+//  glutMouseFunc(glwMouse);
+//  glutMotionFunc(glwMouseDrag);
+//  glutReshapeFunc(glwReshape);
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
@@ -80,6 +88,11 @@ void Window::init(int argc, char** argv, int width, int height,
   clearColor[1] = 0.0f;
   clearColor[2] = 0.0f;
   clearColor[3] = 1.0f;
+}
+
+Window::~Window()
+{
+  glfwTerminate();
 }
 
 void Window::display()
@@ -108,8 +121,8 @@ void Window::display()
 
   glPopMatrix();
   glFlush();
-  SDL_GL_SwapWindow(sdl_window);
-  //glutSwapBuffers();
+  keyboard('s', 0, 0);
+  glfwSwapBuffers(glfw_window);
 }
 
 bool Window::keyboard(unsigned char key, int x, int y)
@@ -232,21 +245,26 @@ void Window::mouseWheel(int button, int dir, int x, int y)
 
 void Window::start()
 {
-  //glutMainLoop();
+  while (!glfwWindowShouldClose(glfw_window))
+  {
+    //reshape(win_width, win_height);
+    display();
+    glfwPollEvents();
+  }
 }
 
 void Window::loop()
 {
-  while (true)
-  {
-    //glutMainLoopEvent();
-  }
+//  while (true)
+//  {
+//    glutMainLoopEvent();
+//  }
 }
 
 void glwRefreshTimer(int value)
 {
-  //glutPostRedisplay();
-  //glutTimerFunc(Window::del_time, glwRefreshTimer, 0);
+//  glutPostRedisplay();
+//  glutTimerFunc(Window::del_time, glwRefreshTimer, 0);
 }
 
 void glwDisplay()
