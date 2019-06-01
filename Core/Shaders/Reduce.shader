@@ -107,8 +107,9 @@ Kernel void reduce(
 
     int prevGroupIndex = threadGroupIndex() - 1;
 
+    INIT_POLL();
     // get reduce sum from previous threadgroups
-    while (prevGroupIndex > -1)
+    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       MemberStructType temp;

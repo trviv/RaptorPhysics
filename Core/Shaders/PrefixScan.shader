@@ -124,8 +124,9 @@ Kernel void prefixGroupScanKernel(
     }
 
     int prevGroupIndex = threadGroupIndex() - 1;
+    INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (prevGroupIndex > -1)
+    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
@@ -215,8 +216,9 @@ Kernel void compactSparseArray(
     }
 
     int prevGroupIndex = threadGroupIndex() - 1;
+    INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (prevGroupIndex > -1)
+    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)

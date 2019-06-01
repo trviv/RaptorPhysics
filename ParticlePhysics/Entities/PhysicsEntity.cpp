@@ -24,3 +24,7 @@ PhysicsEntity::PhysicsEntity()
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);
 }
+
+PhysicsEntity::~PhysicsEntity()
+{
+}
