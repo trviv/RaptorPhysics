@@ -160,6 +160,8 @@ public:
 
   void copy(float image[], GLint x_off, GLint y_off, GLsizei width, GLsizei height)const;
 
+  void copy(float image[], GLint x_off, GLint y_off, GLsizei length)const;
+
   void copy()const;
 
   GLuint get()const;
