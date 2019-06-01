@@ -191,11 +191,10 @@ ComputeHeap::ComputeHeap(ComputeInterface* compute, bool bypass)
 
 ComputeHeap::~ComputeHeap()
 {
-  for (ComputeMemory* mem : childs)
+  while(childs.size())
   {
-    free(mem);
+    free(*childs.begin());
   }
-  childs.clear();
   if (heap)
   {
     free(heap);

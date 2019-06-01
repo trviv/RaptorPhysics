@@ -7,7 +7,6 @@ uniform mat4 projectionMatrix;
 
 uniform sampler2D boundingBoxes;
 
-in int gl_InstanceID;
 out vec4 col;
 
 void main()

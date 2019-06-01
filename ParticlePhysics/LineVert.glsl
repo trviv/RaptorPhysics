@@ -8,8 +8,6 @@ uniform mat4 projectionMatrix;
 uniform sampler2D particlePos;
 uniform sampler2D particleSDFGrad;
 
-in int gl_VertexID;
-in int gl_InstanceID;
 out vec4 col;
 
 void main()

@@ -33,6 +33,8 @@ public:
 
   PhysicsEntity();
 
+  virtual ~PhysicsEntity();
+
 #ifdef ENABLE_RENDERING
   virtual void render(ParticleStruct* particles) = 0;
 #endif

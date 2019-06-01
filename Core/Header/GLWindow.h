@@ -29,6 +29,9 @@ protected:
   float clearColor[4];
 
 public:
+
+  virtual ~Window();
+
   static int del_time;
 
   int width()
