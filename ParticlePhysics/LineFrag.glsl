@@ -1,8 +1,7 @@
-#version 330
-
-layout(location=0) out vec4 outputColor;
+#version 150
 
 in vec4 col;
+out vec4 outputColor;
 
 void main()
 {

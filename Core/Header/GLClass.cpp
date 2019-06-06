@@ -50,12 +50,14 @@ Vertex::Vertex()
 
 void Vertex::bind()const
 {
-  bindBuf(index);
+  GL_CHECK(glBindVertexArray(vertex_index));
+  GL_CHECK(bindBuf(index));
 }
 
 void Vertex::unbind()const
 {
-  bindBuf(0);
+  GL_CHECK(bindBuf(0));
+  GL_CHECK(glBindVertexArray(0));
 }
 
 void Vertex::free()
@@ -63,7 +65,9 @@ void Vertex::free()
   if (index != -1)
   {
     GL_CHECK(glDeleteBuffers(1, &index));
+    GL_CHECK(glDeleteBuffers(1, &vertex_index));
     index = -1;
+    vertex_index = -1;
   }
 }
 
@@ -89,6 +93,8 @@ void Vertex::copyData(float vertex[], GLsizei vertex_count, int vertex_width, in
 
 void Vertex::gen()
 {
+  GL_CHECK(glGenVertexArrays(1, &vertex_index));
+  GL_CHECK(glBindVertexArray(vertex_index));
   GL_CHECK(glGenBuffers(1, &index));
 }
 
@@ -504,30 +510,40 @@ void Shader::init(const char* vert, const char* frag)
       program = glCreateProgram();
       GL_CHECK(glAttachShader(program, vertex_shader));
       GL_CHECK(glAttachShader(program, fragment_shader));
-      GL_CHECK(glLinkProgram(program));
-      GLint linked;
-      GL_CHECK(glGetProgramiv(program, GL_LINK_STATUS, &linked));
-      if (!linked)
-      {
-        GLchar log[512];
-        GLsizei len;
-        log[0] = 0;
-        GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
-        std::cerr << "Cannot link program for shaders: " << vert << " " << frag << " " << std::endl;
-        std::cerr << log << std::endl;
-      }
-      else
-      {
-        GLchar log[512];
-        GLsizei len;
-        log[0] = 0;
-        GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
-        std::cerr << log << std::endl;
-      }
     }
   }
   unloadShader(&vertex_program);
   unloadShader(&fragment_program);
+}
+
+void Shader::bindLocation(GLuint index, const GLchar *name)
+{
+  GL_CHECK(glBindAttribLocation(program, index, name));
+  GL_CHECK(glEnableVertexAttribArray(index));
+}
+
+void Shader::linkPrograms()
+{
+  GL_CHECK(glLinkProgram(program));
+  GLint linked;
+  GL_CHECK(glGetProgramiv(program, GL_LINK_STATUS, &linked));
+  if (!linked)
+  {
+    GLchar log[512];
+    GLsizei len;
+    log[0] = 0;
+    GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
+    std::cerr << "Cannot link program for shaders..." << std::endl;
+    std::cerr << log << std::endl;
+  }
+  else
+  {
+    GLchar log[512];
+    GLsizei len;
+    log[0] = 0;
+    GL_CHECK(glGetProgramInfoLog(program, 512, &len, log));
+    std::cerr << log << std::endl;
+  }
 }
 
 void Shader::bind()const

@@ -19,14 +19,7 @@ static void CheckOpenGLError(const char* stmt, const char* fname, int line)
   }
 }
 
-#ifdef _DEBUG
-#define GL_CHECK(stmt) do { \
-  stmt; \
-  CheckOpenGLError(" ", __FILE__, __LINE__); \
-} while (0)
-#else
-#define GL_CHECK(stmt) stmt
-#endif
+#define GL_CHECK(stmt) stmt; CheckOpenGLError(" ", __FILE__, __LINE__);
 
 class Texture;
 
@@ -43,6 +36,10 @@ public:
   Shader(const char* vert, const char* frag);
 
   void init(const char* vert, const char* frag);
+
+  void bindLocation(GLuint index, const GLchar* name);
+
+  void linkPrograms();
 
   ~Shader();
 
@@ -200,6 +197,7 @@ public:
 
 class Vertex :public GLObject
 {
+  GLuint vertex_index;
   GLsizei vertex_stride;
   int vertex_width;
   GLsizei vertex_count;

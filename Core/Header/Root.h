@@ -53,12 +53,7 @@
 
 #if REN_GL
 #include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <OpenGL/gl3ext.h>
-#include <OpenGL/OpenGL.h>
-#define GL_RGBA32F              GL_RGBA32F_ARB
-#define glDrawArraysInstanced   glDrawArraysInstancedARB
-#define glDrawElementsInstanced glDrawElementsInstancedARB
+#include <OpenGL/gl3.h>
 #endif
 
 #endif
