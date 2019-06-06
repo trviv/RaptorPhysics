@@ -28,6 +28,9 @@ protected:
   float translationRate[3];
   float clearColor[4];
 
+  float projectionMatrix[16];
+  float modelMatrix[16];
+
 public:
 
   virtual ~Window();

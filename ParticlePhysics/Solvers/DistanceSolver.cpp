@@ -44,7 +44,6 @@ void DistanceSolver::solve()
   size_t workgroupSize[3], workgroupCount[3];
   compute->configureSize(workgroupSize, workgroupCount, count);
 
-  particleDifferential.resize(count, false);
   particlesTemp[0].resize(count, false);
   particlesTemp[1].resize(count, false);
 

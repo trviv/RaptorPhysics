@@ -7,6 +7,8 @@
 #include "../Solvers/Collision/UniformGridCollisionSolver.h"
 #include "../Solvers/Collision/LBVHSolver.h"
 
+//#define DEBUG_PHYSICS_SYSTEM
+
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   : compute(compute)
 {
@@ -235,16 +237,21 @@ void PhysicsSystem::step()
     ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
-    for (const EntityLocation& section : updates)
-    {
-      // reset position delta for entity
-      float zero = 0;
+    // reset position delta for entity
+    ParticleStruct dummy;
+    dummy.position.x = 0.f;
+    dummy.position.y = 0.f;
+    dummy.position.z = 0.f;
+    dummy.identity.identity = 0;
 
-      compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-        0, instanceNodeCount * sizeof(ParticleStruct), &zero, sizeof(float));
-      compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-        0, instanceNodeCount * sizeof(ParticleDifferential), &zero, sizeof(float));
-    }
+    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
+    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+      0, instanceNodeCount * sizeof(ParticleDifferential), &dummy, sizeof(ParticleStruct));
+    compute->setBuffer(allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
+    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
   }
 
   //step(lastStepTime);
@@ -300,14 +307,19 @@ void PhysicsSystem::createSphere(float radius)
     }
   }
 
-  sphereIndices.resize(rings * sectors * 4);
+  sphereIndices.resize(rings * sectors * 6);
   vector<GLuint>::iterator i = sphereIndices.begin();
-  for (r = 0; r < rings; r++) for (s = 0; s < sectors; s++)
+  for (r = 0; r < rings; r++)
   {
-    *i++ = r * sectors + s;
-    *i++ = r * sectors + (s + 1);
-    *i++ = (r + 1) * sectors + (s + 1);
-    *i++ = (r + 1) * sectors + s;
+    for (s = 0; s < sectors; s++)
+    {
+      *i++ = r * sectors + s;
+      *i++ = r * sectors + (s + 1);
+      *i++ = (r + 1) * sectors + s;
+      *i++ = (r + 1) * sectors + s;
+      *i++ = r * sectors + (s + 1);
+      *i++ = (r + 1) * sectors + (s + 1);
+    }
   }
   displayVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
   displayElements.copyData(&sphereIndices[0], sphereIndices.size());
@@ -344,7 +356,6 @@ void PhysicsSystem::render()
       if (renderParticles)
       {
         // display particles
-        uint offset = solversUint[i]->particles.device()->getOffset() / sizeof(ParticleStruct);
         ParticleStruct* particles = &((*solversUint[i]->particles.host())[0]);
         for (uint j = 0; j < elements; j++)
         {
@@ -364,44 +375,34 @@ void PhysicsSystem::render()
         }
         displayAuxBuffer.copy((float*)particleSdf, 0, 0, elements);
 
-        GLfloat model_mat[16], proj_mat[16];
-        glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
-        glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
-
-        glEnable(GL_DEPTH_TEST);
-        glDisable(GL_BLEND);
+        GL_CHECK(glEnable(GL_DEPTH_TEST));
+        GL_CHECK(glDepthFunc(GL_LESS));
+        GL_CHECK(glDisable(GL_BLEND));
 
         displayShader.bind();
-        displayShader.set("modelViewMatrix", model_mat);
-        displayShader.set("projectionMatrix", proj_mat);
+        displayShader.set("modelViewMatrix", this->modelMatrix);
+        displayShader.set("projectionMatrix", this->projectionMatrix);
         displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayShader.activateTexture("particleCol", 1, displayColorBuffer);
-        displayLineShader.activateTexture("particleSDFGrad", 2, displayAuxBuffer);
+        displayShader.activateTexture("particleSDFGrad", 1, displayAuxBuffer);
 
         displayVertex.bind();
-        GL_CHECK(glEnableVertexAttribArray(0));
-        GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
         displayElements.bind();
-        GL_CHECK(glDrawElementsInstanced(GL_QUADS, displayElements.count(), GL_UNSIGNED_INT, 0, elements));
+        GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, elements));
         displayElements.unbind();
-        GL_CHECK(glDisableVertexAttribArray(0));
-        displayVertex.unbind();
 
+        displayVertex.unbind();
         displayShader.unbind();
 
         displayLineShader.bind();
-        displayLineShader.set("modelViewMatrix", model_mat);
-        displayLineShader.set("projectionMatrix", proj_mat);
+        displayLineVertex.bind();
+        displayLineShader.set("modelViewMatrix", this->modelMatrix);
+        displayLineShader.set("projectionMatrix", this->projectionMatrix);
         displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
         displayLineShader.activateTexture("particleSDFGrad", 1, displayAuxBuffer);
 
-        displayLineVertex.bind();
-        GL_CHECK(glEnableVertexAttribArray(0));
-        GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
         GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
-        GL_CHECK(glDisableVertexAttribArray(0));
-        displayLineVertex.unbind();
 
+        displayLineVertex.unbind();
         displayLineShader.unbind();
       }
 
@@ -421,7 +422,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (collisionSolver->getBoundingBoxes())
+  if (false && collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
@@ -431,25 +432,22 @@ void PhysicsSystem::render()
 
     displayBoxBuffer.copy((float*)boxes, 0, 0, collisionBoundingBoxes->host()->size() * 2);
 
-    GLfloat model_mat[16], proj_mat[16];
-    glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
-    glGetFloatv(GL_MODELVIEW_MATRIX, model_mat);
-
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     displayBoxShader.bind();
-    displayBoxShader.set("modelViewMatrix", model_mat);
-    displayBoxShader.set("projectionMatrix", proj_mat);
+    displayBoxShader.set("modelViewMatrix", this->modelMatrix);
+    displayBoxShader.set("projectionMatrix", this->projectionMatrix);
     displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
 
     displayBoxVertex.bind();
-    GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
-    GL_CHECK(glDrawArraysInstanced(GL_QUADS, 0, 24, collisionBoundingBoxes->host()->size()));
-    GL_CHECK(glDisableVertexAttribArray(0));
+//    GLuint pos = displayBoxShader.getAttrib("position");
+//    GL_CHECK(glEnableVertexAttribArray(pos));
+//    GL_CHECK(glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
+    GL_CHECK(glDrawArraysInstanced(GL_TRIANGLES, 0, 24, collisionBoundingBoxes->host()->size()));
+//    GL_CHECK(glDisableVertexAttribArray(0));
     displayBoxVertex.unbind();
 
     displayBoxShader.unbind();
@@ -483,6 +481,10 @@ void PhysicsSystem::integrate(float timeStep)
   kernels[0].setArg<float>(&timeStep, bufferCount);
   kernels[0].setArg<uint>(&instanceNodeCount, bufferCount + 1);
   compute->execute(kernels[0], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PHYSICS_SYSTEM
+  compute->sync();
+#endif
 }
 
 void PhysicsSystem::differentiate(float timeStep)
@@ -508,6 +510,10 @@ void PhysicsSystem::differentiate(float timeStep)
   kernels[1].setArg<float>(&timeStep, bufferCount);
   kernels[1].setArg<uint>(&instanceNodeCount, bufferCount + 1);
   compute->execute(kernels[1], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PHYSICS_SYSTEM
+  compute->sync();
+#endif
 }
 
 void PhysicsSystem::step(float timeStep)
@@ -542,18 +548,28 @@ void PhysicsSystem::step(float timeStep)
 
     if (renderParticles)
     {
-      createSphere(1.f);
-
-      float line[] = { 1, 1, 1, 1, 1, 1 };
-      displayLineVertex.copyData(line, 2, 0, 2 * sizeof(float));
-
       displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
       displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
+
+      createSphere(1.f);
+      float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
+      displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
+
+      displayVertex.bind();
+      displayShader.bindLocation(0, "position");
+      GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+      displayVertex.unbind();
+
+      displayShader.linkPrograms();
+      displayLineShader.linkPrograms();
     }
     else if (renderSolids)
     {
       displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
       displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
+
+      displayShader.linkPrograms();
+      displayLineShader.linkPrograms();
     }
 
     createUnitBox();
@@ -562,7 +578,6 @@ void PhysicsSystem::step(float timeStep)
 
     indexMap.resize(instanceNodeCount, false);
   }
-
   integrate(timeStep);
 
   collisionSolver->solve(instanceNodeCount, globalOffsets.device());

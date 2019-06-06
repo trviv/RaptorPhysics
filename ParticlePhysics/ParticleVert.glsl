@@ -1,12 +1,11 @@
-#version 330
+#version 150
 
-layout(location=0) in vec3 position;
+in vec3 position;
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 
 uniform sampler2D particlePos;
-uniform sampler2D particleCol;
 uniform sampler2D particleSDFGrad;
 
 out vec4 col;
