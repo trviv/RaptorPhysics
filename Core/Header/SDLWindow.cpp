@@ -15,7 +15,7 @@ SDL_GLContext gl_context;
 
 #define clamp(x, y, z) x<y?y:(x>z?z:x);
 
-static bool quitting = false;
+static bool quit = false;
 
 void SDL_CheckError()
 {
@@ -30,15 +30,19 @@ void SDL_CheckError()
 int SDLCALL watch(void *userdata, SDL_Event* event) {
 
   if (event->type == SDL_APP_WILLENTERBACKGROUND) {
-    quitting = true;
+    quit = true;
   }
 
   return 1;
 }
 
-void ComputeFOVProjection(float result[], float fov, float aspect, float nearDist, float farDist)
+void setProjectionMatrix(float result[], float aspect)
 {
+  float fov = 60.f;
+  float farDist = 100.f;
+  float nearDist = .01f;
   float scale = tan(0.5f * fov * M_PI / 180.f) * nearDist;
+
   float r = aspect * scale;
   float l = -r;
   float t = scale;
@@ -63,6 +67,43 @@ void ComputeFOVProjection(float result[], float fov, float aspect, float nearDis
   result[13] = 0;
   result[14] = -2.f * farDist * nearDist / (farDist - nearDist);
   result[15] = 0;
+}
+
+// Custom implementation of the LookAt function
+void setLookAtMatrix(float view[], const Real3& position, const Real3& target, Real3 up)
+{
+  Real3 zaxis = position - target;
+  zaxis.normalize();
+
+  up.normalize();
+  Real3 xaxis = up.cross(zaxis);
+  xaxis.normalize();
+
+  Real3 yaxis = zaxis.cross(xaxis);
+
+  Matrix4 translation;
+  translation.set(Matrix3::getIdentity(), Real3(-position.x, -position.y, -position.z));
+
+  Matrix4 rotation;
+  rotation.setIdentity();
+  rotation.set(xaxis.x, xaxis.y, xaxis.z, 0, yaxis.x, yaxis.y, yaxis.z, 0, zaxis.x, zaxis.y, zaxis.z, 0);
+
+  rotation *= translation;
+
+  for (int i=0; i<3; i++)
+  {
+    Real3 col = rotation.getColumn(i);
+    view[i*4+0] = col[0];
+    view[i*4+1] = col[1];
+    view[i*4+2] = col[2];
+    view[i*4+3] = 0.f;
+  }
+
+  Real3 col = rotation.getPos();
+  view[12] = col[0];
+  view[13] = col[1];
+  view[14] = col[2];
+  view[15] = 1.f;
 }
 
 void Window::init(int argc, char** argv, int width, int height,
@@ -90,9 +131,8 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_CheckError();
 
   // Create an application window with the following settings:
-  sdl_window = SDL_CreateWindow("Particle Physics", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                win_width, win_height,
-                                SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL);
+  sdl_window = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    win_width, win_height, SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL);
   SDL_CheckError();
 
   gl_context = SDL_GL_CreateContext(sdl_window);
@@ -108,23 +148,8 @@ void Window::init(int argc, char** argv, int width, int height,
 
   std::cout<<glGetString(GL_VERSION)<<"\n";
 
-  rx = 0;
-  ry = 0;
-  translate[0] = 0;
-  translate[1] = 0;
-  translate[2] = 10.25;
-  translationRate[0] = 0.f;
-  translationRate[1] = 0.f;
-  translationRate[2] = 0.f;
-
-  /*glutTimerFunc(del_time, glwRefreshTimer, 0);
-
-   glutDisplayFunc(glwDisplay);
-   glutKeyboardFunc(glwKeyboard);
-   glutMouseWheelFunc(glwMouseWheel);
-   glutMouseFunc(glwMouse);
-   glutMotionFunc(glwMouseDrag);
-   glutReshapeFunc(glwReshape);*/
+  cameraForwardSpeed = 0.f;
+  cameraSideSpeed = 0.f;
 
   GL_CHECK(glViewport(0, 0, (GLsizei)width, (GLsizei)height));
 
@@ -132,6 +157,14 @@ void Window::init(int argc, char** argv, int width, int height,
   clearColor[1] = 0.0f;
   clearColor[2] = 0.0f;
   clearColor[3] = 1.0f;
+
+  // camera settings
+  cameraUp = Real3(0.0f, 1.0f, 0.0f);
+  cameraFront = Real3(0.0f, 0.0f, -1.0f);
+  cameraPosition = Real3(0.0f, 0.0f, 0.0f);
+
+  yaw   = -90.0f;
+  pitch =  0.0f;
 }
 
 Window::~Window()
@@ -158,68 +191,20 @@ bool Window::keyboard(unsigned char key, int x, int y)
   switch (key)
   {
     case 'w':
-      translationRate[2] -= WINDOW_TRANSLATION_RATE;
-      translationRate[2] = clamp(translationRate[2], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraForwardSpeed += WINDOW_TRANSLATION_RATE;
+      cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 's':
-      translationRate[2] += WINDOW_TRANSLATION_RATE;
-      translationRate[2] = clamp(translationRate[2], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraForwardSpeed -= WINDOW_TRANSLATION_RATE;
+      cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 'a':
-      translationRate[0] -= WINDOW_TRANSLATION_RATE;
-      translationRate[0] = clamp(translationRate[0], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraSideSpeed -= WINDOW_TRANSLATION_RATE;
+      cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 'd':
-      translationRate[0] += WINDOW_TRANSLATION_RATE;
-      translationRate[0] = clamp(translationRate[0], -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
-      break;
-    case 'r':
-      return false;
-      break;
-    case ' ':
-      return false;
-      break;
-    case 'm':
-      return false;
-      break;
-    case 'g':
-      return false;
-      break;
-    case 'o':
-      return false;
-      break;
-    case 'i':
-      return false;
-      break;
-    case ',':
-      return false;
-      break;
-    case '.':
-      return false;
-      break;
-    case ';':
-      return false;
-      break;
-    case '\'':
-      return false;
-      break;
-    case '[':
-      return false;
-      break;
-    case ']':
-      return false;
-      break;
-    case '-':
-      return false;
-      break;
-    case '=':
-      return false;
-      break;
-    case '9':
-      return false;
-      break;
-    case '0':
-      return false;
+      cameraSideSpeed += WINDOW_TRANSLATION_RATE;
+      cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     default:
       return false;
@@ -233,7 +218,7 @@ void Window::reshape(int width, int height)
   GL_CHECK(glViewport(0, 0, (GLsizei)width, (GLsizei)height));
   win_width = width;
   win_height = height;
-  ComputeFOVProjection(projectionMatrix, 60.f, (float)this->width()/(float)this->height(), .01f, 100.f);
+  setProjectionMatrix(projectionMatrix, (float)this->width()/(float)this->height());
 }
 
 void Window::mouse(int button, int dir, int x, int y)
@@ -248,10 +233,31 @@ void Window::mouse(int button, int dir, int x, int y)
 void Window::mouseDrag(int x, int y)
 {
   float deltaX = float(x - intial_mouse_x);
-  float deltaY = float(y - intial_mouse_y);
+  float deltaY = float(intial_mouse_y - y);
 
-  ry += WINDOW_ROTATION_SCALE * deltaX;
-  rx -= WINDOW_ROTATION_SCALE * deltaY;
+  intial_mouse_x = x;
+  intial_mouse_y = y;
+
+  float sensitivity = 1.f;
+  deltaX *= sensitivity;
+  deltaY *= sensitivity;
+
+  // update angles
+  yaw   += deltaX;
+  yaw   = yaw>360 ? (yaw-360) : yaw<360 ? (yaw+360) : yaw;
+  pitch += deltaY;
+
+  if (pitch > 89.0f)  pitch = 89.0f;
+  if (pitch < -89.0f) pitch = -89.0f;
+
+  // update camera look at
+  cameraFront.x = cos(yaw * M_PI / 180.f) * cos(pitch * M_PI / 180.f);
+  cameraFront.y = sin(pitch * M_PI / 180.f);
+  cameraFront.z = sin(yaw * M_PI / 180.f) * cos(pitch * M_PI / 180.f);
+  cameraFront.normalize();
+
+//  printf("Yaw: %f, Pitch: %f\n", yaw, pitch);
+//  printf("Front: %f %f %f\n", cameraFront.x, cameraFront.y, cameraFront.z);
 }
 
 void Window::mouseWheel(int button, int dir, int x, int y)
@@ -268,132 +274,100 @@ void Window::mouseWheel(int button, int dir, int x, int y)
 
 void Window::start()
 {
-  if (SDL_GetError()[0])
+  SDL_CheckError();
+
+  setProjectionMatrix(projectionMatrix, (float)width()/(float)height());
+
+  bool mouseDown = false;
+  Real3 eyeVector(0.f);
+
+  while (!quit)
   {
-    std::cout << "Error: " << SDL_GetError() << std::endl;
-    abort();
-  }
+    // update camera settings
+    Real3 cross = cameraFront.cross(cameraUp);
+    cross.normalize();
+    cameraPosition += cameraFront * cameraForwardSpeed + cross * cameraSideSpeed;
 
-  while(!quitting)
-  {
-    for (int i=0;i<16;i++)
-    {
-      modelMatrix[i] = 0.f;
-    }
-    modelMatrix[0]  = 1.f;
-    modelMatrix[5]  = 1.f;
-    modelMatrix[10] = 1.f;
-    modelMatrix[15] = 1.f;
+    setLookAtMatrix(modelMatrix, cameraPosition, cameraPosition + cameraFront, cameraUp);
 
-    modelMatrix[12] = -translate[0];
-    modelMatrix[13] = -translate[1];
-    modelMatrix[14] = -translate[2];
+    cameraForwardSpeed *= 0.8f;
+    cameraSideSpeed *= 0.8f;
 
-    translationRate[0] *= 0.8f;
-    translationRate[1] *= 0.8f;
-    translationRate[2] *= 0.8f;
-    translate[0] += translationRate[0];
-    translate[1] += translationRate[1];
-    translate[2] += translationRate[2];
-
-    ComputeFOVProjection(projectionMatrix, 67.f, (float)width()/(float)height(), .01f, 100.f);
-
+    // handle events
     SDL_Event event;
-    if (SDL_GetError()[0])
+    while (SDL_PollEvent(&event))
     {
-      std::cout << "Error: " << SDL_GetError() << std::endl;
-      abort();
+      switch (event.type)
+      {
+        case SDL_QUIT:
+        {
+          quit = true;
+        }
+          break;
+
+        case SDL_WINDOWEVENT:
+        {
+          switch (event.window.event)
+          {
+            case SDL_WINDOWEVENT_RESIZED:
+              reshape(event.window.data1, event.window.data2);
+              break;
+          }
+        }
+          break;
+
+        case SDL_FINGERDOWN:
+        {
+          if (!mouseDown)
+          {
+            mouse(0, 0, event.tfinger.x*width(), event.tfinger.y*height());
+            mouseDown = true;
+          }
+          SDL_Init (SDL_INIT_EVENTS);
+        }
+          break;
+
+        case SDL_FINGERUP:
+        {
+          mouseDown = false;
+          SDL_Init (SDL_INIT_EVENTS);
+        }
+          break;
+
+        case SDL_FINGERMOTION:
+        {
+          if (mouseDown)
+          {
+            mouseDrag(event.tfinger.x*width(), event.tfinger.y*height());
+          }
+          SDL_Init (SDL_INIT_EVENTS);
+        }
+          break;
+
+        case SDL_KEYDOWN:
+        {
+          if (event.key.keysym.sym == SDLK_ESCAPE)
+          {
+            quit = true;
+          }
+          else
+          {
+            this->keyboard(event.key.keysym.sym, 0, 0);
+          }
+        }
+          break;
+
+        default:
+          break;
+      }
     }
-    while(SDL_PollEvent(&event) != 0)
-    {
-      if(event.type == SDL_QUIT)
-      {
-        quitting = true;
-      }
-      if (event.type == SDL_WINDOWEVENT)
-      {
-        switch (event.window.event)
-        {
-          case SDL_WINDOWEVENT_RESIZED:
-            reshape(event.window.data1, event.window.data2);
-            break;
-        }
-      }
-      if (event.type == SDL_FINGERDOWN)
-      {
 
-      }
-      if (event.type == SDL_FINGERUP)
-      {
-
-      }
-      if (event.type == SDL_FINGERMOTION)
-      {
-
-      }
-      if (event.type == SDL_KEYDOWN)
-      {
-        if (event.key.type == SDLK_ESCAPE)
-        {
-          quitting = true;
-        }
-        else
-        {
-          this->keyboard(event.key.keysym.sym, 0, 0);
-        }
-      }
-    }
-
+    // main work
     display();
 
-    if (SDL_GetError()[0])
-    {
-      std::cout << "Error: " << SDL_GetError() << std::endl;
-      abort();
-    }
-//    SDL_Delay(10);
     SDL_GL_SwapWindow(sdl_window);
+    SDL_CheckError();
   }
-}
-
-void Window::loop()
-{
-}
-
-void glwRefreshTimer(int value)
-{
-  //glutPostRedisplay();
-  //glutTimerFunc(Window::del_time, glwRefreshTimer, 0);
-}
-
-void glwDisplay()
-{
-  main_window->display();
-}
-
-void glwKeyboard(unsigned char key, int x, int y)
-{
-  main_window->keyboard(key, x, y);
-}
-
-void glwReshape(int width, int height)
-{
-  main_window->reshape(width, height);
-}
-
-void glwMouseWheel(int button, int dir, int x, int y)
-{
-  main_window->mouseWheel(button, dir, x, y);
-}
-
-void glwMouse(int button, int dir, int x, int y)
-{
-  main_window->mouse(button, dir, x, y);
-}
-
-void glwMouseDrag(int x, int y)
-{
-  main_window->mouseDrag(x, y);
 }
 
 #endif

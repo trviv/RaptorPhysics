@@ -161,68 +161,6 @@ Kernel void constructBinaryTree(
 
   if (internalNodeIndex < internalNodeCount)
   {
-    //#define USE_LINEAR_SEARCH
-#ifdef USE_LINEAR_SEARCH
-//#define LBVH_INVALID_COMMON_PREFIX  ((int)128)
-//
-//    const uint2 nodePrefix = leafNodeCommonPrefixes[internalNodeIndex];
-//    const int nodePrefixLength = leafNodeCommonPrefixLengths[internalNodeIndex];
-//
-//    int leftIndex = -1;
-//    int rightIndex = -1;
-//
-//    // Find nearest element to left with a lower common prefix
-//    for (int i = internalNodeIndex - 1; i >= 0; i--)
-//    {
-//      int nodeLeftSharedPrefixLength = getSharedPrefixLength(nodePrefix, leafNodeCommonPrefixes[i], nodePrefixLength, leafNodeCommonPrefixLengths[i]);
-//      if (nodeLeftSharedPrefixLength < nodePrefixLength)
-//      {
-//        leftIndex = i;
-//        break;
-//      }
-//    }
-//
-//    // Find nearest element to right with a lower common prefix
-//    for (int i = internalNodeIndex + 1; i < internalNodeCount; i++)
-//    {
-//      int nodeRightSharedPrefixLength = getSharedPrefixLength(nodePrefix, leafNodeCommonPrefixes[i], nodePrefixLength, leafNodeCommonPrefixLengths[i]);
-//      if (nodeRightSharedPrefixLength < nodePrefixLength)
-//      {
-//        rightIndex = i;
-//        break;
-//      }
-//    }
-//
-//    // Select parent
-//    {
-//      const int leftPrefixLength = (leftIndex != -1) ? leafNodeCommonPrefixLengths[leftIndex] : LBVH_INVALID_COMMON_PREFIX;
-//      const int rightPrefixLength = (rightIndex != -1) ? leafNodeCommonPrefixLengths[rightIndex] : LBVH_INVALID_COMMON_PREFIX;
-//
-//      uint isLeftHigherPrefixLength = (leftPrefixLength > rightPrefixLength);
-//
-//      if (leftPrefixLength == LBVH_INVALID_COMMON_PREFIX)       isLeftHigherPrefixLength = 0;
-//      else if (rightPrefixLength == LBVH_INVALID_COMMON_PREFIX) isLeftHigherPrefixLength = 1;
-//
-//      const int parentNodeIndex = (isLeftHigherPrefixLength) ? leftIndex : rightIndex;
-//
-//      const uint isRootNode = (leftIndex == -1 && rightIndex == -1);
-//      internalNodeParentIndices[internalNodeIndex] = (!isRootNode) ? parentNodeIndex : LBVH_ROOT_NODE_MARKER;
-//
-//      if (!isRootNode)
-//      {
-//        int isRightChild = (isLeftHigherPrefixLength);  //If the left node is the parent, then this node is its right child and vice versa
-//
-//        Device int* childNodesAsInt = (Device int*)&internalNodeChildIndices[parentNodeIndex];
-//        childNodesAsInt[isRightChild] = setInternalNodeMarker(0, internalNodeIndex);
-//      }
-//      else
-//      {
-//        out_rootNodeIndex[0] = setInternalNodeMarker(0, internalNodeIndex);
-//      }
-//    }
-//
-#else
-
     // code of leaf before this
     int2 prevNodePrefix;
     if (internalNodeIndex > 0)
@@ -317,7 +255,6 @@ Kernel void constructBinaryTree(
 
     // reset visited counter for use in next dispatch
     visitedInternalNodes[internalNodeIndex] = 0;
-#endif
   }
 }
 
@@ -428,8 +365,6 @@ inline ParticleStruct traverseBinaryTree(
   Const PhySystemOffsets*             globalOffsets,
   const int                           index)
 {
-  ParticleStruct output;
-
   uint* stackTop;
   uint  traversalStack[64];
 
@@ -440,15 +375,9 @@ inline ParticleStruct traverseBinaryTree(
 #endif
 
   const ParticleStruct predicted = particlesPredictedOld[index];
-  output = predicted;
-  //ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(predicted.identity);
-  //const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+  const IdentityInfo identity = predicted.identity;
+  ParticleStruct output = predicted;
 
-  //nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-  //nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-  //const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-  //const ParticleCollisionData collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, index);
   const ParticleCollisionData collisionData = particleCollisionData[index];
 
   XAB particleBoundingBox;
@@ -515,17 +444,8 @@ inline ParticleStruct traverseBinaryTree(
     {
       const ParticleStruct predicted2 = particlesPredictedOld[currentNodeIndex];
 
-      if (predicted2.identity.identity != predicted.identity.identity)
+      if (predicted2.identity.identity != identity.identity)
       {
-        //ParticleNodeIdentity nodeIdentity2 = uncompressToNodeIdentity(predicted2.identity);
-        //const PhySystemOffsets phySystemOffsets2 = globalOffsets[nodeIdentity2.solverType];
-
-        //nodeIdentity2.entityId += phySystemOffsets.globalSolverOffset;
-        //nodeIdentity2.instanceId += phySystemOffsets.globalInstanceOffset;
-
-        //const ParticleSharedData sharedData2 = particleSharedData[nodeIdentity2.entityId];
-        //const ParticleCollisionData collisionData2 = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, currentNodeIndex);
-
         const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
 
         // skip if the base and the batch particle are of the same object
@@ -561,6 +481,7 @@ inline ParticleStruct traverseBinaryTree(
     // pop from the stack
     currentNodeIndex = *(--stackTop);
   }
+  output.identity = identity;
   return output;
 }
 

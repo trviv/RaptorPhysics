@@ -6,7 +6,7 @@
 Kernel void sumIrregular2DKernel(
   Device StructType* array2D,
   Device StructType* consolidatedArray,
-  const Device IdentityStructType* array2DIdentity,
+  Device IdentityStructType* array2DIdentity,
   const Device PartitionInfo* partitionArray,
   const Device uint* partitionCount,
   const int length,
@@ -36,7 +36,8 @@ Kernel void sumIrregular2DKernel(
 
       if (index1 < length)
       {
-        uint identity1 = IDENTITY_FUNCTION(array2DIdentity[index1]IDENTITY_STRUCT_MEMBER);
+        IdentityStructType backup = array2DIdentity[index1];
+        uint identity1 = IDENTITY_FUNCTION(backup IDENTITY_STRUCT_MEMBER);
 
         if (identity1 < maxIdentity)
         {
@@ -65,6 +66,11 @@ Kernel void sumIrregular2DKernel(
               if (add)
               {
                 ADD_FUNCTION(array2D[index1]STRUCT_MEMBER, array2D[index2]STRUCT_MEMBER);
+                // write identity if identity and data arrays are the same, to avoid packing relate issues
+                if (array2DIdentity == array2D)
+                {
+                  array2DIdentity[index1]IDENTITY_STRUCT_MEMBER = (backup IDENTITY_STRUCT_MEMBER);
+                }
               }
 
               if (maxPower == 1 && backwards && diff < width)
@@ -73,6 +79,11 @@ Kernel void sumIrregular2DKernel(
                 {
                   float div = partitionArray[identity1].count;
                   DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
+                  // write identity if identity and data arrays are the same, to avoid packing relate issues
+                  if (array2DIdentity == array2D)
+                  {
+                    array2DIdentity[index1]IDENTITY_STRUCT_MEMBER = (backup IDENTITY_STRUCT_MEMBER);
+                  }
                 }
                 if (consolidatedArray != array2D)
                 {
