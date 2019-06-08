@@ -2,34 +2,30 @@
 #define GL_WINDOW
 
 #include "GLClass.h"
-
-extern void glwRefreshTimer(int value);
-extern void glwDisplay();
-extern void glwKeyboard(unsigned char key, int x, int y);
-extern void glwReshape(int width, int height);
-extern void glwMouseWheel(int button, int dir, int x, int y);
-extern void glwMouse(int button, int dir, int x, int y);
-extern void glwMouseDrag(int x, int y);
+#include "../Vector/Matrix.h"
 
 class Window
 {
-protected:
-  int index;
-
   int win_width;
   int win_height;
 
   int intial_mouse_x;
   int intial_mouse_y;
 
-  float rx, ry;
-  float front[3];
-  float translate[3];
-  float translationRate[3];
+  float yaw, pitch;
+
+  Real3 cameraUp;
+  Real3 cameraFront;
+  Real3 cameraPosition;
+  float cameraForwardSpeed;
+  float cameraSideSpeed;
+
+protected:
+
   float clearColor[4];
 
-  float projectionMatrix[16];
   float modelMatrix[16];
+  float projectionMatrix[16];
 
 public:
 
@@ -50,14 +46,14 @@ public:
   virtual void init(int argc, char** argv, int width = 512, int height = 512,
     const char* name = "GL Window");
 
-  void display();
   bool keyboard(unsigned char key, int x, int y);
   void reshape(int width, int height);
   void mouse(int button, int dir, int x, int y);
   void mouseDrag(int x, int y);
   void mouseWheel(int button, int dir, int x, int y);
+
   void start();
-  void loop();
+  void display();
 
   virtual void render() {};
   virtual void step() {};
