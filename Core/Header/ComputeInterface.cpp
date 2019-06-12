@@ -16,6 +16,7 @@
 #include <algorithm>
 
 #define CREATE_SUB_BUFFER
+//#define ENABLE_CL_PROFILING
 
 const char* getStatusMessage(ComputeStatus status)
 {
@@ -476,7 +477,12 @@ void ComputeInterface::create(int deviceIndex)
   context = clCreateContext(NULL, 1, &deviceId, NULL, NULL, &status);
   computeCheckError(status, 0);
 
-  queue = clCreateCommandQueue(context, deviceId, NULL, &status);
+  cl_command_queue_properties prop = NULL;
+#ifdef ENABLE_CL_PROFILING
+  prop = CL_QUEUE_PROFILING_ENABLE;
+#endif
+
+  queue = clCreateCommandQueue(context, deviceId, prop, &status);
   computeCheckError(status, 0);
 }
 
@@ -612,14 +618,63 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   workgroupCount[2] = 1;
 }
 
+#ifdef ENABLE_CL_PROFILING
+void* registerKernelLaunched(ComputeKernel kernel, const size_t workgroup[3])
+{
+  char name[64];
+  ComputeStatus status;
+  status = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, 63, name, NULL);
+  computeCheckError(status, 0);
+
+  int dispatchSize = (int)(workgroup[0] * workgroup[1] * workgroup[2]);
+
+  std::string ret(name);
+  ret += ": " + std::to_string(dispatchSize);
+
+  return new std::string(ret + ": " + std::to_string(dispatchSize));
+}
+
+void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_data)
+{
+  cl_ulong start, end;
+  ComputeStatus status;
+
+  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+  computeCheckError(status, 0);
+  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+  computeCheckError(status, 0);
+
+  printf("%s time: %f\n", ((std::string*)user_data)->c_str(), (end - start) * 1.0e-6f);
+
+  delete (std::string*)user_data;
+}
+#endif
+
 void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
 {
   const size_t workgroup[3] = {
     workgroupSize[0] * workgroupCount[0],
     workgroupSize[1] * workgroupCount[1],
     workgroupSize[2] * workgroupCount[2] };
-  ComputeStatus status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, NULL);
+
+  ComputeStatus status;
+
+#ifdef ENABLE_CL_PROFILING
+
+  cl_event localEvent;
+
+  status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, &localEvent);
   computeCheckError(status, 0);
+
+  status = clSetEventCallback(localEvent, CL_COMPLETE, eventCallback, registerKernelLaunched(kernel, workgroup));
+  computeCheckError(status, 0);
+
+  clReleaseEvent(localEvent);
+#else
+
+  status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, NULL);
+  computeCheckError(status, 0);
+#endif
 }
 
 void ComputeInterface::sync()

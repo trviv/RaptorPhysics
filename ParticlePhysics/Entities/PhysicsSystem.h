@@ -97,6 +97,7 @@ public:
   Shader  displayLineShader;
 
   Face    displayElements;
+  Face    displayBoxElements;
 
   bool    renderParticles;
   bool    renderSolids;

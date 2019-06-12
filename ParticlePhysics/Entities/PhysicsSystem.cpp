@@ -328,19 +328,35 @@ void PhysicsSystem::createSphere(float radius)
 void PhysicsSystem::createUnitBox()
 {
   float boxVertices[] = {
-    -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f, +1.0f, +1.0f, +1.0f, -1.0f, +1.0f, +1.0f,
-    -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, -1.0f,
-    +1.0f, -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f, +1.0f, +1.0f,
-    -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f,
-    -1.0f, +1.0f, +1.0f, +1.0f, +1.0f, +1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, -1.0f,
-    -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f
+    -1.0f, -1.0f, -1.0f,  +1.0f, -1.0f, -1.0f,  -1.0f, +1.0f, -1.0f,  +1.0f, +1.0f, -1.0f,
+    -1.0f, -1.0f, +1.0f,  +1.0f, -1.0f, +1.0f,  -1.0f, +1.0f, +1.0f,  +1.0f, +1.0f, +1.0f,
   };
 
-  displayBoxVertex.copyData(boxVertices, 24, 0, 3 * sizeof(float));
+  displayBoxVertex.copyData(boxVertices, 8, 0, 3 * sizeof(float));
+
+  uint boxIndices[] = {
+    0, 1, 0, 2, 0, 4,
+    1, 3, 1, 5,
+    2, 3, 2, 6,
+    3, 7,
+    4, 5, 4, 6,
+    5, 7,
+    6, 7
+  };
+  displayBoxElements.copyData(boxIndices, 24);
+
+  displayBoxVertex.bind();
+  displayBoxShader.bindLocation(0, "position");
+  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+  displayBoxVertex.unbind();
 }
 
 void PhysicsSystem::render()
 {
+  GL_CHECK(glEnable(GL_DEPTH_TEST));
+  GL_CHECK(glDepthFunc(GL_LESS));
+  GL_CHECK(glDisable(GL_BLEND));
+
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     if (solversUint[i])
@@ -374,10 +390,6 @@ void PhysicsSystem::render()
           particleSdf[j * 4 + 3] = particleCol[j].radius;
         }
         displayAuxBuffer.copy((float*)particleSdf, 0, 0, elements);
-
-        GL_CHECK(glEnable(GL_DEPTH_TEST));
-        GL_CHECK(glDepthFunc(GL_LESS));
-        GL_CHECK(glDisable(GL_BLEND));
 
         displayShader.bind();
         displayShader.set("modelViewMatrix", this->modelMatrix);
@@ -422,7 +434,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (false && collisionSolver->getBoundingBoxes())
+  if (collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
@@ -432,10 +444,8 @@ void PhysicsSystem::render()
 
     displayBoxBuffer.copy((float*)boxes, 0, 0, collisionBoundingBoxes->host()->size() * 2);
 
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    GL_CHECK(glEnable(GL_BLEND));
+    GL_CHECK(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
     displayBoxShader.bind();
     displayBoxShader.set("modelViewMatrix", this->modelMatrix);
@@ -443,16 +453,12 @@ void PhysicsSystem::render()
     displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
 
     displayBoxVertex.bind();
-//    GLuint pos = displayBoxShader.getAttrib("position");
-//    GL_CHECK(glEnableVertexAttribArray(pos));
-//    GL_CHECK(glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)NULL));
-    GL_CHECK(glDrawArraysInstanced(GL_TRIANGLES, 0, 24, collisionBoundingBoxes->host()->size()));
-//    GL_CHECK(glDisableVertexAttribArray(0));
+    displayBoxElements.bind();
+    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, collisionBoundingBoxes->host()->size()));
+    displayBoxElements.unbind();
     displayBoxVertex.unbind();
 
     displayBoxShader.unbind();
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   }
 }
 
@@ -531,6 +537,7 @@ void PhysicsSystem::step(float timeStep)
     displayLineVertex.gen();
     displayElements.gen();
     displayBoxVertex.gen();
+    displayBoxElements.gen();
 
     displayPositionBuffer.init(width, height);
     displayPositionBuffer.gen();
@@ -572,8 +579,9 @@ void PhysicsSystem::step(float timeStep)
       displayLineShader.linkPrograms();
     }
 
-    createUnitBox();
     displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
+    createUnitBox();
+    displayBoxShader.linkPrograms();
 #endif
 
     indexMap.resize(instanceNodeCount, false);
