@@ -19,7 +19,10 @@ static void CheckOpenGLError(const char* stmt, const char* fname, int line)
   }
 }
 
-#define GL_CHECK(stmt) stmt; CheckOpenGLError(" ", __FILE__, __LINE__);
+#define GL_CHECK(stmt) do { \
+  stmt; \
+  CheckOpenGLError(" ", __FILE__, __LINE__); \
+} while (0)
 
 class Texture;
 

@@ -35,19 +35,16 @@ Kernel void covarianceMatrix(
     currentComOffset = predicted.position - particlesTemp[nodeIdentity.instanceId].position;
     initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
-    const Thread float* currentComOffsetPtr = (Thread float*)&currentComOffset;
-    const Thread float* initialComOffsetPtr = (Thread float*)&initialComOffset;
+    // batch write respecting data alignment
+    float8 ret8;
+    ret8.s012 = currentComOffset * initialComOffset.x;
+    ret8.s345 = currentComOffset * initialComOffset.y;
+    ret8.s67  = currentComOffset.xy * initialComOffset.z;
+
     Device float* matrixRow = (matrixData + 9 * index);
 
-    uint offset = 0;
-    for (uint i = 0; i < 3; i++)
-    {
-      for (uint j = 0; j < 3; j++)
-      {
-        matrixRow[offset] = currentComOffsetPtr[j] * initialComOffsetPtr[i];
-        offset++;
-      }
-    }
+    ((Device float8*)matrixRow)[0] = ret8;
+    matrixRow[8] = currentComOffset.z * initialComOffset.z;
 
     // set delta now because com is available, and will be overwritten later
     // refer unified particle physics
@@ -136,10 +133,9 @@ Kernel void rigidSolver(
   if (index < length)
   {
     const uint indexOffset = index * 9;
-    for (uint i = 0; i < 9; i++)
-    {
-      localMatrix[i] = matrixData[indexOffset + i];
-    }
+
+    ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + indexOffset))[0];
+    localMatrix[8] = matrixData[indexOffset + 8];
 
     for (uint it = 0; it < iterations; it++)
     {
@@ -157,16 +153,13 @@ Kernel void rigidSolver(
       const float g1 = gamma * .5f;
       const float g2 = .5f / (gamma * determinant);
 
-      for (uint i = 0; i < 9; i++)
-      {
-        localMatrix[i] = g1 * localMatrix[i] + g2 * matrix2[i];
-      }
+      ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
+      localMatrix[8] = g1 * localMatrix[8] + g2 * matrix2[8];
     }
 
-    for (uint i = 0; i < 9; i++)
-    {
-      matrixData[indexOffset + i] = localMatrix[i];
-    }
+    // batch write respecting data alignment
+    ((Device float8*)(matrixData + indexOffset))[0] = ((Thread float8*)localMatrix)[0];
+    (matrixData + indexOffset)[8] = localMatrix[8];
   }
 }
 

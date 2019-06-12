@@ -363,7 +363,7 @@ void Renderer::bind()const
 {
   fbo.bind();
   GL_CHECK(glViewport(0, 0, w, h));
-  glClearColor(0, 0, 0, 0);
+  GL_CHECK(glClearColor(0, 0, 0, 0));
   GL_CHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 }
 
