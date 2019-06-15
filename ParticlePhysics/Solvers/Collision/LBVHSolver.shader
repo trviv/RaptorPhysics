@@ -1,6 +1,8 @@
 #ifndef LBVH_SOLVER_SHADER
 #define LBVH_SOLVER_SHADER
 
+//#define USE_ALTERNATIVE_KERNEL_ARGS
+
 /*
 @kernel Compute and store bounding boxes for each particle.
 @param particleBoundingBoxes Particle bounding box array.
@@ -269,7 +271,11 @@ Kernel void constructBinaryTree(
 @param nodeCount Total nodes in the solver.
 */
 Kernel void constructTreeBoundingBox(
+#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device XAB*               treeInternalNodeBoundingBoxes,
+#else
+  const Device XAB*         treeInternalNodeBoundingBoxesIn,
+#endif
   Device uint*              visitedInternalNodes,
   const Device BVHNodeInfo* treeInternalNodes,
   const Device uint*        leafParentNodeIndices,
@@ -277,6 +283,10 @@ Kernel void constructTreeBoundingBox(
   const int                 nodeCount)
 {
   int index = threadIndex();
+
+#ifdef USE_ALTERNATIVE_KERNEL_ARGS
+  Device XAB* treeInternalNodeBoundingBoxes = treeInternalNodeBoundingBoxesIn;
+#endif
 
   if (index < nodeCount)
   {
@@ -591,7 +601,11 @@ Kernel void applyCollisions(
 }
 
 Kernel void boundaryCollisionKernel(
+#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device ParticleStruct*              particles,
+#else
+  const Device ParticleStruct*        particlesIn,
+#endif
   Device ParticleStruct*              particlesPredicted,
   const Device ParticleCollisionData* particleCollisionData,
   const Device ParticleSharedData*    particleSharedData,
@@ -602,6 +616,10 @@ Kernel void boundaryCollisionKernel(
   const uint                          nodeCount)
 {
   const uint index = threadIndex();
+
+#ifdef USE_ALTERNATIVE_KERNEL_ARGS
+  Device ParticleStruct* particles = particlesIn;
+#endif
 
   if (index < nodeCount)
   {

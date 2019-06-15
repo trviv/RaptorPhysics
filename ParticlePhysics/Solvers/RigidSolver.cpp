@@ -14,7 +14,7 @@ static uint matrix3x3UtilId;
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
-  iterations = 2;
+  iterations = 1;
   maxPerInstanceNodes = 0;
   create(compute);
 
@@ -67,15 +67,6 @@ void RigidSolver::solve()
 
   if (!count) return;
 
-  if (updates.size()) // update arrays
-  {
-    update();
-
-    covarianceMatrix.resize(count * 9, false);
-    particlesTemp[0].resize(count, false);
-    particlesTemp[1].resize(count, false);
-  }
-
   uint totalEntities = newEntityInstanceId();
   size_t workgroupSize[3], workgroupCount[3];
 
@@ -86,6 +77,11 @@ void RigidSolver::solve()
   {
     // copy to aux buffer to find new COM
     compute->copyBuffer(particlesPredicted.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
+
+#ifdef DEBUG_RIGID_SOLVER
+    particlesTemp[0].syncHost();
+    compute->sync();
+#endif
 
     // calculate current COM
     ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
@@ -184,6 +180,8 @@ void RigidSolver::solve()
 
 void RigidSolver::update()
 {
+  if (!updates.size()) return;
+
   Solver::update();
 
   for (const EntityLocation& section : *entityLocations.host())
@@ -195,4 +193,10 @@ void RigidSolver::update()
   }
 
   particleRigidData.syncDevice();
+
+  uint count = lastPartition().end();
+
+  covarianceMatrix.resize(count * 9, false);
+  particlesTemp[0].resize(count, false);
+  particlesTemp[1].resize(count, false);
 }

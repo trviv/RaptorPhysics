@@ -232,28 +232,6 @@ void PhysicsSystem::step()
 
   ProfileManager::Reset();
 
-  if (updates.size())
-  {
-    ProfileBlock("Physics system update");
-    SharedAllocator* allocator = allocators[0];
-
-    // reset position delta for entity
-    ParticleStruct dummy;
-    dummy.position.x = 0.f;
-    dummy.position.y = 0.f;
-    dummy.position.z = 0.f;
-    dummy.identity.identity = 0;
-
-    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
-    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-      0, instanceNodeCount * sizeof(ParticleDifferential), &dummy, sizeof(ParticleStruct));
-    compute->setBuffer(allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
-      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
-    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
-  }
-
   //step(lastStepTime);
   step(1.f / 30.f);
 
@@ -474,7 +452,6 @@ void PhysicsSystem::integrate(float timeStep)
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
@@ -526,8 +503,31 @@ void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
 
-  if (updates.size()) // copy initial positions
+  for (uint i = 0; i < SOLVER_MAX; i++)
   {
+    if (solversUint[i])
+    {
+      solversUint[i]->update();
+    }
+  }
+
+  if (updates.size())
+  {
+    ProfileBlock("Physics system update");
+    SharedAllocator* allocator = allocators[0];
+
+    // reset position delta for entity
+    ParticleStruct dummy;
+    dummy.position.x = 0.f;
+    dummy.position.y = 0.f;
+    dummy.position.z = 0.f;
+    dummy.identity.identity = 0;
+
+    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
+    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+      0, instanceNodeCount * sizeof(ParticleDifferential), &dummy, sizeof(ParticleStruct));
+
     updates.clear();
 
 #ifdef ENABLE_RENDERING

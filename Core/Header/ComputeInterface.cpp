@@ -212,6 +212,11 @@ void ComputeHeap::create(size_t sizeInBytes)
     bypass = false;
     childs.pop_back();
   }
+  else
+  {
+    heap = alloc(sizeInBytes);
+    childs.pop_back();
+  }
 }
 
 ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryFlag flag)

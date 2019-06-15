@@ -10,11 +10,6 @@ Solver<IndexType, CoefficientType, VariableType>(compute, allocator, SOLVER_EQUA
 template<class IndexType, class CoefficientType, class VariableType>
 void LinearSolver<IndexType, CoefficientType, VariableType>::solve()
 {
-  if (this->updates.size()) // update arrays
-  {
-    update();
-  }
-
   uint zero = 0;
   this->compute->setBuffer(this->constrainVariableAux[1].device(), 0, this->constrainVariableAux[1].size()*sizeof(VariableType), &zero, sizeof(uint));
 
