@@ -3,20 +3,31 @@
 
 //#define DEBUG_PHYSICS_SYSTEM
 
+//#define USE_ALTERNATIVE_KERNEL_ARGS
+
 Kernel void startStep(
-  Device ParticleStruct*            particles,
-  Device ParticleStruct*            particlesPredicted,
-  Device ParticleStruct*            particleDeltas,
-  Device ParticleDifferential*      particleDiff,
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const PhySystemOffsets*           globalOffsets,
-  const float                       timeStep,
-  const uint                        nodeCount)
+  const Device ParticleStruct*        particles,
+#ifndef USE_ALTERNATIVE_KERNEL_ARGS
+  Device ParticleStruct*            	particlesPredicted,
+  Device ParticleDifferential*        particleDiff,
+#else
+  const Device ParticleStruct*        particlesPredictedIn,
+  const Device ParticleDifferential*  particleDiffIn,
+#endif
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleAuxData*       particleAuxData,
+  const Device PartitionInfo*       	partitions,
+  const Device EntityLocation*        entityLocation,
+  Const PhySystemOffsets*           	globalOffsets,
+  const float                       	timeStep,
+  const uint                          nodeCount)
 {
   const uint index = threadIndex();
+
+#ifdef USE_ALTERNATIVE_KERNEL_ARGS
+  Device ParticleStruct* particlesPredicted = particlesPredictedIn;
+  Device ParticleDifferential* particleDiff = particleDiffIn;
+#endif
 
   if (index < nodeCount)
   {
@@ -36,6 +47,11 @@ Kernel void startStep(
 
     float3 velocity;
 
+#ifdef DEBUG_PHYSICS_SYSTEM
+    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf ("In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
+#endif
+
     if (invMass) // only if movable
     {
       velocity = particleDiff[index].velocity;
@@ -47,26 +63,37 @@ Kernel void startStep(
       particle.identity = identity;
       particlesPredicted[index] = particle;
     }
+#ifdef DEBUG_PHYSICS_SYSTEM
+    printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
+#endif
   }
 }
 
 Kernel void endStep(
-  Device ParticleStruct*            particles,
-  Device ParticleStruct*            particlesPredicted,
-  Device ParticleStruct*            particleDeltas,
-  Device ParticleDifferential*      particleDiff,
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const PhySystemOffsets*           globalOffsets,
-  const float                       timeStep,
-  const uint                        nodeCount)
+#ifndef USE_ALTERNATIVE_KERNEL_ARGS
+  Device ParticleStruct*              particles,
+#else
+  const Device ParticleStruct*        particlesIn,
+#endif
+  const Device ParticleStruct*        particlesPredicted,
+  const Device ParticleStruct*        particleDeltas,
+  Device ParticleDifferential*        particleDiff,
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleAuxData*       particleAuxData,
+  const Device PartitionInfo*         partitions,
+  const Device EntityLocation*        entityLocation,
+  Const PhySystemOffsets*             globalOffsets,
+  const float                       	timeStep,
+  const uint                          nodeCount)
 {
   const uint index = threadIndex();
 
   if (index < nodeCount)
   {
+#ifdef USE_ALTERNATIVE_KERNEL_ARGS
+    Device ParticleStruct* particles = particlesIn;
+#endif
+
     ParticleStruct particle = particles[index];
     IdentityInfo identity = particle.identity;
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
@@ -84,9 +111,9 @@ Kernel void endStep(
     float3 velocity, particlePosition, particlePositionPredicted;
 
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf ("In: %d %f %f %f\n", index, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf ("In: %d %f %f %f\n", index, particleDeltas[nodeLocator.absoluteNodeIndex].position.x, particleDeltas[nodeLocator.absoluteNodeIndex].position.y, particleDeltas[nodeLocator.absoluteNodeIndex].position.z);
-    printf ("In: %d %f %f %f\n", index, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
+    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDeltas[nodeLocator.absoluteNodeIndex].position.x, particleDeltas[nodeLocator.absoluteNodeIndex].position.y, particleDeltas[nodeLocator.absoluteNodeIndex].position.z);
+    printf ("In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
 #endif
 
     if (invMass) // only if movable
@@ -102,8 +129,8 @@ Kernel void endStep(
     }
 
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf("Out: %d %f %f %f\n", index, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf("Out: %d %f %f %f\n", index, particle.position.x, particle.position.y, particle.position.z);
+    printf("Out: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
 #endif
   }
 }

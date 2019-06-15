@@ -48,8 +48,9 @@ Kernel void distanceSolverSpring(
   if (index < nodeCount)
   {
     ParticleStruct oldValue = oldPositions[index];
+    const IdentityInfo identity = oldValue.identity;
 
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(oldValue.identity);
+    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
     const EntityLocation localEntityLocation = entityLocation[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, localEntityLocation.node);
 
@@ -74,6 +75,7 @@ Kernel void distanceSolverSpring(
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics
     }
+    oldValue.identity = identity;
     newPositions[index] = oldValue;
   }
 }

@@ -264,7 +264,7 @@ void Texture::copy(float image[], GLint x_off, GLint y_off, GLsizei length)const
     GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, this->width(), length / this->width(), GL_RGBA, GL_FLOAT, image));
     if (length & (this->width() - 1))
     {
-      GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, GL_RGBA, GL_FLOAT, image));
+      GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, GL_RGBA, GL_FLOAT, image + 4 * this->width() * (length / this->width()) ));
     }
   }
   else

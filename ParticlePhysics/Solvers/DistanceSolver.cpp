@@ -36,11 +36,6 @@ void DistanceSolver::solve()
 
   if (!count) return;
 
-  if (updates.size())
-  {
-    update();
-  }
-
   size_t workgroupSize[3], workgroupCount[3];
   compute->configureSize(workgroupSize, workgroupCount, count);
 
@@ -106,5 +101,7 @@ void DistanceSolver::solve()
 
 void DistanceSolver::update()
 {
+  if (!updates.size()) return;
+
   LinearSolver::update();
 }
