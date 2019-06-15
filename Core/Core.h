@@ -6,17 +6,15 @@
 #include "Header/Clock.h"
 #include "Header/Profiler.h"
 #include "Header/ComputeInterface.h"
+#include "Header/DeviceArray.h"
 #include "Header/ShaderEntity.h"
 #include "Header/ComputeShared.h"
 #include "Header/ComputeUtils.h"
 
-//#include "Header/CudaQuery.h"
 #include "Header/GLClass.h"
-//#include "Header/CudaGLPlug.h"
-#include "Header/DeviceArray.h"
-#include "Header/Math.h"
 #include "Header/GLWindow.h"
 
+#include "Vector/Real3.h"
 #include "Vector/Matrix.h"
 
 #endif

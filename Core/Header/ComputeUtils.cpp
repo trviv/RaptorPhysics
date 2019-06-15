@@ -529,7 +529,6 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
-  uint zero = 0;
   localSumBuffer->resize(compute->maxCores() * radixBlockInstances * (1 << RADIX_SORT_BIT_COUNT), false);
 
   kernels[kernelIndex1].setArg(localSumBuffer->device(), 1);

@@ -1,7 +1,6 @@
 #ifndef DEVICE_ARRAY_H
 #define DEVICE_ARRAY_H
 
-#include "ComputeInterface.h"
 #include "ComputeShared.h"
 
 /*!

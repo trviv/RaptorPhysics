@@ -52,7 +52,6 @@
 #define GL_SILENCE_DEPRECATION
 
 #if REN_GL
-#include <OpenGL/gl.h>
 #include <OpenGL/gl3.h>
 #endif
 

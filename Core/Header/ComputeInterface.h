@@ -8,7 +8,7 @@
 #include <MiniCL/cl.h>
 #else
 #include <OpenCL/cl.h>
-#include <OpenCL/cl_ext.h> //clLogMessagesToStderrAPPLE
+#include <OpenCL/cl_ext.h>
 #endif
 #else
 #ifdef USE_MINICL
