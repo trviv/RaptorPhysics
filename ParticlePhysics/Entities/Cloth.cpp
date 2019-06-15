@@ -130,13 +130,13 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 void Cloth::render(ParticleStruct* particles)
 {
   GLfloat model_mat[16], proj_mat[16];
-  GL_CHECK(glGetFloatv(GL_PROJECTION_MATRIX, proj_mat));
-  GL_CHECK(glGetFloatv(GL_MODELVIEW_MATRIX, model_mat));
+//  GL_CHECK(glGetFloatv(GL_PROJECTION_MATRIX, proj_mat));
+//  GL_CHECK(glGetFloatv(GL_MODELVIEW_MATRIX, model_mat));
 
   GL_CHECK(glEnable(GL_DEPTH_TEST));
   GL_CHECK(glDisable(GL_BLEND));
 
-  GL_CHECK(glPushMatrix());
+//  GL_CHECK(glPushMatrix());
   displayShader.bind();
   displayShader.set("modelViewMatrix", model_mat);
   displayShader.set("projectionMatrix", proj_mat);
@@ -151,7 +151,7 @@ void Cloth::render(ParticleStruct* particles)
   //displayVertex.unbind();
 
   displayShader.unbind();
-  GL_CHECK(glPopMatrix());
+//  GL_CHECK(glPopMatrix());
 }
 
 #endif

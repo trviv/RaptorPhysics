@@ -1,8 +1,6 @@
 #ifndef GL_CLASS
 #define GL_CLASS
 
-#include "Root.h"
-#include <stdio.h>
 #include "ComputeInterface.h"
 
 const int SIZEOF_INT = sizeof(int);
