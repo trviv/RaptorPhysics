@@ -61,7 +61,7 @@
 inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 {
   MemberStructType ret;
-  for (int i = 0; i < (int)sizeof(MemberStructType); i += 4)
+  for (int i = 0; i < (int)sizeof(MemberStructType)/4; i++)
   {
     ((Thread uint*)&ret)[i] = atomicLoad(((volatile Device uint*)x) + i);
   }
@@ -70,7 +70,7 @@ inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 
 inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStructType y)
 {
-  for (int i = 0; i < (int)sizeof(MemberStructType); i += 4)
+  for (int i = 0; i < (int)sizeof(MemberStructType)/4; i++)
   {
     atomicStore(((volatile Device uint*)x) + i, ((const Thread uint*)&y)[i]);
   }
@@ -100,6 +100,10 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define ATOMIC_LOAD_FUNCTION(x)     as_float(atomicLoad((volatile Device uint*)(x)))
 #define ATOMIC_STORE_FUNCTION(x, y) atomicStore((volatile Device uint*)(x), *((uint*)&(y)))
 
+#else
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN(x)
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN(x, y)
+
 #endif
 
 #define COMPUTE_MAX_THREADS         MaxWorkgroupSize
@@ -123,8 +127,9 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define MemberStructType2 float2
 #endif
 
+// this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
 #define INIT_POLL()     short poll_count = 0;
-#define POLL_TIMEOUT()  (poll_count++ >= 120)
+#define POLL_TIMEOUT()  (poll_count++ >= 2000)
 
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU

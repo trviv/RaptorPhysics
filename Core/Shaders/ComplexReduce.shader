@@ -3,138 +3,202 @@
 
 #if defined(StructType) && defined(IdentityStructType)
 
-Kernel void sumIrregular2DKernel(
-  Device StructType* array2D,
-  Device StructType* consolidatedArray,
-  Device IdentityStructType* array2DIdentity,
-  const Device PartitionInfo* partitionArray,
-  const Device uint* partitionCount,
-  const int length,
-  const uint maxPartitionLength,
-  const uint iteration,
-  uint maxLocalIterations,
-  const uint divideFlag)
+//#define DEBUG_COMPLEX_REDUCE
+
+void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, const Shared uint* identityArray, const uint localIndex, const int threadGroupSizeExp)
 {
-  uint maxPower = 1;
-  bool backwards = false;
-  const int originalIndex = threadLocalIndex();
-  maxLocalIterations = maxLocalIterations << 1;
-
-  const uint perGroupPartitions = ((COMPUTE_MAX_THREADS << 1) / maxPartitionLength);
-  const uint minIdentity = threadGroupIndex() * perGroupPartitions;
-  const uint maxIdentity = minIdentity + perGroupPartitions;
-
-  if (minIdentity < partitionCount[0])
+  // log n iterations
+  for (int i=0; i<threadGroupSizeExp; i++)
   {
-    const int offset = partitionArray[minIdentity].offset;
+    const int stride = (1 << i);
 
-    for (uint i = 0; i < maxLocalIterations; i++)
+    // add in strides of 2, 4, 8 ...
+    int localIndex2 = localIndex * (2 << i);
+
+    // if within the bounds
+    if (localIndex2 < REDUCE_COMPUTE_THREADS)
     {
-      int width = (1 << maxPower);
-      int index1 = (originalIndex << maxPower) + offset;
-      int index2 = index1 + (width >> 1);
-
-      if (index1 < length)
+      // index offset 1, 2, 4 ...
+      const int otherIndex = localIndex2 + stride;
+      // if not crossing boundary and has the same identity
+      if (otherIndex < REDUCE_COMPUTE_THREADS && identityArray[localIndex2] == identityArray[otherIndex])
       {
-        IdentityStructType backup = array2DIdentity[index1];
-        uint identity1 = IDENTITY_FUNCTION(backup IDENTITY_STRUCT_MEMBER);
+        // add elements
+        ADD_FUNCTION(localArray[localIndex2], localArray[otherIndex]);
+        // reset so that vaild elements are easy to identify
+//        CLEAR_FUNCTION(localArray[otherIndex], NAN);
+        isValid[otherIndex] = 0;
+      }
+    }
+    localMemBarrier();
 
-        if (identity1 < maxIdentity)
+    // add the parts potentially untouched by the previous pass which are in strides of 1, 2, 4 ...
+    //if (localIndex & stride) //old approach
+    localIndex2 += stride;
+    if (localIndex2 < REDUCE_COMPUTE_THREADS)
+    {
+      // cache the identity
+      const uint identity = identityArray[localIndex2];
+      const int leftIndex = localIndex2 - stride;
+      const int rightIndex = localIndex2 + stride;
+      if (leftIndex >= 0 && rightIndex < REDUCE_COMPUTE_THREADS &&
+        identity != identityArray[leftIndex] && identity == identityArray[rightIndex])
+      {
+        // add elements
+        ADD_FUNCTION(localArray[rightIndex], localArray[localIndex2]);
+        // reset so that vaild elements are easy to identify
+//        CLEAR_FUNCTION(localArray[localIndex], NAN);
+        isValid[localIndex2] = 0;
+      }
+    }
+    localMemBarrier();
+  }
+}
+
+Kernel void sumIrregular2DKernel(
+  Device StructType*                destination,
+  const Device StructType*          source,
+  const Device IdentityStructType*  array2DIdentity,
+  const Device PartitionInfo*       partitionArray,
+  volatile Device MemberStructType* sumBuffer,
+  volatile Device uint*             statusBuffer,
+  const int                         threadGroupSizeExp,
+  const int                         length,
+  const uint                        divideFlag)
+{
+  const uint index = threadIndex();
+  const uint localIndex = threadLocalIndex();
+
+  Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
+  Shared ushort isValid[REDUCE_COMPUTE_THREADS];
+  Shared uint prevIdentity;
+  Shared uint identityArray[REDUCE_COMPUTE_THREADS+1];
+  Shared uint lastValidIndex;
+
+  uint identity;
+
+  identityArray[localIndex] = -1;
+
+  if (index < length)
+  {
+    COPY_FUNCTION(localArray[localIndex], source[index]STRUCT_MEMBER);
+
+#ifdef DEBUG_COMPLEX_REDUCE
+    printf ("Read: %d %f\n", index, ((Shared float*)&localArray[localIndex])[0]);
+#endif
+    identity = IDENTITY_FUNCTION(array2DIdentity[index] IDENTITY_STRUCT_MEMBER);
+    identityArray[localIndex] = identity;
+
+    // set shared data
+    if (localIndex == 0)
+    {
+      lastValidIndex = 0;
+
+      if (index > 0)
+      {
+        prevIdentity = IDENTITY_FUNCTION(array2DIdentity[index - 1]IDENTITY_STRUCT_MEMBER);
+      }
+
+      identityArray[REDUCE_COMPUTE_THREADS] = IDENTITY_FUNCTION(array2DIdentity[index + REDUCE_COMPUTE_THREADS]IDENTITY_STRUCT_MEMBER);
+    }
+
+    isValid[localIndex] = 1;
+  }
+
+  localMemBarrier();
+
+  // reduce threadgroup elements
+  groupReduceId(localArray, isValid, identityArray, localIndex, threadGroupSizeExp);
+
+  // for first thread in the second and beyond threadgroups
+  if (localIndex == 0 && index > 0)
+  {
+    // if the first thread present in the workgroup before
+    if (prevIdentity == identityArray[0])
+    {
+      MemberStructType sum = localArray[0];
+
+      int prevGroupIndex = threadGroupIndex() - 1;
+
+      INIT_POLL();
+
+      // get reduce sum from previous threadgroup
+      while (prevGroupIndex > -1 && !POLL_TIMEOUT())
+      {
+        const uint status = atomicLoad(statusBuffer + prevGroupIndex);
+        MemberStructType temp;
+
+        if (status == REDUCE_STATUS_FINAL)
         {
-          if (backwards) // add the remaining elements which are located at 2^ locations
-          {
-            // treat this index as second
-            index2 = index1;
-            // treat partition as the destination
-            index1 = partitionArray[identity1].offset;
-          }
-
-          if (index2 < length)
-          {
-            if (identity1 == IDENTITY_FUNCTION(array2DIdentity[index2]IDENTITY_STRUCT_MEMBER))
-            {
-              bool add = !backwards;
-              const int diff = index2 - index1;
-              if (backwards)
-              {
-                if (diff < width && diff >= (width >> 1) && ((index1 - offset) & ((width << 1) - 1)))
-                {
-                  add = true;
-                }
-              }
-
-              if (add)
-              {
-                ADD_FUNCTION(array2D[index1]STRUCT_MEMBER, array2D[index2]STRUCT_MEMBER);
-                // write identity if identity and data arrays are the same, to avoid packing relate issues
-                if (array2DIdentity == array2D)
-                {
-                  array2DIdentity[index1]IDENTITY_STRUCT_MEMBER = (backup IDENTITY_STRUCT_MEMBER);
-                }
-              }
-
-              if (maxPower == 1 && backwards && diff < width)
-              {
-                if (divideFlag)
-                {
-                  float div = partitionArray[identity1].count;
-                  DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
-                  // write identity if identity and data arrays are the same, to avoid packing relate issues
-                  if (array2DIdentity == array2D)
-                  {
-                    array2DIdentity[index1]IDENTITY_STRUCT_MEMBER = (backup IDENTITY_STRUCT_MEMBER);
-                  }
-                }
-                if (consolidatedArray != array2D)
-                {
-                  COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
-                }
-              }
-            }
-          }
+          temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex]);
+#ifdef DEBUG_COMPLEX_REDUCE
+          printf ("Read: %d %f\n", identityArray[0], temp);
+#endif
+          ADD_FUNCTION(sum, temp);
+#ifdef DEBUG_COMPLEX_REDUCE
+//            printf ("Read: %d %f\n", identityArray[0], sum.x);
+#endif
+          break;
         }
       }
-
-      if (!backwards)
-      {
-        if (width >= maxPartitionLength)
-        {
-          backwards = true;
-        }
-        else
-        {
-          maxPower++;
-        }
-      }
-      else
-      {
-        maxPower--;
-      }
-
-      if (maxLocalIterations > 1)
-      {
-        barrier(CLK_GLOBAL_MEM_FENCE);
-      }
+      COPY_FUNCTION(localArray[0], sum);
     }
   }
 
-
-  /*if (divideFlag)
+  if (isValid[localIndex])
   {
-  const uint offset = originalIndex + minIdentity;
-  if (offset < maxIdentity && offset < partitionCount[0])
-  {
-  const uint identity1 = IDENTITY_FUNCTION(array2DIdentity[offset]IDENTITY_STRUCT_MEMBER);
-  const uint index1 = partitionArray[identity1].offset;
-  const float div = partitionArray[identity1].count;
-  DIV_FUNCTION(array2D[index1]STRUCT_MEMBER, div);
-
-  if (consolidatedArray != array2D)
-  {
-  COPY_FUNCTION(consolidatedArray[identity1]STRUCT_MEMBER, array2D[index1]STRUCT_MEMBER);
+    atomicMax(&lastValidIndex, localIndex);
   }
+  localMemBarrier();
+
+  // in a workgroup add the vaild elements of same identity
+  // this is because last identity may have multiple valid elements which may not have been merged
+  if (localIndex != lastValidIndex && isValid[localIndex] && identityArray[lastValidIndex] == identity)
+  {
+    isValid[localIndex] = 0;
+#ifdef DEBUG_COMPLEX_REDUCE
+    printf ("Duplicate: %d %d %f\n", threadGroupIndex(), localIndex, localArray[localIndex]);
+#endif
+    ADD_FUNCTION(localArray[lastValidIndex], localArray[localIndex]);
+//      CLEAR_FUNCTION(localArray[localIndex], NAN);
   }
-  }*/
+
+  // for last thread in the threadgroup
+  if (localIndex == lastValidIndex && (index+1) < length && threadGroupIndex() < (threadGroupCount()-1))
+  {
+#ifdef DEBUG_COMPLEX_REDUCE
+    printf ("Last: %d %d %f\n", threadGroupIndex(), lastValidIndex, localArray[lastValidIndex]);
+#endif
+    // if this identity extends beyond this workgroup
+    if (identityArray[lastValidIndex] == identityArray[lastValidIndex+1])
+    {
+      isValid[lastValidIndex] = 0;
+      MemberStructType sum;
+      COPY_FUNCTION(sum, localArray[lastValidIndex]);
+
+#ifdef DEBUG_COMPLEX_REDUCE
+      printf ("Write: %d %f\n", identityArray[lastValidIndex], localArray[localIndex]);
+#endif
+
+      // save current value as final sum for the first threadgroup
+      writeAndWait(&sumBuffer[threadGroupIndex()], sum);
+      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
+    }
+  }
+
+  if (isValid[localIndex])
+  {
+    // treat partition as the destination
+    const uint outIndex = partitionArray[identity].offset;
+
+    if (divideFlag)
+    {
+      float div = partitionArray[identity].count;
+      DIV_FUNCTION(localArray[localIndex], div);
+    }
+
+    COPY_FUNCTION(destination[identity]STRUCT_MEMBER, localArray[localIndex]);
+  }
 }
 
 #endif

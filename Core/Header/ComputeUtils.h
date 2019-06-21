@@ -9,8 +9,12 @@ enum ComputeUtilKey
 {
   // use to specify structure name
   ComputeUtilStructType,
+  // use to specify the datatype size in bytes for the structure type
+  ComputeUtilStructSize,
   // use to specify if the operation has to be done on a member of the structure type
   ComputeUtilStructMember,
+  // use to specify the datatype size in bytes for the member of the structure type
+  ComputeUtilStructMemberSize,
   // use to specify the datatype of the member of structure
   ComputeUtilStructMemberType,
   // use to specify if the structure type is integral
@@ -42,6 +46,8 @@ class ComputeUtil : protected ShaderEntity
   vector<void*> localArrays;
   uint batchSize;
   uint maxWorkgroupSize;
+  uint structSize;
+  uint structMemberSize;
 
 public:
 
@@ -55,9 +61,7 @@ public:
 
   void sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D, uint length, uint subArrayElements, bool doMean = false);
 
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean = false);
-
-  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean = false);
+  void sumIrregular2D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* identity, ComputeMemory* partitions, uint length, bool doMean = false);
 
   void compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength);
 

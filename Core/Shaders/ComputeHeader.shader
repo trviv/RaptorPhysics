@@ -86,5 +86,6 @@ typedef struct
 #define atomicLoad(location)          atomic_or  (location, 0)
 #define atomicStore(location, value)  atomic_xchg(location, value)
 #define atomicAdd(location, value)    atomic_add (location, value)
+#define atomicMax(location, value)    atomic_max (location, value)
 
 #endif
