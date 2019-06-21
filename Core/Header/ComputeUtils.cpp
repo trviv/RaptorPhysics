@@ -37,8 +37,12 @@ string getKeyName(ComputeUtilKey key)
   {
   case ComputeUtilStructType:
     return "StructType";
+  case ComputeUtilStructSize:
+    return "StructSize";
   case ComputeUtilStructMemberType:
     return "MemberStructType";
+  case ComputeUtilStructMemberSize:
+    return "StructMemberSize";
   case ComputeUtilStructMember:
     return "StructMember";
   case ComputeUtilStructTypeIntegral:
@@ -133,25 +137,43 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   // use size tuned for best performance
   util.batchSize = 8;
-  util.maxWorkgroupSize = compute->maxThreadsPerGroup();
-
   // override if specified
   if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())
   {
     util.batchSize = atoi(dataMap[ComputeUtilBatchSize].c_str());
   }
+  oldType.push_back(getKeyName(ComputeUtilBatchSize));
+  newType.push_back(to_string(util.batchSize));
 
+  util.maxWorkgroupSize = compute->maxThreadsPerGroup();
   // override if specified
   if (dataMap.find(ComputeUtilMaxWorkgroupSize) != dataMap.end())
   {
     util.maxWorkgroupSize = atoi(dataMap[ComputeUtilMaxWorkgroupSize].c_str());
   }
-
-  oldType.push_back(getKeyName(ComputeUtilBatchSize));
-  newType.push_back(to_string(util.batchSize));
-
   oldType.push_back(getKeyName(ComputeUtilMaxWorkgroupSize));
   newType.push_back(to_string(util.maxWorkgroupSize));
+
+  util.structSize = 4;
+  // default sizes
+  if (dataMap.find(ComputeUtilStructSize) != dataMap.end())
+  {
+    util.structSize = atoi(dataMap[ComputeUtilStructSize].c_str());
+  }
+
+  if (dataMap.find(ComputeUtilStructMemberType) != dataMap.end())
+  {
+    util.structMemberSize = 4;
+    // default sizes
+    if (dataMap.find(ComputeUtilStructMemberSize) != dataMap.end())
+    {
+      util.structMemberSize = atoi(dataMap[ComputeUtilStructMemberSize].c_str());
+    }
+  }
+  else
+  {
+    util.structMemberSize = util.structSize;
+  }
 
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
   {
@@ -265,7 +287,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
 
   uint groupCount = (length + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize * batchSize);
 
-  groupSum->resize(groupCount * 2, false);
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
   uint zero = REDUCE_STATUS_INVALID;
@@ -340,55 +362,47 @@ void ComputeUtil::sumRegular2D(ComputeInterface* compute, ComputeMemory* array2D
   }
 }
 
-void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean)
+void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* identity, ComputeMemory* partitions, uint length, bool doMean)
 {
-  sumIrregular2D(compute, array2D, array2D, identity, partitions, partitionCount, length, maxPartitionLength, doMean);
-}
+  if (!localArrays[UtilTempReduceSum])
+  {
+    localArrays[UtilTempReduceSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL, true);
 
-void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* array2D, ComputeMemory* consolidatedArray, ComputeMemory* identity, ComputeMemory* partitions, ComputeMemory* partitionCount, uint length, uint maxPartitionLength, bool doMean)
-{
-  const uint iterations = mCeilExpOf2(maxPartitionLength);
-  const uint maxThreadsPerGroupExponent = mCeilExpOf2(compute->maxThreadsPerGroup() << 1);
+    localArrays[UtilTempReduceStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL, true);
+  }
 
-  uint divideFlag = 0;
-  uint maxLocalIterations = 1;
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempReduceStatus];
+
+  uint groupCount = (length + this->maxWorkgroupSize - 1) / (this->maxWorkgroupSize);
+
+  groupSum->resize(groupCount * this->structMemberSize/sizeof(uint), false);
+  groupStatus->resize(groupCount, false);
+
+  uint zero = REDUCE_STATUS_INVALID;
+  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+
+  uint divideFlag = doMean;
+  uint threadGroupSizeExp = mCeilExpOf2(compute->maxThreadsPerGroup());
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL];
 
-  kernels[kernelIndex].setArg(array2D, 0);
-  kernels[kernelIndex].setArg(consolidatedArray, 1);
+  kernels[kernelIndex].setArg(destination, 0);
+  kernels[kernelIndex].setArg(source, 1);
   kernels[kernelIndex].setArg(identity, 2);
   kernels[kernelIndex].setArg(partitions, 3);
-  kernels[kernelIndex].setArg(partitionCount, 4);
-  kernels[kernelIndex].setArg<uint>(&length, 5);
-  kernels[kernelIndex].setArg<uint>(&maxPartitionLength, 6);
-  kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 8);
-  kernels[kernelIndex].setArg<uint>(&divideFlag, 9);
+  kernels[kernelIndex].setArg(groupSum->device(), 4);
+  kernels[kernelIndex].setArg(groupStatus->device(), 5);
+  kernels[kernelIndex].setArg<uint>(&threadGroupSizeExp, 6);
+  kernels[kernelIndex].setArg<uint>(&length, 7);
+  kernels[kernelIndex].setArg<uint>(&divideFlag, 8);
 
   size_t workgroupSize[3];
   size_t workgroupCount[3];
 
-  for (uint i = 0; i < iterations; i++)
-  {
-    kernels[kernelIndex].setArg<uint>(&i, 7);
-
-    maxLocalIterations = ((iterations - i) > maxThreadsPerGroupExponent) ? 1 : (iterations - i);
-    divideFlag = ((iterations - i) <= maxThreadsPerGroupExponent) ? 1 : 0;
-
-    // set only if needed
-    if (maxLocalIterations != 1)
-    {
-      kernels[kernelIndex].setArg<uint>(&maxLocalIterations, 8);
-    }
-    if (divideFlag && doMean)
-    {
-      kernels[kernelIndex].setArg<uint>(&divideFlag, 9);
-    }
-
-    compute->configureSize(workgroupSize, workgroupCount, (length + (1 << i) - 1) / (1 << i));
-    compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
-
-    if (iterations - i <= maxThreadsPerGroupExponent) break;
-  }
+  compute->configureSize(workgroupSize, workgroupCount, length);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
 
 //#define DEBUG_PREFIX_SCAN
@@ -409,7 +423,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
 
   uint groupCount = (statusArrayLength + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize*batchSize);
 
-  groupSum->resize(groupCount * 2, false);
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
   uint zero = PREFIX_SCAN_STATUS_INVALID;
@@ -469,7 +483,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
 
   uint groupCount = (length + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize*batchSize);
 
-  groupSum->resize(groupCount * 2, false);
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
   uint zero = PREFIX_SCAN_STATUS_INVALID;

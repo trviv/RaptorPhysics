@@ -15,7 +15,6 @@ RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator, SOLVER_RIGID_BODY)
 {
   iterations = 1;
-  maxPerInstanceNodes = 0;
   create(compute);
 
 #ifdef DEBUG_RIGID_SOLVER
@@ -41,12 +40,14 @@ void RigidSolver::create(ComputeInterface* compute)
     positionSetting[ComputeUtilStructType] = "ParticleStruct";
     positionSetting[ComputeUtilStructMember] = "position";
     positionSetting[ComputeUtilStructMemberType] = "float3";
+    positionSetting[ComputeUtilStructMemberSize] = "16";
     positionSetting[ComputeUtilIdentityFunction] = "getInstanceId";
     positionSetting[ComputeUtilIdentityStructType] = "ParticleStruct";
     positionSetting[ComputeUtilIdentityStructMember] = "identity";
 
     map<ComputeUtilKey, string> matrix3x3Setting;
     matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
+    matrix3x3Setting[ComputeUtilStructSize] = "36";
     matrix3x3Setting[ComputeUtilIdentityFunction] = "getInstanceId";
     matrix3x3Setting[ComputeUtilCustomAddFunction] = "addMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
@@ -75,23 +76,14 @@ void RigidSolver::solve()
   //TODO: Perperly implement this loop. Which should perhaps fix wobbling
   for (uint iteration = 0; iteration < iterations; iteration++)
   {
-    // copy to aux buffer to find new COM
-    compute->copyBuffer(particlesPredicted.device(), particlesTemp[0].device(), 0, 0, count * sizeof(ParticleStruct));
-
-#ifdef DEBUG_RIGID_SOLVER
-    particlesTemp[0].syncHost();
-    compute->sync();
-#endif
-
     // calculate current COM
-    ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(), particlesTemp[1].device(),
-      particlesTemp[0].device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
+    ComputeUtil::get(positionUtilId)->sumIrregular2D(compute, particlesTemp[0].device(),
+      particlesPredicted.device(), particlesPredicted.device(), partitions.device(), count, true);
 
 #ifdef DEBUG_RIGID_SOLVER
     printf("\nMean:\n");
-    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[1].device(), 3, 4, 3 * totalEntities);
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, 3 * totalEntities);
     particlesTemp[0].syncHost();
-    particlesTemp[1].syncHost();
     compute->sync();
 #endif
 
@@ -101,7 +93,7 @@ void RigidSolver::solve()
         covarianceMatrix.device(),
         particleDeltas.device(),
         particlesPredicted.device(),
-        particlesTemp[1].device(),
+        particlesTemp[0].device(),
         particleRigidData.device(),
         partitions.device(),
         entityLocations.device()
@@ -120,8 +112,8 @@ void RigidSolver::solve()
 
     // consolidate matrix for each body
     // add all n * 9 values to form = 3x3 matrix
-    ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, covarianceMatrix.device(), particlesTemp[0].device(),
-      particlesTemp[0].device(), partitions.device(), partitionsCount.device(), count, maxPerInstanceNodes, true);
+    ComputeUtil::get(matrix3x3UtilId)->sumIrregular2D(compute, particlesTemp[0].device(), covarianceMatrix.device(),
+      particlesPredicted.device(), partitions.device(), count, true);
 
 #ifdef DEBUG_RIGID_SOLVER
     printf("\nM:\n");
@@ -184,19 +176,10 @@ void RigidSolver::update()
 
   Solver::update();
 
-  for (const EntityLocation& section : *entityLocations.host())
-  {
-    if (section.node.count > maxPerInstanceNodes)
-    {
-      maxPerInstanceNodes = section.node.count;
-    }
-  }
-
   particleRigidData.syncDevice();
 
   uint count = lastPartition().end();
 
   covarianceMatrix.resize(count * 9, false);
-  particlesTemp[0].resize(count, false);
-  particlesTemp[1].resize(count, false);
+  particlesTemp[0].resize(partitions.size(), false);
 }

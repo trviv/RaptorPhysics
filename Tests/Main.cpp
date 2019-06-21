@@ -121,6 +121,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements);
 
   compute->sync();
+
   ProfileManager::Reset();
   {
     ProfileBlock("Reduce scan");
@@ -128,7 +129,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
     {
       ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements, true);
     }
-  };
+  }
 
   compute->sync();
 
@@ -194,6 +195,7 @@ void testRegular2DMean(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
   utilSetting[ComputeUtilStructMemberType] = "float3";
+  utilSetting[ComputeUtilStructMemberSize] = "16";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
@@ -219,33 +221,36 @@ void testIrregular2DMean(ComputeInterface* compute)
 {
   printf("\nTesting irregular 2D mean:\n");
 
+  DeviceArray<ParticleStruct> particlesIn(compute, NULL, true);
   DeviceArray<ParticleStruct> particles(compute, NULL, true);
   DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
   DeviceArray<uint>           partitionCount(compute, NULL, true);
 
-  uint width = 0;
-  const uint parts = 30;
+  uint width = 29;
+  const uint parts = 1000;
   uint elements = 0;
   Real3 sum = 0;
+  uint iterations = 10;
 
   for (int i = 0; i < parts; i++)
   {
     PartitionInfo section;
-    section.offset = i ? partitions.host()->at(i - 1).offset + width : 0;
-    section.count = width + 1;
+    section.offset = i ? partitions.host()->at(i - 1).offset + width - 1 : 0;
+    section.count = width;
     partitions.host()->push_back(section);
-    elements += width + 1;
+    elements += width ;
     width++;
   }
 
-  particles.host()->reserve(elements);
+  particlesIn.host()->reserve(elements);
+  particles.resize(elements, false);
   partitionCount.host()->reserve(1);
   partitionCount.host()->push_back(parts);
   partitionCount.syncDevice();
 
   uint sectionIndex = 0;
   vector<PartitionInfo> &partitionsHost = *partitions.host();
-  vector<ParticleStruct> &particlesHost = *particles.host();
+  vector<ParticleStruct> &particlesHost = *particlesIn.host();
   vector<Real3> means;
 
   for (uint i = 0; i < elements; i++)
@@ -270,7 +275,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   means.push_back(sum / float(elements - partitionsHost[sectionIndex].offset));
 
-  particles.syncDevice();
+  particlesIn.syncDevice();
   partitions.syncDevice();
 
   vector<string> includes = { "ParticleStruct.h" };
@@ -279,55 +284,46 @@ void testIrregular2DMean(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "ParticleStruct";
   utilSetting[ComputeUtilStructMember] = "position";
   utilSetting[ComputeUtilStructMemberType] = "float3";
+  utilSetting[ComputeUtilStructMemberSize] = "16";
   utilSetting[ComputeUtilIdentityFunction] = "getInstanceId";
   utilSetting[ComputeUtilIdentityStructType] = "ParticleStruct";
   utilSetting[ComputeUtilIdentityStructMember] = "identity";
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particles.device(), partitions.device(), partitionCount.device(), elements, width, true);
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
 
+  compute->sync();
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Irregular Reduce scan");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
+    }
+  }
+
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  printStats(mean, elements+partitions.size(), 1, sizeof(ParticleStruct));
+
+  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
   particles.syncHost();
   compute->sync();
 
-  for (uint i = 0; i < partitionsHost.size(); i++)
+  for (uint i = 0; i < means.size(); i++)
   {
-    if (abs(means[i][0] - particlesHost[partitionsHost[i].offset].position.x) > .00001f
-      || abs(means[i][1] - particlesHost[partitionsHost[i].offset].position.y) > .00001f
-      || abs(means[i][2] - particlesHost[partitionsHost[i].offset].position.z) > .00001f)
+    if (abs(means[i][0] - particles.host()->at(i).position.x) > .00001f
+        || abs(means[i][1] - particles.host()->at(i).position.y) > .00001f
+        || abs(means[i][2] - particles.host()->at(i).position.z) > .00001f)
     {
-      std::cout << i << " " << means[i] << " " << particlesHost[partitionsHost[i].offset].position << "\n";
+      std::cout << i << " " << means[i] << " " << particles.host()->at(i).position << "\n";
       assert(0);
     }
   }
+
   printf("Irregular 2D mean test passed!\n");
-
-  printf("\nTesting consolidation:\n");
-
-  DeviceArray<ParticleStruct> particlesConsolidated(compute, NULL, true);
-  DeviceArray<uint> partitionsCount(compute, NULL, true);
-
-  particlesConsolidated.resize(parts, false);
-  partitionsCount.host()->push_back(parts);
-  partitionsCount.syncDevice();
-
-  ComputeUtil::get(templateId)->consolidateFromPartitions(compute,
-    particles.device(), particlesConsolidated.device(), partitions.device(), partitionsCount.device(), parts);
-
-  particlesConsolidated.syncHost();
-  compute->sync();
-
-  for (uint i = 0; i < particlesConsolidated.host()->size(); i++)
-  {
-    if (abs(means[i][0] - particlesConsolidated.host()->at(i).position.x) > .00001f
-      || abs(means[i][1] - particlesConsolidated.host()->at(i).position.y) > .00001f
-      || abs(means[i][2] - particlesConsolidated.host()->at(i).position.z) > .00001f)
-    {
-      std::cout << i << " " << means[i] << " " << particlesConsolidated.host()->at(i).position << "\n";
-      assert(0);
-    }
-  }
-  printf("Consolidation test passed!\n");
 }
 
 /*void testSectionOffsets(ComputeInterface* compute)

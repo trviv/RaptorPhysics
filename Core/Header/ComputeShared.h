@@ -8,7 +8,7 @@
 /*
 @struct Data describing an array sub-part.
 */
-struct PartitionInfo_t
+struct ALIGN(8) PartitionInfo_t
 {
   /*@member Offset.*/
   uint  offset;
@@ -37,7 +37,7 @@ struct PartitionInfo_t
 
 typedef struct PartitionInfo_t PartitionInfo;
 
-struct SortNode32_t
+struct ALIGN(8) SortNode32_t
 {
   uint key;
   uint value;

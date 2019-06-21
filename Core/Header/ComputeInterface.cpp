@@ -704,7 +704,7 @@ uint ComputeInterface::maxCores()const
   size_t retSize = 0;
   ComputeStatus status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(int), &ret, &retSize);
   computeCheckError(status, 0);
-  return 32;
+  return 64;
 }
 
 #ifdef ENABLE_RENDERING

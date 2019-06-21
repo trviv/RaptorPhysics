@@ -75,6 +75,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
   lbvhXABSetting[ComputeUtilStructType] = "XAB";
+  lbvhXABSetting[ComputeUtilStructSize] = "32";
   lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
   lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
   lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
