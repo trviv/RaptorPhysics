@@ -165,8 +165,10 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float viscosity;
   /*@member Velocity damping.*/
   float velocityDamping;
+  /*@member Velocity damping.*/
+  float collisionDamping;
 
-  uint  padding[2];
+  uint  padding[1];
 
   /*@member Shared collision data.*/
   ParticleCollisionData sharedCollisionData;
