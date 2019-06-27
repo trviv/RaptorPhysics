@@ -389,6 +389,8 @@ inline ParticleStruct traverseBinaryTree(
   ParticleStruct output = predicted;
 
   const ParticleCollisionData collisionData = particleCollisionData[index];
+  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
   XAB particleBoundingBox;
   particleBoundingBox.min = predicted.position - constructFloat3(collisionData.radius);
@@ -474,7 +476,7 @@ inline ParticleStruct traverseBinaryTree(
 
           float3 normal = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
           float3 delta = normal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
-          output.position -= delta;
+          output.position -= delta * sharedData.collisionDamping;
 #ifdef MARK_COLLIDED_PARTICLES
           collided = true;
 #endif
@@ -491,6 +493,11 @@ inline ParticleStruct traverseBinaryTree(
     // pop from the stack
     currentNodeIndex = *(--stackTop);
   }
+
+#ifdef MARK_COLLIDED_PARTICLES
+  particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
+#endif
+
   output.identity = identity;
   return output;
 }
@@ -586,10 +593,6 @@ Kernel void applyCollisions(
         entityLocation,
         globalOffsets,
         index);
-
-#ifdef MARK_COLLIDED_PARTICLES
-      particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
-#endif
     }
 
     if (subGroupLocalIndex == 0)

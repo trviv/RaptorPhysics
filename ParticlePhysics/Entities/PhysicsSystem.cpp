@@ -232,7 +232,7 @@ void PhysicsSystem::step()
 
   ProfileManager::Reset();
 
-  //step(lastStepTime);
+//  step(lastStepTime);
   step(1.f / 30.f);
 
   compute->sync();
