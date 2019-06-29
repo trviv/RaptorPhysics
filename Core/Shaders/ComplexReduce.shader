@@ -99,7 +99,15 @@ Kernel void sumIrregular2DKernel(
         prevIdentity = IDENTITY_FUNCTION(array2DIdentity[index - 1]IDENTITY_STRUCT_MEMBER);
       }
 
-      identityArray[REDUCE_COMPUTE_THREADS] = IDENTITY_FUNCTION(array2DIdentity[index + REDUCE_COMPUTE_THREADS]IDENTITY_STRUCT_MEMBER);
+      // read if within the scope
+      if ((index + REDUCE_COMPUTE_THREADS) < length)
+      {
+        identityArray[REDUCE_COMPUTE_THREADS] = IDENTITY_FUNCTION(array2DIdentity[index + REDUCE_COMPUTE_THREADS]IDENTITY_STRUCT_MEMBER);
+      }
+      else
+      {
+        identityArray[REDUCE_COMPUTE_THREADS] = -1;
+      }
     }
 
     isValid[localIndex] = 1;
