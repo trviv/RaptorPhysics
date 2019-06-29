@@ -226,20 +226,22 @@ void testIrregular2DMean(ComputeInterface* compute)
   DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
   DeviceArray<uint>           partitionCount(compute, NULL, true);
 
-  uint width = 29;
-  const uint parts = 1000;
+  uint width = 125;
+  const uint parts = 2000;
   uint elements = 0;
   Real3 sum = 0;
   uint iterations = 10;
 
+  int increment = 1;
+
   for (int i = 0; i < parts; i++)
   {
     PartitionInfo section;
-    section.offset = i ? partitions.host()->at(i - 1).offset + width - 1 : 0;
+    section.offset = i ? partitions.host()->at(i - 1).offset + width - increment : 0;
     section.count = width;
     partitions.host()->push_back(section);
     elements += width ;
-    width++;
+    width += increment;
   }
 
   particlesIn.host()->reserve(elements);
@@ -256,7 +258,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   for (uint i = 0; i < elements; i++)
   {
     ParticleStruct particle;
-    particle.position = Real3(1);
+    particle.position = Real3(1.f/partitionsHost[sectionIndex].count);
     if (sectionIndex < (partitionsHost.size() - 1) && i == partitionsHost[sectionIndex + 1].offset)
     {
       means.push_back(sum / float(partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));
@@ -314,9 +316,9 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   for (uint i = 0; i < means.size(); i++)
   {
-    if (abs(means[i][0] - particles.host()->at(i).position.x) > .00001f
-        || abs(means[i][1] - particles.host()->at(i).position.y) > .00001f
-        || abs(means[i][2] - particles.host()->at(i).position.z) > .00001f)
+    if (isnan(particles.host()->at(i).position.x) || abs(means[i][0] - particles.host()->at(i).position.x) > .00001f ||
+        isnan(particles.host()->at(i).position.y) || abs(means[i][1] - particles.host()->at(i).position.y) > .00001f ||
+        isnan(particles.host()->at(i).position.z) || abs(means[i][2] - particles.host()->at(i).position.z) > .00001f)
     {
       std::cout << i << " " << means[i] << " " << particles.host()->at(i).position << "\n";
       assert(0);

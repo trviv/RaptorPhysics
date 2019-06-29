@@ -402,6 +402,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
   size_t workgroupCount[3];
 
   compute->configureSize(workgroupSize, workgroupCount, length);
+  workgroupSize[0] = compute->maxThreadsPerGroup();
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
 
