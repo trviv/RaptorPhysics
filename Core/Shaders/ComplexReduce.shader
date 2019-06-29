@@ -84,7 +84,7 @@ Kernel void sumIrregular2DKernel(
     COPY_FUNCTION(localArray[localIndex], source[index]STRUCT_MEMBER);
 
 #ifdef DEBUG_COMPLEX_REDUCE
-    printf ("Read: %d %f\n", index, ((Shared float*)&localArray[localIndex])[0]);
+    printf ("Read: %d %f\n", index, *((Shared float*)&localArray[localIndex]));
 #endif
     identity = IDENTITY_FUNCTION(array2DIdentity[index] IDENTITY_STRUCT_MEMBER);
     identityArray[localIndex] = identity;
@@ -132,11 +132,11 @@ Kernel void sumIrregular2DKernel(
         {
           temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex]);
 #ifdef DEBUG_COMPLEX_REDUCE
-          printf ("Read: %d %f\n", identityArray[0], temp);
+          printf ("Read: %d %f\n", identityArray[0], *((Thread float*)&temp));
 #endif
           ADD_FUNCTION(sum, temp);
 #ifdef DEBUG_COMPLEX_REDUCE
-//            printf ("Read: %d %f\n", identityArray[0], sum.x);
+          printf ("Read: %d %f\n", identityArray[0], *((Thread float*)&sum));
 #endif
           break;
         }
@@ -157,27 +157,27 @@ Kernel void sumIrregular2DKernel(
   {
     isValid[localIndex] = 0;
 #ifdef DEBUG_COMPLEX_REDUCE
-    printf ("Duplicate: %d %d %f\n", threadGroupIndex(), localIndex, localArray[localIndex]);
+    printf ("Duplicate: %d %d %f\n", threadGroupIndex(), localIndex, *((Shared float*)&localArray[localIndex]));
 #endif
     ADD_FUNCTION(localArray[lastValidIndex], localArray[localIndex]);
 //      CLEAR_FUNCTION(localArray[localIndex], NAN);
   }
 
   // for last thread in the threadgroup
-  if (localIndex == lastValidIndex && (index+1) < length && threadGroupIndex() < (threadGroupCount()-1))
+  if (localIndex == lastValidIndex && (index + 1) < length && threadGroupIndex() < (threadGroupCount() - 1))
   {
 #ifdef DEBUG_COMPLEX_REDUCE
-    printf ("Last: %d %d %f\n", threadGroupIndex(), lastValidIndex, localArray[lastValidIndex]);
+    printf ("Last: %d %d %f\n", threadGroupIndex(), lastValidIndex, *((Shared float*)&localArray[lastValidIndex]));
 #endif
     // if this identity extends beyond this workgroup
-    if (identityArray[lastValidIndex] == identityArray[lastValidIndex+1])
+    if (identityArray[lastValidIndex] == identityArray[REDUCE_COMPUTE_THREADS])
     {
       isValid[lastValidIndex] = 0;
       MemberStructType sum;
       COPY_FUNCTION(sum, localArray[lastValidIndex]);
 
 #ifdef DEBUG_COMPLEX_REDUCE
-      printf ("Write: %d %f\n", identityArray[lastValidIndex], localArray[localIndex]);
+      printf ("Write: %d %f\n", identityArray[lastValidIndex], *((Shared float*)&localArray[localIndex]));
 #endif
 
       // save current value as final sum for the first threadgroup
