@@ -3,7 +3,7 @@
 
 #if (!defined(SkipParallelPrimitives) || defined(OnlyReduce)) && defined(StructType)
 
-void subGroupReduce(volatile Shared MemberStructType* localArray, const uint localIndex, const uint subGroupLocalIndex)
+void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
 #if COMPUTE_SUB_GROUP_SIZE > 32
   if (subGroupLocalIndex < 32)
@@ -38,10 +38,32 @@ void subGroupReduce(volatile Shared MemberStructType* localArray, const uint loc
   }
 }
 
-void groupReduce(volatile Shared MemberStructType* localArray, const uint localIndex)
+void groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
-  const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+//  // log n iterations
+//  for (uchar i=0; i<8; i++)
+//  {
+//    localMemBarrier();
+//    const short stride = (1 << i);
+//
+//    // add in strides of 2, 4, 8 ...
+//    short localIndex2 = localIndex * (2 << i);
+//
+//    // if within the bounds
+//    if (localIndex2 < REDUCE_COMPUTE_THREADS)
+//    {
+//      // index offset 1, 2, 4 ...
+//      const short otherIndex = localIndex2 + stride;
+//      // add elements
+//      ADD_FUNCTION(localArray[paddedIndex(localIndex2)], localArray[paddedIndex(otherIndex)]);
+//    }
+//    //localMemBarrier();
+//  }
+//
+//  return;
+
+  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
 
   // per sub group reduce
   subGroupReduce(localArray, localIndex, subGroupLocalIndex);
@@ -75,7 +97,7 @@ Kernel void reduce(
   const uint                        divideFlag)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
+  const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
 
@@ -83,7 +105,7 @@ Kernel void reduce(
   batchRead(originalValues, source, index, length);
 
   const MemberStructType reduceSum = localReduce(originalValues);
-  localArray[localIndex] = reduceSum;
+  localArray[paddedIndex(localIndex)] = reduceSum;
 
   // reduce threadgroup elements
   groupReduce(localArray, localIndex);

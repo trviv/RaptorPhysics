@@ -9,8 +9,8 @@ Window        *main_window = NULL;
 SDL_Window    *sdl_window = NULL;
 SDL_GLContext gl_context;
 
-#define WINDOW_MAX_TRANSLATION_RATE 1.f
-#define WINDOW_TRANSLATION_RATE     0.05f
+#define WINDOW_MAX_TRANSLATION_RATE 2.f
+#define WINDOW_TRANSLATION_RATE     0.10f
 #define WINDOW_ROTATION_SCALE       0.005f
 
 #define clamp(x, y, z) x<y?y:(x>z?z:x);
@@ -148,8 +148,9 @@ void Window::init(int argc, char** argv, int width, int height,
 
   std::cout<<glGetString(GL_VERSION)<<"\n";
 
-  cameraForwardSpeed = 0.f;
+  cameraUpSpeed = 0.f;
   cameraSideSpeed = 0.f;
+  cameraForwardSpeed = 0.f;
 
   GL_CHECK(glViewport(0, 0, (GLsizei)width, (GLsizei)height));
 
@@ -198,6 +199,10 @@ bool Window::keyboard(unsigned char key, int x, int y)
       cameraForwardSpeed -= WINDOW_TRANSLATION_RATE;
       cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
+  }
+
+  switch (key)
+  {
     case 'a':
       cameraSideSpeed -= WINDOW_TRANSLATION_RATE;
       cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
@@ -206,8 +211,17 @@ bool Window::keyboard(unsigned char key, int x, int y)
       cameraSideSpeed += WINDOW_TRANSLATION_RATE;
       cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
-    default:
-      return false;
+  }
+
+  switch (key)
+  {
+    case 'q':
+      cameraUpSpeed += WINDOW_TRANSLATION_RATE;
+      cameraUpSpeed = clamp(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      break;
+    case 'e':
+      cameraUpSpeed -= WINDOW_TRANSLATION_RATE;
+      cameraUpSpeed = clamp(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
   }
   return false;
@@ -262,14 +276,6 @@ void Window::mouseDrag(int x, int y)
 
 void Window::mouseWheel(int button, int dir, int x, int y)
 {
-  if (dir > 0)
-  {
-    //dz *= .9f;
-  }
-  else
-  {
-    //dz /= .9f;
-  }
 }
 
 void Window::start()
@@ -286,12 +292,13 @@ void Window::start()
     // update camera settings
     Real3 cross = cameraFront.cross(cameraUp);
     cross.normalize();
-    cameraPosition += cameraFront * cameraForwardSpeed + cross * cameraSideSpeed;
+    cameraPosition += cameraFront * cameraForwardSpeed + cross * cameraSideSpeed + cameraUp * cameraUpSpeed;
 
     setLookAtMatrix(modelMatrix, cameraPosition, cameraPosition + cameraFront, cameraUp);
 
-    cameraForwardSpeed *= 0.8f;
-    cameraSideSpeed *= 0.8f;
+    cameraUpSpeed *= 0.9f;
+    cameraSideSpeed *= 0.9f;
+    cameraForwardSpeed *= 0.9f;
 
     // handle events
     SDL_Event event;
