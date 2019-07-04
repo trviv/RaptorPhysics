@@ -34,6 +34,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   registerShader(compute, "PhysicsSystem.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("startStep"));
   kernels.push_back(programs[0].createKernel("endStep"));
+  kernels.push_back(programs[0].createKernel("integrateDifferentiateStep"));
 
   globalOffsets.create(compute, NULL, true);
   globalOffsets.resize(SOLVER_MAX, false);
@@ -49,7 +50,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-  //collisionSolver = new UniformGridCollisionSolver();
+//  collisionSolver = new UniformGridCollisionSolver();
   collisionSolver = new LBVHSolver();
 
 #ifdef ENABLE_RENDERING
@@ -499,6 +500,35 @@ void PhysicsSystem::differentiate(float timeStep)
 #endif
 }
 
+void PhysicsSystem::positionUpdate(float timeStep)
+{
+  SharedAllocator* allocator = allocators[0];
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+
+  ComputeMemory* buffers[] = {
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
+    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
+    globalOffsets.device()
+  };
+  uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+  kernels[2].setArgs(buffers, bufferCount);
+  kernels[2].setArg<float>(&timeStep, bufferCount);
+  kernels[2].setArg<uint>(&instanceNodeCount, bufferCount + 1);
+  compute->execute(kernels[2], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PHYSICS_SYSTEM
+  compute->sync();
+#endif
+}
+
 void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
@@ -510,6 +540,8 @@ void PhysicsSystem::step(float timeStep)
       solversUint[i]->update();
     }
   }
+
+  uint firstStep = !updates.size();
 
   if (updates.size())
   {
@@ -586,7 +618,15 @@ void PhysicsSystem::step(float timeStep)
 
     indexMap.resize(instanceNodeCount, false);
   }
-  integrate(timeStep);
+
+//  if (firstStep)
+//  {
+//    positionUpdate(timeStep);
+//  }
+//  else
+  {
+    integrate(timeStep);
+  }
 
   collisionSolver->solve(instanceNodeCount, globalOffsets.device());
 
