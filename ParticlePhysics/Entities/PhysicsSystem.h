@@ -52,6 +52,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*@function Get solver instance for a solver type.*/
   void* getSolver(SolverType type);
 
+  /*@function Perform integration and differentiation step.*/
+  void positionUpdate(float timeStep);
+
   /*@function Perform differentiation step.*/
   void differentiate(float timeStep);
 
