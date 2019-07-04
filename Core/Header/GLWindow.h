@@ -17,8 +17,9 @@ class Window
   Real3 cameraUp;
   Real3 cameraFront;
   Real3 cameraPosition;
-  float cameraForwardSpeed;
+  float cameraUpSpeed;
   float cameraSideSpeed;
+  float cameraForwardSpeed;
 
 protected:
 
