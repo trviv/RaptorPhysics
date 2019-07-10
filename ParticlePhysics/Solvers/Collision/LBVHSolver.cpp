@@ -38,7 +38,6 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   kernels.push_back(programs[0].createKernel("constructBinaryTree"));
   kernels.push_back(programs[0].createKernel("constructTreeBoundingBox"));
   kernels.push_back(programs[0].createKernel("applyCollisions"));
-  kernels.push_back(programs[0].createKernel("boundaryCollisionKernel"));
 
   solverHeap = new ComputeHeap(compute);
 
@@ -226,8 +225,10 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
   build(instanceNodeCount, globalOffsets);
 
   {
+    const uint batchesPerDispatch = 8;
+
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, 256);
+    compute->configureSize(workgroupSize, workgroupCount, (instanceNodeCount + batchesPerDispatch - 1) / batchesPerDispatch);
 
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
@@ -236,7 +237,6 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       particlesTemp.device(),
       treeInternalNodes.device(),
       treeInternalNodeBoundingBoxes.device(),
-      particleBoundingBoxes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
@@ -248,28 +248,6 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount);
 
-    workgroupCount[0] = compute->maxCores();
     compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
-  }
-
-  {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
-
-    ComputeMemory* buffers[] = {
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets
-    };
-    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[LBVH_COLLISION_SOLVER_APPLY_BOUNDARY].setArgs(buffers, bufferCount);
-    kernels[LBVH_COLLISION_SOLVER_APPLY_BOUNDARY].setArg<uint>(&instanceNodeCount, bufferCount);
-
-    compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_BOUNDARY], workgroupSize, workgroupCount);
   }
 }

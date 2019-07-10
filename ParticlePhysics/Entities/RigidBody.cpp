@@ -5,10 +5,12 @@ RigidBody::RigidBody()
   solver = SOLVER_RIGID_BODY;
 }
 
-void RigidBody::initCube(const real dimensions[], const real particleRadius, const real mass)
+void RigidBody::initCube(const real dimensions[], real particleRadius, const real mass)
 {
   vector<uint32_t> connectionElements;
   uint subdivision[3];
+  const int density = 2;
+  const bool reducedParticles = true;
 
   for (uint i = 0; i < 3; i++)
   {
@@ -20,7 +22,7 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   for (uint i = 0; i < 3; i++)
   {
     del[i] = 0.f;
-    del[i][i] = 2 * particleRadius;
+    del[i][i] = 2.f * particleRadius / density;
   }
   del[1] *= -1;
   del[2] *= -1;
@@ -28,9 +30,38 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   Real3 top_left(particleRadius - dimensions[0] / 2.f, dimensions[1] / 2.f - particleRadius, dimensions[2] / 2.f - particleRadius);
 
   vector<Real3> pointPosition;
-  int signedSubdivision[] = { (int)subdivision[0], (int)subdivision[1], (int)subdivision[2] };
+  int signedSubdivision[] = { density * (int)subdivision[0], density * (int)subdivision[1], density * (int)subdivision[2] };
 
-  const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1] * subdivision[2]);
+  int particleCount = 0;
+
+  // calculate particle count before hand for proper weight calculation
+  for (int z = 0; z < signedSubdivision[2]; z++)
+  {
+    for (int y = 0; y < signedSubdivision[1]; y++)
+    {
+      for (int x = 0; x < signedSubdivision[0]; x++)
+      {
+        float nx, ny, nz;
+        nx = (x == 0) ? -1.f : (x == (signedSubdivision[0] - 1) ? 1.f : 0);
+        ny = (y == 0) ? 1.f : (y == (signedSubdivision[1] - 1) ? -1.f : 0);
+        nz = (z == 0) ? 1.f : (z == (signedSubdivision[2] - 1) ? -1.f : 0);
+        Real3 normal(nx, ny, nz);
+
+        float magnitude = normal.length()*particleRadius;
+
+        if (reducedParticles && magnitude == 0.f)
+        {
+          continue;
+        }
+
+        particleCount++;
+      }
+    }
+  }
+
+  int index = 0;
+
+  const real perParticleInvMass = real(mass) / real(particleCount);
 
   setInvMassIsShared((*entitySharedData.host())[0], true);
   (*entitySharedData.host())[0].sharedInvMass = perParticleInvMass;
@@ -42,18 +73,24 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
   {
     for (int y = 0; y < signedSubdivision[1]; y++)
     {
-      int index = z * signedSubdivision[1] * signedSubdivision[0] + y * signedSubdivision[0];
       for (int x = 0; x < signedSubdivision[0]; x++)
       {
-        Real3 newPosition = top_left + del[0] * (float)x + del[1] * (float)y + del[2] * (float)z;
-        setConstant(index, newPosition);
-        pointPosition.push_back(newPosition);
-
         float nx, ny, nz;
         nx = (x == 0) ? -1.f : (x == (signedSubdivision[0] - 1) ? 1.f : 0);
         ny = (y == 0) ? 1.f : (y == (signedSubdivision[1] - 1) ? -1.f : 0);
         nz = (z == 0) ? 1.f : (z == (signedSubdivision[2] - 1) ? -1.f : 0);
         Real3 normal(nx, ny, nz);
+
+        float magnitude = normal.length() * particleRadius;
+
+        if (reducedParticles && magnitude == 0.f)
+        {
+          continue;
+        }
+
+        Real3 newPosition = top_left + del[0] * (float)x + del[1] * (float)y + del[2] * (float)z;
+        setConstant(index, newPosition);
+        pointPosition.push_back(newPosition);
 
 #ifdef ENABLE_RENDERING
         for (int zn = -1; zn < 2; zn++)
@@ -92,7 +129,6 @@ void RigidBody::initCube(const real dimensions[], const real particleRadius, con
         normal[0] = 1;
         }
         }*/
-        float magnitude = normal.length()*particleRadius;
         if (magnitude > 0)
         {
           normal.normalize();
