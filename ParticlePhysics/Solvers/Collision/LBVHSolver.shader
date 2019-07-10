@@ -359,24 +359,17 @@ int intersectXAB(const Thread XAB* a, const Thread XAB* b)
 //#define DEBUG_TRAVERSAL
 
 inline ParticleStruct traverseBinaryTree(
+  const Thread ParticleStruct*        currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
-  const Device XAB*                   particleBoundingBoxes,
-#ifdef MARK_COLLIDED_PARTICLES
+  const Thread ParticleCollisionData* collisionData,
   Device ParticleCollisionData*       particleCollisionData,
-#else
-  const Device ParticleCollisionData* particleCollisionData,
-#endif
-  const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
+  const Thread ParticleSharedData*    sharedData,
   const int                           index)
 {
-  uint* stackTop;
-  uint  traversalStack[64];
+  Thread uint* stackTop;
+  uint traversalStack[64];
 
   stackTop = &traversalStack[0];
 
@@ -384,19 +377,15 @@ inline ParticleStruct traverseBinaryTree(
   bool collided = false;
 #endif
 
-  const ParticleStruct predicted = particlesPredictedOld[index];
-  const IdentityInfo identity = predicted.identity;
-  ParticleStruct output = predicted;
-
-  const ParticleCollisionData collisionData = particleCollisionData[index];
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  ParticleStruct output;
+  output.position = constructFloat3(0.f);
+  short count = 0;
 
   XAB particleBoundingBox;
-  particleBoundingBox.min = predicted.position - constructFloat3(collisionData.radius);
-  particleBoundingBox.max = predicted.position + constructFloat3(collisionData.radius);
+  particleBoundingBox.min = currentParticle->position - constructFloat3(collisionData->radius);
+  particleBoundingBox.max = currentParticle->position + constructFloat3(collisionData->radius);
 
-  const float sdfMagnitude = length(collisionData.transformedSdfGradient);
+  const float sdfMagnitude = length(collisionData->transformedSdfGradient);
 
   // mark index of the root node internal
   uint currentNodeIndex = setInternalNodeMarker(0, 0);
@@ -415,7 +404,7 @@ inline ParticleStruct traverseBinaryTree(
       const XAB leftBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[0]), (int)node.child[0], isLeafNode(node.child[0]))];
       const XAB rightBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[1]), (int)node.child[1], isLeafNode(node.child[1]))];
 
-      int isIntersectingLeft = intersectXAB(&particleBoundingBox, &leftBoundingBox);
+      int isIntersectingLeft  = intersectXAB(&particleBoundingBox, &leftBoundingBox);
       int isIntersectingRight = intersectXAB(&particleBoundingBox, &rightBoundingBox);
 
       if (isIntersectingLeft)
@@ -456,30 +445,37 @@ inline ParticleStruct traverseBinaryTree(
     {
       const ParticleStruct predicted2 = particlesPredictedOld[currentNodeIndex];
 
-      if (predicted2.identity.identity != identity.identity)
+      if (predicted2.identity.identity != currentParticle->identity.identity)
       {
         const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
 
         // skip if the base and the batch particle are of the same object
-        const float3 distanceVector = predicted.position - predicted2.position;
+        const float3 distanceVector = predicted2.position - currentParticle->position;
         const float actualDistance = dot(distanceVector, distanceVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
-        const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData.radius));
+        const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData->radius));
 #else
-        const float allowedDistance = sqr(collisionData2.radius + collisionData.radius);
+        const float allowedDistance = sqr(collisionData2.radius + collisionData->radius);
 #endif
         // if overlapping
         if (actualDistance < allowedDistance)
         {
           const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
+          float3 normal = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
+          const float collDot = dot(normal, distanceVector);
 
-          float3 normal = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
-          float3 delta = normal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
-          output.position -= delta * sharedData.collisionDamping;
+//          if (collDot < 0.f)
+//          {
+//            normal = distanceVector - 2 * collDot * normal;
+//          }
+
+          float3 delta = normal * (collisionData->invMass / (collisionData->invMass + collisionData2.invMass));
+          output.position -= delta * sharedData->collisionDamping;
 #ifdef MARK_COLLIDED_PARTICLES
           collided = true;
 #endif
+          count++;
         }
       }
     }
@@ -495,11 +491,40 @@ inline ParticleStruct traverseBinaryTree(
   }
 
 #ifdef MARK_COLLIDED_PARTICLES
-  particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
+  particleCollisionData[index].radius = fabs(collisionData->radius) * (collided ? -1.f : 1.f);
 #endif
+//
+//  if (count)
+//  {
+//    output.position /= count;
+//  }
 
-  output.identity = identity;
   return output;
+}
+
+// function to update boundary collision
+void boundaryCollision(
+  Thread ParticleStruct*              particle,
+  Device ParticleStruct*              particles2,
+  const Thread ParticleNodeLocator*   nodeLocator,
+  const Thread ParticleCollisionData* collisionData,
+  const uint                          index)
+{
+  if (collisionData->invMass)  // only if movable
+  {
+    float dely = 0.f;
+
+    if (particle->position.y <= -0.f)
+    {
+      dely = 0.f - particle->position.y;
+
+      particle->position.y += dely;
+      if (particles2)
+      {
+        particles2[nodeLocator->absoluteNodeIndex].position.y += dely;
+      }
+    }
+  }
 }
 
 /*
@@ -522,11 +547,10 @@ inline ParticleStruct traverseBinaryTree(
 */
 Kernel void applyCollisions(
   volatile Device uint*               batchCounter,
-  Device ParticleStruct*              particlesPredictedNew,
-  const Device ParticleStruct*        particlesPredictedOld,
+  Device ParticleStruct*              particles,
+  const Device ParticleStruct*        particlesOld,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
-  const Device XAB*                   particleBoundingBoxes,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
@@ -539,7 +563,7 @@ Kernel void applyCollisions(
   Const PhySystemOffsets*             globalOffsets,
   const uint                          nodeCount)
 {
-#define batchMultiple 2
+#define batchMultiple 1
 
   volatile Shared int batchOffset[32];
   volatile Shared int batchCount[32];
@@ -551,8 +575,8 @@ Kernel void applyCollisions(
 
   localMemBarrier();
 
-  const uint subGroupLocalIndex = threadLocalIndex() & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = threadLocalIndex() >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = threadLocalIndex() & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const ushort subGroupIndex = threadLocalIndex() >> COMPUTE_SUB_GROUP_EXP;
 
   if (subGroupLocalIndex == 0)
   {
@@ -560,7 +584,7 @@ Kernel void applyCollisions(
     batchCount[subGroupIndex] = 0;
   }
 
-  uint index;
+  // process until all batches are exhausted
   while (true)
   {
     if (subGroupLocalIndex == 0 && batchCount[subGroupIndex] == 0)
@@ -569,7 +593,7 @@ Kernel void applyCollisions(
       batchCount[subGroupIndex] = COMPUTE_SUB_GROUP_SIZE * batchMultiple;
     }
 
-    index = batchOffset[subGroupIndex] + subGroupLocalIndex;
+    const uint index = batchOffset[subGroupIndex] + subGroupLocalIndex;
 
     if (index >= nodeCount)
     {
@@ -581,78 +605,46 @@ Kernel void applyCollisions(
     if (index == 0)
 #endif
     {
-      particlesPredictedNew[index] = traverseBinaryTree(
-        particlesPredictedOld,
+      // get all the data for particle being processed
+      ParticleStruct currentParticle = particlesOld[index];
+      const IdentityInfo identity = currentParticle.identity;
+      ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+      const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+
+      nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+      nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
+
+      const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+      const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
+
+      const ParticleCollisionData collisionData = particleCollisionData[index];
+
+      // find position change due to collision
+      ParticleStruct delta = traverseBinaryTree(
+        &currentParticle,
+        particlesOld,
         treeInternalNodes,
         treeInternalNodeBoundingBoxes,
-        particleBoundingBoxes,
+        &collisionData,
         particleCollisionData,
-        particleSharedData,
-        particleAuxData,
-        partitions,
-        entityLocation,
-        globalOffsets,
+        &sharedData,
         index);
+
+      // update position
+      currentParticle.position += delta.position;
+
+      // apply boundary
+      boundaryCollision(&currentParticle, 0, &nodeLocator, &collisionData, index);
+
+      // save updated position
+      currentParticle.identity = identity;
+      particles[index] = currentParticle;
     }
 
     if (subGroupLocalIndex == 0)
     {
       batchOffset[subGroupIndex] += COMPUTE_SUB_GROUP_SIZE;
       batchCount[subGroupIndex] -= COMPUTE_SUB_GROUP_SIZE;
-    }
-  }
-}
-
-Kernel void boundaryCollisionKernel(
-#ifndef USE_ALTERNATIVE_KERNEL_ARGS
-  Device ParticleStruct*              particles,
-#else
-  const Device ParticleStruct*        particlesIn,
-#endif
-  Device ParticleStruct*              particlesPredicted,
-  const Device ParticleCollisionData* particleCollisionData,
-  const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
-  const uint                          nodeCount)
-{
-  const uint index = threadIndex();
-
-#ifdef USE_ALTERNATIVE_KERNEL_ARGS
-  Device ParticleStruct* particles = particlesIn;
-#endif
-
-  if (index < nodeCount)
-  {
-    ParticleStruct particle = particles[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
-
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
-
-    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-
-    //const ParticleAuxData auxData = particleAuxData[nodeLocator.commonNodeIndex];
-    //const float invMass = getInvMassUsingThreadAux(&sharedData, &auxData);
-    const ParticleCollisionData collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, index);
-    const float invMass = collisionData.invMass;
-
-    if (invMass) // only if movable
-    {
-      float dely = 0.f;
-
-      if (particlesPredicted[nodeLocator.absoluteNodeIndex].position.y <= -0.f)
-      {
-        dely = 0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
-
-        particles[nodeLocator.absoluteNodeIndex].position.y += dely;
-        particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
-      }
     }
   }
 }
