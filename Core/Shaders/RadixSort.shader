@@ -131,11 +131,7 @@ Kernel void radixSort32BitReduceKernel(
       setKey(localKeys, i, (localKey & (SortBitValue - 1)));
     }
 
-#if RadixScanIterations*PackedParts >= 256
-    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
-#else
-    for (uchar j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
-#endif
+    for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
       RadixPackedType count = 0;
 
@@ -285,11 +281,7 @@ Kernel void radixSort32BitSortKernel(
 
     uint destOffset[1 << RadixPrefixScanPackingExp];
 
-#if RadixScanIterations*PackedParts >= 256
-    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
-#else
-    for (uchar j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
-#endif
+    for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
 
 #if defined(BusAlignedFetch) && defined(CoalescedWrites)
@@ -347,11 +339,11 @@ Kernel void radixSort32BitSortKernel(
       if (localIndexInLane == (LaneWidth - 1))
       {
         prefixScan -= reduceSum;
-        const ushort start = laneIndexOffsetInTG + j;
+        ushort start = laneIndexOffsetInTG + j;
         const ushort end = start + 4;
-        for (ushort i = start; i < end; i++)
+        for ( ; start < end; start++)
         {
-          threadgroupLocalCountTotals[i] += ((prefixScan & ((1 << PackedBits) - 1)) + (reduceSum & ((1 << PackedBits) - 1)));
+          threadgroupLocalCountTotals[start] += ((prefixScan & ((1 << PackedBits) - 1)) + (reduceSum & ((1 << PackedBits) - 1)));
           prefixScan >>= PackedBits;
           reduceSum >>= PackedBits;
         }

@@ -600,7 +600,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
   compute->sync();
 
-  uint iterations = 1;
+  uint iterations = 10;
   float cumulativeTime = 0;
   for (uint i = 0; i < iterations; i++)
   {
@@ -619,9 +619,9 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   }
 
   float mean = cumulativeTime / iterations;
-  printf("Average: %f\n", mean);
-  printf("Elts/sec: %f\n", elements * 1000.f / mean);
-  printf("Bandwidth util: %f\n", 4 * 2 * (elements * 1000.f / mean) * (3 * 32 / 4) / float(1024 * 1024 * 1024));
+
+  printStats(mean, elements, ((3 + 1) * 32 / 4), sizeof(uint));
+
   destination.syncHost();
   compute->sync();
 
