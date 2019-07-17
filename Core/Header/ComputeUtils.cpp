@@ -15,6 +15,7 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_RADIX_SORT1                      8
 #define COMPUTE_UTIL_RADIX_SORT2                      9
 #define COMPUTE_UTIL_BITONIC_SORT                     10
+#define COMPUTE_UTIL_CLEAR_BUFFER                     11
 
 enum UtilTemporaryBuffer
 {
@@ -126,7 +127,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   vector<string>::iterator pos = find(computeConfig.begin(), computeConfig.end(), key);
   if (pos != computeConfig.end())
   {
-    logComputeMessage("Using existing utility instance.");
+    logComputeMessage("Using existing utility instance.\n");
     return pos - computeConfig.begin();
   }
 
@@ -134,6 +135,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
   kernelNames.push_back("showMatrix");
+
+  util.kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER] = kernelNames.size();
+  kernelNames.push_back("clearIntegerBuffer");
 
   // use size tuned for best performance
   util.batchSize = 8;
@@ -290,9 +294,8 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  uint zero = REDUCE_STATUS_INVALID;
   uint mean = doMean ? 1 : 0;
-  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
@@ -381,8 +384,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
   groupSum->resize(groupCount * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  uint zero = REDUCE_STATUS_INVALID;
-  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
 
   uint divideFlag = doMean;
   uint threadGroupSizeExp = mCeilExpOf2(compute->maxThreadsPerGroup());
@@ -427,8 +429,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  uint zero = PREFIX_SCAN_STATUS_INVALID;
-  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { compactArrayCount, compactIndexArray, selectionArray, groupSum->device(), groupStatus->device() };
 
@@ -487,8 +488,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  uint zero = PREFIX_SCAN_STATUS_INVALID;
-  compute->setBuffer(groupStatus->device(), 0, groupCount * sizeof(uint), &zero, sizeof(uint));
+  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
@@ -608,5 +608,17 @@ void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, u
   kernels[kernelIndex].setArg<uint>(&rowSize, 1);
   kernels[kernelIndex].setArg<uint>(&strideIn4Byte, 2);
   kernels[kernelIndex].setArg<uint>(&length, 3);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+}
+
+void ComputeUtil::clearIntegerBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length)
+{
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER];
+
+  compute->configureSize(workgroupSize, workgroupCount, (length + batchSize - 1) / batchSize);
+  kernels[kernelIndex].setArg(destination, 0);
+  kernels[kernelIndex].setArg<uint>(&length, 1);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
