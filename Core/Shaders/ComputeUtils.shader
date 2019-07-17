@@ -129,4 +129,26 @@ Kernel void showMatrix(Device float* array, const uint rowLength, const uint str
   }
 }
 
+#define BUFFER_INT_BATCH_SIZE 8
+
+// kernel to clear an integer buffer to all 0s
+Kernel void clearIntegerBuffer(
+  Device uint8* destination,
+  const int length)
+{
+  int writeSize = length - (int)threadIndex() * BUFFER_INT_BATCH_SIZE;
+
+  if (writeSize >= BUFFER_INT_BATCH_SIZE)
+  {
+    destination[threadIndex()] = 0;
+  }
+  else
+  {
+    for (int i = 0; i < writeSize; i++)
+    {
+      ((Device uint*)(destination + threadIndex()))[i] = 0;
+    }
+  }
+}
+
 #endif

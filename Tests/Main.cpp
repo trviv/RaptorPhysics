@@ -66,7 +66,7 @@ void testBandwidthRW(ComputeInterface* compute)
   printf("\nRead/Write bandwidth test:\n");
 
   DeviceArray<float> data(compute, NULL, false);
-  DeviceArray<float> &outdata = data;//(compute, NULL, false);
+  DeviceArray<float> &outdata = data;
   const int elements = 1024 * 1024 * 128;
 
   data.resize(elements, false);
@@ -76,7 +76,10 @@ void testBandwidthRW(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "uint";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
-  uint iterations = 10;
+  uint iterations = 20;
+
+  compute->copyBuffer(data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
+  compute->sync();
 
   ProfileManager::Reset();
   {
@@ -90,6 +93,51 @@ void testBandwidthRW(ComputeInterface* compute)
 
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
   printStats(mean, elements, 2, sizeof(uint));
+}
+
+void testSetBuffer(ComputeInterface* compute)
+{
+  printf("\nClear bandwidth test:\n");
+
+  DeviceArray<uint> data(compute, NULL, true);
+  const int elements = 1024 * 1024 * 128;
+
+  data.resize(elements, false);
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+
+  uint iterations = 20;
+
+  ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+  compute->sync();
+
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Clear Bandwidth");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+    }
+  }
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  data.syncHost();
+  compute->sync();
+
+  printStats(mean, elements, 1, sizeof(uint));
+
+  for (int i = 0; i < elements; i++)
+  {
+    if (data.host()->at(i) != 0)
+    {
+      std::cout << i << " " << data.host()->at(i) << "\n";
+      assert(0);
+    }
+  }
 }
 
 template<class DataType> void test1DMean(ComputeInterface* compute)
@@ -646,6 +694,7 @@ int main(int argc, char** argv)
   compute->create();
 
   testBandwidthRW(compute);
+  testSetBuffer(compute);
   //testSectionOffsets(compute);
   //testBandwidthRead(compute);
   test1DMean<float>(compute);
