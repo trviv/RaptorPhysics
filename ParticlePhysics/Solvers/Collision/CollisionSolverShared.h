@@ -57,7 +57,9 @@ typedef struct XAB_t XAB;
 
 #pragma pack(pop)
 
-static uint arrange32Bits(uint x)
+#ifdef COMPUTE_SHADER_SCOPE
+
+uint arrange32Bits(uint x)
 {
   //........ ........ ......12 3456789A  //x
   //....1..2 ..3..4.. 5..6..7. .8..9..A  //x after interleaving bits
@@ -88,8 +90,6 @@ static uint arrange32Bits(uint x)
   return x;
 }
 
-#ifdef COMPUTE_SHADER_SCOPE
-
 #define COLLISION_COMPONENT_MORTON_CODE_MASK 1023
 
 uint get32BitMortonCode(const int3 quantizedPosition)
@@ -99,6 +99,91 @@ uint get32BitMortonCode(const int3 quantizedPosition)
   const uint z = quantizedPosition.z & COLLISION_COMPONENT_MORTON_CODE_MASK;
 
   return arrange32Bits(x) | (arrange32Bits(y) << 1) | (arrange32Bits(z) << 2);
+}
+
+//#define MARK_COLLIDED_PARTICLES
+
+/*
+ @kernel Apply boundary constrain.
+ @param particles Initial particle buffer.
+ @param particles2 Secondary particle buffer.
+ @param nodeLocator Node locator for base particle being processed.
+ @param collisionData Particle SDF mass and radius data.
+*/
+void boundaryCollision(
+  Thread ParticleStruct*      particle,
+  Device ParticleStruct*      particles2,
+  const ParticleNodeLocator   nodeLocator,
+  const ParticleCollisionData collisionData)
+{
+  if (collisionData.invMass)  // only if movable
+  {
+    float dely = 0.f;
+
+    if (particle->position.y <= -0.f)
+    {
+      dely = 0.f - particle->position.y;
+
+      particle->position.y += dely;
+      if (particles2)
+      {
+        particles2[nodeLocator.absoluteNodeIndex].position.y += dely;
+      }
+    }
+  }
+}
+
+// function to process particle collision
+inline float3 processParticleCollision(
+  const ParticleStruct currentParticle,
+  const ParticleStruct otherParticle,
+  const ParticleCollisionData collisionData,
+  const uint currentNodeIndex,
+  const float sdfMagnitude,
+#ifdef MARK_COLLIDED_PARTICLES
+  Device ParticleCollisionData* particleCollisionData,
+  Thread bool* collided,
+#else
+  const Device ParticleCollisionData* particleCollisionData,
+#endif
+  Thread ushort* collisionCount)
+{
+  if (otherParticle.identity.identity != currentParticle.identity.identity)
+  {
+    const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
+
+    // skip if the base and the batch particle are of the same object
+    const float3 distanceVector = otherParticle.position - currentParticle.position;
+    //        const float3 distanceVector = currentParticle->position - otherParticle.position;
+    const float actualDistance = dot(distanceVector, distanceVector);
+
+#ifdef MARK_COLLIDED_PARTICLES
+    const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData.radius));
+#else
+    const float allowedDistance = sqr(collisionData2.radius + collisionData.radius);
+#endif
+
+    // if overlapping
+    if (actualDistance < allowedDistance)
+    {
+      const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
+      float3 normal = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
+      const float collDot = dot(normal, distanceVector);
+
+      //          if (collDot < 0.f)
+      //          {
+      //            normal = distanceVector - (2.f * collDot) * normal;
+      //          }
+
+#ifdef MARK_COLLIDED_PARTICLES
+      *collided = true;
+#endif
+      (*collisionCount)++;
+      return normal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
+    }
+  }
+
+  return constructFloat3(0.f);
 }
 
 #endif

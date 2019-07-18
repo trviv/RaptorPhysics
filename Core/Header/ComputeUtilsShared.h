@@ -136,17 +136,17 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
 {
   //ATOMIC_STORE_FUNCTION(location, value);
-  //COPY_FUNCTION(*location, value);
+  COPY_FUNCTION(*location, value);
 
-  INIT_POLL();
-  MemberStructType temp;
-  do
-  {
-    ATOMIC_STORE_FUNCTION(location, value);
-    temp = ATOMIC_LOAD_FUNCTION(location);
-    //COPY_FUNCTION(temp, *location);
-  }
-  while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0] && !POLL_TIMEOUT());
+//  INIT_POLL();
+//  MemberStructType temp;
+//  do
+//  {
+//    ATOMIC_STORE_FUNCTION(location, value);
+//    temp = ATOMIC_LOAD_FUNCTION(location);
+//    //COPY_FUNCTION(temp, *location);
+//  }
+//  while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0] && !POLL_TIMEOUT());
 }
 
 static MemberStructType localReduce(const Thread MemberStructType *elements)

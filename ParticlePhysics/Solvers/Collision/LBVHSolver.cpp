@@ -222,11 +222,18 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 
 void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
-  build(instanceNodeCount, globalOffsets);
+  const int iterations = 1;
 
+  ComputeMemory* second;
+  ComputeMemory empty(NULL);
+
+  for (int i=0; i<iterations; i++)
   {
-    const uint batchesPerDispatch = 8;
+    second = (i==(iterations-1)) ? &empty : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
+    build(instanceNodeCount, globalOffsets);
+
+    const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, (instanceNodeCount + batchesPerDispatch - 1) / batchesPerDispatch);
 
@@ -234,6 +241,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
     ComputeMemory* buffers[] = {
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+      second,
       particlesTemp.device(),
       treeInternalNodes.device(),
       treeInternalNodeBoundingBoxes.device(),
