@@ -3,7 +3,6 @@
 #define UNIFORM_GRID_COLLISION_SOLVER_CELL_COUNTS       0
 #define UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS       1
 #define UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS  2
-#define UNIFORM_GRID_COLLISION_SOLVER_KERNEL_BOUNDARY   3
 
 //#define DEBUG_COLLISION_UNIFORM_GRID
 
@@ -28,7 +27,6 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
   kernels.push_back(programs[0].createKernel("createGridCellArrays"));
   kernels.push_back(programs[0].createKernel("applyCollisions"));
-  kernels.push_back(programs[0].createKernel("boundaryCollisionKernel"));
 
   solverHeap = new ComputeHeap(compute);
 
@@ -184,24 +182,15 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 
 void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
-  size_t workgroupSize[3], workgroupCount[3];
-  compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+  const int iterations = 1;
 
-  build(instanceNodeCount, globalOffsets);
+  ComputeMemory* second;
+  ComputeMemory empty(NULL);
 
-  ComputeMemory* buffers[] = {
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets
-  };
-  uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-  kernels[UNIFORM_GRID_COLLISION_SOLVER_KERNEL_BOUNDARY].setArgs(buffers, bufferCount);
-  kernels[UNIFORM_GRID_COLLISION_SOLVER_KERNEL_BOUNDARY].setArg<uint>(&instanceNodeCount, bufferCount);
+  for (int i=0; i<iterations; i++)
+  {
+    second = (i==(iterations-1)) ? &empty : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
-  compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_KERNEL_BOUNDARY], workgroupSize, workgroupCount);
+    build(instanceNodeCount, globalOffsets);
+  }
 }

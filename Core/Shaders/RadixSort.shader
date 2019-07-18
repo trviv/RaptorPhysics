@@ -62,7 +62,7 @@ uint setLocalCount(const uchar localKey, const uchar keyPrefix)
 #if RadixScanIterations == 1
   return 1 << (localKey << 3);
 #else
-  return ((localKey & 0xFC) == keyPrefix) ? (1 << ((localKey & 3) << 3)) : 0;
+  return select(0, (1 << ((localKey & 3) << 3)), (localKey & 0xFC) == keyPrefix);
 #endif
 }
 
@@ -85,8 +85,8 @@ Kernel void radixSort32BitReduceKernel(
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
 
-  const uint maxBlocks = (uint)ceil(((float)length) / LaneWidth);
-  const uint blocksPerGroup = (uint)ceil(((float)maxBlocks) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount()));
+  const uint maxBlocks = (length + LaneWidth - 1) / LaneWidth;
+  const uint blocksPerGroup = (maxBlocks + FetchAlignmentExp * RadixBlockInstances * threadGroupCount() - 1) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount());
 
   uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << LaneWidthExp;
   const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << LaneWidthExp);
@@ -176,16 +176,12 @@ inline void fetchNodes(SortNode32 localSortNodes[], const Device SortNode32* sou
   if (index + ((1 << RadixPrefixScanPackingExp) - 1) < length)
   {
 #if RadixPrefixScanPackingExp == 1
-    const uint4 nodes = *((Device uint4*)(source + index));
+    *((Thread uint4*)localSortNodes) = *((Device uint4*)(source + index));
 #elif RadixPrefixScanPackingExp == 2
-    const uint8 nodes = *((Device uint8*)(source + index));
+    *((Thread uint8*)localSortNodes) = *((Device uint8*)(source + index));
 #elif RadixPrefixScanPackingExp == 3
-    const uint16 nodes = *((Device uint16*)(source + index));
+    *((Thread uint16*)localSortNodes) = *((Device uint16*)(source + index));
 #endif
-    for (uchar w = 0; w < (1 << RadixPrefixScanPackingExp); w++)
-    {
-      localSortNodes[w] = ((const Thread SortNode32*)&nodes)[w];
-    }
   }
   else
   {
@@ -208,8 +204,8 @@ Kernel void radixSort32BitSortKernel(
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
 
-  const uint maxBlocks = (uint)ceil(((float)length) / LaneWidth);
-  const uint blocksPerGroup = (uint)ceil(((float)maxBlocks) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount()));
+  const uint maxBlocks = (length + LaneWidth - 1) / LaneWidth;
+  const uint blocksPerGroup = (maxBlocks + FetchAlignmentExp * RadixBlockInstances * threadGroupCount() - 1) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount());
 
   uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << LaneWidthExp;
   const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << LaneWidthExp);

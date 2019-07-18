@@ -1,8 +1,6 @@
 #ifndef COLLISION_SOLVER_SHADER
 #define COLLISION_SOLVER_SHADER
 
-//#define MARK_COLLIDED_PARTICLES
-
 uint3 quantizePosition(const float3 position, const uint gridSize)
 {
   const float3 particlePredictedScaled = fabs(position.xyz);
@@ -111,6 +109,7 @@ Kernel void applyCollisions(
 
   const int batchBegin = end - count + threadLocalIndex();
   const int batchEnd = end;
+  short collisionCount = 0;
 
   // batchwise iterate over indices in the cell
   for (int baseIndex = batchBegin; baseIndex < batchEnd; baseIndex += threadGroupSize())
@@ -161,33 +160,14 @@ Kernel void applyCollisions(
       const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
       const ParticleCollisionData collisionData2 = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, particleIndex);
 
-      // skip if the base and the batch particle are of the same object
-      if (predicted2.identity.identity != identity.identity)
-      {
-        //const float2 radiusMass = sharedParticlesCollisionRadiusMass[j];
-        const float3 distanceVector = predicted2.position - currentParticle.position;
-        const float actualDistance = dot(distanceVector, distanceVector);
-
+      currentParticle.position -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[particleIndex], collisionData, particleIndex, sdfMagnitude,
 #ifdef MARK_COLLIDED_PARTICLES
-        const float allowedDistance = sqr(fabs(collisionData.radius) + fabs(collisionData2.radius));
+        particleCollisionData, &collided, &collisionCount);
 #else
-        const float allowedDistance = sqr(collisionData.radius + collisionData2.radius);
+        particleCollisionData, &collisionCount);
 #endif
-        // if overlapping
-        if (actualDistance < allowedDistance)
-        {
-          //const float3 transformedSdfGradient = collisionData2.transformedSdfGradient;
-          const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
-
-//              float3 normal = (sdfMagnitude < sdfMagnitude2) ? collisionData.transformedSdfGradient : -transformedSdfGradient;
-          float3 normal = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
-          float3 delta = normal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
-          currentParticle.position -= delta;
-#ifdef MARK_COLLIDED_PARTICLES
-          collided = true;
-#endif
-        }
-      }
+      // apply boundary
+      boundaryCollision(&currentParticle, 0, ParticleNodeLocator(), collisionData);
     }
 
     if (baseIndex < end)
@@ -197,63 +177,6 @@ Kernel void applyCollisions(
 #ifdef MARK_COLLIDED_PARTICLES
       particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif
-    }
-  }
-}
-
-/*
-@kernel Apply boundary constrain.
-@param particles Initial particle position.
-@param particlesPredicted Integrated particle position.
-@param particleSharedData Particle entity shared data.
-@param particleAuxData Additional particle data.
-@param partitions Instance partition data.
-@param entityLocation Buffer containing entity boundary info.
-@param globalOffsets Offsets to particle nodes all the solvers.
-@param nodeCount Total nodes in the solver.
-*/
-Kernel void boundaryCollisionKernel(
-  Device ParticleStruct*              particles,
-  Device ParticleStruct*              particlesPredicted,
-  const Device ParticleCollisionData* particleCollisionData,
-  const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
-  const uint                          nodeCount)
-{
-  const uint index = threadIndex();
-
-  if (index < nodeCount)
-  {
-    ParticleStruct particle = particles[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
-
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
-
-    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-
-    //const ParticleAuxData auxData = particleAuxData[nodeLocator.commonNodeIndex];
-    //const float invMass = getInvMassUsingThreadAux(&sharedData, &auxData);
-    const ParticleCollisionData collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, index);
-    const float invMass = collisionData.invMass;
-
-    if (invMass) // only if movable
-    {
-      float dely = 0.f;
-
-      if (particlesPredicted[nodeLocator.absoluteNodeIndex].position.y <= -0.f)
-      {
-        dely = 0.f - particlesPredicted[nodeLocator.absoluteNodeIndex].position.y;
-
-        //particles[nodeLocator.absoluteNodeIndex].position.y += dely;
-        particlesPredicted[nodeLocator.absoluteNodeIndex].position.y += dely;
-      }
     }
   }
 }

@@ -18,6 +18,8 @@ struct ConstrainStruct_t
 
 typedef struct ConstrainStruct_t ConstrainStruct;
 
+#ifdef COMPUTE_SHADER_SCOPE
+
 /*@function Extract constrain offset data.*/
 static uint constrainOffset(const ConstrainStruct ref)
 {
@@ -29,5 +31,7 @@ static uint constrainCount(const ConstrainStruct ref)
 {
   return ref.value >> CONSTRAIN_OFFSET_BITS;
 }
+
+#endif
 
 #endif
