@@ -555,10 +555,10 @@ void PhysicsSystem::step(float timeStep)
     dummy.position.z = 0.f;
     dummy.identity.identity = 0;
 
-    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-      0, instanceNodeCount * sizeof(ParticleStruct), &dummy, sizeof(ParticleStruct));
-    compute->setBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-      0, instanceNodeCount * sizeof(ParticleDifferential), &dummy, sizeof(ParticleStruct));
+    ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
+      instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
+    ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+      instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
 
     updates.clear();
 
