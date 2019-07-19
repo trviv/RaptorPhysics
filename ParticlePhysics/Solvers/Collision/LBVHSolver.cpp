@@ -48,6 +48,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   particleLeafDataSorted.create(compute, NULL, true);
   visitedInternalNodes.create(compute, NULL, true);
   leafParentNodeIndices.create(compute, NULL, true);
+  nodeParentNodeIndices.create(compute, NULL, true);
   systemBoundingBox.create(compute, NULL, true);
   particleBoundingBoxes.create(compute, NULL, true);
   particleGroupBoundingBoxes.create(compute, NULL, true);
@@ -58,6 +59,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   particleLeafDataSorted.create(compute, NULL);
   visitedInternalNodes.create(compute, NULL);
   leafParentNodeIndices.create(compute, NULL);
+  nodeParentNodeIndices.create(compute, NULL);
   systemBoundingBox.create(compute, NULL);
   particleBoundingBoxes.create(compute, NULL);
   particleGroupBoundingBoxes.create(compute, NULL);
@@ -103,6 +105,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
     particleGroupBoundingBoxes.resize(nodeBatchCount, false);
     visitedInternalNodes.resize(instanceNodeCount, false);
     leafParentNodeIndices.resize(instanceNodeCount, false);
+    nodeParentNodeIndices.resize(instanceNodeCount, false);
     treeInternalNodes.resize(instanceNodeCount - 1, false);
     treeInternalNodeBoundingBoxes.resize(instanceNodeCount - 1, false);
   }
@@ -181,6 +184,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
       treeInternalNodes.device(),
       visitedInternalNodes.device(),
       leafParentNodeIndices.device(),
+      nodeParentNodeIndices.device(),
       particleLeafDataSorted.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -204,6 +208,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
       visitedInternalNodes.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),
+      nodeParentNodeIndices.device(),
       particleBoundingBoxes.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);

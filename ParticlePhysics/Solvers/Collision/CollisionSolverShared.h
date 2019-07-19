@@ -24,10 +24,9 @@ typedef struct BVHLeafInfo_t BVHLeafInfo;
 /*
 @struct Bounding volume hierarchy internal node data.
 */
-struct ALIGN(4) BVHNodeInfo_t
+struct ALIGN(8) BVHNodeInfo_t
 {
   uint child[2];
-  uint parent;
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;

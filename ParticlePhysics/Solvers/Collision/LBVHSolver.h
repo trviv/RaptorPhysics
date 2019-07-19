@@ -16,6 +16,7 @@ class LBVHSolver : public CollisionSolver
   DeviceArray <BVHLeafInfo>     particleLeafDataSorted;
   DeviceArray <uint>            visitedInternalNodes;
   DeviceArray <uint>            leafParentNodeIndices;
+  DeviceArray <uint>            nodeParentNodeIndices;
   DeviceArray <XAB>             systemBoundingBox;
   DeviceArray <XAB>             particleBoundingBoxes;
   DeviceArray <XAB>             particleGroupBoundingBoxes;

@@ -155,6 +155,7 @@ Kernel void constructBinaryTree(
   Device BVHNodeInfo*       treeInternalNodes,
   Device uint*              visitedInternalNodes,
   Device uint*              leafParentNodeIndices,
+  Device uint*              nodeParentNodeIndices,
   const Device BVHLeafInfo* bvhLeafs,
   const int                 nodeCount)
 {
@@ -234,16 +235,16 @@ Kernel void constructBinaryTree(
     // mark internal node at zero'th index as the root
     if (internalNodeIndex == 0)
     {
-      treeInternalNodes[internalNodeIndex].parent = LBVH_ROOT_NODE_MARKER;
+      nodeParentNodeIndices[internalNodeIndex] = LBVH_ROOT_NODE_MARKER;
     }
 
     if (!leftIsLeaf)
     {
-      treeInternalNodes[splitPosition].parent = internalNodeIndex;
+      nodeParentNodeIndices[splitPosition] = internalNodeIndex;
     }
     if (!rightIsLeaf)
     {
-      treeInternalNodes[splitPosition + 1].parent = internalNodeIndex;
+      nodeParentNodeIndices[splitPosition + 1] = internalNodeIndex;
     }
 
     if (leftIsLeaf)
@@ -279,6 +280,7 @@ Kernel void constructTreeBoundingBox(
   Device uint*              visitedInternalNodes,
   const Device BVHNodeInfo* treeInternalNodes,
   const Device uint*        leafParentNodeIndices,
+  const Device uint*        nodeParentNodeIndices,
   const Device XAB*         particleBoundingBoxes,
   const int                 nodeCount)
 {
@@ -330,7 +332,7 @@ Kernel void constructTreeBoundingBox(
       treeInternalNodeBoundingBoxes[currentNodeIndex] = mergedBoundingBox;
 
       // process the parent node next
-      currentNodeIndex = internalNode.parent;
+      currentNodeIndex = nodeParentNodeIndices[currentNodeIndex];
 
       // exit if root
       if (currentNodeIndex == LBVH_ROOT_NODE_MARKER)
