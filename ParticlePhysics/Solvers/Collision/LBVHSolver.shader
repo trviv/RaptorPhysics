@@ -357,7 +357,7 @@ int intersectXAB(const Thread XAB* a, const Thread XAB* b)
 
 //#define DEBUG_TRAVERSAL
 
-inline ParticleStruct traverseBinaryTree(
+inline float3 traverseBinaryTree(
   const ParticleStruct                currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device BVHNodeInfo*           treeInternalNodes,
@@ -380,8 +380,7 @@ inline ParticleStruct traverseBinaryTree(
   bool collided = false;
 #endif
 
-  ParticleStruct output;
-  output.position = constructFloat3(0.f);
+  float3 output = constructFloat3(0.f);
   short collisionCount = 0;
 
   XAB particleBoundingBox;
@@ -446,7 +445,7 @@ inline ParticleStruct traverseBinaryTree(
     // test colision if not an invalid node
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
-      output.position -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[currentNodeIndex], collisionData, currentNodeIndex, sdfMagnitude,
+      output -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[currentNodeIndex], collisionData, currentNodeIndex, sdfMagnitude,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided, &collisionCount);
 #else
@@ -570,7 +569,7 @@ Kernel void applyCollisions(
       const ParticleCollisionData collisionData = particleCollisionData[index];
 
       // find position change due to collision
-      ParticleStruct delta = traverseBinaryTree(
+      float3 delta = traverseBinaryTree(
         currentParticle,
         particlesOld,
         treeInternalNodes,
@@ -581,7 +580,7 @@ Kernel void applyCollisions(
         index);
 
       // update position
-      currentParticle.position += delta.position;
+      currentParticle.position += delta;
 
       // apply boundary
       boundaryCollision(&currentParticle, particles2, nodeLocator, collisionData);
@@ -592,7 +591,7 @@ Kernel void applyCollisions(
 
       if (particles2)
       {
-        particles2[index].position += delta.position;
+        particles2[index].position += delta;
         particles2[index].identity = identity;
       }
     }

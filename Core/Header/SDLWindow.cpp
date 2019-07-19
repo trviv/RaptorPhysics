@@ -39,7 +39,7 @@ int SDLCALL watch(void *userdata, SDL_Event* event) {
 void setProjectionMatrix(float result[], float aspect)
 {
   float fov = 60.f;
-  float farDist = 100.f;
+  float farDist = 10000.f;
   float nearDist = .01f;
   float scale = tan(0.5f * fov * M_PI / 180.f) * nearDist;
 
