@@ -347,22 +347,17 @@ Kernel void constructTreeBoundingBox(
   }
 }
 
-
-inline int intersectXAB(const Thread XAB* a, const Thread XAB* b)
+inline int intersectXAB(const XAB a, const XAB b)
 {
-  const int3 ret = (a->min < b->max) && (a->max > b->min);
+  const int3 ret = (a.min < b.max) && (a.max > b.min);
   return (ret.x && ret.y && ret.z);
-  //return (a->min.x < b->max.x && a->max.x > b->min.x)
-  //  && (a->min.y < b->max.y && a->max.y > b->min.y)
-  //  && (a->min.z < b->max.z && a->max.z > b->min.z);
 }
-
 
 #define BVH_TRAVERSAL_FROM_PARENT   1
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
 
-#define INIT_POLL()     int poll_count = 0;
+#define INIT_POLL()     ushort poll_count = 0;
 #define POLL_TIMEOUT()  (poll_count++ >= 20000)
 
 inline float3 traverseBinaryTree(
@@ -407,25 +402,26 @@ inline float3 traverseBinaryTree(
     // traverse while a leaf node is found
     while (!POLL_TIMEOUT())
     {
-//      if (currentNodeIndex == LBVH_ROOT_NODE_MARKER)
-//      {
-//        break;
-//      }
-
       bool switchBit;
       uint parentIndex;
       BVHNodeInfo parentNode;
 
       if (currentNodeIndex != setInternalNodeMarker(0, 0))
       {
+        // fetch parent index
         parentIndex = select(nodeParentNodeIndices[removeInternalNodeMarker(currentNodeIndex)], leafParentNodeIndices[currentNodeIndex], isLeafNode(currentNodeIndex));
 
+        // mark as internal node
         if (isLeafNode(parentIndex))
         {
           parentIndex = setInternalNodeMarker(0, parentIndex);
         }
 
-        parentNode = treeInternalNodes[removeInternalNodeMarker(parentIndex)];
+        // parentNode is only needed if from parent or child
+        if (state != BVH_TRAVERSAL_FROM_SIBLING)
+        {
+          parentNode = treeInternalNodes[removeInternalNodeMarker(parentIndex)];
+        }
       }
       else
       {
@@ -462,8 +458,7 @@ inline float3 traverseBinaryTree(
         state = select(BVH_TRAVERSAL_FROM_CHILD, BVH_TRAVERSAL_FROM_SIBLING, switchBit);
 #endif
       }
-      // from parent or silbing
-      else
+      else // from parent or silbing
       {
         const XAB boundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(currentNodeIndex), (int)currentNodeIndex, isLeafNode(currentNodeIndex))];
 
@@ -473,7 +468,7 @@ inline float3 traverseBinaryTree(
         // switch to next state
         state = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, switchBit);
 
-        if (intersectXAB(&particleBoundingBox, &boundingBox) == 0)
+        if (intersectXAB(particleBoundingBox, boundingBox) == 0)
         {
 #ifdef DEBUG_TRAVERSAL
           if (state == BVH_TRAVERSAL_FROM_SIBLING)
@@ -524,7 +519,7 @@ inline float3 traverseBinaryTree(
       }
     }
 
-    if (currentNodeIndex == LBVH_ROOT_NODE_MARKER || POLL_TIMEOUT())
+    if (currentNodeIndex == LBVH_ROOT_NODE_MARKER)
     {
       break;
     }
@@ -605,7 +600,7 @@ Kernel void applyCollisions(
 #define batchMultiple 1
 
   volatile Shared int batchOffset[32];
-  volatile Shared int batchCount[32];
+  volatile Shared short batchCount[32];
 
   if (threadIndex() == 0)
   {
@@ -614,8 +609,8 @@ Kernel void applyCollisions(
 
   localMemBarrier();
 
-  const ushort subGroupLocalIndex = threadLocalIndex() & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const ushort subGroupIndex = threadLocalIndex() >> COMPUTE_SUB_GROUP_EXP;
+  const uchar subGroupLocalIndex = threadLocalIndex() & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const uchar subGroupIndex = threadLocalIndex() >> COMPUTE_SUB_GROUP_EXP;
 
   if (subGroupLocalIndex == 0)
   {
