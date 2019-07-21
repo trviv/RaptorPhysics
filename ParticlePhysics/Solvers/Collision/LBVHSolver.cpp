@@ -197,6 +197,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 #ifdef DEBUG_LBVH_SOLVER
   treeInternalNodes.syncHost();
   leafParentNodeIndices.syncHost();
+  nodeParentNodeIndices.syncHost();
   visitedInternalNodes.syncHost();
   compute->sync();
 #endif
@@ -249,6 +250,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       second,
       particlesTemp.device(),
       treeInternalNodes.device(),
+      leafParentNodeIndices.device(),
+      nodeParentNodeIndices.device(),
       treeInternalNodeBoundingBoxes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
