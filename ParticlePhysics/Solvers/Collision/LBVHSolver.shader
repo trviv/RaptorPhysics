@@ -2,6 +2,8 @@
 #define LBVH_SOLVER_SHADER
 
 //#define USE_ALTERNATIVE_KERNEL_ARGS
+//#define DEBUG_TREE_CREATION
+//#define DEBUG_TRAVERSAL
 
 /*
 @kernel Compute and store bounding boxes for each particle.
@@ -103,21 +105,21 @@ Kernel void assignMortonCode(
   }
 }
 
-//#define DEBUG_TREE_CREATION
+#define LBVH_ROOT_NODE_MARKER       ((int)-1)
 
 //The most significant bit(0x80000000) of a int32 is used to distinguish between leaf and internal nodes.
 //If it is set, then the index is for an internal node; otherwise, it is a leaf node. 
 //In both cases, the bit should be cleared to access the actual node index.
-int isLeafNode(int index)
+inline int isLeafNode(int index)
 {
 #ifdef DEBUG_TREE_CREATION
-  return (index - 1000000000) < 0;
+  return index != LBVH_ROOT_NODE_MARKER && (index - 1000000000) < 0;
 #else
   return (index & 0x80000000) == 0;
 #endif
 }
 
-int setInternalNodeMarker(int isLeaf, int index)
+inline int setInternalNodeMarker(int isLeaf, int index)
 {
 #ifdef DEBUG_TREE_CREATION
   return select(index + 1000000000, index, isLeaf);
@@ -126,7 +128,7 @@ int setInternalNodeMarker(int isLeaf, int index)
 #endif
 }
 
-int removeInternalNodeMarker(int index)
+inline int removeInternalNodeMarker(int index)
 {
 #ifdef DEBUG_TREE_CREATION
   return index - 1000000000;
@@ -135,13 +137,11 @@ int removeInternalNodeMarker(int index)
 #endif
 }
 
-int getCommonPrefixLength(const int2 left, const int2 right)
+inline int getCommonPrefixLength(const int2 left, const int2 right)
 {
   int ret = clz(left.x ^ right.x);
   return select(ret, clz(left.y ^ right.y) + 32, ret == 32);
 }
-
-#define LBVH_ROOT_NODE_MARKER       ((int)-1)
 
 /*
 @kernel Create tree from the leaf data.
@@ -348,7 +348,7 @@ Kernel void constructTreeBoundingBox(
 }
 
 
-int intersectXAB(const Thread XAB* a, const Thread XAB* b)
+inline int intersectXAB(const Thread XAB* a, const Thread XAB* b)
 {
   const int3 ret = (a->min < b->max) && (a->max > b->min);
   return (ret.x && ret.y && ret.z);
@@ -357,12 +357,20 @@ int intersectXAB(const Thread XAB* a, const Thread XAB* b)
   //  && (a->min.z < b->max.z && a->max.z > b->min.z);
 }
 
-//#define DEBUG_TRAVERSAL
+
+#define BVH_TRAVERSAL_FROM_PARENT   1
+#define BVH_TRAVERSAL_FROM_CHILD    2
+#define BVH_TRAVERSAL_FROM_SIBLING  3
+
+#define INIT_POLL()     int poll_count = 0;
+#define POLL_TIMEOUT()  (poll_count++ >= 20000)
 
 inline float3 traverseBinaryTree(
   const ParticleStruct                currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device BVHNodeInfo*           treeInternalNodes,
+  const Device uint*                  leafParentNodeIndices,
+  const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const ParticleCollisionData         collisionData,
 #ifdef MARK_COLLIDED_PARTICLES
@@ -373,11 +381,6 @@ inline float3 traverseBinaryTree(
   const ParticleSharedData            sharedData,
   const int                           index)
 {
-  Thread uint* stackTop;
-  uint traversalStack[64];
-
-  stackTop = &traversalStack[0];
-
 #ifdef MARK_COLLIDED_PARTICLES
   bool collided = false;
 #endif
@@ -393,51 +396,137 @@ inline float3 traverseBinaryTree(
 
   // mark index of the root node internal
   uint currentNodeIndex = setInternalNodeMarker(0, 0);
+  uchar state = BVH_TRAVERSAL_FROM_PARENT;
 
-  while (true)
+  INIT_POLL();
+
+  while (true && !POLL_TIMEOUT())
   {
-#ifdef DEBUG_TRAVERSAL
-    printf("Node: %d %d %d\n", index, currentNodeIndex, isLeafNode(currentNodeIndex));
-#endif
+    uint nextCurrentNodeIndex;
 
     // traverse while a leaf node is found
-    while (!isLeafNode(currentNodeIndex))
+    while (!POLL_TIMEOUT())
     {
-      const BVHNodeInfo node = treeInternalNodes[removeInternalNodeMarker(currentNodeIndex)];
+//      if (currentNodeIndex == LBVH_ROOT_NODE_MARKER)
+//      {
+//        break;
+//      }
 
-      const XAB leftBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[0]), (int)node.child[0], isLeafNode(node.child[0]))];
-      const XAB rightBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[1]), (int)node.child[1], isLeafNode(node.child[1]))];
+      bool switchBit;
+      uint parentIndex;
+      BVHNodeInfo parentNode;
 
-      int isIntersectingLeft  = intersectXAB(&particleBoundingBox, &leftBoundingBox);
-      int isIntersectingRight = intersectXAB(&particleBoundingBox, &rightBoundingBox);
-
-      if (isIntersectingLeft)
+      if (currentNodeIndex != setInternalNodeMarker(0, 0))
       {
-        *(stackTop++) = node.child[0];
-#ifdef DEBUG_TRAVERSAL
-        printf("Stack Push: %d %d\n", index, node.child[0]);
-#endif
+        parentIndex = select(nodeParentNodeIndices[removeInternalNodeMarker(currentNodeIndex)], leafParentNodeIndices[currentNodeIndex], isLeafNode(currentNodeIndex));
+
+        if (isLeafNode(parentIndex))
+        {
+          parentIndex = setInternalNodeMarker(0, parentIndex);
+        }
+
+        parentNode = treeInternalNodes[removeInternalNodeMarker(parentIndex)];
       }
-      if (isIntersectingRight)
+      else
       {
-        *(stackTop++) = node.child[1];
-#ifdef DEBUG_TRAVERSAL
-        printf("Stack Push: %d %d\n", index, node.child[1]);
-#endif
-      }
-
-      // break if the stack is empty
-      if (stackTop == traversalStack)
-      {
-        // mark node invalid
-        currentNodeIndex = LBVH_ROOT_NODE_MARKER;
-        break;
+        parentIndex = LBVH_ROOT_NODE_MARKER;
       }
 
-      currentNodeIndex = *(--stackTop);
 #ifdef DEBUG_TRAVERSAL
-      printf("Stack Pop: %d %d\n", index, currentNodeIndex);
+      printf("Node: %d %d\n", currentNodeIndex, parentIndex);
 #endif
+
+      if (state == BVH_TRAVERSAL_FROM_CHILD)
+      {
+        if (currentNodeIndex == LBVH_ROOT_NODE_MARKER)
+        {
+          break;
+        }
+
+#ifdef DEBUG_TRAVERSAL
+        if (currentNodeIndex == parentNode.child[0])
+        {
+          currentNodeIndex = parentNode.child[1];
+          state = BVH_TRAVERSAL_FROM_SIBLING;
+          printf("C->S: %d %d\n", currentNodeIndex, parentNode.child[1]);
+        }
+        else
+        {
+          printf("C->P: %d %d\n", currentNodeIndex, parentIndex);
+          currentNodeIndex = parentIndex;
+          state = BVH_TRAVERSAL_FROM_CHILD;
+        }
+#else
+        switchBit = (currentNodeIndex == parentNode.child[0]);
+        currentNodeIndex = select(parentIndex, parentNode.child[1], switchBit);
+        state = select(BVH_TRAVERSAL_FROM_CHILD, BVH_TRAVERSAL_FROM_SIBLING, switchBit);
+#endif
+      }
+      // from parent or silbing
+      else
+      {
+        const XAB boundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(currentNodeIndex), (int)currentNodeIndex, isLeafNode(currentNodeIndex))];
+
+        // store the incoming state
+        switchBit = (state == BVH_TRAVERSAL_FROM_SIBLING);
+
+        // switch to next state
+        state = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, switchBit);
+
+        if (intersectXAB(&particleBoundingBox, &boundingBox) == 0)
+        {
+#ifdef DEBUG_TRAVERSAL
+          if (state == BVH_TRAVERSAL_FROM_SIBLING)
+          {
+            printf("S->C: %d %d\n", currentNodeIndex, parentIndex);
+            currentNodeIndex = parentIndex;
+            state = BVH_TRAVERSAL_FROM_CHILD;
+          }
+          else
+          {
+            printf("P->S: %d %d\n", currentNodeIndex, parentNode.child[1]);
+            currentNodeIndex = parentNode.child[1];
+            state = BVH_TRAVERSAL_FROM_SIBLING;
+          }
+#else
+          currentNodeIndex = select(parentNode.child[1], parentIndex, switchBit);
+#endif
+        }
+        else if (isLeafNode(currentNodeIndex))
+        {
+#ifdef DEBUG_TRAVERSAL
+          if (state == BVH_TRAVERSAL_FROM_SIBLING)
+          {
+            nextCurrentNodeIndex = parentIndex;
+            state = BVH_TRAVERSAL_FROM_CHILD;
+            printf("S->C: %d %d\n", currentNodeIndex, nextCurrentNodeIndex);
+          }
+          else
+          {
+            nextCurrentNodeIndex = parentNode.child[1];
+            state = BVH_TRAVERSAL_FROM_SIBLING;
+            printf("P->S: %d %d\n", currentNodeIndex, nextCurrentNodeIndex);
+          }
+#else
+          nextCurrentNodeIndex = select(parentNode.child[1], parentIndex, switchBit);
+#endif
+          break;
+        }
+        else
+        {
+          BVHNodeInfo node = treeInternalNodes[removeInternalNodeMarker(currentNodeIndex)];
+#ifdef DEBUG_TRAVERSAL
+          printf(" ->C: %d %d\n", currentNodeIndex, node.child[0]);
+#endif
+          currentNodeIndex = node.child[0];
+          state = BVH_TRAVERSAL_FROM_PARENT;
+        }
+      }
+    }
+
+    if (currentNodeIndex == LBVH_ROOT_NODE_MARKER || POLL_TIMEOUT())
+    {
+      break;
     }
 
 #ifdef DEBUG_TRAVERSAL
@@ -445,7 +534,6 @@ inline float3 traverseBinaryTree(
 #endif
     // while ()
     // test colision if not an invalid node
-    if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
       output -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[currentNodeIndex], collisionData, currentNodeIndex, sdfMagnitude,
 #ifdef MARK_COLLIDED_PARTICLES
@@ -455,23 +543,21 @@ inline float3 traverseBinaryTree(
 #endif
     }
 
-    // exit if nothing to fetch
-    if (stackTop == traversalStack)
+    if (nextCurrentNodeIndex == LBVH_ROOT_NODE_MARKER)
     {
       break;
     }
 
-    // pop from the stack
-    currentNodeIndex = *(--stackTop);
+    currentNodeIndex = nextCurrentNodeIndex;
   }
 
 #ifdef MARK_COLLIDED_PARTICLES
   particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif
 //
-//  if (count)
+//  if (collisionCount)
 //  {
-//    output.position /= count;
+//    output /= collisionCount;
 //  }
 
   return output;
@@ -501,6 +587,8 @@ Kernel void applyCollisions(
   Device ParticleStruct*              particles2,
   const Device ParticleStruct*        particlesOld,
   const Device BVHNodeInfo*           treeInternalNodes,
+  const Device uint*                  leafParentNodeIndices,
+  const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
@@ -575,6 +663,8 @@ Kernel void applyCollisions(
         currentParticle,
         particlesOld,
         treeInternalNodes,
+        leafParentNodeIndices,
+        nodeParentNodeIndices,
         treeInternalNodeBoundingBoxes,
         collisionData,
         particleCollisionData,
