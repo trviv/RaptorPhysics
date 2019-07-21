@@ -413,7 +413,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (collisionSolver->getBoundingBoxes())
+  if (false && collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
