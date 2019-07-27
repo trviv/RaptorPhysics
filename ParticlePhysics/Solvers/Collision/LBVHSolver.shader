@@ -672,7 +672,6 @@ Kernel void applyCollisions(
         particleCollisionData,
         sharedData,
         index);
-      }
 
       // apply boundary
       delta += boundaryCollision(&currentParticle, collisionData);
