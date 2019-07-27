@@ -248,6 +248,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
       particlesTemp.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),

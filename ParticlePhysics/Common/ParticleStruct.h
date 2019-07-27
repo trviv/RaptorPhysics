@@ -167,8 +167,12 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float velocityDamping;
   /*@member Velocity damping.*/
   float collisionDamping;
+  /*@member Kinetic friction coefficient.*/
+  float kineticFrictionCoef;
+  /*@member Static friction coefficient.*/
+  float staticFrictionCoef;
 
-  uint  padding[1];
+  uint  padding[3];
 
   /*@member Shared collision data.*/
   ParticleCollisionData sharedCollisionData;

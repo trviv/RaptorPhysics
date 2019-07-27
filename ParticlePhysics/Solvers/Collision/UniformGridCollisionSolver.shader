@@ -89,6 +89,7 @@ Kernel void applyCollisions(
   const Device uint*                  gridCellParticleIndices,
   Device ParticleStruct*              particlesPredictedNew,
   Device ParticleStruct*              particles2,
+  const Device ParticleStruct*        particlesInit,
   const Device ParticleStruct*        particlesPredictedOld,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
@@ -120,6 +121,8 @@ Kernel void applyCollisions(
     float3 delta = constructFloat3(0.f);
     IdentityInfo identity;
     ParticleStruct currentParticle;
+    ParticleStruct particleInit;
+    ParticleSharedData sharedData;
     ParticleNodeLocator nodeLocator;
     ParticleCollisionData collisionData;
     float sdfMagnitude;
@@ -132,6 +135,7 @@ Kernel void applyCollisions(
     { // read this batch
       particleIndex = gridCellParticleIndices[baseIndex];
       currentParticle = particlesPredictedOld[particleIndex];
+      particleInit = particlesInit[particleIndex];
       identity = currentParticle.identity;
 
       ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
@@ -140,79 +144,69 @@ Kernel void applyCollisions(
       nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
       nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
-      const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+      sharedData = particleSharedData[nodeIdentity.entityId];
       nodeLocator = getNodeLocator(particleIndex, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
       collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, particleIndex);
 
       sdfMagnitude = length(collisionData.transformedSdfGradient);
-    }
 
-    for (short k=0; k<3; k++)
-    {
-      const int z = (((gridCellIndex / (gridSize * gridSize)) & (gridSize - 1)) + k + gridSize - 1) & (gridSize - 1);
-      for (short j=0; j<3; j++)
+      for (short k=0; k<3; k++)
       {
-        const int y = (((gridCellIndex / gridSize) & (gridSize - 1)) + j + gridSize - 1) & (gridSize - 1);
-        for (short i=0; i<3; i++)
+        const int z = (((gridCellIndex / (gridSize * gridSize)) & (gridSize - 1)) + k + gridSize - 1) & (gridSize - 1);
+        for (short j=0; j<3; j++)
         {
-          const int x = ((gridCellIndex & (gridSize - 1)) + i + gridSize - 1) & (gridSize - 1);
-          const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
-          int count2 = gridCellIndexCount[gridCellIndex2];
-
-          if (count2 == 0)
+          const int y = (((gridCellIndex / gridSize) & (gridSize - 1)) + j + gridSize - 1) & (gridSize - 1);
+          for (short i=0; i<3; i++)
           {
-            continue;
-          }
+            const int x = ((gridCellIndex & (gridSize - 1)) + i + gridSize - 1) & (gridSize - 1);
+            const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
+            int count2 = gridCellIndexCount[gridCellIndex2];
 
-          const int end2 = gridCellParticleOffsets[gridCellIndex2];
+            if (count2 == 0)
+            {
+              continue;
+            }
 
-          // batchwise iterate over indices in the cell
-          for (int otherIndex = end2 - count2; otherIndex < end2; otherIndex++)
-          {
-            // iterate over each particle in the loaded batch
-            const int particleIndex = gridCellParticleIndices[otherIndex];
-            const ParticleStruct predicted2 = particlesPredictedOld[particleIndex];
+            const int end2 = gridCellParticleOffsets[gridCellIndex2];
 
-            ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(predicted2.identity);
-            const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+            // batchwise iterate over indices in the cell
+            for (int otherIndex = end2 - count2; otherIndex < end2; otherIndex++)
+            {
+              // iterate over each particle in the loaded batch
+              const int currentNodeIndex = gridCellParticleIndices[otherIndex];
 
-            nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-            nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-            const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-            const ParticleCollisionData collisionData2 = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, particleIndex);
-
-            delta -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[particleIndex], collisionData, particleIndex, sdfMagnitude,
-      #ifdef MARK_COLLIDED_PARTICLES
-              particleCollisionData, &collided, &collisionCount);
-      #else
-              particleCollisionData, &collisionCount);
-      #endif
+              delta += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
+                collisionData, sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount,
+#ifdef MARK_COLLIDED_PARTICLES
+                particleCollisionData, &collided);
+#else
+                particleCollisionData);
+#endif
+            }
           }
         }
       }
-    }
 
-    if (baseIndex < end)
-    {
+      // apply boundary
+      delta += boundaryCollision(&currentParticle, collisionData);
+
+//      if (collisionCount)
+//      {
+//        delta /= collisionCount;
+//      }
+
+      currentParticle.position += delta;
+      currentParticle.identity = identity;
+
+      particlesPredictedNew[particleIndex] = currentParticle;
+
       if (particles2)
       {
         particles2[particleIndex].position += delta;
         particles2[particleIndex].identity = identity;
       }
 
-//      if (collisionCount)
-//      {
-//        delta /= collisionCount;
-//      }
-      currentParticle.position += delta;
-
-      // apply boundary
-      boundaryCollision(&currentParticle, particles2, nodeLocator, collisionData);
-
-      currentParticle.identity = identity;
-      particlesPredictedNew[particleIndex] = currentParticle;
 #ifdef MARK_COLLIDED_PARTICLES
       particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif

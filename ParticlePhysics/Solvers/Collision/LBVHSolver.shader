@@ -357,12 +357,10 @@ inline int intersectXAB(const XAB a, const XAB b)
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
 
-#define INIT_POLL()     ushort poll_count = 0;
-#define POLL_TIMEOUT()  (poll_count++ >= 20000)
-
 inline float3 traverseBinaryTree(
   const ParticleStruct                currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
+  const Device ParticleStruct*        particlesInit,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device uint*                  leafParentNodeIndices,
   const Device uint*                  nodeParentNodeIndices,
@@ -379,6 +377,8 @@ inline float3 traverseBinaryTree(
 #ifdef MARK_COLLIDED_PARTICLES
   bool collided = false;
 #endif
+
+  const ParticleStruct particleInit = particlesInit[index];
 
   float3 output = constructFloat3(0.f);
   short collisionCount = 0;
@@ -429,7 +429,7 @@ inline float3 traverseBinaryTree(
       }
 
 #ifdef DEBUG_TRAVERSAL
-      printf("Node: %d %d\n", currentNodeIndex, parentIndex);
+      printf("Node: %d %d %d\n", index, currentNodeIndex, parentIndex);
 #endif
 
       if (state == BVH_TRAVERSAL_FROM_CHILD)
@@ -442,13 +442,13 @@ inline float3 traverseBinaryTree(
 #ifdef DEBUG_TRAVERSAL
         if (currentNodeIndex == parentNode.child[0])
         {
+          printf("C->S: %d %d %d\n", index, currentNodeIndex, parentNode.child[1]);
           currentNodeIndex = parentNode.child[1];
           state = BVH_TRAVERSAL_FROM_SIBLING;
-          printf("C->S: %d %d\n", currentNodeIndex, parentNode.child[1]);
         }
         else
         {
-          printf("C->P: %d %d\n", currentNodeIndex, parentIndex);
+          printf("C->P: %d %d %d\n", index, currentNodeIndex, parentIndex);
           currentNodeIndex = parentIndex;
           state = BVH_TRAVERSAL_FROM_CHILD;
         }
@@ -462,24 +462,47 @@ inline float3 traverseBinaryTree(
       {
         const XAB boundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(currentNodeIndex), (int)currentNodeIndex, isLeafNode(currentNodeIndex))];
 
+#ifndef DEBUG_TRAVERSAL
         // store the incoming state
         switchBit = (state == BVH_TRAVERSAL_FROM_SIBLING);
 
         // switch to next state
         state = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, switchBit);
+#endif
 
-        if (intersectXAB(particleBoundingBox, boundingBox) == 0)
+        // leaf test has to be done before intersect XAB so that all leaf siblings are processed else it may get skipped
+        if (isLeafNode(currentNodeIndex))
         {
 #ifdef DEBUG_TRAVERSAL
           if (state == BVH_TRAVERSAL_FROM_SIBLING)
           {
-            printf("S->C: %d %d\n", currentNodeIndex, parentIndex);
+            printf("S->C: %d %d %d\n", index, currentNodeIndex, parentIndex);
+            nextCurrentNodeIndex = parentIndex;
+            state = BVH_TRAVERSAL_FROM_CHILD;
+          }
+          else
+          {
+            printf("P->S: %d %d %d\n", index, currentNodeIndex, parentNode.child[1]);
+            nextCurrentNodeIndex = parentNode.child[1];
+            state = BVH_TRAVERSAL_FROM_SIBLING;
+          }
+#else
+          nextCurrentNodeIndex = select(parentNode.child[1], parentIndex, switchBit);
+#endif
+          break;
+        }
+        else if (intersectXAB(particleBoundingBox, boundingBox) == 0)
+        {
+#ifdef DEBUG_TRAVERSAL
+          if (state == BVH_TRAVERSAL_FROM_SIBLING)
+          {
+            printf("S->C: %d %d %d\n", index, currentNodeIndex, parentIndex);
             currentNodeIndex = parentIndex;
             state = BVH_TRAVERSAL_FROM_CHILD;
           }
           else
           {
-            printf("P->S: %d %d\n", currentNodeIndex, parentNode.child[1]);
+            printf("P->S: %d %d %d\n", index, currentNodeIndex, parentNode.child[1]);
             currentNodeIndex = parentNode.child[1];
             state = BVH_TRAVERSAL_FROM_SIBLING;
           }
@@ -487,31 +510,11 @@ inline float3 traverseBinaryTree(
           currentNodeIndex = select(parentNode.child[1], parentIndex, switchBit);
 #endif
         }
-        else if (isLeafNode(currentNodeIndex))
-        {
-#ifdef DEBUG_TRAVERSAL
-          if (state == BVH_TRAVERSAL_FROM_SIBLING)
-          {
-            nextCurrentNodeIndex = parentIndex;
-            state = BVH_TRAVERSAL_FROM_CHILD;
-            printf("S->C: %d %d\n", currentNodeIndex, nextCurrentNodeIndex);
-          }
-          else
-          {
-            nextCurrentNodeIndex = parentNode.child[1];
-            state = BVH_TRAVERSAL_FROM_SIBLING;
-            printf("P->S: %d %d\n", currentNodeIndex, nextCurrentNodeIndex);
-          }
-#else
-          nextCurrentNodeIndex = select(parentNode.child[1], parentIndex, switchBit);
-#endif
-          break;
-        }
         else
         {
           BVHNodeInfo node = treeInternalNodes[removeInternalNodeMarker(currentNodeIndex)];
 #ifdef DEBUG_TRAVERSAL
-          printf(" ->C: %d %d\n", currentNodeIndex, node.child[0]);
+          printf(" ->C: %d %d %d\n", index, currentNodeIndex, node.child[0]);
 #endif
           currentNodeIndex = node.child[0];
           state = BVH_TRAVERSAL_FROM_PARENT;
@@ -529,12 +532,14 @@ inline float3 traverseBinaryTree(
 #endif
     // while ()
     // test colision if not an invalid node
+    if (index != currentNodeIndex)
     {
-      output -= sharedData.collisionDamping * processParticleCollision(currentParticle, particlesPredictedOld[currentNodeIndex], collisionData, currentNodeIndex, sdfMagnitude,
+      output += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
+        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
-        particleCollisionData, &collided, &collisionCount);
+        particleCollisionData, &collided);
 #else
-        particleCollisionData, &collisionCount);
+        particleCollisionData);
 #endif
     }
 
@@ -549,7 +554,7 @@ inline float3 traverseBinaryTree(
 #ifdef MARK_COLLIDED_PARTICLES
   particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif
-//
+
 //  if (collisionCount)
 //  {
 //    output /= collisionCount;
@@ -580,6 +585,7 @@ Kernel void applyCollisions(
   volatile Device uint*               batchCounter,
   Device ParticleStruct*              particles,
   Device ParticleStruct*              particles2,
+  const Device ParticleStruct*        particlesInit,
   const Device ParticleStruct*        particlesOld,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device uint*                  leafParentNodeIndices,
@@ -657,6 +663,7 @@ Kernel void applyCollisions(
       float3 delta = traverseBinaryTree(
         currentParticle,
         particlesOld,
+        particlesInit,
         treeInternalNodes,
         leafParentNodeIndices,
         nodeParentNodeIndices,
@@ -665,12 +672,13 @@ Kernel void applyCollisions(
         particleCollisionData,
         sharedData,
         index);
+      }
+
+      // apply boundary
+      delta += boundaryCollision(&currentParticle, collisionData);
 
       // update position
       currentParticle.position += delta;
-
-      // apply boundary
-      boundaryCollision(&currentParticle, particles2, nodeLocator, collisionData);
 
       // save updated position
       currentParticle.identity = identity;

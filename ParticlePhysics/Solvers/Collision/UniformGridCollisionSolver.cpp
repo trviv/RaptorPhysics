@@ -107,6 +107,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 #ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCellParticleCount.syncHost();
   gridParticleCellIndex.syncHost();
+  particlesTemp.syncHost();
   compute->sync();
 #endif
 
@@ -176,6 +177,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
       gridCellParticleIndices.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
       particlesTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
