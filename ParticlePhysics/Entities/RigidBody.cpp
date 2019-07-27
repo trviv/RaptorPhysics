@@ -133,7 +133,7 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         {
           normal.normalize();
         }
-        colData.initialSdfGradient = normal * magnitude;
+        colData.initialSdfGradient = normal * particleRadius;
         colData.radius = particleRadius;
         colData.invMass = perParticleInvMass;
 

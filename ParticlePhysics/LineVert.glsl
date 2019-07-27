@@ -14,8 +14,8 @@ void main()
 
   if (gl_VertexID>0)
   {
-  	vec4 gradient = texelFetch(particleSDFGrad, ivec2(gl_InstanceID & 0xF, gl_InstanceID >> 4), 0);
-	pos += vec4(gradient.xyz, 1.0f);
+    vec4 gradient = texelFetch(particleSDFGrad, ivec2(gl_InstanceID & 0xF, gl_InstanceID >> 4), 0);
+    pos += vec4(gradient.xyz, 1.0f);
   }
 
   pos = projectionMatrix * modelViewMatrix * vec4(pos.xyz, 1.f);

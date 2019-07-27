@@ -127,15 +127,10 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define MemberStructType2 float2
 #endif
 
-// this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
-#define INIT_POLL()     short poll_count = 0;
-#define POLL_TIMEOUT()  (poll_count++ >= 2000)
-
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU
 static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
 {
-  //ATOMIC_STORE_FUNCTION(location, value);
   COPY_FUNCTION(*location, value);
 
 //  INIT_POLL();
@@ -144,7 +139,6 @@ static void writeAndWait(volatile Device MemberStructType* location, const Membe
 //  {
 //    ATOMIC_STORE_FUNCTION(location, value);
 //    temp = ATOMIC_LOAD_FUNCTION(location);
-//    //COPY_FUNCTION(temp, *location);
 //  }
 //  while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0] && !POLL_TIMEOUT());
 }

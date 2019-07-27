@@ -102,59 +102,57 @@ uint get32BitMortonCode(const int3 quantizedPosition)
 
 //#define MARK_COLLIDED_PARTICLES
 
+#define BOUNDARY_BOTTOM   0.f
 /*
  @kernel Apply boundary constrain.
  @param particles Initial particle buffer.
- @param particles2 Secondary particle buffer.
- @param nodeLocator Node locator for base particle being processed.
  @param collisionData Particle SDF mass and radius data.
 */
-void boundaryCollision(
+float3 boundaryCollision(
   Thread ParticleStruct*      particle,
-  Device ParticleStruct*      particles2,
-  const ParticleNodeLocator   nodeLocator,
   const ParticleCollisionData collisionData)
 {
+  float3 ret = constructFloat3(0.f);
+
   if (collisionData.invMass)  // only if movable
   {
-    float dely = 0.f;
-
-    if (particle->position.y <= -0.f)
+    if (particle->position.y <= BOUNDARY_BOTTOM)
     {
-      dely = 0.f - particle->position.y;
-
-      particle->position.y += dely;
-      if (particles2)
-      {
-        particles2[nodeLocator.absoluteNodeIndex].position.y += dely;
-      }
+      ret.y = BOUNDARY_BOTTOM - particle->position.y;
     }
   }
+
+  return ret;
 }
 
 // function to process particle collision
 inline float3 processParticleCollision(
   const ParticleStruct currentParticle,
+  const ParticleStruct particleInit,
   const ParticleStruct otherParticle,
+  const ParticleStruct otherParticleInit,
   const ParticleCollisionData collisionData,
+  const ParticleSharedData sharedData,
   const uint currentNodeIndex,
+  const uint index,
   const float sdfMagnitude,
+  Thread ushort* collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData* particleCollisionData,
-  Thread bool* collided,
+  Thread bool* collided)
 #else
-  const Device ParticleCollisionData* particleCollisionData,
+  const Device ParticleCollisionData* particleCollisionData)
 #endif
-  Thread ushort* collisionCount)
 {
   if (otherParticle.identity.identity != currentParticle.identity.identity)
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
 
+    const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
+
     // skip if the base and the batch particle are of the same object
-    const float3 distanceVector = otherParticle.position - currentParticle.position;
-    //        const float3 distanceVector = currentParticle->position - otherParticle.position;
-    const float actualDistance = dot(distanceVector, distanceVector);
+    float3 collisionVector = currentParticle.position - otherParticle.position;
+    float actualDistance = dot(collisionVector, collisionVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
     const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData.radius));
@@ -165,20 +163,51 @@ inline float3 processParticleCollision(
     // if overlapping
     if (actualDistance < allowedDistance)
     {
-      const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
-      float3 normal = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
-      const float collDot = dot(normal, distanceVector);
+      actualDistance = sqrt(actualDistance);
+      collisionVector /= actualDistance;
 
-      //          if (collDot < 0.f)
-      //          {
-      //            normal = distanceVector - (2.f * collDot) * normal;
-      //          }
+      // displacement magnitude
+      float separationDistance = actualDistance - (fabs(collisionData.radius) + fabs(collisionData2.radius));
+
+      // get normal according to minimum translation distance
+      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
+      sdfGradient = normalize(sdfGradient);
+
+      float3 contactNormal = collisionVector;
+
+      // sample signed distance field and modify normal
+//      const float collDot = dot(sdfGradient, collisionVector);
+//      if (collDot < 0.f)
+//      {
+//        contactNormal = collisionVector - (2.f * collDot) * contactNormal;
+////        separationDistance = actualDistance - (collisionData.radius + collisionData2.radius);
+//      }
+//      else
+//      {
+//        contactNormal = collisionVector;
+//      }
+//      contactNormal = normalize(contactNormal);
 
 #ifdef MARK_COLLIDED_PARTICLES
       *collided = true;
 #endif
       (*collisionCount)++;
-      return normal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
+
+      float3 displacement1 = -separationDistance * contactNormal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
+      float3 displacement2 = separationDistance * contactNormal * (collisionData2.invMass / (collisionData.invMass + collisionData2.invMass));
+      float3 tangent = (displacement1 + currentParticle.position - particleInit.position) - (displacement2 + otherParticle.position - otherParticleInit.position);
+      tangent = tangent - dot(tangent, sdfGradient) * sdfGradient;
+
+      float tangentLength = length(tangent);
+
+      if (tangentLength > COMPUTE_EPSILON)
+      {
+        const float minSdf = select(sdfMagnitude2, sdfMagnitude, sdfMagnitude < sdfMagnitude2);
+        float displacementScale = select(min(sharedData.kineticFrictionCoef * separationDistance/tangentLength, 1.f), 1.f, tangentLength < sharedData.staticFrictionCoef * minSdf);
+//        displacement1 -= tangent * displacementScale * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
+      }
+
+      return displacement1;
     }
   }
 

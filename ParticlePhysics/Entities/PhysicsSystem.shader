@@ -56,7 +56,7 @@ Kernel void integrateDifferentiateStep(
 
     if (invMass) // only if movable
     {
-      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
+      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[index].position;
       velocity = (particlePositionPredicted - particle.position) / timeStep;
 
       particle.position = particlePositionPredicted;
@@ -65,6 +65,7 @@ Kernel void integrateDifferentiateStep(
 
       velocity += constructFloat3(0.f, -0.98f, 0.f) * timeStep;
       velocity *= sharedData.velocityDamping;
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
       particleDiff[index].velocity = velocity;
       particle.position += velocity * timeStep;
@@ -129,6 +130,7 @@ Kernel void startStep(
       velocity = particleDiff[index].velocity;
       velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
       velocity *= sharedData.velocityDamping;
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
       particleDiff[index].velocity = velocity;
       particle.position += velocity * timeStep;
@@ -190,7 +192,7 @@ Kernel void endStep(
 
     if (invMass) // only if movable
     {
-      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[nodeLocator.absoluteNodeIndex].position;
+      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[index].position;
       velocity = (particlePositionPredicted - particle.position) / timeStep;
 
       particle.position = particlePositionPredicted;

@@ -17,6 +17,8 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedInvMass = 0.f;
   setRadiusIsShared(sharedData, true);
   sharedData.sharedRadius = 0.f;
+  sharedData.kineticFrictionCoef = 0.9f;
+  sharedData.staticFrictionCoef = 0.9f;
   setCollisionDataIsShared(sharedData, true);
   sharedData.sharedCollisionData.initialSdfGradient = Real3(0, 0, 0);
   sharedData.sharedCollisionData.radius = 0.f;

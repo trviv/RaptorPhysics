@@ -48,7 +48,7 @@ static void localMemFence()
 #define Thread  __private
 
 #define COMPUTE_SHADER_SCOPE
-#define COMPUTE_EPSILON         0.000001f
+#define COMPUTE_EPSILON         0.0001f
 
 #define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
 #define DEFAULT_ALIGN         ALIGN(16)
@@ -88,5 +88,9 @@ typedef struct
 #define atomicStore(location, value)  atomic_xchg(location, value)
 #define atomicAdd(location, value)    atomic_add (location, value)
 #define atomicMax(location, value)    atomic_max (location, value)
+
+// this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
+#define INIT_POLL()     short poll_count = 0;
+#define POLL_TIMEOUT()  (poll_count++ >= 20000)
 
 #endif
