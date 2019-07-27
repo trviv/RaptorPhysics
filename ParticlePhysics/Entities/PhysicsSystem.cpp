@@ -234,7 +234,7 @@ void PhysicsSystem::step()
   ProfileManager::Reset();
 
 //  step(lastStepTime);
-  step(1.f / 30.f);
+  step(1.f / 60.f);
 
   compute->sync();
   ProfileManager::dumpAll(stdout);
