@@ -115,6 +115,43 @@ float getGamma(const Thread float* matrix2, const Thread float* matrixPtr, const
 
 //TODO: Use a better SVD solver, this one becomes unstable with com offset<1
 /*
+ @kernel Matrix SVD decomposition kernel.
+ @param localMatrix Matrix data output.
+ @param matrixData Matrix data input.
+ @param iterations Iterations for the solver.
+ @param instanceId Rigid body instance for offsetting to matrix data.
+ @info Based on Computing the Polar Decomposition with Applications Nicholas J. Higham 1986
+*/
+inline void rigidSolverFunction(
+  float localMatrix[9],
+  const Device float* matrixData,
+  const uint iterations,
+  uint instanceId)
+{
+  float matrix2[9];
+
+  instanceId *= 9;
+
+  ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + instanceId))[0];
+  localMatrix[8] = matrixData[instanceId + 8];
+
+  for (uint it = 0; it < iterations; it++)
+  {
+    setAdjugateMatrix(matrix2, localMatrix);
+
+    float determinant = matrix2[0] * localMatrix[0] + matrix2[1] * localMatrix[1] + matrix2[2] * localMatrix[2];
+    determinant = select(max(determinant, 0.0001f), min(determinant, -0.0001f), determinant < 0.f);
+    // TODO: Some issue with gamma calculation half is stable
+    const float gamma = .5f;// getGamma(matrix2, localMatrix, determinant);
+    const float g1 = gamma * .5f;
+    const float g2 = .5f / (gamma * determinant);
+
+    ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
+    localMatrix[8] = g1 * localMatrix[8] + g2 * matrix2[8];
+  }
+}
+
+/*
 @kernel Matrix SVD decomposition kernel.
 @param matrixData Matrix data output.
 @param iterations Iterations for the solver.
@@ -128,38 +165,15 @@ Kernel void rigidSolver(
 {
   const uint index = threadIndex();
 
-  float localMatrix[9], matrix2[9];
+  float localMatrix[9];
 
   if (index < length)
   {
-    const uint indexOffset = index * 9;
-
-    ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + indexOffset))[0];
-    localMatrix[8] = matrixData[indexOffset + 8];
-
-    for (uint it = 0; it < iterations; it++)
-    {
-      setAdjugateMatrix(matrix2, localMatrix);
-
-      float determinant = matrix2[0] * localMatrix[0] + matrix2[1] * localMatrix[1] + matrix2[2] * localMatrix[2];
-      const bool detNegative = determinant < 0.f;
-      determinant = max(fabs(determinant), .0001f);
-      if (detNegative)
-      {
-        determinant = -determinant;
-      }
-      // TODO: Some issue with gamma calculation half is stable
-      const float gamma = .5f;// getGamma(matrix2, localMatrix, determinant);
-      const float g1 = gamma * .5f;
-      const float g2 = .5f / (gamma * determinant);
-
-      ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
-      localMatrix[8] = g1 * localMatrix[8] + g2 * matrix2[8];
-    }
+    rigidSolverFunction(localMatrix, matrixData, iterations, index);
 
     // batch write respecting data alignment
-    ((Device float8*)(matrixData + indexOffset))[0] = ((Thread float8*)localMatrix)[0];
-    (matrixData + indexOffset)[8] = localMatrix[8];
+    ((Device float8*)(matrixData + index * 9))[0] = ((Thread float8*)localMatrix)[0];
+    (matrixData + index * 9)[8] = localMatrix[8];
   }
 }
 
@@ -179,20 +193,24 @@ Kernel void setDeltaPosition(
   Device ParticleCollisionData*   particleCollisionData,
   const Device PartitionInfo*     partitions,
   const Device EntityLocation*    entityLocation,
-  const uint length)
+  const uint                      iterations,
+  const uint                      length)
 {
   const uint index = threadIndex();
 
-  float3 initialComOffset;
-
   if (index < length)
   {
+    float3 initialComOffset;
+    float localMatrix[9];
+
     ParticleStruct delta = particleDeltas[index];
 
     const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(delta.identity);
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    matrixData += 9 * nodeIdentity.instanceId;
+    rigidSolverFunction(localMatrix, matrixData, iterations, nodeIdentity.instanceId);
+//    ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + nodeIdentity.instanceId*9))[0];
+//    localMatrix[8] = matrixData[nodeIdentity.instanceId*9 + 8];
 
     initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
@@ -204,7 +222,7 @@ Kernel void setDeltaPosition(
 
     for (uint i = 0; i < 3; i++)
     {
-      const Device float* particleMatrix = matrixData + i;
+      const Thread float* particleMatrix = localMatrix + i;
       const float3 column = constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
       comOffsetCrossQPtr[i] = dot(initialComOffset, column);
       sdfGradientOut[i] = dot(sdfGradientIn, column);

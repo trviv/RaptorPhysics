@@ -121,7 +121,6 @@ void RigidSolver::solve()
     covarianceMatrix.syncHost();
     particlesTemp[0].syncHost();
     compute->sync();
-#endif
 
     {
       size_t workgroupSize[3], workgroupCount[3];
@@ -140,13 +139,14 @@ void RigidSolver::solve()
       compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
     }
 
-#ifdef DEBUG_RIGID_SOLVER
     printf("\nQ:\n");
     ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
     compute->sync();
 #endif
 
     {
+      uint svdIterations = RIGID_SVD_SOLVER_ITERATIONS;
+
       ComputeMemory* buffers[] = {
         particleDeltas.device(),
         particlesTemp[0].device(),
@@ -158,7 +158,8 @@ void RigidSolver::solve()
 
       uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
-      kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&svdIterations, bufferOffset);
+      kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset + 1);
       compute->execute(kernels[RIGID_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
     }
 
