@@ -91,7 +91,6 @@ void RigidSolver::solve()
     {
       ComputeMemory* buffers[] = {
         covarianceMatrix.device(),
-        particleDeltas.device(),
         particlesPredicted.device(),
         particlesTemp[0].device(),
         particleRigidData.device(),
@@ -148,7 +147,7 @@ void RigidSolver::solve()
       uint svdIterations = RIGID_SVD_SOLVER_ITERATIONS;
 
       ComputeMemory* buffers[] = {
-        particleDeltas.device(),
+        particlesPredicted.device(),
         particlesTemp[0].device(),
         particleRigidData.device(),
         particleCollisionData.device(),
