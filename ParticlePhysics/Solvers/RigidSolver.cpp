@@ -163,8 +163,8 @@ void RigidSolver::solve()
     }
 
 #ifdef DEBUG_RIGID_SOLVER
-    printf("\nDeltas:\n");
-    ComputeUtil::get(positionUtilId)->showMatrix(compute, particleDeltas.device(), 3, 4, count * 3);
+    printf("\nNew Positions:\n");
+    ComputeUtil::get(positionUtilId)->showMatrix(compute, particlesPredicted.device(), 3, 4, count * 3);
     compute->sync();
 #endif
   }
