@@ -80,24 +80,4 @@ Kernel void distanceSolverSpring(
   }
 }
 
-/*
-@kernel Calculate delta position for particles.
-@param particleDeltas Position delta output buffer.
-@param particles Old position buffer.
-@param newParticles New position buffer.
-@param nodeCount Total nodes in the solver.
-*/
-Kernel void setDeltaPosition(
-  Device ParticleStruct*        particleDeltas,
-  const Device ParticleStruct*  particles,
-  const Device ParticleStruct*  newParticles,
-  const uint                    nodeCount)
-{
-  const uint index = threadIndex();
-  if (index < nodeCount)
-  {
-    particleDeltas[index].position = newParticles[index].position - particles[index].position;
-  }
-}
-
 #endif

@@ -9,11 +9,9 @@ Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
 #ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device ParticleStruct*              particlesPredicted,
-  Device ParticleStruct*              particleDeltas,
   Device ParticleDifferential*        particleDiff,
 #else
   const Device ParticleStruct*        particlesPredictedIn,
-  Device ParticleStruct*              particleDeltas,
   const Device ParticleDifferential*  particleDiffIn,
 #endif
   const Device ParticleSharedData*    particleSharedData,
@@ -150,7 +148,6 @@ Kernel void endStep(
   const Device ParticleStruct*        particlesIn,
 #endif
   const Device ParticleStruct*        particlesPredicted,
-  const Device ParticleStruct*        particleDeltas,
   Device ParticleDifferential*        particleDiff,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
@@ -186,7 +183,6 @@ Kernel void endStep(
 
 #ifdef DEBUG_PHYSICS_SYSTEM
     printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDeltas[nodeLocator.absoluteNodeIndex].position.x, particleDeltas[nodeLocator.absoluteNodeIndex].position.y, particleDeltas[nodeLocator.absoluteNodeIndex].position.z);
     printf ("In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
 #endif
 

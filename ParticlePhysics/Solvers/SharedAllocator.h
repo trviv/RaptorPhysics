@@ -79,7 +79,6 @@ enum SharedComputeHeapEnum
   COMPUTE_HEAP_PARTICLE,
   COMPUTE_HEAP_PARTICLE_PREDICTED,
   COMPUTE_HEAP_PARTICLE_SHARED,
-  COMPUTE_HEAP_PARTICLE_DELTA,
   COMPUTE_HEAP_PARTICLE_DIFF,
   COMPUTE_HEAP_PARTICLE_RIGID,
   COMPUTE_HEAP_PARTICLE_COLLISION,
@@ -119,8 +118,6 @@ public:
       return &particleAllocator.particlePredicted;
     case COMPUTE_HEAP_PARTICLE_SHARED:
       return &particleAllocator.particleSharedHeap;
-    case COMPUTE_HEAP_PARTICLE_DELTA:
-      return &particleAllocator.particleDeltaHeap;
     case COMPUTE_HEAP_PARTICLE_DIFF:
       return &particleAllocator.particleDifferentialHeap;
     case COMPUTE_HEAP_PARTICLE_RIGID:

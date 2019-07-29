@@ -15,7 +15,6 @@ Solver<IndexType, CoefficientType, VariableType>::Solver(ComputeInterface* compu
 
   this->particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   this->particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
-  this->particleDeltas.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA), false);
   this->particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
   this->particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
   this->particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
@@ -114,7 +113,6 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
   this->particles.syncDevice();
   this->particlesPredicted.resize(this->particles.size(), false);
   this->compute->copyBuffer(this->particles.device(), this->particlesPredicted.device(), 0, 0, this->particles.size() * sizeof(ParticleStruct));
-  this->particleDeltas.resize(this->particles.size(), false);
   this->particleCollisionData.syncDevice();
   this->particleAuxData.syncDevice();
 

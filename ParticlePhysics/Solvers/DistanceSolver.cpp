@@ -1,7 +1,6 @@
 #include "DistanceSolver.h"
 
 #define DISTANCE_SOLVER_KERNEL_SPRING 0
-#define DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION 1
 
 //#define DEBUG_DISTANCE_SOLVER
 
@@ -26,7 +25,6 @@ void DistanceSolver::create(ComputeInterface* compute)
     vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
     registerShader(compute, "DistanceSolver.shader", &oldType, &newType);
     kernels.push_back(programs[0].createKernel("distanceSolverSpring"));
-    kernels.push_back(programs[0].createKernel("setDeltaPosition"));
   }
 }
 
@@ -81,17 +79,6 @@ void DistanceSolver::solve()
 
   }
 
-//  { // calculate position deltas
-//    ComputeMemory* buffers[] = {
-//      particleDeltas.device(),
-//      particlesPredicted.device(),
-//      ((iterations & 1) == 0) ? particlesTemp[0].device() : particlesPredicted.device()
-//    };
-//    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-//    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArgs(buffers, bufferOffset);
-//    kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION].setArg<uint>(&count, bufferOffset);
-//    compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SET_DELTA_POSITION], workgroupSize, workgroupCount);
-//  }
   if ((iterations & 1) == 1)
   {
     compute->copyBuffer(particlesTemp[0].device(), particlesPredicted.device(), 0, 0, count * sizeof(ParticleStruct));

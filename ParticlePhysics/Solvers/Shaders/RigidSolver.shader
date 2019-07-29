@@ -31,6 +31,7 @@ Kernel void covarianceMatrix(
 
     float3 currentComOffset = predicted.position - particlesTemp[nodeIdentity.instanceId].position;
 
+    // Update positions using deltas
     predicted.position -= currentComOffset;
     predicted.identity = identity;
     particlesPredicted[index] = predicted;
@@ -47,13 +48,6 @@ Kernel void covarianceMatrix(
 
     ((Device float8*)matrixRow)[0] = ret8;
     matrixRow[8] = currentComOffset.z * initialComOffset.z;
-
-    // set delta now because com is available, and will be overwritten later
-    // refer unified particle physics
-//    ParticleStruct particleOut;
-//    particleOut.position = -currentComOffset;
-//    particleOut.identity = predicted.identity;
-//    particleDeltas[index] = particleOut;
   }
 }
 
@@ -181,7 +175,7 @@ Kernel void rigidSolver(
 
 /*
 @kernel Set delta position for rigid body.
-@param particleDeltas Change in particle position.
+@param particlesPredicted Integrated particle position.
 @param matrixData Instance transformation matrix data.
 @param rigidBodyData Rigid body data.
 @param partitions Instance partition data.

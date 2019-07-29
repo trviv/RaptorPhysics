@@ -481,7 +481,6 @@ void PhysicsSystem::differentiate(float timeStep)
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
@@ -510,7 +509,6 @@ void PhysicsSystem::positionUpdate(float timeStep)
   ComputeMemory* buffers[] = {
     allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
@@ -555,8 +553,6 @@ void PhysicsSystem::step(float timeStep)
     dummy.position.z = 0.f;
     dummy.identity.identity = 0;
 
-    ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DELTA)->get(),
-      instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
     ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
 
