@@ -9,18 +9,14 @@
 @param otherOldValue Current value for object 2.
 @param coefficient Constrain magnitude.
 */
-VariableType getDelta(
+inline VariableType getDelta(
   const VariableType    selfOldValue,
   const VariableType    otherOldValue,
   const CoefficientType coefficient)
 {
-  VariableType delta = otherOldValue - selfOldValue;
+  const VariableType delta = otherOldValue - selfOldValue;
   const float deltaLength = length(delta);
-  if (deltaLength > COMPUTE_EPSILON)
-  {
-    delta *= ((1.f - (coefficient / deltaLength)) * .5f);
-  }
-  return delta;
+  return delta * ((deltaLength - coefficient) * .5f / deltaLength);
 }
 
 /*
@@ -70,7 +66,7 @@ Kernel void distanceSolverSpring(
           oldPositions[absoluteConnectionNodeIndex].position,
           coefficients[commonConnectionIndex + i]);
       }
-      oldValue.position += sum * (successiveOverRealaxation / count);
+      oldValue.position += sum * (successiveOverRealaxation / (count - 1));
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].
       // SOR is from unified particle physics

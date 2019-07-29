@@ -8,7 +8,7 @@ DistanceSolver::DistanceSolver(ComputeInterface* compute, SharedAllocator* alloc
   : LinearSolver(compute, allocator)
 {
   type = SOLVER_CLOTH;
-  iterations = 2;
+  iterations = 16;
   create(compute);
 }
 

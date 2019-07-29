@@ -546,13 +546,6 @@ void PhysicsSystem::step(float timeStep)
     ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
-    // reset position delta for entity
-    ParticleStruct dummy;
-    dummy.position.x = 0.f;
-    dummy.position.y = 0.f;
-    dummy.position.z = 0.f;
-    dummy.identity.identity = 0;
-
     ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
 

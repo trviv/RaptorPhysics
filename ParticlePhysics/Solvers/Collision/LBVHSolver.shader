@@ -678,8 +678,6 @@ Kernel void applyCollisions(
 
       // update position
       currentParticle.position += delta;
-
-      // save updated position
       currentParticle.identity = identity;
       particles[index] = currentParticle;
 
