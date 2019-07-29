@@ -56,7 +56,7 @@ Kernel void integrateDifferentiateStep(
 
     if (invMass) // only if movable
     {
-      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[index].position;
+      particlePositionPredicted = particlesPredicted[index].position;
       velocity = (particlePositionPredicted - particle.position) / timeStep;
 
       particle.position = particlePositionPredicted;
@@ -192,7 +192,7 @@ Kernel void endStep(
 
     if (invMass) // only if movable
     {
-      particlePositionPredicted = particlesPredicted[index].position + particleDeltas[index].position;
+      particlePositionPredicted = particlesPredicted[index].position;
       velocity = (particlePositionPredicted - particle.position) / timeStep;
 
       particle.position = particlePositionPredicted;
