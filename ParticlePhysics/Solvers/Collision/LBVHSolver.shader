@@ -357,7 +357,7 @@ inline int intersectXAB(const XAB a, const XAB b)
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
 
-inline float3 traverseBinaryTree(
+inline float3 stacklessTraverseBinaryTree(
   const ParticleStruct                currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleStruct*        particlesInit,
@@ -563,6 +563,126 @@ inline float3 traverseBinaryTree(
   return output;
 }
 
+inline float3 stackTraverseBinaryTree(
+  const ParticleStruct                currentParticle,
+  const Device ParticleStruct*        particlesPredictedOld,
+  const Device ParticleStruct*        particlesInit,
+  const Device BVHNodeInfo*           treeInternalNodes,
+  const Device uint*                  leafParentNodeIndices,
+  const Device uint*                  nodeParentNodeIndices,
+  const Device XAB*                   treeInternalNodeBoundingBoxes,
+  const ParticleCollisionData         collisionData,
+#ifdef MARK_COLLIDED_PARTICLES
+  Device ParticleCollisionData*       particleCollisionData,
+#else
+  const Device ParticleCollisionData* particleCollisionData,
+#endif
+  const ParticleSharedData            sharedData,
+  const int                           index)
+{
+  uchar stackTop = 0;
+  uint traversalStack[64];
+
+//  stackTop = &traversalStack[0];
+
+#ifdef MARK_COLLIDED_PARTICLES
+  bool collided = false;
+#endif
+
+  const ParticleStruct particleInit = particlesInit[index];
+  float3 output = constructFloat3(0.f);
+  short collisionCount = 0;
+
+  XAB particleBoundingBox;
+  particleBoundingBox.min = currentParticle.position - constructFloat3(collisionData.radius);
+  particleBoundingBox.max = currentParticle.position + constructFloat3(collisionData.radius);
+
+  const float sdfMagnitude = length(collisionData.transformedSdfGradient);
+
+  // mark index of the root node internal
+  uint currentNodeIndex = setInternalNodeMarker(0, 0);
+
+  while (true)
+  {
+#ifdef DEBUG_TRAVERSAL
+    printf("Node: %d %d %d\n", index, currentNodeIndex, isLeafNode(currentNodeIndex));
+#endif
+
+    // traverse while a leaf node is found
+    while (!isLeafNode(currentNodeIndex))
+    {
+      const BVHNodeInfo node = treeInternalNodes[removeInternalNodeMarker(currentNodeIndex)];
+
+      const XAB leftBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[0]), (int)node.child[0], isLeafNode(node.child[0]))];
+      const XAB rightBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[1]), (int)node.child[1], isLeafNode(node.child[1]))];
+
+      if (intersectXAB(particleBoundingBox, leftBoundingBox))
+      {
+        traversalStack[stackTop++] = node.child[0];
+#ifdef DEBUG_TRAVERSAL
+        printf("Stack Push: %d %d\n", index, node.child[0]);
+#endif
+      }
+      if (intersectXAB(particleBoundingBox, rightBoundingBox))
+      {
+        traversalStack[stackTop++] = node.child[1];
+#ifdef DEBUG_TRAVERSAL
+        printf("Stack Push: %d %d\n", index, node.child[1]);
+#endif
+      }
+
+      // break if the stack is empty
+      if (stackTop == 0)
+      {
+        // mark node invalid
+        currentNodeIndex = LBVH_ROOT_NODE_MARKER;
+        break;
+      }
+
+      currentNodeIndex = traversalStack[--stackTop];
+#ifdef DEBUG_TRAVERSAL
+      printf("Stack Pop: %d %d\n", index, currentNodeIndex);
+#endif
+    }
+
+#ifdef DEBUG_TRAVERSAL
+    printf("Test: %d %d\n", index, currentNodeIndex);
+#endif
+    // while ()
+    // test colision if not an invalid node
+    if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
+    {
+      output += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
+      collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
+#ifdef MARK_COLLIDED_PARTICLES
+      particleCollisionData, &collided);
+#else
+      particleCollisionData);
+#endif
+    }
+
+    // exit if nothing to fetch
+    if (stackTop == 0)
+    {
+      break;
+    }
+
+    // pop from the stack
+    currentNodeIndex = traversalStack[--stackTop];
+  }
+
+#ifdef MARK_COLLIDED_PARTICLES
+  particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
+#endif
+//
+//  if (count)
+//  {
+//    output.position /= count;
+//  }
+
+  return output;
+}
+
 /*
 @kernel Resolve particle collisions.
 @param gridCompactCellIndices Map to the cell index to be processed.
@@ -660,7 +780,7 @@ Kernel void applyCollisions(
       const ParticleCollisionData collisionData = particleCollisionData[index];
 
       // find position change due to collision
-      float3 delta = traverseBinaryTree(
+      float3 delta = stackTraverseBinaryTree(
         currentParticle,
         particlesOld,
         particlesInit,
