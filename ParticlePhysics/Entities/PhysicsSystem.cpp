@@ -539,7 +539,7 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
-  uint firstStep = !updates.size();
+  uint firstStep = updates.size();
 
   if (updates.size())
   {
@@ -608,11 +608,11 @@ void PhysicsSystem::step(float timeStep)
     indexMap.resize(instanceNodeCount, false);
   }
 
-//  if (firstStep)
-//  {
+  if (firstStep)
+  {
 //    positionUpdate(timeStep);
-//  }
-//  else
+  }
+  else
   {
     integrate(timeStep);
   }
