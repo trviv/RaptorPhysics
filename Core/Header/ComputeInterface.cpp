@@ -568,14 +568,66 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
   return createProgram(data.c_str(), data.size());
 }
 
+#ifdef ENABLE_CL_PROFILING
+void* registerKernelLaunched(ComputeKernel kernel, const size_t workgroup[3])
+{
+  char name[64];
+  ComputeStatus status;
+  status = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, 63, name, NULL);
+  computeCheckError(status, 0);
+
+  int dispatchSize = (int)(workgroup[0] * workgroup[1] * workgroup[2]);
+
+  std::string ret(name);
+  ret += ": " + std::to_string(dispatchSize);
+
+  return new std::string(ret + ": " + std::to_string(dispatchSize));
+}
+
+void* registerBufferLaunched(const char name[64], const size_t bufferSize)
+{
+  int dispatchSize = (int)bufferSize;
+
+  std::string ret(name);
+  ret += ": " + std::to_string(dispatchSize);
+
+  return new std::string(ret + ": " + std::to_string(dispatchSize));
+}
+
+void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_data)
+{
+  cl_ulong start, end;
+  ComputeStatus status;
+
+  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+  computeCheckError(status, 0);
+  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+  computeCheckError(status, 0);
+
+  printf("%s time: %f\n", ((std::string*)user_data)->c_str(), (end - start) * 1.0e-6f);
+
+  delete (std::string*)user_data;
+}
+#endif
+
 void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, size_t sourceOffset, size_t destinOffset, size_t sizeInBytes)
 {
+  cl_event localEvent;
+
 #ifdef CREATE_SUB_BUFFER
-  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset, destinOffset, sizeInBytes, 0, NULL, NULL);
+  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset, destinOffset, sizeInBytes, 0, NULL, &localEvent);
 #else
-  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset + source->getOffset(), destinOffset + destin->getOffset(), sizeInBytes, 0, NULL, NULL);
+  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset + source->getOffset(), destinOffset + destin->getOffset(), sizeInBytes, 0, NULL, &localEvent);
 #endif
   computeCheckError(status, 0);
+
+#ifdef ENABLE_CL_PROFILING
+  status = clSetEventCallback(localEvent, CL_COMPLETE, eventCallback, registerBufferLaunched("copyBuffer", sizeInBytes));
+  computeCheckError(status, 0);
+
+  clReleaseEvent(localEvent);
+#endif
+
 }
 
 void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
@@ -622,38 +674,6 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   workgroupCount[1] = 1;
   workgroupCount[2] = 1;
 }
-
-#ifdef ENABLE_CL_PROFILING
-void* registerKernelLaunched(ComputeKernel kernel, const size_t workgroup[3])
-{
-  char name[64];
-  ComputeStatus status;
-  status = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, 63, name, NULL);
-  computeCheckError(status, 0);
-
-  int dispatchSize = (int)(workgroup[0] * workgroup[1] * workgroup[2]);
-
-  std::string ret(name);
-  ret += ": " + std::to_string(dispatchSize);
-
-  return new std::string(ret + ": " + std::to_string(dispatchSize));
-}
-
-void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_data)
-{
-  cl_ulong start, end;
-  ComputeStatus status;
-
-  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
-  computeCheckError(status, 0);
-  status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
-  computeCheckError(status, 0);
-
-  printf("%s time: %f\n", ((std::string*)user_data)->c_str(), (end - start) * 1.0e-6f);
-
-  delete (std::string*)user_data;
-}
-#endif
 
 void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
 {

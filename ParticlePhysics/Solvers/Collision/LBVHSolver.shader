@@ -675,9 +675,9 @@ inline float3 stackTraverseBinaryTree(
   particleCollisionData[index].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif
 //
-//  if (count)
+//  if (collisionCount)
 //  {
-//    output.position /= count;
+//    output /= collisionCount;
 //  }
 
   return output;
