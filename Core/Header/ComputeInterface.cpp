@@ -18,8 +18,65 @@
 #define CREATE_SUB_BUFFER
 //#define ENABLE_CL_PROFILING
 
+#ifdef USE_METAL_COMPUTE
+volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
+volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
+volatile id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
+
+static id<MTLBlitCommandEncoder> getBlitEncoder()
+{
+  if (currentComputeEncoder != nil)
+  {
+    [currentComputeEncoder endEncoding];
+    currentComputeEncoder = nil;
+  }
+
+  if (currentBlitEncoder != nil)
+  {
+    return currentBlitEncoder;
+  }
+
+  currentBlitEncoder = [currentCommandBuffer blitCommandEncoder];
+  return currentBlitEncoder;
+}
+
+static id<MTLComputeCommandEncoder> getComputeEncoder()
+{
+  if (currentBlitEncoder != nil)
+  {
+    [currentBlitEncoder endEncoding];
+    currentBlitEncoder = nil;
+  }
+
+  if (currentComputeEncoder != nil)
+  {
+    return currentComputeEncoder;
+  }
+
+  currentComputeEncoder = [currentCommandBuffer computeCommandEncoder];
+  return currentComputeEncoder;
+}
+
+static void endEncoders()
+{
+  if (currentComputeEncoder != nil)
+  {
+    [currentComputeEncoder endEncoding];
+    currentComputeEncoder = nil;
+  }
+
+  if (currentBlitEncoder != nil)
+  {
+    [currentBlitEncoder endEncoding];
+    currentBlitEncoder = nil;
+  }
+}
+
+#endif
+
 const char* getStatusMessage(ComputeStatus status)
 {
+#ifdef USE_OPENCL_COMPUTE
   switch (status)
   {
     // run-time and JIT compiler errors
@@ -94,6 +151,11 @@ const char* getStatusMessage(ComputeStatus status)
   case -1005: return "CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
   default: return "Unknown OpenCL error";
   }
+#else
+
+  return "No status";
+
+#endif
 }
 
 string getCurrentDir(void)
@@ -154,6 +216,7 @@ ComputeMemory::ComputeMemory(ComputeMemoryIdentifier ref, size_t offset, size_t 
 
 ComputeMemoryFlag ComputeMemory::getFlag()const
 {
+#ifdef USE_OPENCL_COMPUTE
   cl_mem_flags ret;
   size_t size;
   ComputeStatus status = clGetMemObjectInfo(ref, CL_MEM_FLAGS, sizeof(cl_mem_flags), &ret, &size);
@@ -170,6 +233,9 @@ ComputeMemoryFlag ComputeMemory::getFlag()const
     assert(0);
   }
   return KERNEL_RW;
+#else
+  return KERNEL_RW;
+#endif
 }
 
 size_t ComputeMemory::getOffset()const
@@ -225,10 +291,14 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
   ComputeStatus status;
   if (bypass)
   {
+#ifdef USE_OPENCL_COMPUTE
     ret = new ComputeMemory(
       clCreateBuffer(compute->context, flag, sizeInBytes, data, &status),
       0, sizeInBytes);
     computeCheckError(status, 0);
+#else
+    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModeManaged], 0, sizeInBytes);
+#endif
   }
   else
   {
@@ -238,6 +308,7 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
       const ComputeMemory* last = childs.back();
       offset = last->getOffset() + last->getSize();
     }
+#ifdef USE_OPENCL_COMPUTE
     cl_buffer_region region;
     region.origin = offset;
     region.size = sizeInBytes;
@@ -251,6 +322,9 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
     status = 0;
 #endif
     computeCheckError(status, 0);
+#else
+    ret = new ComputeMemory(*heap, offset, sizeInBytes);
+#endif
   }
   childs.push_back(ret);
 
@@ -259,11 +333,20 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
 
 void ComputeHeap::free(ComputeMemory* memory)
 {
+#ifdef USE_OPENCL_COMPUTE
+
 #ifdef CREATE_SUB_BUFFER
   ComputeStatus status = clReleaseMemObject(*memory);
   computeCheckError(status, 0);
 #endif
 
+#else
+
+#ifdef CREATE_SUB_BUFFER
+  memory->ref = nullptr;
+#endif
+
+#endif
   vector<ComputeMemory*>::iterator pos = find(childs.begin(), childs.end(), memory);
   if (pos != childs.end())
   {
@@ -289,14 +372,22 @@ ComputeKernel::ComputeKernel(ComputeKernelIdentifier ref)
 
 void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clSetKernelArg(ref, argIndex, valueSize, valuePtr);
   computeCheckError(status, 0);
+#else
+  [currentComputeEncoder setBytes:valuePtr length:valueSize atIndex:argIndex];
+#endif
 }
 
 void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
 {
   ComputeMemoryIdentifier ident = *buffer;
+#ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
+#else
+  [currentComputeEncoder setBuffer:ident offset:buffer->getOffset() atIndex:index];
+#endif
 }
 
 void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* indices)
@@ -304,7 +395,11 @@ void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* in
   for (uint i = 0; i < count; i++)
   {
     ComputeMemoryIdentifier ident = *buffers[i];
+#ifdef USE_OPENCL_COMPUTE
     setArg<ComputeMemoryIdentifier>(&ident, indices ? indices[i] : i);
+#else
+    [currentComputeEncoder setBuffer:ident offset:buffers[i]->getOffset() atIndex:(indices ? indices[i] : i)];
+#endif
   }
 }
 
@@ -321,10 +416,16 @@ ComputeProgram::ComputeProgram(ComputeProgramIdentifier ref)
 
 ComputeKernel ComputeProgram::createKernel(const char* kernelName)
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status;
   ComputeKernel kernel(clCreateKernel(ref, kernelName, &status));
   computeCheckError(status, 0);
   return kernel;
+#else
+  id<MTLFunction> function = [ref newFunctionWithName:[NSString stringWithCString:kernelName encoding:NSASCIIStringEncoding]];
+  NSError* error;
+  return ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
+#endif
 }
 
 bool ComputeProgram::isEmpty()const
@@ -378,12 +479,18 @@ void ComputeInterface::create(int deviceIndex)
   ComputeDeviceId selectedDeviceId;
   int absoluteDeviceIndex = 0;
 
+#ifdef USE_OPENCL_COMPUTE
   // print platform info
   ComputeStatus status = clGetPlatformIDs(8, platforms, &platformCount);
   computeCheckError(status, 0);
+#else
+  platformCount = 1;
+#endif
+
   for (uint i = 0; i < platformCount; i++)
   {
-    cl_int status;
+#ifdef USE_OPENCL_COMPUTE
+    int status;
     char vendor[MAX_STRING_LENGTH];
     char name[MAX_STRING_LENGTH];
     char version[MAX_STRING_LENGTH];
@@ -403,6 +510,14 @@ void ComputeInterface::create(int deviceIndex)
 
     status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
     computeCheckError(status, 0);
+#else
+    NSArray<id<MTLDevice>> *localDevices = MTLCopyAllDevices();
+    deviceCount = localDevices.count;
+    for (int i=0; i<deviceCount; i++)
+    {
+      devices[i] = [localDevices objectAtIndex:i];
+    }
+#endif
 
     printf("  Device info:\n");
 
@@ -410,7 +525,8 @@ void ComputeInterface::create(int deviceIndex)
     for (uint j = 0; j < deviceCount; j++)
     {
       ComputeDeviceId deviceId = devices[j];
-      cl_int  status;
+#ifdef USE_OPENCL_COMPUTE
+      int     status;
       size_t  maxWorkgroupSize;
       size_t  maxComputeUnits;
       size_t  maxWorkitemSizes[3];
@@ -426,6 +542,13 @@ void ComputeInterface::create(int deviceIndex)
       computeCheckError(status, 0);
       status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t) * 3, maxWorkitemSizes, NULL);
       computeCheckError(status, 0);
+#else
+      size_t  maxWorkgroupSize = deviceId.maxThreadsPerThreadgroup.width;
+      size_t  maxComputeUnits = 64;
+      size_t  maxWorkitemSizes[3] = {0, 0, 0};
+      const char *deviceName = deviceId.name.UTF8String;
+      const char *deviceVendor = deviceId.name.UTF8String;
+#endif
       printf("    Device Name:        %s\n", deviceName);
       printf("    Compute Units:      %ld\n", maxComputeUnits);
       printf("    Max Workgroup Size: %ld\n", maxWorkgroupSize);
@@ -478,6 +601,7 @@ void ComputeInterface::create(int deviceIndex)
 
   printf("Selected device:   %s\nAssumed SIMD size: %ld\n", selectedDevice.c_str(), simdGroupSize);
 
+#ifdef USE_OPENCL_COMPUTE
   /* Create OpenCL context */
   context = clCreateContext(NULL, 1, &deviceId, NULL, NULL, &status);
   computeCheckError(status, 0);
@@ -489,6 +613,12 @@ void ComputeInterface::create(int deviceIndex)
 
   queue = clCreateCommandQueue(context, deviceId, prop, &status);
   computeCheckError(status, 0);
+#else
+  queue = [deviceId newCommandQueue];
+  currentCommandBuffer = [queue commandBuffer];
+  getComputeEncoder();
+  context = deviceId;
+#endif
 }
 
 std::string readFile(const char* fileName)
@@ -511,6 +641,7 @@ std::string readFile(const char* fileName)
 ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t sourceSize)
 {
   ComputeStatus status;
+#ifdef USE_OPENCL_COMPUTE
   ComputeProgram program(clCreateProgramWithSource(context, 1, (const char **)&sourceCode, (const size_t *)&sourceSize, &status));
   computeCheckError(status, 0);
 
@@ -524,8 +655,25 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
 
   // Get the log
   clGetProgramBuildInfo(program, deviceId, CL_PROGRAM_BUILD_LOG, logSize, log, NULL);
+#else
+  NSError *error = nil;
+  NSString *source = @"#include <metal_stdlib>\nusing namespace metal;\n";
+  source = [source stringByAppendingString:[NSString stringWithUTF8String:sourceCode]];
+  ComputeProgramIdentifier programId = [deviceId newLibraryWithSource:source options:0 error:&error];
+  ComputeProgram program(programId);
 
-  //string tempLogs = log;
+  // Allocate memory for the log
+  char* log = new char[1];
+  log[0] = NULL;
+  if (error != nil)
+  {
+    delete[] log;
+    log = new char[error.description.length + 1];
+    strcpy(log, error.description.UTF8String);
+  }
+  status = (programId == nil);
+#endif
+
   string logs = log;
   logs.erase(remove(logs.begin(), logs.end(), ' '), logs.end());
   logs.erase(remove(logs.begin(), logs.end(), '\n'), logs.end());
@@ -612,6 +760,7 @@ void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_
 
 void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, size_t sourceOffset, size_t destinOffset, size_t sizeInBytes)
 {
+#ifdef USE_OPENCL_COMPUTE
   cl_event localEvent;
 
 #ifdef CREATE_SUB_BUFFER
@@ -627,25 +776,48 @@ void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, 
 
   clReleaseEvent(localEvent);
 #endif
+#else
+  [getBlitEncoder() copyFromBuffer:*source sourceOffset:source->getOffset() toBuffer:*destin destinationOffset:destin->getOffset() size:sizeInBytes];
+  endEncoders();
+  getComputeEncoder();
+#endif
 
 }
 
 void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueFillBuffer(queue, *source, hostValue, hostValueSize, sourceOffset, sizeInBytes, 0, NULL, NULL);
   computeCheckError(status, 0);
+#endif
 }
 
 void ComputeInterface::copyToHost(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish)
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
+#else
+  [getBlitEncoder() synchronizeResource:*source];
+  endEncoders();
+  [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull)
+    {
+      memcpy(hostPtr, ((char*)[*source contents]) + sourceOffset, sizeInBytes);
+    }];
+  getComputeEncoder();
+#endif
 }
 
 void ComputeInterface::copyFromHost(ComputeMemory* destin, size_t destinOffset, size_t sizeInBytes, const void* hostPtr, bool waitForFinish)
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueWriteBuffer(queue, *destin, waitForFinish, destinOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
+#else
+  memcpy(((char*)[*destin contents]) + destinOffset, hostPtr, sizeInBytes);
+  [(*destin) didModifyRange:NSMakeRange(destinOffset, sizeInBytes)];
+  sync();
+#endif
 }
 
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount)
@@ -677,6 +849,7 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
 
 void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
 {
+#ifdef USE_OPENCL_COMPUTE
   const size_t workgroup[3] = {
     workgroupSize[0] * workgroupCount[0],
     workgroupSize[1] * workgroupCount[1],
@@ -700,12 +873,28 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, NULL);
   computeCheckError(status, 0);
 #endif
+#else
+  id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
+  [encoder setComputePipelineState:kernel];
+  [encoder dispatchThreadgroups:MTLSizeMake(workgroupCount[0], workgroupCount[1], workgroupCount[2])
+          threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
+  endEncoders();
+  getComputeEncoder();
+#endif
 }
 
 void ComputeInterface::sync()
 {
+#ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clFinish(queue);
   computeCheckError(status, 0);
+#else
+  endEncoders();
+  [currentCommandBuffer commit];
+  [currentCommandBuffer waitUntilCompleted];
+  currentCommandBuffer = [queue commandBuffer];
+  getComputeEncoder();
+#endif
 }
 
 uint ComputeInterface::maxThreadsPerGroup()const
@@ -720,11 +909,15 @@ uint ComputeInterface::simdSize()const
 
 uint ComputeInterface::maxCores()const
 {
+#ifdef USE_OPENCL_COMPUTE
   uint ret = 0;
   size_t retSize = 0;
   ComputeStatus status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(int), &ret, &retSize);
   computeCheckError(status, 0);
   return 64;
+#else
+  return 64;
+#endif
 }
 
 #ifdef ENABLE_RENDERING

@@ -61,13 +61,16 @@ Kernel void sumIrregular2DKernel(
   const Device IdentityStructType*  array2DIdentity,
   const Device PartitionInfo*       partitionArray,
   volatile Device MemberStructType* sumBuffer,
-  volatile Device uint*             statusBuffer,
-  const int                         threadGroupSizeExp,
-  const int                         length,
-  const uint                        divideFlag)
+  atomicKernelInput(uint,           statusBuffer),
+  constantKernelInput(int,          threadGroupSizeExp),
+  constantKernelInput(int,          length),
+  constantKernelInput(uint,         divideFlag)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
+  const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
   Shared ushort isValid[REDUCE_COMPUTE_THREADS];

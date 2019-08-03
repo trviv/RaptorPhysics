@@ -4,9 +4,11 @@
 #include "Root.h"
 
 #ifdef __APPLE__
-#ifdef USE_MINICL
-#include <MiniCL/cl.h>
+#ifdef USE_METAL_COMPUTE
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
 #else
+#define USE_OPENCL_COMPUTE
 #include <OpenCL/cl.h>
 #include <OpenCL/cl_ext.h>
 #endif
@@ -25,6 +27,27 @@
 #include <vector>
 using namespace std;
 
+#ifdef USE_METAL_COMPUTE
+
+typedef uint                        ComputePlatformId;
+typedef uint                        ComputeDeviceType;
+typedef id<MTLDevice>               ComputeContext;
+typedef id<MTLDevice>               ComputeDeviceId;
+typedef id<MTLComputePipelineState> ComputeKernelIdentifier;
+typedef id<MTLLibrary>              ComputeProgramIdentifier;
+typedef id<MTLCommandQueue>         ComputeQueue;
+typedef id<MTLBuffer>               ComputeMemoryIdentifier;
+typedef uint                        ComputeStatus;
+
+enum ComputeMemoryFlag
+{
+  KERNEL_RW,
+  KERNEL_W,
+  KERNEL_R
+};
+
+#else
+
 typedef cl_platform_id    ComputePlatformId;
 typedef cl_device_type    ComputeDeviceType;
 typedef cl_context        ComputeContext;
@@ -34,6 +57,15 @@ typedef cl_program        ComputeProgramIdentifier;
 typedef cl_command_queue  ComputeQueue;
 typedef cl_mem            ComputeMemoryIdentifier;
 typedef cl_int            ComputeStatus;
+
+enum ComputeMemoryFlag
+{
+  KERNEL_RW = CL_MEM_READ_WRITE,
+  KERNEL_W = CL_MEM_WRITE_ONLY,
+  KERNEL_R = CL_MEM_READ_ONLY
+};
+
+#endif
 
 extern string readFile(const char* fileName);
 extern const char* getStatusMessage(ComputeStatus status);
@@ -45,20 +77,13 @@ extern void logComputeError(const char* format, ...);
 
 class ComputeInterface;
 
-enum ComputeMemoryFlag
-{
-  KERNEL_RW = CL_MEM_READ_WRITE,
-  KERNEL_W = CL_MEM_WRITE_ONLY,
-  KERNEL_R = CL_MEM_READ_ONLY
-};
-
-
 class ComputeMemory
 {
   ComputeMemoryIdentifier ref;
   size_t offset;
   size_t size;
 
+  friend class ComputeHeap;
 public:
 
   ComputeMemory();

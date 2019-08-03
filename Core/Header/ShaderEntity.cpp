@@ -17,5 +17,15 @@ void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileNam
   localOld.push_back("COMPUTE_SUB_GROUP_EXP");
   localNew.push_back(to_string(mCeilExpOf2(compute->simdSize())));
 
+#ifdef USE_METAL_COMPUTE
+  localOld.push_back("USE_METAL_COMPUTE");
+  localNew.push_back("");
+#endif
+
+#ifdef USE_SIMD_COMPUTE
+  localOld.push_back("USE_SIMD_COMPUTE");
+  localNew.push_back("");
+#endif
+
   programs.push_back(compute->createTemplateProgram(fileName, &localOld, &localNew, &includeFiles));
 }

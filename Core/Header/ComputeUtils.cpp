@@ -547,12 +547,6 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   localSumBuffer->resize(groups * radixBlockInstances * (1 << RADIX_SORT_BIT_COUNT), false);
 
-  kernels[kernelIndex1].setArg(localSumBuffer->device(), 1);
-  kernels[kernelIndex1].setArg<uint>(&length, 3);
-
-  kernels[kernelIndex2].setArg(localSumBuffer->device(), 2);
-  kernels[kernelIndex2].setArg<uint>(&length, 4);
-
   uint i;
 
   workgroupSize[0] = localSortThreads * radixBlockInstances;
@@ -561,11 +555,9 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   for (i = 0; i < 32; i += RADIX_SORT_BIT_COUNT)
   {
     kernels[kernelIndex1].setArg((i & RADIX_SORT_BIT_COUNT) ? destination : source, 0);
-
-    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? source : destination, 0);
-    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? destination : source, 1);
-
+    kernels[kernelIndex1].setArg(localSumBuffer->device(), 1);
     kernels[kernelIndex1].setArg<uint>(&i, 2);
+    kernels[kernelIndex1].setArg<uint>(&length, 3);
 
     compute->execute(kernels[kernelIndex1], workgroupSize, workgroupCount);
 
@@ -581,7 +573,11 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     compute->sync();
 #endif
 
+    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? source : destination, 0);
+    kernels[kernelIndex2].setArg((i & RADIX_SORT_BIT_COUNT) ? destination : source, 1);
+    kernels[kernelIndex2].setArg(localSumBuffer->device(), 2);
     kernels[kernelIndex2].setArg<uint>(&i, 3);
+    kernels[kernelIndex2].setArg<uint>(&length, 4);
 
     compute->execute(kernels[kernelIndex2], workgroupSize, workgroupCount);
 

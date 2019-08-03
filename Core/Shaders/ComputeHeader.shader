@@ -1,45 +1,19 @@
 #ifndef COMPUTE_HEADER_SHADER
 #define COMPUTE_HEADER_SHADER
 
-static uint threadIndex()
-{
-  return get_global_id(0);
-}
+#ifndef USE_METAL_COMPUTE
 
-static uint threadLocalIndex()
-{
-  return get_local_id(0);
-}
+#define constantKernelInput(type, variableName) const type variableName
+#define atomicKernelInput(type, variableName) Device type *variableName
 
-static uint threadGroupSize()
-{
-  return get_local_size(0);
-}
-
-static uint threadGroupIndex()
-{
-  return get_group_id(0);
-}
-
-static uint threadGroupCount()
-{
-  return get_num_groups(0);
-}
-
-static void globalMemBarrier()
-{
-  barrier(CLK_GLOBAL_MEM_FENCE);
-}
-
-static void localMemBarrier()
-{
-  barrier(CLK_LOCAL_MEM_FENCE);
-}
-
-static void localMemFence()
-{
-  mem_fence(CLK_LOCAL_MEM_FENCE);
-}
+#define threadIndex()       get_global_id(0)
+#define threadLocalIndex()  get_local_id(0)
+#define threadGroupSize()   get_local_size(0)
+#define threadGroupIndex()  get_group_id(0)
+#define threadGroupCount()  get_num_groups(0)
+#define globalMemBarrier()  barrier(CLK_GLOBAL_MEM_FENCE)
+#define localMemBarrier()   barrier(CLK_LOCAL_MEM_FENCE)
+#define localMemFence()     mem_fence(CLK_LOCAL_MEM_FENCE)
 
 #define Kernel  __kernel
 #define Device  __global
@@ -47,18 +21,80 @@ static void localMemFence()
 #define Shared  __local
 #define Thread  __private
 
+#define constructUshort4    (ushort4)
+#define constructFloat2     (float2)
+#define constructFloat3     (float3)
+#define constructUint3      (uint3)
+#define constructUint2      (uint2)
+#define constructInt3       (int3)
+#define constructInt2       (int2)
+
+#define convertUshort4(a)   convert_ushort4(a)
+#define asUchar4(x)         as_uchar4(x)
+#define simdReduce(x)       assert
+
+#define atomicLoad(location)          atomic_or  (location, 0)
+#define atomicStore(location, value)  atomic_xchg(location, value)
+#define atomicAdd(location, value)    atomic_add (location, value)
+#define atomicMax(location, value)    atomic_max (location, value)
+
+#define KERNEL_GLOBAL_ARGUMENTS
+#define KERNEL_THREAD_ARGUMENTS
+#define KERNEL_THREADGROUP_ARGUMENTS
+
+#else
+
+#define constantKernelInput(type, variableName) Const type& variableName
+#define atomicKernelInput(type, variableName) Device atomic_##type *variableName
+
+#define threadIndex()       thread_position_in_grid[0]
+#define threadLocalIndex()  thread_index_in_threadgroup
+#define threadGroupSize()   threads_per_threadgroup[0]
+#define threadGroupIndex()  threadgroup_position_in_grid[0]
+#define threadGroupCount()  threadgroups_per_grid[0]
+#define globalMemBarrier()  threadgroup_barrier(mem_flags::mem_device)
+#define localMemBarrier()   threadgroup_barrier(mem_flags::mem_threadgroup)
+#define localMemFence()     threadgroup_barrier(mem_flags::mem_none)
+
+#define Kernel  kernel
+#define Device  device
+#define Const   constant
+#define Shared  threadgroup
+#define Thread  thread
+
+#define constructUshort4    ushort4
+#define constructFloat2     float2
+#define constructFloat3     float3
+#define constructUint3      uint3
+#define constructUint2      uint2
+#define constructInt3       int3
+#define constructInt2       int2
+
+#define convertUshort4(a)   ushort4(a)
+#define asUchar4(x)         as_type<uchar4>(x)
+#define simdReduce(x)       simd_sum(x)
+
+#define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
+#define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
+#define atomicAdd(location, value)    atomic_fetch_add_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
+#define atomicMax(location, value)    atomic_fetch_max_explicit((Shared atomic_uint*)location, value, memory_order_relaxed)
+
+#define KERNEL_GLOBAL_ARGUMENTS \
+  , uint3 thread_position_in_grid [[ thread_position_in_grid ]]
+#define KERNEL_THREAD_ARGUMENTS \
+  , uint thread_index_in_threadgroup [[ thread_index_in_threadgroup ]] \
+  , uint3 threads_per_threadgroup [[ threads_per_threadgroup ]]
+#define KERNEL_THREADGROUP_ARGUMENTS \
+  , uint3 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]] \
+  , uint3 threadgroups_per_grid [[ threadgroups_per_grid ]]
+
+#endif
+
 #define COMPUTE_SHADER_SCOPE
 #define COMPUTE_EPSILON         0.0001f
 
-#define ALIGN(n)              __attribute__((aligned(n))) __attribute__((packed))
-#define DEFAULT_ALIGN         ALIGN(16)
-
-#define constructFloat2       (float2)
-#define constructFloat3       (float3)
-#define constructUint3        (uint3)
-#define constructUint2        (uint2)
-#define constructInt3         (int3)
-#define constructInt2         (int2)
+#define ALIGN(n)        __attribute__((aligned(n))) __attribute__((packed))
+#define DEFAULT_ALIGN   ALIGN(16)
 
 #define NUM_BANKS       16
 #define LOG_NUM_BANKS   4
@@ -84,13 +120,9 @@ typedef struct
 #define copyMatrix3x3(a, b)   { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
 #define clearMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] = b; } }
 
-#define atomicLoad(location)          atomic_or  (location, 0)
-#define atomicStore(location, value)  atomic_xchg(location, value)
-#define atomicAdd(location, value)    atomic_add (location, value)
-#define atomicMax(location, value)    atomic_max (location, value)
-
 // this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
 #define INIT_POLL()     short poll_count = 0;
 #define POLL_TIMEOUT()  (poll_count++ >= 20000)
+#define RESET_POLL()    poll_count = 0
 
 #endif

@@ -77,8 +77,10 @@ uint setLocalCount(const uchar localKey, const uchar keyPrefix)
 Kernel void radixSort32BitReduceKernel(
   Device SortNode32* source,
   volatile Device uint* localSumBuffer,
-  const uint rightShift,
-  const uint length)
+  constantKernelInput(uint, rightShift),
+  constantKernelInput(uint, length)
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   // local index of the thread within a lane instance
   const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
@@ -149,10 +151,10 @@ Kernel void radixSort32BitReduceKernel(
 
         // subtract first to account potential 8 bit overflow
         // add first to 32 bit converted value
-        uchar4 temp = as_uchar4(localCount[0] - count);
-        ushort4 sum = convert_ushort4(temp);
-        temp = as_uchar4(count);
-        sum += (ushort4)(temp.x, temp.y, temp.z, temp.w);
+        uchar4 temp = asUchar4(localCount[0] - count);
+        ushort4 sum = convertUshort4(temp);
+        temp = asUchar4(count);
+        sum += constructUshort4(temp.x, temp.y, temp.z, temp.w);
 
         threadgroupLocalCountTotals[offset++] += sum.x;
         threadgroupLocalCountTotals[offset++] += sum.y;
@@ -176,11 +178,19 @@ inline void fetchNodes(SortNode32 localSortNodes[], const Device SortNode32* sou
   if (index + ((1 << RadixPrefixScanPackingExp) - 1) < length)
   {
 #if RadixPrefixScanPackingExp == 1
-    *((Thread uint4*)localSortNodes) = *((Device uint4*)(source + index));
+    *((Thread uint4*)localSortNodes) = *((const Device uint4*)(source + index));
 #elif RadixPrefixScanPackingExp == 2
-    *((Thread uint8*)localSortNodes) = *((Device uint8*)(source + index));
+#ifndef USE_METAL_COMPUTE
+    *((Thread uint8*)localSortNodes) = *((const Device uint8*)(source + index));
+#else
+    *((Thread dummy_uint8*)localSortNodes) = *((const Device dummy_uint8*)(source + index));
+#endif
 #elif RadixPrefixScanPackingExp == 3
-    *((Thread uint16*)localSortNodes) = *((Device uint16*)(source + index));
+#ifndef USE_METAL_COMPUTE
+    *((Thread uint16*)localSortNodes) = *((const Device uint16*)(source + index));
+#else
+    *((Thread dummy_uint16*)localSortNodes) = *((const Device dummy_uint16*)(source + index));
+#endif
 #endif
   }
   else
@@ -196,8 +206,10 @@ Kernel void radixSort32BitSortKernel(
   volatile Device SortNode32* destination,
   const Device SortNode32* source,
   const Device uint* localSumBuffer,
-  const uint rightShift,
-  const uint length)
+  constantKernelInput(uint, rightShift),
+  constantKernelInput(uint, length)
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   // local index of the thread within a lane instance
   const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
@@ -376,12 +388,12 @@ Kernel void radixSort32BitSortKernel(
       if (destOffset[i] < length)
       {
 #ifdef BusAlignedFetch
-        destination[destOffset[i]] = localSortNodes[i];
+        *((volatile Device uint2*)(destination + destOffset[i])) = *((Thread uint2*)(localSortNodes + i));
 #else
 #ifdef CoalescedWrites
         destination[destOffset[i]] = offsettedLocalSortNodes[localIndex + (i * LaneWidth)];
 #else
-        destination[destOffset[i]] = localSortNodes[i];
+        *((volatile Device uint2*)(destination + destOffset[i])) = *((Thread uint2*)(localSortNodes + i));
 #endif
 #endif
       }

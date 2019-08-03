@@ -38,7 +38,7 @@ void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort l
   }
 }
 
-void groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
+MemberStructType groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
 //  // log n iterations
 //  for (uchar i=0; i<8; i++)
@@ -86,15 +86,52 @@ void groupReduce(volatile Shared MemberStructType* localArray, const ushort loca
   {
     subGroupReduce(localArray, localIndex, subGroupLocalIndex);
   }
+
+  return localArray[localIndex];
 }
+
+#ifdef USE_SIMD_COMPUTE
+
+inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Shared MemberStructType* localArray, const ushort localIndex)
+{
+  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+
+  // per sub group reduce
+  localArray[localIndex] = simdReduce(reduceSum);
+
+  localMemBarrier();
+
+  if (subGroupIndex == 0)
+  {
+    // clear all elements to zero
+    CLEAR_FUNCTION(reduceSum, 0);
+
+    // copy last element from each sub group to first sub group's local space
+    if (subGroupLocalIndex < (REDUCE_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    {
+      COPY_FUNCTION(reduceSum, localArray[subGroupLocalIndex * COMPUTE_SUB_GROUP_SIZE]);
+    }
+
+    // reduce first sub group
+    reduceSum = simdReduce(reduceSum);
+  }
+
+  return reduceSum;
+}
+
+#endif
 
 Kernel void reduce(
   Device StructType*                destination,
   const Device StructType*          source,
   volatile Device MemberStructType* sumBuffer,
-  volatile Device uint*             statusBuffer,
-  const uint                        length,
-  const uint                        divideFlag)
+  atomicKernelInput(uint,           statusBuffer),
+  constantKernelInput(uint,         length),
+  constantKernelInput(uint,         divideFlag)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
@@ -105,33 +142,35 @@ Kernel void reduce(
   batchRead(originalValues, source, index, length);
 
   const MemberStructType reduceSum = localReduce(originalValues);
-  localArray[paddedIndex(localIndex)] = reduceSum;
 
   // reduce threadgroup elements
-  groupReduce(localArray, localIndex);
+#ifndef USE_SIMD_COMPUTE
+  localArray[paddedIndex(localIndex)] = reduceSum;
+  MemberStructType sum = groupReduce(localArray, localIndex);
+#else
+  MemberStructType sum = simdGroupReduce(reduceSum, localArray, localIndex);
+#endif
 
   // for last thread in the threadgroup
   if (localIndex == 0)
   {
-    MemberStructType sum = localArray[0];
-
     // save current value as partial sum, or final sum for the first threadgroup
     if (threadGroupIndex())
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2], sum);
-      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_PARTIAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], REDUCE_STATUS_PARTIAL);
     }
     else
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], sum);
-      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], REDUCE_STATUS_FINAL);
     }
 
     int prevGroupIndex = threadGroupIndex() - 1;
 
     INIT_POLL();
     // get reduce sum from previous threadgroups
-    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
+    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       MemberStructType temp;
@@ -140,6 +179,7 @@ Kernel void reduce(
         temp = ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]);
         ADD_FUNCTION(sum, temp);
         prevGroupIndex--;
+        RESET_POLL();
       }
       else if (status == REDUCE_STATUS_FINAL)
       {
@@ -153,7 +193,7 @@ Kernel void reduce(
     if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], sum);
-      atomicStore(statusBuffer + threadGroupIndex(), REDUCE_STATUS_FINAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], REDUCE_STATUS_FINAL);
     }
 
     // save the reduced sum
@@ -175,16 +215,19 @@ Kernel void reduce(
 /*@kernel Sum all the elements of a flat 2d array.*/
 Kernel void reduce2DKernel(
   Device StructType*  array2D,
-  const uint          length,
-  const uint          subArrayElements,
-  const uint          iteration,
-  uint                maxLocalIterations,
-  const uint          divideFlag)
+  constantKernelInput(uint, length),
+  constantKernelInput(uint, subArrayElements),
+  constantKernelInput(uint, iteration),
+  constantKernelInput(uint, maxLocalIterations2),
+  constantKernelInput(uint, divideFlag)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   uint maxPower = 1;
   bool backwards = false;
   const uint originalIndex = threadLocalIndex();
-  maxLocalIterations = maxLocalIterations << 1;
+  uint maxLocalIterations = maxLocalIterations2 << 1;
 
   const uint arraysPerGroup = ((COMPUTE_MAX_THREADS << 1) / subArrayElements);
   const uint maxIdentity = (threadGroupIndex() + 1) * arraysPerGroup;

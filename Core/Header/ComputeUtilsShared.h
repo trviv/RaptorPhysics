@@ -85,24 +85,24 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 // optimized atomics for primitives
 
 #if MemberStructType == XAB
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN(x)
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN(x, y)
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN((x))
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN((x), y)
 
 #elif MemberStructType == uint
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((volatile Device uint*)(x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((volatile Device uint*)(x), *((uint*)&(y)))
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((x))
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread uint*)&(y)))
 
 #elif MemberStructType == int
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((volatile Device int*)(x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((volatile Device int*)(x), *((int*)&(y)))
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((x))
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread int*)&(y)))
 
 #elif MemberStructType == float
-#define ATOMIC_LOAD_FUNCTION(x)     as_float(atomicLoad((volatile Device uint*)(x)))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((volatile Device uint*)(x), *((uint*)&(y)))
+#define ATOMIC_LOAD_FUNCTION(x)     as_type<float>(atomicLoad((x)))
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread uint*)&(y)))
 
 #else
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN(x)
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN(x, y)
+#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN((x))
+#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN((x), y)
 
 #endif
 
@@ -127,23 +127,83 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define MemberStructType2 float2
 #endif
 
+#ifdef USE_METAL_COMPUTE
+
+#undef MemberStructType16
+#undef MemberStructType8
+
+struct dummy_int8
+{
+  int4 a, b;
+  dummy_int8(int x):a(x), b(x)
+  {}
+};
+
+struct dummy_uint8
+{
+  uint4 a, b;
+  dummy_uint8(uint x):a(x), b(x)
+  {}
+};
+
+struct dummy_float8
+{
+  float4 a, b;
+  dummy_float8(float x):a(x), b(x)
+  {}
+};
+
+struct dummy_int16
+{
+  dummy_int8 a, b;
+  dummy_int16(int x):a(x), b(x)
+  {}
+};
+
+struct dummy_uint16
+{
+  dummy_uint8 a, b;
+  dummy_uint16(uint x):a(x), b(x)
+  {}
+};
+
+struct dummy_float16
+{
+  dummy_float8 a, b;
+  dummy_float16(float x):a(x), b(x)
+  {}
+};
+
+#if MemberStructType == uint
+#define MemberStructType16 dummy_uint16
+#define MemberStructType8 dummy_uint8
+#elif MemberStructType == int
+#define MemberStructType16 dummy_int16
+#define MemberStructType8 dummy_int8
+#elif MemberStructType == float
+#define MemberStructType16 dummy_float16
+#define MemberStructType8 dummy_float8
+#endif
+
+#endif
+
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU
-static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
+inline static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
 {
-  COPY_FUNCTION(*location, value);
+//  COPY_FUNCTION(*location, value);
 
-//  INIT_POLL();
-//  MemberStructType temp;
-//  do
-//  {
-//    ATOMIC_STORE_FUNCTION(location, value);
-//    temp = ATOMIC_LOAD_FUNCTION(location);
-//  }
-//  while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0] && !POLL_TIMEOUT());
+  INIT_POLL();
+  MemberStructType temp;
+  do
+  {
+    ATOMIC_STORE_FUNCTION(location, value);
+    temp = ATOMIC_LOAD_FUNCTION(location);
+  }
+  while (((Thread uint*)&temp)[0] != ((Thread uint*)&value)[0] && !POLL_TIMEOUT());
 }
 
-static MemberStructType localReduce(const Thread MemberStructType *elements)
+inline static MemberStructType localReduce(const Thread MemberStructType *elements)
 {
   MemberStructType ret = elements[0];
   for (uint i = 1; i < BatchSize; i++)
@@ -153,10 +213,10 @@ static MemberStructType localReduce(const Thread MemberStructType *elements)
   return ret;
 }
 
-static void batchRead(Thread MemberStructType *elements, const Device StructType* array1D, const uint index, const uint length)
+inline static void batchRead(Thread MemberStructType *elements, const Device StructType* array1D, const uint index, const uint length)
 {
   const uint indexOffset = index * BatchSize;
-  const uint readCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
+  const uint readCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
 #if MemberStructType == StructType
   Thread MemberStructType *data = elements;
@@ -291,10 +351,10 @@ static void batchRead(Thread MemberStructType *elements, const Device StructType
 #endif
 }
 
-static void batchWrite(const MemberStructType *elements, Device StructType* array1D, const uint index, const uint length)
+inline static void batchWrite(const Thread MemberStructType *elements, Device StructType* array1D, const uint index, const uint length)
 {
   const uint indexOffset = index * BatchSize;
-  const uint writeCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
+  const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
 #if MemberStructType == StructType
 

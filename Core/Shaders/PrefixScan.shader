@@ -3,7 +3,7 @@
 
 #if !defined(SkipParallelPrimitives) && defined(StructType)
 
-const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* localArray, const uint localIndex, const uint subGroupLocalIndex)
+const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
   if (subGroupLocalIndex >= 1)
   {
@@ -35,10 +35,10 @@ const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* loca
   return localArray[localIndex];
 }
 
-MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const uint localIndex, const uint elements)
+MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const ushort localIndex, const ushort elements)
 {
-  const uint subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uint subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
 
   const MemberStructType subGroupSum = subGroupPrefixScan(localArray, localIndex, subGroupLocalIndex);
   localMemBarrier();
@@ -85,11 +85,14 @@ Kernel void prefixGroupScanKernel(
   Device StructType*                destination,
   const Device StructType*          source,
   volatile Device MemberStructType* sumBuffer,
-  volatile Device uint*             statusBuffer,
-  const uint                        length)
+  atomicKernelInput(uint,           statusBuffer),
+  constantKernelInput(uint,         length)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
+  const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
 
@@ -115,24 +118,25 @@ Kernel void prefixGroupScanKernel(
     if (threadGroupIndex())
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2], lastSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_PARTIAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_PARTIAL);
     }
     else
     {
       writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], lastSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
     }
 
     int prevGroupIndex = threadGroupIndex() - 1;
     INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
+    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
-      const uint status = atomicLoad(statusBuffer + prevGroupIndex);
+      const uint status = atomicLoad(&statusBuffer[prevGroupIndex]);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
       {
         ADD_FUNCTION(previousSum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
         prevGroupIndex--;
+        RESET_POLL();
       }
       else if (status == PREFIX_SCAN_STATUS_FINAL)
       {
@@ -146,7 +150,7 @@ Kernel void prefixGroupScanKernel(
     {
       ADD_FUNCTION(lastSum, previousSum);
       writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], lastSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
     }
 
     localArray1D[0] = previousSum;
@@ -169,11 +173,14 @@ Kernel void compactSparseArray(
   Device uint*                      compactIndexArray,
   const Device StructType*          selectionArray,
   volatile Device MemberStructType* sumBuffer,
-  volatile Device uint*             statusBuffer,
-  const uint                        length)
+  atomicKernelInput(uint,           statusBuffer),
+  constantKernelInput(uint,         length)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   const uint index = threadIndex();
-  const uint localIndex = threadLocalIndex();
+  const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
 
@@ -218,13 +225,14 @@ Kernel void compactSparseArray(
     int prevGroupIndex = threadGroupIndex() - 1;
     INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (prevGroupIndex > -1 && !POLL_TIMEOUT())
+    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
       {
         ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
         prevGroupIndex--;
+        RESET_POLL();
       }
       else if (status == PREFIX_SCAN_STATUS_FINAL)
       {
@@ -255,7 +263,7 @@ Kernel void compactSparseArray(
   localExclusiveScan(originalValues, prefixSum);
 
   const uint indexOffset = index * BatchSize;
-  const uint writeCount = min((length > indexOffset) ? length - indexOffset : 0, (uint)BatchSize);
+  const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
   uint mask = (1 << (BatchSize - 1));
   for (uint i = 0; i < writeCount; i++, mask >>= 1)
