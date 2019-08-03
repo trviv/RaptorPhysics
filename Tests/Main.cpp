@@ -147,17 +147,16 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   DeviceArray<DataType> data(compute, NULL, true);
   DeviceArray<DataType> backupData(compute, NULL, false);
 
-  const int elements = 123456789;
+  const int elements = 123456792;
   double sum = 0;
   uint iterations = 10;
 
   data.host()->reserve(elements);
   for (int i = 0; i < elements; i++)
   {
-    data.host()->push_back(float(rand()) / RAND_MAX);
+    data.host()->push_back(1.f);
     sum += data.host()->at(i);
   }
-  sum /= elements;
 
   backupData.resize(elements, false);
   data.syncDevice();
@@ -175,7 +174,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
     ProfileBlock("Reduce scan");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements, true);
+      ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements, false);
     }
   }
 
@@ -184,7 +183,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
   printStats(mean, elements, 1, sizeof(DataType));
 
-  ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, true);
+  ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, false);
   data.syncHost(0, 1);
   compute->sync();
 
@@ -677,7 +676,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
 
   for (uint i = 0; i < sortedData.size(); i++)
   {
-    if (abs((float)sortedData[i].key - destination.host()->at(i).key) > .00001f)
+    if (sortedData[i].key != destination.host()->at(i).key)
     {
       std::cout << i << " " << sortedData.at(i).key << " " << sortedData.at(i).value << " " <<
         destination.host()->at(i).key << " " << destination.host()->at(i).value << "\n";

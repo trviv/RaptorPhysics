@@ -5,7 +5,8 @@
 
 Kernel void bandwidthReadTest(
   const Device StructType* array,
-  const uint length)
+  constantKernelInput(uint, length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   StructType value;
   uint index = threadIndex();
@@ -18,7 +19,8 @@ Kernel void bandwidthReadTest(
 
 Kernel void bandwidthWriteTest(
   Device StructType* array,
-  const uint length)
+  constantKernelInput(uint, length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   StructType value;
   uint index = threadIndex();
@@ -33,7 +35,8 @@ Kernel void consolidateFromPartitionsKernel(
   const Device StructType* source,
   Device StructType* destination,
   const Device PartitionInfo* partitions,
-  const Device uint* partitionsCount)
+  const Device uint* partitionsCount
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -47,10 +50,12 @@ Kernel void consolidateFromPartitionsKernel(
 
 Kernel void bitonicSort32BitKernel(
   Device SortNode32* array1D,
-  const uint multiplier,
-  const int minDepth,
-  const int maxDepth,
-  const uint length)
+  constantKernelInput(uint, multiplier),
+  constantKernelInput(int, minDepth),
+  constantKernelInput(int, maxDepth),
+  constantKernelInput(uint, length)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS)
 {
   // the number of threads for the kernel
   const uint index = threadIndex();
@@ -117,14 +122,20 @@ Kernel void bitonicSort32BitKernel(
   }
 }
 
-Kernel void showMatrix(Device float* array, const uint rowLength, const uint strideIn4Byte, const uint length)
+Kernel void showMatrix(Device float* array,
+  constantKernelInput(uint, rowLength),
+  constantKernelInput(uint, strideIn4Byte),
+  constantKernelInput(uint, length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();
   if (index < length / 3)
   {
     for (uint i = 0; i < rowLength / 3; i++)
     {
+#ifndef USE_METAL_COMPUTE
       printf("%f %f %f\n", array[index * strideIn4Byte + i * 3], array[index * strideIn4Byte + i * 3 + 1], array[index * strideIn4Byte + i * 3 + 2]);
+#endif
     }
   }
 }
@@ -133,20 +144,25 @@ Kernel void showMatrix(Device float* array, const uint rowLength, const uint str
 
 // kernel to clear an integer buffer to all 0s
 Kernel void clearIntegerBuffer(
-  Device uint8* destination,
-  const int length)
+  Device uint* destination,
+  constantKernelInput(int, length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   int writeSize = length - (int)threadIndex() * BUFFER_INT_BATCH_SIZE;
 
   if (writeSize >= BUFFER_INT_BATCH_SIZE)
   {
-    destination[threadIndex()] = 0;
+#ifndef USE_METAL_COMPUTE
+    ((Device uint8*)destination)[threadIndex()] = 0;
+#else
+    ((Device dummy_uint8*)destination)[threadIndex()] = 0;
+#endif
   }
   else
   {
     for (int i = 0; i < writeSize; i++)
     {
-      ((Device uint*)(destination + threadIndex()))[i] = 0;
+      (destination + threadIndex() * 8)[i] = 0;
     }
   }
 }

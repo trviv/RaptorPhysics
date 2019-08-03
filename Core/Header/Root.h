@@ -5,6 +5,9 @@
 #if __APPLE__
 #define ENV_WIN         0   // for windows enviornment
 #define ENV_APPLE       1   // for windows enviornment
+#define _I386_PARAM_H_
+#define USE_METAL_COMPUTE
+#define USE_SIMD_COMPUTE
 
 #else
 #define ENV_WIN         1   // for windows enviornment
@@ -114,6 +117,8 @@ typedef uint16_t  half;
 
 #if defined(__CUDACC__) // NVCC
 #define ALIGN(n)  __align__(n)
+#elif defined(__clang__)
+#define ALIGN(n)  alignas(n)
 #elif defined(__GNUC__) || defined(OPENCL) // GCC or OpenCL
 #define ALIGN(n)  __attribute__((aligned(n)))
 #elif defined(_MSC_VER) // MSVC
