@@ -64,6 +64,8 @@ string getKeyName(ComputeUtilKey key)
     return "DivFunction";
   case ComputeUtilCustomClearFunction:
     return "ClearFunction";
+  case ComputeUtilCustomReduceFunction:
+    return "ReduceFunction";
 
   case ComputeUtilBatchSize:
     return "BatchSize";

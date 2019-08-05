@@ -44,32 +44,19 @@ void DistanceSolver::solve()
     ComputeMemory* newPosition = ((i & 1) == 1) ? particlesPredicted.device() : particlesTemp[0].device();
     ComputeMemory* oldPosition = ((i & 1) == 0) ? particlesPredicted.device() : particlesTemp[0].device();
 
-    if (i == 0)
-    {
-      // set everything in the first iteration
-      ComputeMemory* buffers[] = {
-        newPosition,
-        oldPosition,
-        constrainHeaders.device(),
-        constrainIndices.device(),
-        constrainCoefficients.device(),
-        partitions.device(),
-        entityLocations.device()
-      };
-      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);
-      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArg<uint>(&count, bufferOffset);
-    }
-    else
-    {
-      // set only the changed data for second plus iteration
-      ComputeMemory* buffers[] = {
-        newPosition,
-        oldPosition
-      };
-      uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
-      kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);
-    }
+    // set everything in the first iteration
+    ComputeMemory* buffers[] = {
+      newPosition,
+      oldPosition,
+      constrainHeaders.device(),
+      constrainIndices.device(),
+      constrainCoefficients.device(),
+      partitions.device(),
+      entityLocations.device()
+    };
+    uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArgs(buffers, bufferOffset);
+    kernels[DISTANCE_SOLVER_KERNEL_SPRING].setArg<uint>(&count, bufferOffset);
     compute->execute(kernels[DISTANCE_SOLVER_KERNEL_SPRING], workgroupSize, workgroupCount);
 
 #if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)

@@ -21,6 +21,7 @@ class LBVHSolver : public CollisionSolver
   DeviceArray <XAB>             particleBoundingBoxes;
   DeviceArray <XAB>             particleGroupBoundingBoxes;
   DeviceArray <XAB>             treeInternalNodeBoundingBoxes;
+  DeviceArray <ParticleStruct>  empty;
 public:
 
   ~LBVHSolver();

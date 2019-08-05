@@ -50,6 +50,9 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   particlesTemp.create(compute, solverHeap);
 #endif
 
+  empty.create(compute, NULL, false);
+  empty.resize(1, false);
+
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
@@ -61,9 +64,11 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 {
   const uint gridElements = gridSize * gridSize * gridSize;
 
-  if (gridCompactCellCount.size() == 0)
+  if (gridParticleCellIndex.size() < instanceNodeCount)
   {
-    gridCompactCellCount.resize(1, false);
+    gridParticleCellIndex.resize(instanceNodeCount, false);
+    gridCellParticleIndices.resize(instanceNodeCount, false);
+    particlesTemp.resize(instanceNodeCount, false);
   }
 
   if (gridCompactCellIndices.size() < gridElements)
@@ -73,11 +78,9 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     gridCellParticleOffsets.resize(gridElements, false);
   }
 
-  if (gridParticleCellIndex.size() < instanceNodeCount)
+  if (gridCompactCellCount.size() == 0)
   {
-    gridParticleCellIndex.resize(instanceNodeCount, false);
-    gridCellParticleIndices.resize(instanceNodeCount, false);
-    particlesTemp.resize(instanceNodeCount, false);
+    gridCompactCellCount.resize(1, false);
   }
 
   // clear index offset buffer
@@ -156,11 +159,10 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
   const int iterations = 1;
 
   ComputeMemory* second;
-  ComputeMemory empty(NULL);
 
   for (int i=0; i<iterations; i++)
   {
-    second = (i==(iterations-1)) ? &empty : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
+    second = (i==(iterations-1)) ? empty.device() : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
     build(instanceNodeCount, globalOffsets);
 
@@ -189,6 +191,8 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSize, bufferCount);
+    uint stablizationPass = (second != empty.device());
+    kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
 
     compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
   }

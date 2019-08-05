@@ -37,7 +37,8 @@ Kernel void distanceSolverSpring(
   const Device CoefficientType*     coefficients,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
-  const uint                        nodeCount)
+  constantKernelInput(uint,         nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 

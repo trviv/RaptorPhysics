@@ -18,7 +18,8 @@ Kernel void covarianceMatrix(
   const Device ParticleRigidData* rigidBodyData,
   const Device PartitionInfo*     partitions,
   const Device EntityLocation*    entityLocation,
-  const uint length)
+  constantKernelInput(uint,       length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -39,15 +40,23 @@ Kernel void covarianceMatrix(
     float3 initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
     // batch write respecting data alignment
-    float8 ret8;
-    ret8.s012 = currentComOffset * initialComOffset.x;
-    ret8.s345 = currentComOffset * initialComOffset.y;
-    ret8.s67  = currentComOffset.xy * initialComOffset.z;
+    float4 ret1 = currentComOffset.xyzx * constructFloat4(initialComOffset.xxx, initialComOffset.y);
+    float4 ret2 = currentComOffset.yzxy * constructFloat4(initialComOffset.yy, initialComOffset.zz);
+    float ret3  = currentComOffset.z * initialComOffset.z;
 
-    Device float* matrixRow = (matrixData + 9 * index);
+    ((Device float4*)(matrixData + 9 * index))[0] = ret1;
+    ((Device float4*)(matrixData + 9 * index))[1] = ret2;
+    (matrixData + 9 * index)[8] = ret3;
 
-    ((Device float8*)matrixRow)[0] = ret8;
-    matrixRow[8] = currentComOffset.z * initialComOffset.z;
+//    float8 ret8;
+//    ret8.s012 = currentComOffset * initialComOffset.x;
+//    ret8.s345 = currentComOffset * initialComOffset.y;
+//    ret8.s67  = currentComOffset.xy * initialComOffset.z;
+//
+//    Device float* matrixRow = (matrixData + 9 * index);
+//
+//    ((Device float8*)matrixRow)[0] = ret8;
+//    matrixRow[8] = currentComOffset.z * initialComOffset.z;
   }
 }
 
@@ -128,7 +137,9 @@ inline void rigidSolverFunction(
 
   instanceId *= 9;
 
-  ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + instanceId))[0];
+  ((Thread float4*)localMatrix)[0] = ((Device float4*)(matrixData + instanceId))[0];
+  ((Thread float4*)localMatrix)[1] = ((Device float4*)(matrixData + instanceId))[1];
+//  ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + instanceId))[0];
   localMatrix[8] = matrixData[instanceId + 8];
 
   for (uint it = 0; it < iterations; it++)
@@ -142,7 +153,9 @@ inline void rigidSolverFunction(
     const float g1 = gamma * .5f;
     const float g2 = .5f / (gamma * determinant);
 
-    ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
+    ((Thread float4*)localMatrix)[0] = g1 * ((Thread float4*)localMatrix)[0] + g2 * ((Thread float4*)matrix2)[0];
+    ((Thread float4*)localMatrix)[1] = g1 * ((Thread float4*)localMatrix)[1] + g2 * ((Thread float4*)matrix2)[1];
+//    ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
     localMatrix[8] = g1 * localMatrix[8] + g2 * matrix2[8];
   }
 }
@@ -156,8 +169,9 @@ inline void rigidSolverFunction(
 */
 Kernel void rigidSolver(
   Device float* matrixData,
-  const uint iterations,
-  const uint length)
+  constantKernelInput(uint, iterations),
+  constantKernelInput(uint, length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -168,7 +182,9 @@ Kernel void rigidSolver(
     rigidSolverFunction(localMatrix, matrixData, iterations, index);
 
     // batch write respecting data alignment
-    ((Device float8*)(matrixData + index * 9))[0] = ((Thread float8*)localMatrix)[0];
+    ((Device float4*)(matrixData + index * 9))[0] = ((Thread float4*)localMatrix)[0];
+    ((Device float4*)(matrixData + index * 9))[1] = ((Thread float4*)localMatrix)[1];
+//    ((Device float8*)(matrixData + index * 9))[0] = ((Thread float8*)localMatrix)[0];
     (matrixData + index * 9)[8] = localMatrix[8];
   }
 }
@@ -189,8 +205,9 @@ Kernel void setDeltaPosition(
   Device ParticleCollisionData*   particleCollisionData,
   const Device PartitionInfo*     partitions,
   const Device EntityLocation*    entityLocation,
-  const uint                      iterations,
-  const uint                      length)
+  constantKernelInput(uint,       iterations),
+  constantKernelInput(uint,       length)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -204,9 +221,6 @@ Kernel void setDeltaPosition(
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     rigidSolverFunction(localMatrix, matrixData, iterations, nodeIdentity.instanceId);
-//    ((Thread float8*)localMatrix)[0] = ((Device float8*)(matrixData + nodeIdentity.instanceId*9))[0];
-//    localMatrix[8] = matrixData[nodeIdentity.instanceId*9 + 8];
-
     const float3 initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
     float3 comOffsetCrossQ;

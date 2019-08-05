@@ -19,6 +19,7 @@
 //#define ENABLE_CL_PROFILING
 
 #ifdef USE_METAL_COMPUTE
+volatile id<MTLBuffer> tempBuffer = nil;
 volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
 volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
 volatile id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
@@ -297,7 +298,7 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
       0, sizeInBytes);
     computeCheckError(status, 0);
 #else
-    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModeManaged], 0, sizeInBytes);
+    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModePrivate], 0, sizeInBytes);
 #endif
   }
   else
@@ -615,9 +616,10 @@ void ComputeInterface::create(int deviceIndex)
   computeCheckError(status, 0);
 #else
   queue = [deviceId newCommandQueue];
+  tempBuffer = [deviceId newBufferWithLength:1024*1024 options:MTLResourceStorageModeShared];
   currentCommandBuffer = [queue commandBuffer];
-  getComputeEncoder();
   context = deviceId;
+  getComputeEncoder();
 #endif
 }
 
@@ -762,7 +764,6 @@ void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, 
 {
 #ifdef USE_OPENCL_COMPUTE
   cl_event localEvent;
-
 #ifdef CREATE_SUB_BUFFER
   ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset, destinOffset, sizeInBytes, 0, NULL, &localEvent);
 #else
@@ -777,11 +778,10 @@ void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, 
   clReleaseEvent(localEvent);
 #endif
 #else
-  [getBlitEncoder() copyFromBuffer:*source sourceOffset:source->getOffset() toBuffer:*destin destinationOffset:destin->getOffset() size:sizeInBytes];
+  [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:*destin destinationOffset:(destinOffset + destin->getOffset()) size:sizeInBytes];
   endEncoders();
   getComputeEncoder();
 #endif
-
 }
 
 void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
@@ -798,13 +798,11 @@ void ComputeInterface::copyToHost(ComputeMemory* source, size_t sourceOffset, si
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
-  [getBlitEncoder() synchronizeResource:*source];
-  endEncoders();
-  [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull)
-    {
-      memcpy(hostPtr, ((char*)[*source contents]) + sourceOffset, sizeInBytes);
-    }];
-  getComputeEncoder();
+  while (sizeInBytes > tempBuffer.length)
+  { tempBuffer = [deviceId newBufferWithLength:tempBuffer.length*2 options:MTLResourceStorageModeShared];}
+  [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:tempBuffer destinationOffset:0 size:sizeInBytes];
+  sync();
+  memcpy(hostPtr, tempBuffer.contents, sizeInBytes);
 #endif
 }
 
@@ -814,8 +812,10 @@ void ComputeInterface::copyFromHost(ComputeMemory* destin, size_t destinOffset, 
   ComputeStatus status = clEnqueueWriteBuffer(queue, *destin, waitForFinish, destinOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
-  memcpy(((char*)[*destin contents]) + destinOffset, hostPtr, sizeInBytes);
-  [(*destin) didModifyRange:NSMakeRange(destinOffset, sizeInBytes)];
+  while (sizeInBytes > tempBuffer.length)
+  { tempBuffer = [deviceId newBufferWithLength:tempBuffer.length*2 options:MTLResourceStorageModeShared];}
+  memcpy(tempBuffer.contents, hostPtr, sizeInBytes);
+  [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destin destinationOffset:(destinOffset + destin->getOffset()) size:sizeInBytes];
   sync();
 #endif
 }

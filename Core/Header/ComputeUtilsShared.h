@@ -57,6 +57,12 @@
 #define CLEAR_FUNCTION(x, y)    (x) = y
 #endif
 
+#ifdef ReduceFunction
+#define REDUCE_FUNCTION(o, i)   ReduceFunction(o, i)
+#else
+#define REDUCE_FUNCTION(o, i)   o = simdReduce(i)
+#endif
+
 // general atomics for structures
 inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 {
