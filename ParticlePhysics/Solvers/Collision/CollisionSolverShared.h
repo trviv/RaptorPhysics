@@ -52,7 +52,9 @@ typedef struct XAB_t XAB;
 
 #define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
 #define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
+#define copyXAB(a, b)   { (a)->min = (b)->min; (a)->max = (b)->max;}
 #define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
+#define reduceXAB(o, i) { o.min = simdReduce(i.min); o.max = simdReduce(i.max);}
 
 #pragma pack(pop)
 
@@ -136,7 +138,7 @@ inline float3 processParticleCollision(
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
-  Thread ushort* collisionCount,
+  Thread short* collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData* particleCollisionData,
   Thread bool* collided)
@@ -170,7 +172,7 @@ inline float3 processParticleCollision(
       float separationDistance = actualDistance - (fabs(collisionData.radius) + fabs(collisionData2.radius));
 
       // get normal according to minimum translation distance
-      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, constructUint3(sdfMagnitude < sdfMagnitude2));
+      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
       sdfGradient = normalize(sdfGradient);
 
       float3 contactNormal = collisionVector;

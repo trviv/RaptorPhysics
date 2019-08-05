@@ -25,8 +25,11 @@ Kernel void createBoundingBoxes(
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const PhySystemOffsets*           globalOffsets,
-  const uint                        nodeBatchSize,
-  const uint                        nodeCount)
+  constantKernelInput(uint,         nodeBatchSize),
+  constantKernelInput(uint,         nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   // bounding box for the batch
   XAB accumulatedBoundingBox;
@@ -75,7 +78,8 @@ Kernel void assignMortonCode(
   Device BVHLeafInfo*           bvhLeafs,
   Const XAB*                    mergedParticleBoundingBox,
   const Device ParticleStruct*  particles,
-  const uint                    nodeCount)
+  constantKernelInput(uint,     nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -91,7 +95,7 @@ Kernel void assignMortonCode(
     // floor() is needed to prevent the center cell, at (0,0,0) from being twice the size
     float3 positionRelativeToCenter = (particle.position - mergedBoxCenter) * inverseMergedBoxSize;
 
-    int3 quantizedPosition = convert_int3(select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f));
+    int3 quantizedPosition = convertInt3(select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f));
 
     // Clamp coordinates into [-512, 511], then convert range from [-512, 511] to [0, 1023]
     quantizedPosition = max(constructInt3(-512), min(quantizedPosition, constructInt3(511))) + constructInt3(512);
@@ -157,7 +161,8 @@ Kernel void constructBinaryTree(
   Device uint*              leafParentNodeIndices,
   Device uint*              nodeParentNodeIndices,
   const Device BVHLeafInfo* bvhLeafs,
-  const int                 nodeCount)
+  constantKernelInput(int,  nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint internalNodeCount = nodeCount - 1;
   const int internalNodeIndex = threadIndex();
@@ -282,7 +287,8 @@ Kernel void constructTreeBoundingBox(
   const Device uint*        leafParentNodeIndices,
   const Device uint*        nodeParentNodeIndices,
   const Device XAB*         particleBoundingBoxes,
-  const int                 nodeCount)
+  constantKernelInput(int,  nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   int index = threadIndex();
 
@@ -349,7 +355,7 @@ Kernel void constructTreeBoundingBox(
 
 inline int intersectXAB(const XAB a, const XAB b)
 {
-  const int3 ret = (a.min < b.max) && (a.max > b.min);
+  const int3 ret = constructInt3(a.min < b.max) & constructInt3(a.max > b.min);
   return (ret.x && ret.y && ret.z);
 }
 
@@ -702,7 +708,7 @@ inline float3 stackTraverseBinaryTree(
 @param occupiedCellCount Total active grid cells.
 */
 Kernel void applyCollisions(
-  volatile Device uint*               batchCounter,
+  atomicKernelInput(uint,             batchCounter),
   Device ParticleStruct*              particles,
   Device ParticleStruct*              particles2,
   const Device ParticleStruct*        particlesInit,
@@ -721,7 +727,10 @@ Kernel void applyCollisions(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
-  const uint                          nodeCount)
+  constantKernelInput(uint,           nodeCount),
+  constantKernelInput(uint,           stablizationPass)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS)
 {
 #define batchMultiple 1
 
@@ -801,7 +810,7 @@ Kernel void applyCollisions(
       currentParticle.identity = identity;
       particles[index] = currentParticle;
 
-      if (particles2)
+      if (stablizationPass)
       {
         particles2[index].position += delta;
         particles2[index].identity = identity;

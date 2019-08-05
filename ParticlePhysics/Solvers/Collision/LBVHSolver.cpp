@@ -67,6 +67,9 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 
   treeInternalNodeBoundingBoxes.create(compute, NULL, true);
 
+  empty.create(compute, NULL, false);
+  empty.resize(1, false);
+
   systemBoundingBox.resize(1, false);
 
   vector<string> utilInclude;
@@ -80,7 +83,9 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
   lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
   lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
+  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
+  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
   lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
 
@@ -231,11 +236,10 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
   const int iterations = 1;
 
   ComputeMemory* second;
-  ComputeMemory empty(NULL);
 
   for (int i=0; i<iterations; i++)
   {
-    second = (i==(iterations-1)) ? &empty : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
+    second = (i==(iterations-1)) ? empty.device() : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
     build(instanceNodeCount, globalOffsets);
 
@@ -264,6 +268,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount);
+    uint stablizationPass = (second != empty.device());
+    kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
 
     compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
   }

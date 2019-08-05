@@ -24,14 +24,17 @@
 #define constructUshort4    (ushort4)
 #define constructFloat2     (float2)
 #define constructFloat3     (float3)
-#define constructUint3      (uint3)
+#define constructFloat4     (float4)
 #define constructUint2      (uint2)
-#define constructInt3       (int3)
+#define constructUint3      (uint3)
 #define constructInt2       (int2)
+#define constructInt3       (int3)
 
 #define convertUshort4(a)   convert_ushort4(a)
+#define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
 #define simdReduce(x)       assert
+#define selectInput3(x)     uint3(x)
 
 #define atomicLoad(location)          atomic_or  (location, 0)
 #define atomicStore(location, value)  atomic_xchg(location, value)
@@ -65,14 +68,17 @@
 #define constructUshort4    ushort4
 #define constructFloat2     float2
 #define constructFloat3     float3
-#define constructUint3      uint3
+#define constructFloat4     float4
 #define constructUint2      uint2
-#define constructInt3       int3
+#define constructUint3      uint3
 #define constructInt2       int2
+#define constructInt3       int3
 
 #define convertUshort4(a)   ushort4(a)
+#define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
 #define simdReduce(x)       simd_sum(x)
+#define selectInput3(x)     bool3(x)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)

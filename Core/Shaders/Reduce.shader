@@ -3,6 +3,8 @@
 
 #if (!defined(SkipParallelPrimitives) || defined(OnlyReduce)) && defined(StructType)
 
+#ifndef USE_SIMD_COMPUTE
+
 void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
 #if COMPUTE_SUB_GROUP_SIZE > 32
@@ -90,7 +92,7 @@ MemberStructType groupReduce(volatile Shared MemberStructType* localArray, const
   return localArray[localIndex];
 }
 
-#ifdef USE_SIMD_COMPUTE
+#else
 
 inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
@@ -98,7 +100,7 @@ inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Sha
   const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
 
   // per sub group reduce
-  localArray[localIndex] = simdReduce(reduceSum);
+  REDUCE_FUNCTION(localArray[localIndex], reduceSum);
 
   localMemBarrier();
 
@@ -114,7 +116,7 @@ inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Sha
     }
 
     // reduce first sub group
-    reduceSum = simdReduce(reduceSum);
+    REDUCE_FUNCTION(reduceSum, reduceSum);
   }
 
   return reduceSum;

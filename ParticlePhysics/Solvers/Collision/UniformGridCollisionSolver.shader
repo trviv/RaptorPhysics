@@ -19,14 +19,15 @@ uint3 quantizePosition(const float3 position, const uint gridSize)
 @param gridSize Size of grid in one dimension.
 */
 Kernel void createGridCellHistogram(
-  Device uint*                      gridCellIndexCount,
+  atomicKernelInput(uint,           gridCellIndexCount),
   Device uint*                      gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const PhySystemOffsets*           globalOffsets,
-  const uint                        nodeCount,
-  const uint                        gridSize)
+  constantKernelInput(uint,         nodeCount),
+  constantKernelInput(uint,         gridSize)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -36,7 +37,7 @@ Kernel void createGridCellHistogram(
     const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;
-    atomicAdd(gridCellIndexCount + gridCountOffset, 1);
+    atomicAdd(&gridCellIndexCount[gridCountOffset], 1);
   }
 }
 
@@ -49,16 +50,17 @@ Kernel void createGridCellHistogram(
 */
 Kernel void createGridCellArrays(
   Device uint*                      gridCellParticleIndices,
-  Device uint*                      gridCellParticleOffsets,
+  atomicKernelInput(uint,           gridCellParticleOffsets),
   const Device uint*                gridParticleCellIndex,
-  const uint                        nodeCount)
+  constantKernelInput(uint,         nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
   if (index < nodeCount)
   {
     const uint gridCountOffset = gridParticleCellIndex[index];
-    const uint offset = atomicAdd(gridCellParticleOffsets + gridCountOffset, 1);
+    const uint offset = atomicAdd(&gridCellParticleOffsets[gridCountOffset], 1);
 
     gridCellParticleIndices[offset] = index;
   }
@@ -101,7 +103,11 @@ Kernel void applyCollisions(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
-  const uint                          gridSize)
+  constantKernelInput(uint,           gridSize),
+  constantKernelInput(uint,           stablizationPass)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
 {
   const uint gridCellIndex = gridCompactCellIndices[threadGroupIndex()];
 
@@ -201,7 +207,7 @@ Kernel void applyCollisions(
 
       particlesPredictedNew[particleIndex] = currentParticle;
 
-      if (particles2)
+      if (stablizationPass)
       {
         particles2[particleIndex].position += delta;
         particles2[particleIndex].identity = identity;

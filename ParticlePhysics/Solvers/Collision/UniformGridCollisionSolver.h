@@ -18,6 +18,7 @@ protected:
   DeviceArray <uint>            gridCellParticleIndices;
   DeviceArray <ParticleStruct>  particlesTemp;
   uint                          gridSize;
+  DeviceArray <ParticleStruct>  empty;
 
 public:
 
