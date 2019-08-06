@@ -63,6 +63,12 @@
 #define REDUCE_FUNCTION(o, i)   o = simdReduce(i)
 #endif
 
+#ifdef ScanFunction
+#define SCAN_FUNCTION(o, i)     ScanFunction(o, i)
+#else
+#define SCAN_FUNCTION(o, i)     o = simdScan(i)
+#endif
+
 // general atomics for structures
 inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 {

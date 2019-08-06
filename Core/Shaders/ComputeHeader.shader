@@ -34,6 +34,7 @@
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
 #define simdReduce(x)       assert
+#define simdScan(x)         assert
 #define selectInput3(x)     uint3(x)
 
 #define atomicLoad(location)          atomic_or  (location, 0)
@@ -78,6 +79,7 @@
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
 #define simdReduce(x)       simd_sum(x)
+#define simdScan(x)         simd_prefix_inclusive_sum(x)
 #define selectInput3(x)     bool3(x)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)

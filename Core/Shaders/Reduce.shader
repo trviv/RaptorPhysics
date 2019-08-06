@@ -40,7 +40,7 @@ void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort l
   }
 }
 
-MemberStructType groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
+void groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
 //  // log n iterations
 //  for (uchar i=0; i<8; i++)
@@ -88,8 +88,6 @@ MemberStructType groupReduce(volatile Shared MemberStructType* localArray, const
   {
     subGroupReduce(localArray, localIndex, subGroupLocalIndex);
   }
-
-  return localArray[localIndex];
 }
 
 #else
@@ -148,7 +146,8 @@ Kernel void reduce(
   // reduce threadgroup elements
 #ifndef USE_SIMD_COMPUTE
   localArray[paddedIndex(localIndex)] = reduceSum;
-  MemberStructType sum = groupReduce(localArray, localIndex);
+  groupReduce(localArray, localIndex);
+  MemberStructType sum = localArray[localIndex];
 #else
   MemberStructType sum = simdGroupReduce(reduceSum, localArray, localIndex);
 #endif
