@@ -3,6 +3,8 @@
 
 #if !defined(SkipParallelPrimitives) && defined(StructType)
 
+#ifndef USE_SIMD_COMPUTE
+
 const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
   if (subGroupLocalIndex >= 1)
@@ -63,6 +65,51 @@ MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const usho
   return subGroupSum + localArray[subGroupIndex];
 }
 
+#else
+
+inline MemberStructType simdGroupPrefixScan(MemberStructType reduceSum, volatile Shared MemberStructType* localArray, const ushort localIndex)
+{
+  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
+  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+
+  // per sub group reduce
+  SCAN_FUNCTION(reduceSum, reduceSum);
+  localArray[localIndex] = reduceSum;
+
+  localMemBarrier();
+
+  if (subGroupIndex == 0)
+  {
+    MemberStructType prefixSum;
+
+    // clear all elements to zero
+    CLEAR_FUNCTION(prefixSum, 0);
+
+    // copy last element from each sub group to first sub group's local space
+    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    {
+      COPY_FUNCTION(prefixSum, localArray[(subGroupLocalIndex+1) * COMPUTE_SUB_GROUP_SIZE - 1]);
+    }
+
+    const MemberStructType prev = prefixSum;
+
+    // reduce first sub group
+    SCAN_FUNCTION(prefixSum, prefixSum);
+    prefixSum -= prev;
+
+    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    {
+      COPY_FUNCTION(localArray[subGroupLocalIndex * COMPUTE_SUB_GROUP_SIZE], prefixSum);
+    }
+  }
+
+  localMemBarrier();
+
+  return reduceSum + localArray[subGroupIndex * COMPUTE_SUB_GROUP_SIZE];
+}
+
+#endif
+
 void localExclusiveScan(Thread MemberStructType *elements, MemberStructType prev)
 {
   for (uint i = 0; i < BatchSize; i++)
@@ -72,6 +119,7 @@ void localExclusiveScan(Thread MemberStructType *elements, MemberStructType prev
     prev += temp;
   }
 }
+
 
 /*
 @kernel Parallel prefix scan array of elements.
@@ -101,12 +149,15 @@ Kernel void prefixGroupScanKernel(
   batchRead(originalValues, source, index, length);
 
   const MemberStructType reduceSum = localReduce(originalValues);
-  localArray1D[localIndex] = reduceSum;
 
+#ifndef USE_SIMD_COMPUTE
+  localArray1D[localIndex] = reduceSum;
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
-
   localMemBarrier();
+#else
+  MemberStructType prefixSum = simdGroupPrefixScan(reduceSum, localArray1D, localIndex);
+#endif
 
   // for last thread in the threadgroup
   if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))
@@ -198,12 +249,15 @@ Kernel void compactSparseArray(
   }
 
   const MemberStructType reduceSum = localReduce(originalValues);
-  localArray1D[localIndex] = reduceSum;
 
+#ifndef USE_SIMD_COMPUTE
+  localArray1D[localIndex] = reduceSum;
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
-
   localMemBarrier();
+#else
+  MemberStructType prefixSum = simdGroupPrefixScan(reduceSum, localArray1D, localIndex);
+#endif
 
   // for last thread in the threadgroup
   if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))

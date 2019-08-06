@@ -19,8 +19,9 @@ Kernel void integrateDifferentiateStep(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
-  const float                         timeStep,
-  const uint                          nodeCount)
+  constantKernelInput(float,          timeStep),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -90,8 +91,9 @@ Kernel void startStep(
   const Device PartitionInfo*       	partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*           	globalOffsets,
-  const float                       	timeStep,
-  const uint                          nodeCount)
+  constantKernelInput(float,          timeStep),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
@@ -154,8 +156,9 @@ Kernel void endStep(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
-  const float                       	timeStep,
-  const uint                          nodeCount)
+  constantKernelInput(float,          timeStep),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 

@@ -29,6 +29,7 @@ enum ComputeUtilKey
   ComputeUtilCustomDivFunction,
   ComputeUtilCustomClearFunction,
   ComputeUtilCustomReduceFunction,
+  ComputeUtilCustomScanFunction,
 
   ComputeUtilBatchSize,
   ComputeUtilSkipParallelPrimitives,
