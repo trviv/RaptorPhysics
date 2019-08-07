@@ -27,6 +27,7 @@
 #define FetchAlignmentExp (1<<RadixReductionPackingExp)
 #endif
 
+#ifndef USE_SIMD_COMPUTE
 const RadixPackedType lanePrefixScanRadix(volatile Shared RadixPackedType* localArray1D, const ushort localIndex)
 {
   volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
@@ -56,6 +57,7 @@ void laneReduceRadix(volatile Shared StructType* localArray1D, const ushort loca
   *localArray1DPtr += *(localArray1DPtr + 2);
   *localArray1DPtr += *(localArray1DPtr + 1);
 }
+#endif
 
 uint setLocalCount(const uchar localKey, const uchar keyPrefix)
 {
@@ -141,9 +143,14 @@ Kernel void radixSort32BitReduceKernel(
       {
         count += setLocalCount(getKey(localKeys, i), j);
       }
-      localCount[localIndexInLane] = count;
 
+#ifndef USE_SIMD_COMPUTE
+      localCount[localIndexInLane] = count;
       laneReduceRadix(localCount, localIndexInLane);
+#else
+      RadixPackedType reduce;
+      REDUCE_FUNCTION(reduce, count);
+#endif
 
       if (localIndexInLane == 0)
       {
@@ -151,7 +158,11 @@ Kernel void radixSort32BitReduceKernel(
 
         // subtract first to account potential 8 bit overflow
         // add first to 32 bit converted value
+#ifndef USE_SIMD_COMPUTE
         uchar4 temp = asUchar4(localCount[0] - count);
+#else
+        uchar4 temp = asUchar4(reduce - count);
+#endif
         ushort4 sum = convertUshort4(temp);
         temp = asUchar4(count);
         sum += constructUshort4(temp.x, temp.y, temp.z, temp.w);
@@ -292,9 +303,9 @@ Kernel void radixSort32BitSortKernel(
     for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
 
-#if defined(BusAlignedFetch) && defined(CoalescedWrites)
-      localPrefixCount[localIndexInLane - LaneWidth] = 0;
-#endif
+//#if defined(BusAlignedFetch) && defined(CoalescedWrites)
+//      localPrefixCount[localIndexInLane - LaneWidth] = 0;
+//#endif
 
       RadixPackedType reduceSum = 0;
 
@@ -322,9 +333,14 @@ Kernel void radixSort32BitSortKernel(
 #endif
       }
 
+#ifndef USE_SIMD_COMPUTE
       localPrefixCount[localIndexInLane] = reduceSum;
-
       uint prefixScan = lanePrefixScanRadix(localPrefixCount, localIndexInLane) - reduceSum;
+#else
+      uint prefixScan;
+      SCAN_FUNCTION(prefixScan, reduceSum);
+      prefixScan -= reduceSum;
+#endif
 
       for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
       {
