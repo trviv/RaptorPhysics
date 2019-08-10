@@ -11,7 +11,7 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_SECTION_OFFSET                   4
 #define COMPUTE_UTIL_COMPACT_SPARSE_ARRAY             5
 #define COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS      6
-#define COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL    7
+#define COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL             7
 #define COMPUTE_UTIL_RADIX_SORT1                      8
 #define COMPUTE_UTIL_RADIX_SORT2                      9
 #define COMPUTE_UTIL_BITONIC_SORT                     10
@@ -145,6 +145,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   // use size tuned for best performance
   util.batchSize = 8;
+
   // override if specified
   if (dataMap.find(ComputeUtilBatchSize) != dataMap.end())
   {
@@ -193,11 +194,11 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
       kernelNames.push_back("reduce2DKernel");
 
+      util.kernelIndices[COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
+      kernelNames.push_back("prefixGroupScanKernel");
+
       if (dataMap.find(ComputeUtilStructTypeIntegral) != dataMap.end())
       {
-        util.kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
-        kernelNames.push_back("prefixGroupScanKernel");
-
         util.kernelIndices[COMPUTE_UTIL_BITONIC_SORT] = kernelNames.size();
         kernelNames.push_back("bitonicSort32BitKernel");
 
@@ -496,7 +497,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
 
   ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
-  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PARALLEL_PREFIX_SUM_1D_KERNEL];
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL];
 
   kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
   kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
