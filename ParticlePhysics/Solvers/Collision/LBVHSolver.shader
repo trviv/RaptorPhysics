@@ -282,7 +282,7 @@ Kernel void constructTreeBoundingBox(
 #else
   const Device XAB*         treeInternalNodeBoundingBoxesIn,
 #endif
-  Device uint*              visitedInternalNodes,
+  atomicKernelInput(uint,   visitedInternalNodes),
   const Device BVHNodeInfo* treeInternalNodes,
   const Device uint*        leafParentNodeIndices,
   const Device uint*        nodeParentNodeIndices,
@@ -301,7 +301,7 @@ Kernel void constructTreeBoundingBox(
     // process leaf node bounding boxes first
     uint currentNodeIndex = leafParentNodeIndices[index];
     // get the processing order
-    uint visited = atomicAdd((visitedInternalNodes + currentNodeIndex), 1);
+    uint visited = atomicAdd(&visitedInternalNodes[currentNodeIndex], 1);
     // get internal node for the leaf
     BVHNodeInfo internalNode = treeInternalNodes[currentNodeIndex];
 
@@ -348,7 +348,7 @@ Kernel void constructTreeBoundingBox(
       // fetch the node data
       internalNode = treeInternalNodes[currentNodeIndex];
       // get the visited order
-      visited = atomicAdd((visitedInternalNodes + currentNodeIndex), 1);
+      visited = atomicAdd(&visitedInternalNodes[currentNodeIndex], 1);
     }
   }
 }
@@ -540,8 +540,10 @@ inline float3 stacklessTraverseBinaryTree(
     // test colision if not an invalid node
     if (index != currentNodeIndex)
     {
-      output += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
-        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
+      const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
+      const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
+      output += sharedData.collisionDamping * processParticleCollision(&currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+        &collisionData, &sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -589,8 +591,6 @@ inline float3 stackTraverseBinaryTree(
   uchar stackTop = 0;
   uint traversalStack[64];
 
-//  stackTop = &traversalStack[0];
-
 #ifdef MARK_COLLIDED_PARTICLES
   bool collided = false;
 #endif
@@ -608,14 +608,16 @@ inline float3 stackTraverseBinaryTree(
   // mark index of the root node internal
   uint currentNodeIndex = setInternalNodeMarker(0, 0);
 
-  while (true)
+  INIT_POLL();
+
+  while (!POLL_TIMEOUT())
   {
 #ifdef DEBUG_TRAVERSAL
     printf("Node: %d %d %d\n", index, currentNodeIndex, isLeafNode(currentNodeIndex));
 #endif
 
     // traverse while a leaf node is found
-    while (!isLeafNode(currentNodeIndex))
+    while (!isLeafNode(currentNodeIndex) && !POLL_TIMEOUT())
     {
       const BVHNodeInfo node = treeInternalNodes[removeInternalNodeMarker(currentNodeIndex)];
 
@@ -658,12 +660,14 @@ inline float3 stackTraverseBinaryTree(
     // test colision if not an invalid node
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
-      output += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
-      collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
+      const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
+      const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
+      output += sharedData.collisionDamping * processParticleCollision(&currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+        &collisionData, &sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
-      particleCollisionData, &collided);
+        particleCollisionData, &collided);
 #else
-      particleCollisionData);
+        particleCollisionData);
 #endif
     }
 
@@ -753,8 +757,10 @@ Kernel void applyCollisions(
     batchCount[subGroupIndex] = 0;
   }
 
+  INIT_POLL();
+
   // process until all batches are exhausted
-  while (true)
+  while (!POLL_TIMEOUT())
   {
     if (subGroupLocalIndex == 0 && batchCount[subGroupIndex] == 0)
     {

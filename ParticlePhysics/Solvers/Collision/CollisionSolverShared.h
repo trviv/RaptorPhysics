@@ -129,12 +129,12 @@ float3 boundaryCollision(
 
 // function to process particle collision
 inline float3 processParticleCollision(
-  const ParticleStruct currentParticle,
-  const ParticleStruct particleInit,
-  const ParticleStruct otherParticle,
-  const ParticleStruct otherParticleInit,
-  const ParticleCollisionData collisionData,
-  const ParticleSharedData sharedData,
+  const Thread ParticleStruct* currentParticle,
+  const Thread ParticleStruct* particleInit,
+  const Thread ParticleStruct* otherParticle,
+  const Thread ParticleStruct* otherParticleInit,
+  const Thread ParticleCollisionData* collisionData,
+  const Thread ParticleSharedData* sharedData,
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
@@ -146,20 +146,19 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-  if (otherParticle.identity.identity != currentParticle.identity.identity)
+  if (otherParticle->identity.identity != currentParticle->identity.identity)
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
-
     const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
 
     // skip if the base and the batch particle are of the same object
-    float3 collisionVector = currentParticle.position - otherParticle.position;
+    float3 collisionVector = currentParticle->position - otherParticle->position;
     float actualDistance = dot(collisionVector, collisionVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
-    const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData.radius));
+    const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData->radius));
 #else
-    const float allowedDistance = sqr(collisionData2.radius + collisionData.radius);
+    const float allowedDistance = sqr(collisionData2.radius + collisionData->radius);
 #endif
 
     // if overlapping
@@ -169,10 +168,10 @@ inline float3 processParticleCollision(
       collisionVector /= actualDistance;
 
       // displacement magnitude
-      float separationDistance = actualDistance - (fabs(collisionData.radius) + fabs(collisionData2.radius));
+      float separationDistance = actualDistance - (fabs(collisionData->radius) + fabs(collisionData2.radius));
 
       // get normal according to minimum translation distance
-      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData.transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
+      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
       sdfGradient = normalize(sdfGradient);
 
       float3 contactNormal = collisionVector;
@@ -195,9 +194,9 @@ inline float3 processParticleCollision(
 #endif
       (*collisionCount)++;
 
-      float3 displacement1 = -separationDistance * contactNormal * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
-      float3 displacement2 = separationDistance * contactNormal * (collisionData2.invMass / (collisionData.invMass + collisionData2.invMass));
-      float3 tangent = (displacement1 + currentParticle.position - particleInit.position) - (displacement2 + otherParticle.position - otherParticleInit.position);
+      float3 displacement1 = -separationDistance * contactNormal * (collisionData->invMass / (collisionData->invMass + collisionData2.invMass));
+      float3 displacement2 = separationDistance * contactNormal * (collisionData2.invMass / (collisionData->invMass + collisionData2.invMass));
+      float3 tangent = (displacement1 + currentParticle->position - particleInit->position) - (displacement2 + otherParticle->position - otherParticleInit->position);
       tangent = tangent - dot(tangent, sdfGradient) * sdfGradient;
 
       float tangentLength = length(tangent);
@@ -205,7 +204,7 @@ inline float3 processParticleCollision(
       if (tangentLength > COMPUTE_EPSILON)
       {
         const float minSdf = select(sdfMagnitude2, sdfMagnitude, sdfMagnitude < sdfMagnitude2);
-        float displacementScale = select(min(sharedData.kineticFrictionCoef * separationDistance/tangentLength, 1.f), 1.f, tangentLength < sharedData.staticFrictionCoef * minSdf);
+        float displacementScale = select(min(sharedData->kineticFrictionCoef * separationDistance/tangentLength, 1.f), 1.f, tangentLength < sharedData->staticFrictionCoef * minSdf);
 //        displacement1 -= tangent * displacementScale * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
       }
 

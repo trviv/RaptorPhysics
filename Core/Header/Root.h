@@ -118,7 +118,7 @@ typedef uint16_t  half;
 #if defined(__CUDACC__) // NVCC
 #define ALIGN(n)  __align__(n)
 #elif defined(__clang__)
-#define ALIGN(n)  alignas(n)
+#define ALIGN(n)  __attribute__((packed)) alignas(n)
 #elif defined(__GNUC__) || defined(OPENCL) // GCC or OpenCL
 #define ALIGN(n)  __attribute__((aligned(n)))
 #elif defined(_MSC_VER) // MSVC

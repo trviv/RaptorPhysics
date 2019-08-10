@@ -272,5 +272,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
 
     compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
+#ifdef DEBUG_LBVH_SOLVER
+    compute->sync();
+#endif
   }
 }

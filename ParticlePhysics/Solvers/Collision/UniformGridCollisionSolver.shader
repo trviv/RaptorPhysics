@@ -103,7 +103,7 @@ Kernel void applyCollisions(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
-  constantKernelInput(uint,           gridSize),
+  constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -129,7 +129,6 @@ Kernel void applyCollisions(
     ParticleStruct currentParticle;
     ParticleStruct particleInit;
     ParticleSharedData sharedData;
-    ParticleNodeLocator nodeLocator;
     ParticleCollisionData collisionData;
     float sdfMagnitude;
 
@@ -151,21 +150,19 @@ Kernel void applyCollisions(
       nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
       sharedData = particleSharedData[nodeIdentity.entityId];
-      nodeLocator = getNodeLocator(particleIndex, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-
-      collisionData = getSDFUsingDeviceCollision(&sharedData, particleCollisionData, particleIndex);
+      collisionData = particleCollisionData[particleIndex];
 
       sdfMagnitude = length(collisionData.transformedSdfGradient);
 
-      for (short k=0; k<3; k++)
+      for (short k=-1; k<2; k++)
       {
-        const int z = (((gridCellIndex / (gridSize * gridSize)) & (gridSize - 1)) + k + gridSize - 1) & (gridSize - 1);
-        for (short j=0; j<3; j++)
+        const int z = (gridCellIndex / (gridSize * gridSize) + k + gridSize) & (gridSize - 1);
+        for (short j=-1; j<2; j++)
         {
-          const int y = (((gridCellIndex / gridSize) & (gridSize - 1)) + j + gridSize - 1) & (gridSize - 1);
-          for (short i=0; i<3; i++)
+          const int y = ((gridCellIndex / gridSize) + j + gridSize) & (gridSize - 1);
+          for (short i=-1; i<2; i++)
           {
-            const int x = ((gridCellIndex & (gridSize - 1)) + i + gridSize - 1) & (gridSize - 1);
+            const int x = (gridCellIndex + i + gridSize) & (gridSize - 1);
             const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
             int count2 = gridCellIndexCount[gridCellIndex2];
 
@@ -182,8 +179,10 @@ Kernel void applyCollisions(
               // iterate over each particle in the loaded batch
               const int currentNodeIndex = gridCellParticleIndices[otherIndex];
 
-              delta += sharedData.collisionDamping * processParticleCollision(currentParticle, particleInit, particlesPredictedOld[currentNodeIndex], particlesInit[currentNodeIndex],
-                collisionData, sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount,
+              const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
+              const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
+              delta += sharedData.collisionDamping * processParticleCollision(&currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+                &collisionData, &sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
                 particleCollisionData, &collided);
 #else

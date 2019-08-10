@@ -232,6 +232,10 @@ public:
 
   uint maxCores()const;
 
+  void startCapture();
+
+  void endCapture();
+
 #ifdef ENABLE_RENDERING
 
   ComputeMemory createMemoryFromGLBuffer(GLuint glObject);
