@@ -3,20 +3,23 @@
 #include <stdio.h>  /* defines FILENAME_MAX */
 // #define WINDOWS  /* uncomment this line to use it for windows.*/ 
 #ifdef _WIN32
-//#include <direct.h>
 #include <Pathcch.h>
 #else
 #include <limits.h>
 #include <unistd.h>
 #define GetCurrentDir getcwd
 #endif
-#include <iostream>
-#include <string.h>
 #include <stdarg.h>
 #include <algorithm>
 
 #define CREATE_SUB_BUFFER
 //#define ENABLE_CL_PROFILING
+
+static ComputePlatformId platforms[8];
+static uint platformCount = 0;
+
+static ComputeDeviceId devices[8];
+static uint deviceCount = 0;
 
 #ifdef USE_METAL_COMPUTE
 id<MTLCaptureScope> captureScope = nil;
@@ -34,12 +37,10 @@ static id<MTLBlitCommandEncoder> getBlitEncoder()
     [currentComputeEncoder endEncoding];
     currentComputeEncoder = nil;
   }
-
   if (currentBlitEncoder != nil)
   {
     return currentBlitEncoder;
   }
-
   currentBlitEncoder = [currentCommandBuffer blitCommandEncoder];
   return currentBlitEncoder;
 }
@@ -51,12 +52,10 @@ static id<MTLComputeCommandEncoder> getComputeEncoder()
     [currentBlitEncoder endEncoding];
     currentBlitEncoder = nil;
   }
-
   if (currentComputeEncoder != nil)
   {
     return currentComputeEncoder;
   }
-
   currentComputeEncoder = [currentCommandBuffer computeCommandEncoder];
   return currentComputeEncoder;
 }
@@ -68,7 +67,6 @@ static void endEncoders()
     [currentComputeEncoder endEncoding];
     currentComputeEncoder = nil;
   }
-
   if (currentBlitEncoder != nil)
   {
     [currentBlitEncoder endEncoding];
@@ -252,9 +250,6 @@ size_t ComputeMemory::getOffset()const
 
 size_t ComputeMemory::getSize()const
 {
-  //size_t ret;
-  //ComputeStatus status = clGetMemObjectInfo(ref, CL_MEM_SIZE, sizeof(size_t), &ret, NULL);
-  //computeCheckError(status, 0);
   return size;
 }
 
@@ -443,11 +438,6 @@ bool ComputeProgram::isEmpty()const
   return ref == NULL;
 }
 
-static ComputePlatformId platforms[8];
-static uint platformCount = 0;
-
-static ComputeDeviceId devices[8];
-static uint deviceCount = 0;
 
 ComputeInterface::ComputeInterface()
   :heap(this, true)

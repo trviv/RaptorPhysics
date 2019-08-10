@@ -4,8 +4,8 @@
 #include "Root.h"
 
 #ifdef __APPLE__
-#ifdef USE_METAL_COMPUTE
 #import <Foundation/Foundation.h>
+#ifdef USE_METAL_COMPUTE
 #import <Metal/Metal.h>
 #else
 #define USE_OPENCL_COMPUTE

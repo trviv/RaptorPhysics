@@ -66,9 +66,9 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 
   if (gridParticleCellIndex.size() < instanceNodeCount)
   {
+    particlesTemp.resize(instanceNodeCount, false);
     gridParticleCellIndex.resize(instanceNodeCount, false);
     gridCellParticleIndices.resize(instanceNodeCount, false);
-    particlesTemp.resize(instanceNodeCount, false);
   }
 
   if (gridCompactCellIndices.size() < gridElements)
