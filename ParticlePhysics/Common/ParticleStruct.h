@@ -180,8 +180,6 @@ struct DEFAULT_ALIGN ParticleSharedData_t
 
 typedef struct ParticleSharedData_t ParticleSharedData;
 
-#pragma pack(pop)
-
 #ifndef COMPUTE_SHADER_SCOPE
 /*@function If mass is shared by particles of a body.*/
 static void setInvMassIsShared(ParticleSharedData& data, bool isShared)
@@ -246,7 +244,7 @@ typedef struct ParticleRigidData_t ParticleRigidData;
 /*
 @struct Additional data for particle.
 */
-struct ALIGN(8) ParticleAuxData_t
+struct ALIGN(4) ParticleAuxData_t
 {
   float   invMass;
   float   radius;
@@ -306,7 +304,7 @@ float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedDat
 /*
 @struct Uncompressed identity data for directl use at runtime.
 */
-struct ParticleNodeIdentity_t
+struct ALIGN(4) ParticleNodeIdentity_t
 {
   uint entityId;
   uint instanceId;
@@ -329,7 +327,7 @@ inline ParticleNodeIdentity uncompressToNodeIdentity(const IdentityInfo identity
 /*
 @struct Node index for various use.
 */
-struct ParticleNodeLocator_t
+struct ALIGN(4) ParticleNodeLocator_t
 {
   /*@member Offset to first node of the entity instance, in the physics system.*/
   uint absoluteNodeOffset;
@@ -356,7 +354,7 @@ inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint parti
 
 #endif
 
-struct DEFAULT_ALIGN PhySystemOffsets_t
+struct ALIGN(4) PhySystemOffsets_t
 {
   uint globalNodeOffset;
   uint globalInstanceOffset;
@@ -364,5 +362,7 @@ struct DEFAULT_ALIGN PhySystemOffsets_t
 };
 
 typedef struct PhySystemOffsets_t PhySystemOffsets;
+
+#pragma pack(pop)
 
 #endif

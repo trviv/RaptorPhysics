@@ -34,7 +34,6 @@ struct ParticleAllocator
   ComputeHeap particlePredicted;
   ComputeHeap particleSharedHeap;
   ComputeHeap particleHeap;
-  ComputeHeap particleDeltaHeap;
   ComputeHeap particleDifferentialHeap;
 
   ComputeHeap particleRigidData;
@@ -46,7 +45,6 @@ struct ParticleAllocator
     particlePredicted(compute),
     particleSharedHeap(compute),
     particleHeap(compute),
-    particleDeltaHeap(compute),
     particleDifferentialHeap(compute),
     particleRigidData(compute),
     particleCollisionData(compute),
@@ -55,14 +53,13 @@ struct ParticleAllocator
 
   void create(uint initialParticles)
   {
-    partitions.create(initialParticles * sizeof(ParticleSharedData));
+    partitions.create(initialParticles/8 * sizeof(ParticleSharedData));
     particlePredicted.create(initialParticles * sizeof(ParticleStruct));
-    particleSharedHeap.create(initialParticles * sizeof(ParticleSharedData));
+    particleSharedHeap.create(initialParticles/8 * sizeof(ParticleSharedData));
     particleHeap.create(initialParticles * sizeof(ParticleStruct));
-    particleDeltaHeap.create(initialParticles * sizeof(ParticleStruct));
     particleDifferentialHeap.create(initialParticles * sizeof(ParticleDifferential));
     particleRigidData.create(initialParticles * sizeof(ParticleRigidData));
-    particleCollisionData.create(initialParticles * sizeof(ParticleCollisionData));
+    particleCollisionData.create(initialParticles/2 * sizeof(ParticleCollisionData));
     particleAuxData.create(initialParticles * sizeof(ParticleAuxData));
   }
 };

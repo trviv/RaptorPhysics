@@ -19,10 +19,13 @@
 //#define ENABLE_CL_PROFILING
 
 #ifdef USE_METAL_COMPUTE
+id<MTLCaptureScope> captureScope = nil;
+MTLCaptureManager *captureManager = nil;
 volatile id<MTLBuffer> tempBuffer = nil;
 volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
 volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
 volatile id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
+map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
 
 static id<MTLBlitCommandEncoder> getBlitEncoder()
 {
@@ -161,25 +164,28 @@ const char* getStatusMessage(ComputeStatus status)
 
 string getCurrentDir(void)
 {
-  char currentPath[1024];
+  char *currentPath = new char[2048];
 #if   ENV_WIN
-  int len = GetModuleFileName(NULL, currentPath, 1024);
+  int len = GetModuleFileName(NULL, currentPath, 2047);
 #elif ENV_APPLE
   currentPath[0] = NULL;
-  getcwd(currentPath, 1023);
-  size_t len = strnlen(currentPath, 1023);
+  const char *executablePath = [[[[[NSProcessInfo processInfo] arguments] objectAtIndex:0] stringByDeletingLastPathComponent] fileSystemRepresentation];
+  strcpy(currentPath, executablePath);
+  size_t len = strnlen(currentPath, 2047);
   // add an additional / at the end so that directory name does not get deleted
   currentPath[len] = '/';
   currentPath[len + 1] = NULL;
   len += 1;
 #else
-  ssize_t len = ::readlink("/proc/self/exe", currentPath, 1023);
+  ssize_t len = ::readlink("/proc/self/exe", currentPath, 2047);
 #endif
   if (len != -1)
   {
     currentPath[len] = '\0';
   }
+  logComputeMessage("\nCurrent Execution Path: %s\n", executablePath);
   std::string ret = std::string(currentPath);
+  delete[] currentPath;
   return ret.substr(0, ret.find_last_of("\\/"));
 }
 
@@ -423,9 +429,12 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   computeCheckError(status, 0);
   return kernel;
 #else
+  // map the function to kernel so it can be retrived later
   id<MTLFunction> function = [ref newFunctionWithName:[NSString stringWithCString:kernelName encoding:NSASCIIStringEncoding]];
   NSError* error;
-  return ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
+  ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
+  kernelNameMap[ret] = function;
+  return ret;
 #endif
 }
 
@@ -544,7 +553,8 @@ void ComputeInterface::create(int deviceIndex)
       status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t) * 3, maxWorkitemSizes, NULL);
       computeCheckError(status, 0);
 #else
-      size_t  maxWorkgroupSize = deviceId.maxThreadsPerThreadgroup.width;
+      // TODO: remove this size once other issues are resolved.
+      size_t  maxWorkgroupSize = 256;//deviceId.maxThreadsPerThreadgroup.width;
       size_t  maxComputeUnits = 64;
       size_t  maxWorkitemSizes[3] = {0, 0, 0};
       const char *deviceName = deviceId.name.UTF8String;
@@ -615,9 +625,12 @@ void ComputeInterface::create(int deviceIndex)
   queue = clCreateCommandQueue(context, deviceId, prop, &status);
   computeCheckError(status, 0);
 #else
+  // initialize metal objects
   queue = [deviceId newCommandQueue];
   tempBuffer = [deviceId newBufferWithLength:1024*1024 options:MTLResourceStorageModeShared];
   currentCommandBuffer = [queue commandBuffer];
+  captureManager = [MTLCaptureManager sharedCaptureManager];
+  captureScope = [captureManager newCaptureScopeWithCommandQueue:queue];
   context = deviceId;
   getComputeEncoder();
 #endif
@@ -874,7 +887,13 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   computeCheckError(status, 0);
 #endif
 #else
+  // get kernel name
+  NSString* kernelName = [kernelNameMap[kernel] name];
+  // get encoder
   id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
+  // set dispatch info
+  [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName,
+                     (int)(workgroupCount[0]*workgroupCount[1]*workgroupCount[2]*workgroupSize[0]*workgroupSize[1]*workgroupSize[2])]];
   [encoder setComputePipelineState:kernel];
   [encoder dispatchThreadgroups:MTLSizeMake(workgroupCount[0], workgroupCount[1], workgroupCount[2])
           threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
@@ -917,6 +936,34 @@ uint ComputeInterface::maxCores()const
   return 64;
 #else
   return 64;
+#endif
+}
+
+void ComputeInterface::startCapture()
+{
+#ifdef USE_METAL_COMPUTE
+  endEncoders();
+  [currentCommandBuffer commit];
+  [captureManager startCaptureWithScope:captureScope];
+  [captureScope beginScope];
+  currentCommandBuffer = [queue commandBuffer];
+  getComputeEncoder();
+#else
+  logComputeError("Start captured only defined for Metal");
+#endif
+}
+
+void ComputeInterface::endCapture()
+{
+#ifdef USE_METAL_COMPUTE
+  endEncoders();
+  [currentCommandBuffer commit];
+  [captureScope endScope];
+  [captureManager stopCapture];
+  currentCommandBuffer = [queue commandBuffer];
+  getComputeEncoder();
+#else
+  logComputeError("End captured only defined for Metal");
 #endif
 }
 

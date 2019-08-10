@@ -46,6 +46,8 @@
 #define KERNEL_THREAD_ARGUMENTS
 #define KERNEL_THREADGROUP_ARGUMENTS
 
+#define ALIGN(n)            __attribute__((aligned(n))) __attribute__((packed))
+
 #else
 
 #define constantKernelInput(type, variableName) Const type& variableName
@@ -96,12 +98,12 @@
   , uint3 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]] \
   , uint3 threadgroups_per_grid [[ threadgroups_per_grid ]]
 
+#define ALIGN(n)            __attribute__((packed)) alignas(n)
+
 #endif
 
 #define COMPUTE_SHADER_SCOPE
 #define COMPUTE_EPSILON         0.0001f
-
-#define ALIGN(n)        __attribute__((aligned(n))) __attribute__((packed))
 #define DEFAULT_ALIGN   ALIGN(16)
 
 #define NUM_BANKS       16
