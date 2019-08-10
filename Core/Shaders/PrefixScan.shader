@@ -243,7 +243,7 @@ Kernel void compactSparseArray(
   // make values binary
   for (uint i = 0; i < BatchSize; i++)
   {
-    originalValues[i] = originalValues[i] > (MemberStructType)(0);
+    originalValues[i] = originalValues[i] > 0;
     statusFlag <<= 1;
     statusFlag |= originalValues[i];
   }

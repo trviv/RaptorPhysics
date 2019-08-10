@@ -4,6 +4,8 @@
 
 static ComputeInterface* compute;
 
+static bool runOnlyFunctional = false;
+
 void printStats(float mean, uint elements, uint rwCount, uint sizeOfElements)
 {
   printf("Average time    : %f ms\n", mean);
@@ -68,19 +70,21 @@ void testBandwidthRW(ComputeInterface* compute)
   DeviceArray<float> data(compute, NULL, false);
   DeviceArray<float> &outdata = data;
   const int elements = 1024 * 1024 * 128;
+  uint iterations = runOnlyFunctional?0:20;
 
   data.resize(elements, false);
   outdata.resize(elements, false);
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
-  uint iterations = 20;
-
+  //--------------------------------------------------------------------------------
+  // warm up run
   compute->copyBuffer(data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
   compute->sync();
 
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("R/W Bandwidth");
@@ -101,6 +105,7 @@ void testSetBuffer(ComputeInterface* compute)
 
   DeviceArray<uint> data(compute, NULL, true);
   const int elements = 1024 * 1024 * 128;
+  uint iterations = runOnlyFunctional?0:20;
 
   data.resize(elements, false);
 
@@ -108,11 +113,16 @@ void testSetBuffer(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "uint";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
-  uint iterations = 20;
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+    compute->sync();
+  }
 
-  ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
-  compute->sync();
-
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("Clear Bandwidth");
@@ -124,6 +134,11 @@ void testSetBuffer(ComputeInterface* compute)
   compute->sync();
 
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  //--------------------------------------------------------------------------------
+  // functional run
+  ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+  compute->sync();
 
   data.syncHost();
   compute->sync();
@@ -145,11 +160,11 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   printf("\nTesting 1D mean:\n");
 
   DeviceArray<DataType> data(compute, NULL, true);
-  DeviceArray<DataType> backupData(compute, NULL, false);
+  DeviceArray<DataType> output(compute, NULL, true);
 
   const int elements = 123456792;
   double sum = 0;
-  uint iterations = 10;
+  uint iterations = runOnlyFunctional?0:10;
 
   data.host()->reserve(elements);
   for (int i = 0; i < elements; i++)
@@ -158,23 +173,29 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
     sum += data.host()->at(i);
   }
 
-  backupData.resize(elements, false);
+  output.resize(1, false);
   data.syncDevice();
-  compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "float";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-  ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements);
 
-  compute->sync();
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->sum1D(compute, output.device(), data.device(), elements);
+    compute->sync();
+  }
 
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("Reduce scan");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->sum1D(compute, backupData.device(), elements, false);
+      ComputeUtil::get(templateId)->sum1D(compute, output.device(), data.device(), elements, false);
     }
   }
 
@@ -183,12 +204,14 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
   printStats(mean, elements, 1, sizeof(DataType));
 
-  ComputeUtil::get(templateId)->sum1D(compute, data.device(), elements, false);
-  data.syncHost(0, 1);
+  //--------------------------------------------------------------------------------
+  // functional run
+  ComputeUtil::get(templateId)->sum1D(compute, output.device(), data.device(), elements, false);
+  output.syncHost(0, 1);
   compute->sync();
 
-  std::cout << sum << " " << data.host()->at(0) << "\n";
-  assert(abs(sum - data.host()->at(0)) <= .001f);
+  std::cout << sum << " " << output.host()->at(0) << "\n";
+  assert(abs(sum - output.host()->at(0)) <= .001f);
 
   printf("1D array mean test passed!\n");
 }
@@ -277,7 +300,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   const uint parts = 2000;
   uint elements = 0;
   Real3 sum = 0;
-  uint iterations = 10;
+  uint iterations = runOnlyFunctional?0:10;
 
   int increment = 1;
 
@@ -340,9 +363,16 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   uint templateId = ComputeUtil::create(compute, utilSetting, &includes);
 
-  ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
+    compute->sync();
+  }
 
-  compute->sync();
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("Irregular Reduce scan");
@@ -357,6 +387,8 @@ void testIrregular2DMean(ComputeInterface* compute)
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
   printStats(mean, elements+partitions.size(), 1, sizeof(ParticleStruct));
 
+  //--------------------------------------------------------------------------------
+  // functional run
   ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
   particles.syncHost();
   compute->sync();
@@ -448,7 +480,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 
   const int elements = 123456789;
   DataType sum = 0;
-  const uint iterations = 10;
+  const uint iterations = runOnlyFunctional?0:10;
 
   data.host()->reserve(elements);
   for (uint i = 0; i < elements; i++)
@@ -464,11 +496,18 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-  ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
 
-  compute->sync();
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
+    compute->sync();
+  }
+
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("Prefix scan");
@@ -483,6 +522,8 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 
   printStats(mean, elements, 2, sizeof(uint));
 
+  //--------------------------------------------------------------------------------
+  // functional run
   ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), data.device(), elements);
   data.syncHost();
   compute->sync();
@@ -509,8 +550,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   vector<uint> statusOutput;
 
   const int elements = 123456789;
-  DataType sum = 0;
-  const uint iterations = 10;
+  const uint iterations = runOnlyFunctional?0:10;
 
   selectionArray.host()->reserve(elements);
   statusOutput.reserve(elements);
@@ -532,10 +572,17 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
-  ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
 
-  compute->sync();
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
+    compute->sync();
+  }
 
+  //--------------------------------------------------------------------------------
+  // performance run
   ProfileManager::Reset();
   {
     ProfileBlock("Compact sparse array");
@@ -550,6 +597,8 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
 
   printStats(mean, elements, 2, sizeof(uint));
 
+  //--------------------------------------------------------------------------------
+  // functional run
   ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
   count.syncHost();
   compactIndexArray.syncHost();
@@ -644,10 +693,17 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
   uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
 
-  ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
-  compute->sync();
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
+    compute->sync();
+  }
 
-  uint iterations = 10;
+  //--------------------------------------------------------------------------------
+  // performance run
+  uint iterations = runOnlyFunctional?0:10;
   float cumulativeTime = 0;
   for (uint i = 0; i < iterations; i++)
   {
@@ -668,6 +724,12 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   float mean = cumulativeTime / iterations;
 
   printStats(mean, elements, ((3 + 1) * 32 / 4), sizeof(uint));
+
+  //--------------------------------------------------------------------------------
+  // functional run
+  data.syncDevice();
+  compute->sync();
+  ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
 
   destination.syncHost();
   compute->sync();
