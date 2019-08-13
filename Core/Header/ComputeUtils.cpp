@@ -184,6 +184,77 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     util.structMemberSize = util.structSize;
   }
 
+  {
+    // optimized atomics for primitives
+    // create batch structures for primitiees
+
+    oldType.push_back("ATOMIC_LOAD_FUNCTION(x)");
+    oldType.push_back("ATOMIC_STORE_FUNCTION(x, y)");
+    oldType.push_back("MemberStructType16");
+    oldType.push_back("MemberStructType8");
+    oldType.push_back("MemberStructType4");
+    oldType.push_back("MemberStructType2");
+
+    if (dataMap[ComputeUtilStructType] == "float")
+    {
+      newType.push_back("asFloat(atomicLoad((x)))");
+      newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
+      newType.push_back("dummy_float16");
+      newType.push_back("dummy_float8");
+      newType.push_back("float4");
+      newType.push_back("float2");
+    }
+    else if (dataMap[ComputeUtilStructType] == "int")
+    {
+      newType.push_back("atomicLoad((x))");
+      newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
+      newType.push_back("dummy_int16");
+      newType.push_back("dummy_int8");
+      newType.push_back("int4");
+      newType.push_back("int2");
+    }
+    else if (dataMap[ComputeUtilStructType] == "uint")
+    {
+      newType.push_back("atomicLoad((x))");
+      newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
+      newType.push_back("dummy_uint16");
+      newType.push_back("dummy_uint8");
+      newType.push_back("uint4");
+      newType.push_back("uint2");
+    }
+    else if (dataMap[ComputeUtilStructType] == "XAB")
+    {
+      newType.push_back("atomicLoadN((x))");
+      newType.push_back("atomicStoreN((x), y)");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+    }
+    else if (dataMap[ComputeUtilStructType] == "ParticleStruct")
+    {
+      newType.push_back("atomicLoadN((x))");
+      newType.push_back("atomicStoreN((x), y)");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+    }
+    else if (dataMap[ComputeUtilStructType] == "Matrix3x3")
+    {
+      newType.push_back("atomicLoadN((x))");
+      newType.push_back("atomicStoreN((x), y)");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+      newType.push_back("assert");
+    }
+    else
+    {
+      logComputeError("Please define atomic functions for type %s!", dataMap[ComputeUtilStructType].c_str());
+    }
+  }
+
   if (dataMap.find(ComputeUtilStructType) != dataMap.end())
   {
     if (dataMap.find(ComputeUtilSkipParallelPrimitives) == dataMap.end())
@@ -600,16 +671,29 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
 void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
 {
-  size_t workgroupSize[3];
-  size_t workgroupCount[3];
-  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL];
-
-  compute->configureSize(workgroupSize, workgroupCount, length / rowSize);
-  kernels[kernelIndex].setArg(memory, 0);
-  kernels[kernelIndex].setArg<uint>(&rowSize, 1);
-  kernels[kernelIndex].setArg<uint>(&strideIn4Byte, 2);
-  kernels[kernelIndex].setArg<uint>(&length, 3);
-  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+//#ifdef USE_OPENCL_COMPUTE
+//  size_t workgroupSize[3];
+//  size_t workgroupCount[3];
+//  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL];
+//
+//  compute->configureSize(workgroupSize, workgroupCount, length / rowSize);
+//  kernels[kernelIndex].setArg(memory, 0);
+//  kernels[kernelIndex].setArg<uint>(&rowSize, 1);
+//  kernels[kernelIndex].setArg<uint>(&strideIn4Byte, 2);
+//  kernels[kernelIndex].setArg<uint>(&length, 3);
+//  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+//#endif
+//
+//#ifdef USE_METAL_COMPUTE
+  vector<float> bufferContents;
+  size_t floatsToCopy = length * 4;
+  bufferContents.resize(length);
+  compute->copyToHost(memory, 0, floatsToCopy, &bufferContents[0], true);
+  for (uint i=0; i<length; i += strideIn4Byte)
+  {
+    printf("%f %f %f\n", bufferContents[i], bufferContents[i + 1], bufferContents[i + 2]);
+  }
+//#endif
 }
 
 void ComputeUtil::clearIntegerBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length)
