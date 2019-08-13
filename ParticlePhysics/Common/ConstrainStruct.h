@@ -8,6 +8,8 @@
 #define CONSTRAIN_OFFSET_BITS 24
 #define CONSTRAIN_OFFSET_MASK 0xFFFFFF
 
+#pragma pack(push, 4)
+
 /*
 @struct Class representing a constrain offset in an array and number of constrains.
 */
@@ -33,5 +35,7 @@ static uint constrainCount(const ConstrainStruct ref)
 }
 
 #endif
+
+#pragma pack(pop)
 
 #endif

@@ -46,6 +46,7 @@ void RigidSolver::create(ComputeInterface* compute)
     positionSetting[ComputeUtilIdentityStructMember] = "identity";
 
     map<ComputeUtilKey, string> matrix3x3Setting;
+    matrix3x3Setting[ComputeUtilBatchSize] = "1";
     matrix3x3Setting[ComputeUtilStructType] = "Matrix3x3";
     matrix3x3Setting[ComputeUtilStructSize] = "36";
     matrix3x3Setting[ComputeUtilIdentityFunction] = "getInstanceId";
@@ -53,6 +54,7 @@ void RigidSolver::create(ComputeInterface* compute)
     matrix3x3Setting[ComputeUtilCustomDivFunction] = "divMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomCopyFunction] = "copyMatrix3x3";
     matrix3x3Setting[ComputeUtilCustomClearFunction] = "clearMatrix3x3";
+    matrix3x3Setting[ComputeUtilCustomReduceFunction] = "reduceMatrix3x3";
     matrix3x3Setting[ComputeUtilIdentityStructType] = "ParticleStruct";
     matrix3x3Setting[ComputeUtilIdentityStructMember] = "identity";
     matrix3x3Setting[ComputeUtilSkipParallelPrimitives] = "1";
@@ -84,6 +86,7 @@ void RigidSolver::solve()
     printf("\nMean:\n");
     ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, 3 * totalEntities);
     particlesTemp[0].syncHost();
+    particlesPredicted.syncHost();
     compute->sync();
 #endif
 
@@ -106,6 +109,8 @@ void RigidSolver::solve()
 
 #ifdef DEBUG_RIGID_SOLVER
     covarianceMatrix.syncHost();
+    printf("\nMatrix:\n");
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, covarianceMatrix.device(), 9, 9, 9 * count);
     compute->sync();
 #endif
 

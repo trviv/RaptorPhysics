@@ -33,12 +33,13 @@
 #define convertUshort4(a)   convert_ushort4(a)
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
+#define asFloat(x)          as_float(x)
 #define simdReduce(x)       assert
 #define simdScan(x)         assert
 #define selectInput3(x)     uint3(x)
 
-#define atomicLoad(location)          atomic_or  (location, 0)
-#define atomicStore(location, value)  atomic_xchg(location, value)
+#define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
+#define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
 #define atomicAdd(location, value)    atomic_add (location, value)
 #define atomicMax(location, value)    atomic_max (location, value)
 
@@ -80,6 +81,7 @@
 #define convertUshort4(a)   ushort4(a)
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
+#define asFloat(x)          as_type<float>(x)
 #define simdReduce(x)       simd_sum(x)
 #define simdScan(x)         simd_prefix_inclusive_sum(x)
 #define selectInput3(x)     bool3(x)
@@ -120,15 +122,20 @@ static float sqr(const float x)
   return x * x;
 }
 
-typedef struct
+#pragma pack(push, 4)
+
+typedef struct ALIGN(4)
 {
   float val[9];
 } Matrix3x3;
 
-#define addMatrix3x3(a, b)    { for (uint i = 0; i < 9; i++) { (a)->val[i] += (b)->val[i]; } }
-#define divMatrix3x3(a, b)    { for (uint i = 0; i < 9; i++) { (a)->val[i] /= (*b); } }
-#define copyMatrix3x3(a, b)   { for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; } }
-#define clearMatrix3x3(a, b)  { for (uint i = 0; i < 9; i++) { (a)->val[i] = b; } }
+#pragma pack(pop)
+
+#define addMatrix3x3(a, b)    for (uint i = 0; i < 9; i++) { (a)->val[i] += (b)->val[i]; }
+#define divMatrix3x3(a, b)    for (uint i = 0; i < 9; i++) { (a)->val[i] /= (*b); }
+#define copyMatrix3x3(a, b)   for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; }
+#define clearMatrix3x3(a, b)  for (uint i = 0; i < 9; i++) { (a)->val[i] = b; }
+#define reduceMatrix3x3(o, in)for (uint i = 0; i < 9; i++) { (o)->val[i] = simdReduce((in)->val[i]); }
 
 // this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
 #define INIT_POLL()     short poll_count = 0;

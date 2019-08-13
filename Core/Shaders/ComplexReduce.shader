@@ -16,12 +16,12 @@ void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, 
     int localIndex2 = localIndex * (2 << i);
 
     // if within the bounds
-    if (localIndex2 < REDUCE_COMPUTE_THREADS)
+    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[localIndex2])
     {
       // index offset 1, 2, 4 ...
       const int otherIndex = localIndex2 + stride;
       // if not crossing boundary and has the same identity
-      if (otherIndex < REDUCE_COMPUTE_THREADS && identityArray[localIndex2] == identityArray[otherIndex])
+      if (otherIndex < REDUCE_COMPUTE_THREADS && isValid[otherIndex] && identityArray[localIndex2] == identityArray[otherIndex])
       {
         // add elements
         ADD_FUNCTION(localArray[localIndex2], localArray[otherIndex]);
@@ -35,19 +35,19 @@ void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, 
     // add the parts potentially untouched by the previous pass which are in strides of 1, 2, 4 ...
     //if (localIndex & stride) //old approach
     localIndex2 += stride;
-    if (localIndex2 < REDUCE_COMPUTE_THREADS)
+    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[localIndex2])
     {
       // cache the identity
       const uint identity = identityArray[localIndex2];
       const int leftIndex = localIndex2 - stride;
       const int rightIndex = localIndex2 + stride;
-      if (leftIndex >= 0 && rightIndex < REDUCE_COMPUTE_THREADS &&
+      if (leftIndex >= 0 && rightIndex < REDUCE_COMPUTE_THREADS && isValid[rightIndex] &&
         identity != identityArray[leftIndex] && identity == identityArray[rightIndex])
       {
         // add elements
         ADD_FUNCTION(localArray[rightIndex], localArray[localIndex2]);
         // reset so that vaild elements are easy to identify
-//        CLEAR_FUNCTION(localArray[localIndex], NAN);
+//        CLEAR_FUNCTION(localArray[localIndex2], NAN);
         isValid[localIndex2] = 0;
       }
     }
@@ -81,6 +81,7 @@ Kernel void sumIrregular2DKernel(
   uint identity;
 
   identityArray[localIndex] = -1;
+  isValid[localIndex] = 0;
 
   if (index < length)
   {
@@ -134,7 +135,7 @@ Kernel void sumIrregular2DKernel(
       INIT_POLL();
 
       // get reduce sum from previous threadgroup
-      while (prevGroupIndex > -1 && !POLL_TIMEOUT())
+      while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
       {
         const uint status = atomicLoad(statusBuffer + prevGroupIndex);
         MemberStructType temp;
@@ -171,7 +172,7 @@ Kernel void sumIrregular2DKernel(
     printf ("Duplicate: %d %d %f\n", threadGroupIndex(), localIndex, *((Shared float*)&localArray[localIndex]));
 #endif
     ADD_FUNCTION(localArray[lastValidIndex], localArray[localIndex]);
-//      CLEAR_FUNCTION(localArray[localIndex], NAN);
+//    CLEAR_FUNCTION(localArray[localIndex], NAN);
   }
 
   // for last thread in the threadgroup
