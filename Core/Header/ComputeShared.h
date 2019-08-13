@@ -5,6 +5,8 @@
 #include "Root.h"
 #endif
 
+#pragma pack(push, 4)
+
 /*
 @struct Data describing an array sub-part.
 */
@@ -56,5 +58,7 @@ static SortNode32 defaultSortNode()
 }
 
 #endif
+
+#pragma pack(pop)
 
 #endif

@@ -19,6 +19,7 @@
 
 #ifndef MemberStructType
 #define MemberStructType        StructType
+#define NoMemberStruct
 #endif
 
 #ifdef IdentityStructMember
@@ -93,56 +94,13 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define STR(x) _STR(x)
 
 #pragma message ("Struct type: " STR(StructType) ", Member Struct type: " STR(MemberStructType))
-
-// optimized atomics for primitives
-
-#if MemberStructType == XAB
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN((x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN((x), y)
-
-#elif MemberStructType == uint
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread uint*)&(y)))
-
-#elif MemberStructType == int
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoad((x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread int*)&(y)))
-
-#elif MemberStructType == float
-#define ATOMIC_LOAD_FUNCTION(x)     as_type<float>(atomicLoad((x)))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStore((x), *((Thread uint*)&(y)))
-
-#else
-#define ATOMIC_LOAD_FUNCTION(x)     atomicLoadN((x))
-#define ATOMIC_STORE_FUNCTION(x, y) atomicStoreN((x), y)
-
-#endif
+#pragma message ("Atomics for: " STR(MemberStructType))
 
 #define COMPUTE_MAX_THREADS         MaxWorkgroupSize
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
 #define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
 
-#if MemberStructType == uint
-#define MemberStructType16 uint16
-#define MemberStructType8 uint8
-#define MemberStructType4 uint4
-#define MemberStructType2 uint2
-#elif MemberStructType == int
-#define MemberStructType16 int16
-#define MemberStructType8 int8
-#define MemberStructType4 int4
-#define MemberStructType2 int2
-#elif MemberStructType == float
-#define MemberStructType16 float16
-#define MemberStructType8 float8
-#define MemberStructType4 float4
-#define MemberStructType2 float2
-#endif
-
 #ifdef USE_METAL_COMPUTE
-
-#undef MemberStructType16
-#undef MemberStructType8
 
 struct dummy_int8
 {
@@ -161,7 +119,7 @@ struct dummy_uint8
 struct dummy_float8
 {
   float4 a, b;
-  dummy_float8(float x):a(x), b(x)
+  dummy_float8(float x):a(x), b()
   {}
 };
 
@@ -175,7 +133,7 @@ struct dummy_int16
 struct dummy_uint16
 {
   dummy_uint8 a, b;
-  dummy_uint16(uint x):a(x), b(x)
+  dummy_uint16(int x):a(x), b(x)
   {}
 };
 
@@ -186,16 +144,15 @@ struct dummy_float16
   {}
 };
 
-#if MemberStructType == uint
-#define MemberStructType16 dummy_uint16
-#define MemberStructType8 dummy_uint8
-#elif MemberStructType == int
-#define MemberStructType16 dummy_int16
-#define MemberStructType8 dummy_int8
-#elif MemberStructType == float
-#define MemberStructType16 dummy_float16
-#define MemberStructType8 dummy_float8
-#endif
+#else
+
+#define dummy_int8    int8
+#define dummy_uint8   uint8
+#define dummy_float8  float8
+
+#define dummy_int16   int16
+#define dummy_uint16  uint16
+#define dummy_float16 float16
 
 #endif
 
@@ -230,11 +187,8 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
   const uint indexOffset = index * BatchSize;
   const uint readCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
-#if MemberStructType == StructType
-  Thread MemberStructType *data = elements;
-#else
-  StructType data[BatchSize];
-#endif
+#if defined(NoMemberStruct) && BatchSize > 1
+#pragma message ("Using Batch Read")
 
 #if BatchSize == 16
   * ((Thread MemberStructType16*)elements) = (MemberStructType16)(0);
@@ -251,113 +205,114 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 #if BatchSize >= 16
   case 16:
   {
-    *((Thread MemberStructType16*)data)       = *((const Device MemberStructType16*)(array1D + indexOffset));
+    *((Thread MemberStructType16*)elements)       = *((const Device MemberStructType16*)(array1D + indexOffset));
     break;
   }
   case 15:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType4*)(data + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
-    *((Thread MemberStructType2*)(data + 12)) = *((const Device MemberStructType2*)(array1D + indexOffset + 12));
-    *((Thread MemberStructType*)(data + 14))  = *((const Device MemberStructType*)(array1D + indexOffset + 14));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType4*)(elements + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType2*)(elements + 12)) = *((const Device MemberStructType2*)(array1D + indexOffset + 12));
+    *((Thread MemberStructType*)(elements + 14))  = *((const Device MemberStructType*)(array1D + indexOffset + 14));
     break;
   }
   case 14:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType4*)(data + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
-    *((Thread MemberStructType2*)(data + 12)) = *((const Device MemberStructType2*)(array1D + indexOffset + 12));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType4*)(elements + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType2*)(elements + 12)) = *((const Device MemberStructType2*)(array1D + indexOffset + 12));
     break;
   }
   case 13:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType4*)(data + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
-    *((Thread MemberStructType*)(data + 12))  = *((const Device MemberStructType*)(array1D + indexOffset + 12));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType4*)(elements + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType*)(elements + 12))  = *((const Device MemberStructType*)(array1D + indexOffset + 12));
     break;
   }
   case 12:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType4*)(data + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType4*)(elements + 8))  = *((const Device MemberStructType4*)(array1D + indexOffset + 8));
     break;
   }
   case 11:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType2*)(data + 8))  = *((const Device MemberStructType2*)(array1D + indexOffset + 8));
-    *((Thread MemberStructType*)(data + 10))  = *((const Device MemberStructType*)(array1D + indexOffset + 10));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType2*)(elements + 8))  = *((const Device MemberStructType2*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType*)(elements + 10))  = *((const Device MemberStructType*)(array1D + indexOffset + 10));
     break;
   }
   case 10:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType2*)(data + 8))  = *((const Device MemberStructType2*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType2*)(elements + 8))  = *((const Device MemberStructType2*)(array1D + indexOffset + 8));
     break;
   }
   case 9:
   {
-    *((Thread MemberStructType8*)(data + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
-    *((Thread MemberStructType*)(data + 8))   = *((const Device MemberStructType*)(array1D + indexOffset + 8));
+    *((Thread MemberStructType8*)(elements + 0))  = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType*)(elements + 8))   = *((const Device MemberStructType*)(array1D + indexOffset + 8));
     break;
   }
 #endif
 #if BatchSize >= 8
   case 8:
   {
-    *((Thread MemberStructType8*)data + 0)    = *((const Device MemberStructType8*)(array1D + indexOffset));
+    *((Thread MemberStructType8*)elements + 0)    = *((const Device MemberStructType8*)(array1D + indexOffset));
     break;
   }
   case 7:
   {
-    *((Thread MemberStructType4*)(data + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
-    *((Thread MemberStructType2*)(data + 4))  = *((const Device MemberStructType2*)(array1D + indexOffset + 4));
-    *((Thread MemberStructType*)(data + 6))   = *((const Device MemberStructType*)(array1D + indexOffset + 6));
+    *((Thread MemberStructType4*)(elements + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
+    *((Thread MemberStructType2*)(elements + 4))  = *((const Device MemberStructType2*)(array1D + indexOffset + 4));
+    *((Thread MemberStructType*)(elements + 6))   = *((const Device MemberStructType*)(array1D + indexOffset + 6));
     break;
   }
   case 6:
   {
-    *((Thread MemberStructType4*)(data + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
-    *((Thread MemberStructType2*)(data + 4))  = *((const Device MemberStructType2*)(array1D + indexOffset + 4));
+    *((Thread MemberStructType4*)(elements + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
+    *((Thread MemberStructType2*)(elements + 4))  = *((const Device MemberStructType2*)(array1D + indexOffset + 4));
     break;
   }
   case 5:
   {
-    *((Thread MemberStructType4*)(data + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
-    *((Thread MemberStructType*)(data + 4))   = *((const Device MemberStructType*)(array1D + indexOffset + 4));
+    *((Thread MemberStructType4*)(elements + 0))  = *((const Device MemberStructType4*)(array1D + indexOffset));
+    *((Thread MemberStructType*)(elements + 4))   = *((const Device MemberStructType*)(array1D + indexOffset + 4));
     break;
   }
 #endif
   case 4:
   {
-    *((Thread MemberStructType4*)data + 0)    = *((const Device MemberStructType4*)(array1D + indexOffset));
+    *((Thread MemberStructType4*)elements + 0)    = *((const Device MemberStructType4*)(array1D + indexOffset));
     break;
   }
   case 3:
   {
-    *((Thread MemberStructType2*)(data + 0))  = *((const Device MemberStructType2*)(array1D + indexOffset));
-    *((Thread MemberStructType*)(data + 2))   = *((const Device MemberStructType*)(array1D + indexOffset + 2));
+    *((Thread MemberStructType2*)(elements + 0))  = *((const Device MemberStructType2*)(array1D + indexOffset));
+    *((Thread MemberStructType*)(elements + 2))   = *((const Device MemberStructType*)(array1D + indexOffset + 2));
     break;
   }
   case 2:
   {
-    *((Thread MemberStructType2*)data + 0)    = *((const Device MemberStructType2*)(array1D + indexOffset));
+    *((Thread MemberStructType2*)elements + 0)    = *((const Device MemberStructType2*)(array1D + indexOffset));
     break;
   }
   case 1:
   {
-    *((Thread MemberStructType*)data + 0)     = *((const Device MemberStructType*)(array1D + indexOffset));
+    *((Thread MemberStructType*)elements + 0)     = *((const Device MemberStructType*)(array1D + indexOffset));
     break;
   }
   default:
     break;
   }
 
-#if MemberStructType != StructType
+#else
 
-  for (uint i = 0; i < writeCount; i++)
+#pragma message ("Using Loop Read")
+  for (uint i = 0; i < readCount; i++)
   {
-    elements[i] = data[i]STRUCT_MEMBER;
+    elements[i] = array1D[indexOffset + i]STRUCT_MEMBER;
   }
 
 #endif
@@ -368,7 +323,8 @@ inline static void batchWrite(const Thread MemberStructType *elements, Device St
   const uint indexOffset = index * BatchSize;
   const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
-#if MemberStructType == StructType
+#if defined(NoMemberStruct) && BatchSize > 1
+#pragma message ("Using Batch Write")
 
   switch (writeCount)
   {
@@ -479,6 +435,7 @@ inline static void batchWrite(const Thread MemberStructType *elements, Device St
 
 #else
 
+#pragma message ("Using Loop Write")
   for (uint i = 0; i < writeCount; i++)
   {
     ((Device StructType*)(array1D + indexOffset))[i]STRUCT_MEMBER = elements[i];
