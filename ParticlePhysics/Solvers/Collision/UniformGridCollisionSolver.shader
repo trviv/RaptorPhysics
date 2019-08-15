@@ -194,7 +194,7 @@ Kernel void applyCollisions(
       }
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, collisionData);
+      delta += boundaryCollision(&currentParticle, &collisionData);
 
 //      if (collisionCount)
 //      {

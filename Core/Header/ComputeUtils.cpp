@@ -669,7 +669,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   }
 }
 
-void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length)
+void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length, bool showOnlyFaults)
 {
 //#ifdef USE_OPENCL_COMPUTE
 //  size_t workgroupSize[3];
@@ -686,12 +686,17 @@ void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, u
 //
 //#ifdef USE_METAL_COMPUTE
   vector<float> bufferContents;
-  size_t floatsToCopy = length * 4;
-  bufferContents.resize(length);
-  compute->copyToHost(memory, 0, floatsToCopy, &bufferContents[0], true);
-  for (uint i=0; i<length; i += strideIn4Byte)
+  size_t floatsToCopy = length / rowSize * strideIn4Byte;
+  floatsToCopy += (floatsToCopy & 3) ? 4 - (floatsToCopy & 3) : 0;
+  bufferContents.resize(floatsToCopy);
+  compute->copyToHost(memory, 0, 4 * floatsToCopy, &bufferContents[0], true);
+
+  for (uint i=0; i<length / rowSize; i++)
   {
-    printf("%f %f %f\n", bufferContents[i], bufferContents[i + 1], bufferContents[i + 2]);
+    if (!showOnlyFaults || (isnan(bufferContents[i * strideIn4Byte]) || isnan(bufferContents[i * strideIn4Byte + 1]) || isnan(bufferContents[i * strideIn4Byte + 2])))
+    {
+      printf("%d %f %f %f\n", i, bufferContents[i * strideIn4Byte], bufferContents[i * strideIn4Byte + 1], bufferContents[i * strideIn4Byte + 2]);
+    }
   }
 //#endif
 }
