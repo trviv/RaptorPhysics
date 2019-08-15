@@ -188,5 +188,5 @@ void RigidSolver::update()
   covarianceMatrix.resize(count * 9, false);
 
   // TODO: look why it has to be greater then partitions
-  particlesTemp[0].resize(count, false);
+  particlesTemp[0].resize(newEntityInstanceId() * 9, false);
 }

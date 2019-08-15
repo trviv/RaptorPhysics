@@ -329,7 +329,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   for (uint i = 0; i < elements; i++)
   {
     ParticleStruct particle;
-    particle.position = Real3(1.f/partitionsHost[sectionIndex].count);
+    particle.position = Real3(rand()&0x3, rand()&0x3, rand()&0x3);
     if (sectionIndex < (partitionsHost.size() - 1) && i == partitionsHost[sectionIndex + 1].offset)
     {
       means.push_back(sum / float(partitionsHost[sectionIndex + 1].offset - partitionsHost[sectionIndex].offset));

@@ -353,9 +353,9 @@ Kernel void constructTreeBoundingBox(
   }
 }
 
-inline int intersectXAB(const XAB a, const XAB b)
+inline int intersectXAB(const Thread XAB* a, const Thread XAB* b)
 {
-  const int3 ret = constructInt3(a.min < b.max) & constructInt3(a.max > b.min);
+  const int3 ret = constructInt3(a->min < b->max) & constructInt3(a->max > b->min);
   return (ret.x && ret.y && ret.z);
 }
 
@@ -497,7 +497,7 @@ inline float3 stacklessTraverseBinaryTree(
 #endif
           break;
         }
-        else if (intersectXAB(particleBoundingBox, boundingBox) == 0)
+        else if (intersectXAB(&particleBoundingBox, &boundingBox) == 0)
         {
 #ifdef DEBUG_TRAVERSAL
           if (state == BVH_TRAVERSAL_FROM_SIBLING)
@@ -624,14 +624,14 @@ inline float3 stackTraverseBinaryTree(
       const XAB leftBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[0]), (int)node.child[0], isLeafNode(node.child[0]))];
       const XAB rightBoundingBox = treeInternalNodeBoundingBoxes[select(removeInternalNodeMarker(node.child[1]), (int)node.child[1], isLeafNode(node.child[1]))];
 
-      if (intersectXAB(particleBoundingBox, leftBoundingBox))
+      if (intersectXAB(&particleBoundingBox, &leftBoundingBox))
       {
         traversalStack[stackTop++] = node.child[0];
 #ifdef DEBUG_TRAVERSAL
         printf("Stack Push: %d %d\n", index, node.child[0]);
 #endif
       }
-      if (intersectXAB(particleBoundingBox, rightBoundingBox))
+      if (intersectXAB(&particleBoundingBox, &rightBoundingBox))
       {
         traversalStack[stackTop++] = node.child[1];
 #ifdef DEBUG_TRAVERSAL
@@ -809,7 +809,7 @@ Kernel void applyCollisions(
         index);
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, collisionData);
+      delta += boundaryCollision(&currentParticle, &collisionData);
 
       // update position
       currentParticle.position += delta;

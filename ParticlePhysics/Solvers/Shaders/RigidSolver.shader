@@ -225,7 +225,7 @@ Kernel void setDeltaPosition(
 
     float3 comOffsetCrossQ;
     Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
-    ParticleCollisionData collisionData = particleCollisionData[nodeLocator.commonNodeIndex];
+    ParticleCollisionData collisionData = particleCollisionData[index];
     const float3 sdfGradientIn = collisionData.initialSdfGradient;
     float sdfGradientOut[3];
 

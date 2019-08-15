@@ -5,7 +5,7 @@
 
 //#define DEBUG_COMPLEX_REDUCE
 
-void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, const Shared uint* identityArray, const uint localIndex, const int threadGroupSizeExp)
+void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, const Shared uint* identityArray, const ushort localIndex, const int threadGroupSizeExp)
 {
   // log n iterations
   for (int i=0; i<threadGroupSizeExp; i++)
@@ -200,9 +200,6 @@ Kernel void sumIrregular2DKernel(
 
   if (isValid[localIndex])
   {
-    // treat partition as the destination
-    const uint outIndex = partitionArray[identity].offset;
-
     if (divideFlag)
     {
       float div = partitionArray[identity].count;

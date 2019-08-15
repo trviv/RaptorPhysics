@@ -111,12 +111,12 @@ uint get32BitMortonCode(const int3 quantizedPosition)
  @param collisionData Particle SDF mass and radius data.
 */
 float3 boundaryCollision(
-  Thread ParticleStruct*      particle,
-  const ParticleCollisionData collisionData)
+  Thread ParticleStruct*              particle,
+  const Thread ParticleCollisionData* collisionData)
 {
   float3 ret = constructFloat3(0.f);
 
-  if (collisionData.invMass)  // only if movable
+  if (collisionData->invMass)  // only if movable
   {
     if (particle->position.y <= BOUNDARY_BOTTOM)
     {
@@ -205,7 +205,7 @@ inline float3 processParticleCollision(
       {
         const float minSdf = select(sdfMagnitude2, sdfMagnitude, sdfMagnitude < sdfMagnitude2);
         float displacementScale = select(min(sharedData->kineticFrictionCoef * separationDistance/tangentLength, 1.f), 1.f, tangentLength < sharedData->staticFrictionCoef * minSdf);
-//        displacement1 -= tangent * displacementScale * (collisionData.invMass / (collisionData.invMass + collisionData2.invMass));
+//        displacement1 -= tangent * displacementScale * (collisionData->invMass / (collisionData->invMass + collisionData2.invMass));
       }
 
       return displacement1;

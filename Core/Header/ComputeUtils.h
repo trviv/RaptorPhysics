@@ -75,7 +75,7 @@ public:
 
   void radixSort32Bit(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);
 
-  void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length);
+  void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length, bool showOnlyFaults = false);
 
   void clearIntegerBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length);
 };
