@@ -76,7 +76,6 @@ Kernel void createGridCellArrays(
 @param particlesPredictedOld Integrated particle position.
 @param particleCollisionData Array containing particle SDF mass and radius data.
 @param particleSharedData Particle entity shared data.
-@param particleAuxData Additional particle data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
 @param globalOffsets Offsets to particle nodes all the solvers.
@@ -99,7 +98,6 @@ Kernel void applyCollisions(
   const Device ParticleCollisionData* particleCollisionData,
 #endif
   const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,

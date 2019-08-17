@@ -67,7 +67,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       pointPosition.push_back(newPosition);
       ParticleCollisionData colData;
       colData.initialSdfGradient = Real3(0.f);
-      colData.radius = 0.f;
+      colData.radius = minRadius;
       colData.transformedSdfGradient = Real3(0.f);
       colData.invMass = particleAuxData.host()->at(index).invMass;
       particleCollisionData.host()->push_back(colData);

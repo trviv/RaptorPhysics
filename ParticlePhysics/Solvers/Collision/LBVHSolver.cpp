@@ -43,6 +43,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 
 #ifdef DEBUG_LBVH_SOLVER
   particlesTemp.create(compute, NULL, true);
+  particlesTemp2.create(compute, NULL, true);
   treeInternalNodes.create(compute, NULL, true);
   particleLeafData.create(compute, NULL, true);
   particleLeafDataSorted.create(compute, NULL, true);
@@ -54,6 +55,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   particleGroupBoundingBoxes.create(compute, NULL, true);
 #else
   particlesTemp.create(compute, NULL);
+  particlesTemp2.create(compute, NULL);
   treeInternalNodes.create(compute, NULL);
   particleLeafData.create(compute, NULL);
   particleLeafDataSorted.create(compute, NULL);
@@ -104,6 +106,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
   if (particleLeafData.size() != instanceNodeCount)
   {
     particlesTemp.resize(instanceNodeCount, false);
+    particlesTemp2.resize(instanceNodeCount, false);
     particleLeafData.resize(instanceNodeCount, false);
     particleLeafDataSorted.resize(instanceNodeCount, false);
     particleBoundingBoxes.resize(instanceNodeCount, false);
@@ -242,6 +245,10 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
 
     compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
+    // TODO: Figure out stablization pass
+    if (second != empty.device())
+      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesTemp2.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, (instanceNodeCount + batchesPerDispatch - 1) / batchesPerDispatch);
@@ -251,7 +258,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+      (second == empty.device())?allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get():particlesTemp2.device(),
       particlesTemp.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),
@@ -259,7 +266,6 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       treeInternalNodeBoundingBoxes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       globalOffsets
