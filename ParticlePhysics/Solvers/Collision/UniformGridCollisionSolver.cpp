@@ -183,7 +183,6 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
       particlesTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       globalOffsets
