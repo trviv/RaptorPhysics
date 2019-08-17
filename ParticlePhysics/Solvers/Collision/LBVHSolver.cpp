@@ -147,8 +147,6 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
   compute->sync();
 #endif
 
-  compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
-
   // find bounding box for the simulation space
   ComputeUtil::get(lbvhXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), nodeBatchCount);
 
@@ -203,7 +201,6 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
   treeInternalNodes.syncHost();
   leafParentNodeIndices.syncHost();
   nodeParentNodeIndices.syncHost();
-  visitedInternalNodes.syncHost();
   compute->sync();
 #endif
 
@@ -242,6 +239,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
     second = (i==(iterations-1)) ? empty.device() : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
     build(instanceNodeCount, globalOffsets);
+
+    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];

@@ -182,7 +182,7 @@ Kernel void endStep(
 
     const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
 
-    float3 velocity, particlePosition, particlePositionPredicted;
+    float3 velocity, particlePositionPredicted;
 
 #ifdef DEBUG_PHYSICS_SYSTEM
     printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);

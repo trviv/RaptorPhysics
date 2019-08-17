@@ -48,12 +48,12 @@ static uint getInstanceId(const IdentityInfo particleIdentity)
   return particleIdentity.identity & PHYSICS_INSTANCE_ID_MASK;
 }
 
-static uint getEntityId(const IdentityInfo particleIdentity)
+static ushort getEntityId(const IdentityInfo particleIdentity)
 {
   return (particleIdentity.identity & PHYSICS_ENTITY_ID_MASK) >> PHYSICS_ENTITY_ID_SHIFT;
 }
 
-static uint getSolverType(const IdentityInfo particleIdentity)
+static ushort getSolverType(const IdentityInfo particleIdentity)
 {
   return (particleIdentity.identity & PHYSICS_SOLVER_ID_MASK) >> PHYSICS_SOLVER_ID_SHIFT;
 }
@@ -304,11 +304,11 @@ float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedDat
 /*
 @struct Uncompressed identity data for directl use at runtime.
 */
-struct ALIGN(4) ParticleNodeIdentity_t
+struct ALIGN(8) ParticleNodeIdentity_t
 {
-  uint entityId;
+  ushort entityId;
+  ushort solverType;
   uint instanceId;
-  uint solverType;
 };
 
 typedef struct ParticleNodeIdentity_t ParticleNodeIdentity;

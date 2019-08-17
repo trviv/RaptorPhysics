@@ -36,7 +36,8 @@
 #define asFloat(x)          as_float(x)
 #define simdReduce(x)       assert
 #define simdScan(x)         assert
-#define selectInput3(x)     uint3(x)
+#define selectInput2(x)     (uint2)x
+#define selectInput3(x)     (uint3)(x)
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -84,6 +85,7 @@
 #define asFloat(x)          as_type<float>(x)
 #define simdReduce(x)       simd_sum(x)
 #define simdScan(x)         simd_prefix_inclusive_sum(x)
+#define selectInput2(x)     bool2(x)
 #define selectInput3(x)     bool3(x)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
