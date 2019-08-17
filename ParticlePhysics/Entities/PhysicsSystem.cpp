@@ -369,6 +369,7 @@ void PhysicsSystem::render()
           particleSdf[j * 4 + 3] = particleCol[j].radius;
         }
         displayAuxBuffer.copy((float*)particleSdf, 0, 0, elements);
+        delete[] particleSdf;
 
         displayShader.bind();
         displayShader.set("modelViewMatrix", this->modelMatrix);
@@ -413,7 +414,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (false && collisionSolver->getBoundingBoxes())
+  if (collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();

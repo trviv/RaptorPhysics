@@ -53,7 +53,7 @@ typedef struct XAB_t XAB;
 #define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
 #define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
 #define copyXAB(a, b)   { (a)->min = (b)->min; (a)->max = (b)->max;}
-#define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
+#define clearXAB(a, b)  { (a)->min = b; (a)->max = -b;}
 #define reduceXAB(o, i) { o.min = simdReduce(i.min); o.max = simdReduce(i.max);}
 
 #pragma pack(pop)
