@@ -59,7 +59,7 @@ void laneReduceRadix(volatile Shared StructType* localArray1D, const ushort loca
 }
 #endif
 
-uint setLocalCount(const uchar localKey, const uchar keyPrefix)
+inline uint setLocalCount(const uchar localKey, const uchar keyPrefix)
 {
 #if RadixScanIterations == 1
   return 1 << (localKey << 3);
@@ -85,7 +85,7 @@ Kernel void radixSort32BitReduceKernel(
   KERNEL_THREADGROUP_ARGUMENTS)
 {
   // local index of the thread within a lane instance
-  const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
+  const uchar localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
 
@@ -99,11 +99,15 @@ Kernel void radixSort32BitReduceKernel(
   const ushort laneCountOffsetInTG = laneIndex << (LaneWidthExp + BankConflictShift);
   const ushort laneIndexOffsetInTG = laneIndex << SortBits;
 
+#ifndef USE_SIMD_COMPUTE
   Shared RadixPackedType localCountHeap[(RadixBlockInstances << LaneWidthExp) << BankConflictShift];
   Shared RadixPackedType* localCount = LaneWidth + localCountHeap + laneCountOffsetInTG;
+#endif
   Shared uint threadgroupLocalCountTotals[RadixBlockInstances << SortBits];
 
+#ifndef USE_SIMD_COMPUTE
   localCount[localIndexInLane - LaneWidth] = 0;
+#endif
 
   // clear block sums for the first thread of each group
   if (localIndexInLane < SortBitValue)
@@ -135,7 +139,7 @@ Kernel void radixSort32BitReduceKernel(
       setKey(localKeys, i, (localKey & (SortBitValue - 1)));
     }
 
-    for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
       RadixPackedType count = 0;
 
@@ -214,7 +218,7 @@ inline void fetchNodes(SortNode32 localSortNodes[], const Device SortNode32* sou
 }
 
 Kernel void radixSort32BitSortKernel(
-  volatile Device SortNode32* destination,
+  Device SortNode32* destination,
   const Device SortNode32* source,
   const Device uint* localSumBuffer,
   constantKernelInput(uint, rightShift),
@@ -223,7 +227,7 @@ Kernel void radixSort32BitSortKernel(
   KERNEL_THREADGROUP_ARGUMENTS)
 {
   // local index of the thread within a lane instance
-  const ushort localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
+  const uchar localIndexInLane = threadLocalIndex() & (LaneWidth - 1);
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> LaneWidthExp;
 
@@ -239,8 +243,8 @@ Kernel void radixSort32BitSortKernel(
 
   SortNode32 localSortNodes[1 << RadixPrefixScanPackingExp];
 
-  Shared SortNode32 localSortNodesHeap[(RadixBlockInstances << LaneWidthExp) << RadixPrefixScanPackingExp];
 #ifdef CoalescedWrites
+  Shared SortNode32 localSortNodesHeap[(RadixBlockInstances << LaneWidthExp) << RadixPrefixScanPackingExp];
   Shared SortNode32* swapSourceOffset = localSortNodesHeap + laneSortNodeOffsetInTG + (localIndexInLane << RadixPrefixScanPackingExp);
   Shared SortNode32* swapDestOffset = localSortNodesHeap + laneSortNodeOffsetInTG + localIndexInLane;
 #endif
@@ -259,10 +263,9 @@ Kernel void radixSort32BitSortKernel(
 
   Shared uint threadgroupLocalCountTotals[RadixBlockInstances << SortBits];
   Shared uint *threadgroupLocalCountTotalsForInstance = threadgroupLocalCountTotals + laneIndexOffsetInTG;
-  Shared RadixPackedType *localPrefixCount = localCountHeap + instanceCountOffset;// LaneWidth * ((1 << BankConflictShift) - 1) + instanceCountOffset;
+  Shared RadixPackedType *localPrefixCount = localCountHeap + instanceCountOffset;
 
-#if defined(BusAlignedFetch) && defined(CoalescedWrites)
-#else
+#if !(defined(BusAlignedFetch) && defined(CoalescedWrites))
   localPrefixCount[localIndexInLane - LaneWidth] = 0;
 #endif
 
@@ -300,13 +303,8 @@ Kernel void radixSort32BitSortKernel(
 
     uint destOffset[1 << RadixPrefixScanPackingExp];
 
-    for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
-
-//#if defined(BusAlignedFetch) && defined(CoalescedWrites)
-//      localPrefixCount[localIndexInLane - LaneWidth] = 0;
-//#endif
-
       RadixPackedType reduceSum = 0;
 
 #ifdef UsePackedKeys
@@ -404,12 +402,12 @@ Kernel void radixSort32BitSortKernel(
       if (destOffset[i] < length)
       {
 #ifdef BusAlignedFetch
-        *((volatile Device uint2*)(destination + destOffset[i])) = *((Thread uint2*)(localSortNodes + i));
+        destination[destOffset[i]] = localSortNodes[i];
 #else
 #ifdef CoalescedWrites
         destination[destOffset[i]] = offsettedLocalSortNodes[localIndex + (i * LaneWidth)];
 #else
-        *((volatile Device uint2*)(destination + destOffset[i])) = *((Thread uint2*)(localSortNodes + i));
+        destination[destOffset[i]] = localSortNodes[i];
 #endif
 #endif
       }

@@ -618,7 +618,8 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   }
 
-  const uint groups = compute->maxCores();
+  const uint groupFactor = RADIX_SORT_BIT_COUNT * (RADIX_REDUCTION_PACKING_EXP << 1) * maxWorkgroupSize;
+  const uint groups = (length + groupFactor - 1) / groupFactor;
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
   localSumBuffer->resize(groups * radixBlockInstances * (1 << RADIX_SORT_BIT_COUNT), false);
