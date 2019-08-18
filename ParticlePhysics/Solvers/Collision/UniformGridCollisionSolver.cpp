@@ -64,6 +64,12 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 {
   const uint gridElements = gridSize * gridSize * gridSize;
 
+  // 4 byte aligned for indirect dispatch
+  if (gridCompactCellCount.size() == 0)
+  {
+    gridCompactCellCount.resize(4, false);
+  }
+
   if (gridParticleCellIndex.size() < instanceNodeCount)
   {
     particlesTemp.resize(instanceNodeCount, false);
@@ -78,14 +84,8 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     gridCellParticleOffsets.resize(gridElements, false);
   }
 
-  if (gridCompactCellCount.size() == 0)
-  {
-    gridCompactCellCount.resize(1, false);
-  }
-
   // clear index offset buffer
   ComputeUtil::get(uniformGridCollisionSolverComputeUtilId)->clearIntegerBuffer(compute, gridCellParticleCount.device(), gridElements);
-  compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
   { // get count for each grid cell
     size_t workgroupSize[3], workgroupCount[3];
@@ -110,7 +110,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 #ifdef DEBUG_COLLISION_UNIFORM_GRID
   gridCellParticleCount.syncHost();
   gridParticleCellIndex.syncHost();
-  particlesTemp.syncHost();
   compute->sync();
 #endif
 
@@ -128,9 +127,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
   gridCompactCellIndices.syncHost();
 #endif
 
-  gridCompactCellCount.syncHost();
-  compute->sync();
-
   { // put particle indices in cell array
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
@@ -144,7 +140,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS].setArgs(buffers, bufferCount);
     kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS].setArg<uint>(&instanceNodeCount, bufferCount);
 
-    compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, workgroupCount);
+    compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, gridCompactCellCount.device(), 0);
   }
 
 #ifdef DEBUG_COLLISION_UNIFORM_GRID
@@ -166,11 +162,10 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
 
     build(instanceNodeCount, globalOffsets);
 
-    if ((*gridCompactCellCount.host())[0] == 0) continue;
+    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
-    size_t workgroupSize[3] = {1, 1, 1}, workgroupCount[3] = {1, 1, 1};
-    workgroupSize[0] = 256;
-    workgroupCount[0] = (*gridCompactCellCount.host())[0];
+    size_t workgroupSize[3] = {1, 1, 1};
+    workgroupSize[0] = this->compute->maxThreadsPerGroup();
 
     ComputeMemory* buffers[] = {
       gridCompactCellIndices.device(),
@@ -193,6 +188,6 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
     uint stablizationPass = (second != empty.device());
     kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
 
-    compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
+    compute->execute(kernels[UNIFORM_GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, gridCompactCellCount.device(), 0);
   }
 }

@@ -763,14 +763,14 @@ void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_
 }
 #endif
 
-void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, size_t sourceOffset, size_t destinOffset, size_t sizeInBytes)
+void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* destination, size_t sourceOffset, size_t destinationOffset, size_t sizeInBytes)
 {
 #ifdef USE_OPENCL_COMPUTE
   cl_event localEvent;
 #ifdef CREATE_SUB_BUFFER
-  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset, destinOffset, sizeInBytes, 0, NULL, &localEvent);
+  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destination, sourceOffset, destinationOffset, sizeInBytes, 0, NULL, &localEvent);
 #else
-  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destin, sourceOffset + source->getOffset(), destinOffset + destin->getOffset(), sizeInBytes, 0, NULL, &localEvent);
+  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destination, sourceOffset + source->getOffset(), destinationOffset + destin->getOffset(), sizeInBytes, 0, NULL, &localEvent);
 #endif
   computeCheckError(status, 0);
 
@@ -781,13 +781,13 @@ void ComputeInterface::copyBuffer(ComputeMemory* source, ComputeMemory* destin, 
   clReleaseEvent(localEvent);
 #endif
 #else
-  [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:*destin destinationOffset:(destinOffset + destin->getOffset()) size:sizeInBytes];
+  [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
   endEncoders();
   getComputeEncoder();
 #endif
 }
 
-void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
+void ComputeInterface::setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
 {
 #ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueFillBuffer(queue, *source, hostValue, hostValueSize, sourceOffset, sizeInBytes, 0, NULL, NULL);
@@ -795,7 +795,7 @@ void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, siz
 #endif
 }
 
-void ComputeInterface::copyToHost(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish)
+void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish)
 {
 #ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
@@ -809,16 +809,16 @@ void ComputeInterface::copyToHost(ComputeMemory* source, size_t sourceOffset, si
 #endif
 }
 
-void ComputeInterface::copyFromHost(ComputeMemory* destin, size_t destinOffset, size_t sizeInBytes, const void* hostPtr, bool waitForFinish)
+void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinationOffset, size_t sizeInBytes, const void* hostPtr, bool waitForFinish)
 {
 #ifdef USE_OPENCL_COMPUTE
-  ComputeStatus status = clEnqueueWriteBuffer(queue, *destin, waitForFinish, destinOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
+  ComputeStatus status = clEnqueueWriteBuffer(queue, *destination, waitForFinish, destinationOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
   while (sizeInBytes > tempBuffer.length)
   { tempBuffer = [deviceId newBufferWithLength:tempBuffer.length*2 options:MTLResourceStorageModeShared];}
   memcpy(tempBuffer.contents, hostPtr, sizeInBytes);
-  [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destin destinationOffset:(destinOffset + destin->getOffset()) size:sizeInBytes];
+  [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
   sync();
 #endif
 }
@@ -887,6 +887,55 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   [encoder setComputePipelineState:kernel];
   [encoder dispatchThreadgroups:MTLSizeMake(workgroupCount[0], workgroupCount[1], workgroupCount[2])
           threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
+  endEncoders();
+  getComputeEncoder();
+#endif
+}
+
+void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize2[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
+{
+#ifdef USE_OPENCL_COMPUTE
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+  uint count = 0;
+  copyToHost(indirectBuffer, bufferOffset, 4, &count, true);
+
+  configureSize(workgroupSize, workgroupCount, count);
+
+  const size_t workgroup[3] = {
+    workgroupSize[0] * workgroupCount[0],
+    workgroupSize[1] * workgroupCount[1],
+    workgroupSize[2] * workgroupCount[2] };
+
+  ComputeStatus status;
+
+#ifdef ENABLE_CL_PROFILING
+
+  cl_event localEvent;
+
+  status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, &localEvent);
+  computeCheckError(status, 0);
+
+  status = clSetEventCallback(localEvent, CL_COMPLETE, eventCallback, registerKernelLaunched(kernel, workgroup));
+  computeCheckError(status, 0);
+
+  clReleaseEvent(localEvent);
+#else
+
+  status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, workgroup, workgroupSize, 0, NULL, NULL);
+  computeCheckError(status, 0);
+#endif
+#else
+  // get kernel name
+  NSString* kernelName = [kernelNameMap[kernel] name];
+  // get encoder
+  id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
+  // set dispatch info
+  [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName, (int)(workgroupSize2[0]*workgroupSize2[1]*workgroupSize2[2])]];
+  [encoder setComputePipelineState:kernel];
+  [encoder dispatchThreadgroupsWithIndirectBuffer:(*indirectBuffer)
+                             indirectBufferOffset:indirectBuffer->getOffset()+bufferOffset
+                            threadsPerThreadgroup:MTLSizeMake(workgroupSize2[0], workgroupSize2[1], workgroupSize2[2])];
   endEncoders();
   getComputeEncoder();
 #endif

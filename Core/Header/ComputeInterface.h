@@ -96,7 +96,7 @@ public:
 
   size_t getSize()const;
 
-  operator ComputeMemoryIdentifier()
+  operator const ComputeMemoryIdentifier()const
   {
     return ref;
   }
@@ -150,7 +150,7 @@ public:
 
   void setArgs(ComputeMemory* buffers[], const uint count, uint* indices = NULL);
 
-  operator ComputeKernelIdentifier()
+  operator const ComputeKernelIdentifier()const
   {
     return ref;
   }
@@ -171,7 +171,7 @@ public:
 
   bool isEmpty()const;
 
-  operator ComputeProgramIdentifier()
+  operator const ComputeProgramIdentifier()const
   {
     return ref;
   }
@@ -209,13 +209,13 @@ public:
     const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
 
 
-  void copyBuffer(ComputeMemory* source, ComputeMemory* destin, size_t sourceOffset, size_t destinOffset, size_t sizeInBytes);
+  void copyBuffer(const ComputeMemory* source, ComputeMemory* destination, size_t sourceOffset, size_t destinationOffset, size_t sizeInBytes);
 
-  void setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
+  void setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
 
-  void copyToHost(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish);
+  void copyToHost(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish);
 
-  void copyFromHost(ComputeMemory* destin, size_t destinOffset, size_t sizeInBytes, const void* hostPtr, bool waitForFinish);
+  void copyFromHost(ComputeMemory* destination, size_t destinationOffset, size_t sizeInBytes, const void* hostPtr, bool waitForFinish);
 
 
   void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount);
@@ -223,6 +223,8 @@ public:
   void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount, const uint maxThreadsPerThreadgroup);
 
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
+
+  void execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
 
   void sync();
 

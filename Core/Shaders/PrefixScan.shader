@@ -220,7 +220,7 @@ Kernel void prefixGroupScanKernel(
 #ifdef StructTypeIntegral
 
 Kernel void compactSparseArray(
-  Device uint*                      compactArrayCount,
+  Device uint3*                     compactArrayCount,
   Device uint*                      compactIndexArray,
   const Device StructType*          selectionArray,
   volatile Device MemberStructType* sumBuffer,
@@ -305,7 +305,7 @@ Kernel void compactSparseArray(
     // save the sum from last threadgroup to the output array
     if (threadGroupIndex() == (threadGroupCount() - 1))
     {
-      compactArrayCount[0] = localArray1D[0] + prefixSum;
+      compactArrayCount[0] = constructUint3(localArray1D[0] + prefixSum, 1, 1);
     }
   }
 

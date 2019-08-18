@@ -565,7 +565,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
     }
   }
 
-  count.resize(1, false);
+  count.resize(4, false);
   selectionArray.syncDevice();
   compactIndexArray.resize(elements, false);
 
