@@ -1,7 +1,6 @@
 #ifndef LBVH_SOLVER_SHADER
 #define LBVH_SOLVER_SHADER
 
-//#define USE_ALTERNATIVE_KERNEL_ARGS
 //#define DEBUG_TREE_CREATION
 //#define DEBUG_TRAVERSAL
 
@@ -271,11 +270,7 @@ Kernel void constructBinaryTree(
 @param nodeCount Total nodes in the solver.
 */
 Kernel void constructTreeBoundingBox(
-#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device XAB*               treeInternalNodeBoundingBoxes,
-#else
-  const Device XAB*         treeInternalNodeBoundingBoxesIn,
-#endif
   atomicKernelInput(uint,   visitedInternalNodes),
   const Device BVHNodeInfo* treeInternalNodes,
   const Device uint*        leafParentNodeIndices,
@@ -285,10 +280,6 @@ Kernel void constructTreeBoundingBox(
   KERNEL_GLOBAL_ARGUMENTS)
 {
   int index = threadIndex();
-
-#ifdef USE_ALTERNATIVE_KERNEL_ARGS
-  Device XAB* treeInternalNodeBoundingBoxes = treeInternalNodeBoundingBoxesIn;
-#endif
 
   if (index < nodeCount)
   {
