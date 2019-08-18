@@ -3,17 +3,10 @@
 
 //#define DEBUG_PHYSICS_SYSTEM
 
-//#define USE_ALTERNATIVE_KERNEL_ARGS
-
 Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
-#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device ParticleStruct*              particlesPredicted,
   Device ParticleDifferential*        particleDiff,
-#else
-  const Device ParticleStruct*        particlesPredictedIn,
-  const Device ParticleDifferential*  particleDiffIn,
-#endif
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
@@ -24,11 +17,6 @@ Kernel void integrateDifferentiateStep(
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
-
-#ifdef USE_ALTERNATIVE_KERNEL_ARGS
-  Device ParticleStruct* particlesPredicted = particlesPredictedIn;
-  Device ParticleDifferential* particleDiff = particleDiffIn;
-#endif
 
   if (index < nodeCount)
   {
@@ -79,13 +67,8 @@ Kernel void integrateDifferentiateStep(
 
 Kernel void startStep(
   const Device ParticleStruct*        particles,
-#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device ParticleStruct*            	particlesPredicted,
   Device ParticleDifferential*        particleDiff,
-#else
-  const Device ParticleStruct*        particlesPredictedIn,
-  const Device ParticleDifferential*  particleDiffIn,
-#endif
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*       	partitions,
@@ -96,11 +79,6 @@ Kernel void startStep(
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
-
-#ifdef USE_ALTERNATIVE_KERNEL_ARGS
-  Device ParticleStruct* particlesPredicted = particlesPredictedIn;
-  Device ParticleDifferential* particleDiff = particleDiffIn;
-#endif
 
   if (index < nodeCount)
   {
@@ -144,11 +122,7 @@ Kernel void startStep(
 }
 
 Kernel void endStep(
-#ifndef USE_ALTERNATIVE_KERNEL_ARGS
   Device ParticleStruct*              particles,
-#else
-  const Device ParticleStruct*        particlesIn,
-#endif
   const Device ParticleStruct*        particlesPredicted,
   Device ParticleDifferential*        particleDiff,
   const Device ParticleSharedData*    particleSharedData,
@@ -164,10 +138,6 @@ Kernel void endStep(
 
   if (index < nodeCount)
   {
-#ifdef USE_ALTERNATIVE_KERNEL_ARGS
-    Device ParticleStruct* particles = particlesIn;
-#endif
-
     ParticleStruct particle = particles[index];
     IdentityInfo identity = particle.identity;
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
