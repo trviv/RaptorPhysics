@@ -99,9 +99,8 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
-  uint nodeBatchSize = 4;
-  uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
-  nodeBatchCount = 1024 * ((nodeBatchCount + 1023) / 1024);
+  uint nodeBatchSize = 8;
+  const uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
 
   if (particleLeafData.size() != instanceNodeCount)
   {
