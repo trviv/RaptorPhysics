@@ -84,7 +84,7 @@ Kernel void assignMortonCode(
   if (index < nodeCount)
   {
     const XAB mergedBox = mergedParticleBoundingBox[0];
-    const float3 inverseMergedBoxSize = ((float)1024) / (mergedBox.max - mergedBox.min);
+    const float3 inverseMergedBoxSize = 1024.f / (mergedBox.max - mergedBox.min);
     const float3 mergedBoxCenter = (mergedBox.min + mergedBox.max) * 0.5f;
 
     const ParticleStruct particle = particles[index];

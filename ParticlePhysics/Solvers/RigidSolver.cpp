@@ -70,7 +70,6 @@ void RigidSolver::solve()
 
   if (!count) return;
 
-  uint totalEntities = newEntityInstanceId();
   size_t workgroupSize[3], workgroupCount[3];
 
   compute->configureSize(workgroupSize, workgroupCount, count);
@@ -187,6 +186,6 @@ void RigidSolver::update()
 
   covarianceMatrix.resize(count * 9, false);
 
-  // TODO: look why it has to be greater then partitions
+  // has to be used for covariance matrix hence * 9
   particlesTemp[0].resize(newEntityInstanceId() * 9, false);
 }

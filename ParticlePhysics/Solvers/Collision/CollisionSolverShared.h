@@ -105,6 +105,11 @@ uint get32BitMortonCode(const int3 quantizedPosition)
 //#define MARK_COLLIDED_PARTICLES
 
 #define BOUNDARY_BOTTOM   0.f
+#define BOUNDARY_LEFT     -7.f
+#define BOUNDARY_RIGHT    7.f
+#define BOUNDARY_FRONT    7.f
+#define BOUNDARY_BACK     -7.f
+
 /*
  @kernel Apply boundary constrain.
  @param particles Initial particle buffer.
@@ -121,6 +126,26 @@ float3 boundaryCollision(
     if (particle->position.y <= BOUNDARY_BOTTOM)
     {
       ret.y = BOUNDARY_BOTTOM - particle->position.y;
+    }
+
+    if (particle->position.x <= BOUNDARY_LEFT)
+    {
+      ret.x = BOUNDARY_LEFT - particle->position.x;
+    }
+
+    if (particle->position.x >= BOUNDARY_RIGHT)
+    {
+      ret.x = BOUNDARY_RIGHT - particle->position.x;
+    }
+
+    if (particle->position.z >= BOUNDARY_FRONT)
+    {
+      ret.z = BOUNDARY_FRONT - particle->position.z;
+    }
+
+    if (particle->position.z <= BOUNDARY_BACK)
+    {
+      ret.z = BOUNDARY_BACK - particle->position.z;
     }
   }
 

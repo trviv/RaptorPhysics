@@ -37,7 +37,7 @@ Kernel void covarianceMatrix(
     predicted.identity = identity;
     particlesPredicted[index] = predicted;
 
-    float3 initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
+    const float3 initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
 
     // batch write respecting data alignment
     float4 ret1 = currentComOffset.xyzx * constructFloat4(initialComOffset.xxx, initialComOffset.y);
@@ -47,16 +47,6 @@ Kernel void covarianceMatrix(
     ((Device float4*)(matrixData + 9 * index))[0] = ret1;
     ((Device float4*)(matrixData + 9 * index))[1] = ret2;
     (matrixData + 9 * index)[8] = ret3;
-
-//    float8 ret8;
-//    ret8.s012 = currentComOffset * initialComOffset.x;
-//    ret8.s345 = currentComOffset * initialComOffset.y;
-//    ret8.s67  = currentComOffset.xy * initialComOffset.z;
-//
-//    Device float* matrixRow = (matrixData + 9 * index);
-//
-//    ((Device float8*)matrixRow)[0] = ret8;
-//    matrixRow[8] = currentComOffset.z * initialComOffset.z;
   }
 }
 
@@ -155,7 +145,6 @@ inline void rigidSolverFunction(
 
     ((Thread float4*)localMatrix)[0] = g1 * ((Thread float4*)localMatrix)[0] + g2 * ((Thread float4*)matrix2)[0];
     ((Thread float4*)localMatrix)[1] = g1 * ((Thread float4*)localMatrix)[1] + g2 * ((Thread float4*)matrix2)[1];
-//    ((Thread float8*)localMatrix)[0] = g1 * ((Thread float8*)localMatrix)[0] + g2 * ((Thread float8*)matrix2)[0];
     localMatrix[8] = g1 * localMatrix[8] + g2 * matrix2[8];
   }
 }
@@ -184,7 +173,6 @@ Kernel void rigidSolver(
     // batch write respecting data alignment
     ((Device float4*)(matrixData + index * 9))[0] = ((Thread float4*)localMatrix)[0];
     ((Device float4*)(matrixData + index * 9))[1] = ((Thread float4*)localMatrix)[1];
-//    ((Device float8*)(matrixData + index * 9))[0] = ((Thread float8*)localMatrix)[0];
     (matrixData + index * 9)[8] = localMatrix[8];
   }
 }
