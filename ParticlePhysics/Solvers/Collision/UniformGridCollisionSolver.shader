@@ -1,10 +1,10 @@
 #ifndef COLLISION_SOLVER_SHADER
 #define COLLISION_SOLVER_SHADER
 
-uint3 quantizePosition(const float3 position, const uint gridSize)
+inline uint3 quantizePosition(const float3 position, const uint gridSize)
 {
   const float3 particlePredictedScaled = fabs(position.xyz);
-  return constructUint3(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z) & constructUint3(gridSize - 1, gridSize - 1, gridSize - 1);
+  return constructUint3(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z) & constructUint3(gridSize - 1);
 }
 
 /*
@@ -12,9 +12,6 @@ uint3 quantizePosition(const float3 position, const uint gridSize)
 @param gridCellIndexCount Particle count for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredicted Integrated particle position.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
-@param globalOffsets Offsets to particle nodes all the solvers.
 @param nodeCount Total nodes in the solver.
 @param gridSize Size of grid in one dimension.
 */
@@ -22,9 +19,6 @@ Kernel void createGridCellHistogram(
   atomicKernelInput(uint,           gridCellIndexCount),
   Device uint*                      gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const PhySystemOffsets*           globalOffsets,
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(uint,         gridSize)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -98,8 +92,6 @@ Kernel void applyCollisions(
   const Device ParticleCollisionData* particleCollisionData,
 #endif
   const Device ParticleSharedData*    particleSharedData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass)

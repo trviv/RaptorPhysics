@@ -711,8 +711,6 @@ Kernel void applyCollisions(
   const Device ParticleCollisionData* particleCollisionData,
 #endif
   const Device ParticleSharedData*    particleSharedData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(uint,           stablizationPass)
