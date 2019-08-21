@@ -16,11 +16,16 @@ protected:
   SharedAllocator*  allocator;
   ComputeHeap*      solverHeap;
 
+  DeviceArray <ParticleStruct>  empty;
+  DeviceArray <ParticleStruct>  particlesTemp;
+  DeviceArray <XAB>             systemBoundingBox;
+  DeviceArray <XAB>             particleGroupBoundingBoxes;
+
 public:
 
   virtual ~CollisionSolver();
 
-  virtual void init(ComputeInterface* compute, SharedAllocator* allocator) = 0;
+  virtual void init(ComputeInterface* compute, SharedAllocator* allocator);
 
   virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
 
