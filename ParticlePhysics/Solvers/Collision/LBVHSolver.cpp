@@ -24,13 +24,7 @@ DeviceArray<XAB>* LBVHSolver::getBoundingBoxes()
 
 void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 {
-  this->compute = compute;
-  this->allocator = allocator;
-
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("ParticleStruct.h");
-  includeFiles.push_back("CollisionSolverShared.h");
+  CollisionSolver::init(compute, allocator);
 
   registerShader(compute, "LBVHSolver.shader", NULL, NULL);
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
@@ -67,6 +61,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   particleGroupBoundingBoxes.create(compute, NULL);
 #endif
 
+  // allocate space for fixed sized data
   treeInternalNodeBoundingBoxes.create(compute, NULL, true);
 
   empty.create(compute, NULL, false);
@@ -74,6 +69,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 
   systemBoundingBox.resize(1, false);
 
+  // create utility classes
   vector<string> utilInclude;
   utilInclude.push_back("ParticleStruct.h");
   utilInclude.push_back("CollisionSolverShared.h");

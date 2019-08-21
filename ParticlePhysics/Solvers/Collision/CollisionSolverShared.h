@@ -105,10 +105,10 @@ uint get32BitMortonCode(const int3 quantizedPosition)
 //#define MARK_COLLIDED_PARTICLES
 
 #define BOUNDARY_BOTTOM   0.f
-#define BOUNDARY_LEFT     -7.f
-#define BOUNDARY_RIGHT    7.f
-#define BOUNDARY_FRONT    7.f
-#define BOUNDARY_BACK     -7.f
+#define BOUNDARY_LEFT     -20.f
+#define BOUNDARY_RIGHT    20.f
+#define BOUNDARY_FRONT    20.f
+#define BOUNDARY_BACK     -20.f
 
 /*
  @kernel Apply boundary constrain.
