@@ -6,6 +6,7 @@ CollisionSolver::~CollisionSolver()
   particlesTemp.free();
   particleGroupBoundingBoxes.free();
   systemBoundingBox.free();
+  maxRadius.free();
 
   delete solverHeap;
   solverHeap = NULL;

@@ -96,7 +96,7 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
   uint nodeBatchSize = 8;
-  const uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
+  uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
 
   if (particleLeafData.size() != instanceNodeCount)
   {
@@ -105,7 +105,6 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
     particleLeafData.resize(instanceNodeCount, false);
     particleLeafDataSorted.resize(instanceNodeCount, false);
     particleBoundingBoxes.resize(instanceNodeCount, false);
-    particleGroupBoundingBoxes.resize(nodeBatchCount, false);
     visitedInternalNodes.resize(instanceNodeCount, false);
     leafParentNodeIndices.resize(instanceNodeCount, false);
     nodeParentNodeIndices.resize(instanceNodeCount, false);
@@ -120,6 +119,12 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
 
+    nodeBatchCount = workgroupSize[0] * workgroupCount[0];
+    if (particleGroupBoundingBoxes.size() < nodeBatchCount)
+    {
+      particleGroupBoundingBoxes.resize(nodeBatchCount, false);
+    }
+
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
       particleBoundingBoxes.device(),
@@ -133,7 +138,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArgs(buffers, bufferCount);
-    kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArg<uint>(&nodeBatchSize, bufferCount);
+    kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArg<uint>(&nodeBatchCount, bufferCount);
     kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArg<uint>(&instanceNodeCount, bufferCount + 1);
 
     compute->execute(kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX], workgroupSize, workgroupCount);

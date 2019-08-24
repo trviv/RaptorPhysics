@@ -2,6 +2,56 @@
 #define COLLISION_SOLVER_SHADER
 
 /*
+ @kernel Get radius for particles, accumulate and store to an array.
+ @param groupRadius Maximum radius from the threadgroup.
+ @param particles Integrated particle position.
+ @param particleSharedData Particle entity shared data.
+ @param particleAuxData Additional particle data.
+ @param partitions Instance partition data.
+ @param entityLocation Entity section data.
+ @param globalOffsets Offsets to particle nodes all the solvers.
+ @param nodeBatchCount Total number of node batches.
+ @param nodeCount Total nodes in the solver.
+ */
+Kernel void getSystemMaxRadius(
+  Device float*                     groupRadius,
+  const Device ParticleStruct*      particles,
+  const Device ParticleSharedData*  particleSharedData,
+  const Device ParticleAuxData*     particleAuxData,
+  const Device PartitionInfo*       partitions,
+  const Device EntityLocation*      entityLocation,
+  Const PhySystemOffsets*           globalOffsets,
+  constantKernelInput(uint,         nodeBatchCount),
+  constantKernelInput(uint,         nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  // radius for the batch
+  float maxRadius = 0.f;
+
+  for (uint index = threadIndex(); index < nodeCount; index += threadGroupCount() * threadGroupSize())
+  {
+    const ParticleStruct particle = particles[index];
+    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
+    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+
+    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
+
+    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
+
+    maxRadius = max(maxRadius, getRadiusUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex));
+  }
+
+  if (threadIndex() < nodeBatchCount)
+  {
+    groupRadius[threadIndex()] = maxRadius;
+  }
+}
+
+/*
  @kernel Compute and store bounding boxes for each particle.
  @param particleGroupBoundingBoxes Particle group bounding box array.
  @param particlesPredicted Integrated particle position.
@@ -10,6 +60,7 @@
  @param partitions Instance partition data.
  @param entityLocation Entity section data.
  @param globalOffsets Offsets to particle nodes all the solvers.
+ @param nodeBatchCount Total number of node batches.
  @param nodeCount Total nodes in the solver.
  */
 Kernel void createBoundingBoxes(
@@ -20,7 +71,7 @@ Kernel void createBoundingBoxes(
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const PhySystemOffsets*           globalOffsets,
-  constantKernelInput(uint,         nodeBatchSize),
+  constantKernelInput(uint,         nodeBatchCount),
   constantKernelInput(uint,         nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -53,7 +104,7 @@ Kernel void createBoundingBoxes(
     mergeXAB(&accumulatedBoundingBox, &particleBoundingBox);
   }
 
-  if (threadIndex() < nodeBatchSize)
+  if (threadIndex() < nodeBatchCount)
   {
     particleGroupBoundingBoxes[threadIndex()] = accumulatedBoundingBox;
   }
@@ -76,7 +127,9 @@ inline uint3 quantizePosition(const float3 position, const uint gridSize)
 Kernel void createGridCellHistogram(
   atomicKernelInput(uint,           gridCellIndexCount),
   Device uint*                      gridParticleCellIndex,
-  const Device ParticleStruct*      particlesPredicted,
+  const Device ParticleStruct*      particles,
+  Const XAB*                        systemBoundingBox,
+  Const float*                      radius,
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(uint,         gridSize)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -85,7 +138,8 @@ Kernel void createGridCellHistogram(
 
   if (index < nodeCount)
   {
-    const uint3 quantizedPosition = quantizePosition(particlesPredicted[index].position, gridSize);
+    const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize * radius[0], systemBoundingBox->max - systemBoundingBox->min);
+    const uint3 quantizedPosition = constructUint3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
     const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;

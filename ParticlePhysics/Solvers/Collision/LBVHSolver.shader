@@ -24,7 +24,7 @@ Kernel void createBoundingBoxes(
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
   Const PhySystemOffsets*           globalOffsets,
-  constantKernelInput(uint,         nodeBatchSize),
+  constantKernelInput(uint,         nodeBatchCount),
   constantKernelInput(uint,         nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -58,7 +58,7 @@ Kernel void createBoundingBoxes(
     mergeXAB(&accumulatedBoundingBox, &particleBoundingBox);
   }
 
-  if (threadIndex() < nodeBatchSize)
+  if (threadIndex() < nodeBatchCount)
   {
     particleGroupBoundingBoxes[threadIndex()] = accumulatedBoundingBox;
   }
