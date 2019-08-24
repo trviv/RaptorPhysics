@@ -27,6 +27,8 @@ public:
   void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
 
   void solve(uint instanceNodeCount, ComputeMemory* globalOffsets);
+
+  DeviceArray<XAB>* getBoundingBoxes();
 };
 
 #endif

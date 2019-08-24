@@ -36,6 +36,8 @@
 #define asFloat(x)          as_float(x)
 #define simdReduce(x)       assert
 #define simdScan(x)         assert
+#define simdMin(x)          assert
+#define simdMax(x)          assert
 #define selectInput2(x)     (uint2)x
 #define selectInput3(x)     (uint3)(x)
 
@@ -85,6 +87,8 @@
 #define asFloat(x)          as_type<float>(x)
 #define simdReduce(x)       simd_sum(x)
 #define simdScan(x)         simd_prefix_inclusive_sum(x)
+#define simdMin(x)          simd_min(x)
+#define simdMax(x)          simd_max(x)
 #define selectInput2(x)     bool2(x)
 #define selectInput3(x)     bool3(x)
 

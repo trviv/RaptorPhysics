@@ -20,6 +20,7 @@ protected:
   DeviceArray <ParticleStruct>  particlesTemp;
   DeviceArray <XAB>             systemBoundingBox;
   DeviceArray <XAB>             particleGroupBoundingBoxes;
+  DeviceArray <float>           maxRadius;
 
 public:
 
