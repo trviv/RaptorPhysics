@@ -6,9 +6,7 @@
 #define LBVH_COLLISION_SOLVER_ASSIGN_MORTON_CODE  1
 #define LBVH_COLLISION_SOLVER_CREATE_BINARY_TREE  2
 #define LBVH_COLLISION_SOLVER_TREE_BOUNDING_BOX   3
-
 #define LBVH_COLLISION_SOLVER_APPLY_COLLISIONS    4
-#define LBVH_COLLISION_SOLVER_APPLY_BOUNDARY      5
 
 static uint lbvhXABComputeUtilId;
 static uint lbvhSortComputeUtilId;
@@ -26,7 +24,13 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 {
   CollisionSolver::init(compute, allocator);
 
-  registerShader(compute, "LBVHSolver.shader", NULL, NULL);
+  const vector<string> oldType = {"SET_PARTICLE_BOUNDING_BOXES"};
+  const vector<string> newType = {""};
+
+  includeFiles.push_back("CollisionSolver.shader");
+
+  registerShader(compute, "LBVHSolver.shader", &oldType, &newType);
+
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
   kernels.push_back(programs[0].createKernel("assignMortonCode"));
   kernels.push_back(programs[0].createKernel("constructBinaryTree"));

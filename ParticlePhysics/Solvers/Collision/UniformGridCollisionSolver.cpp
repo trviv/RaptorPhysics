@@ -27,7 +27,10 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
 
   gridSize = 64;
 
+  includeFiles.push_back("CollisionSolver.shader");
+
   registerShader(compute, "UniformGridCollisionSolver.shader", NULL, NULL);
+
   kernels.push_back(programs[0].createKernel("getSystemMaxRadius"));
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
@@ -135,6 +138,8 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
     gridCellParticleOffsets.resize(gridElements, false);
   }
 
+  // TODO: Make a flag so that this is only done when needed
+  if (particleGroupBoundingBoxes.size() == 0)
   {
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);

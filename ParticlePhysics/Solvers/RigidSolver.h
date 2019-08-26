@@ -4,6 +4,9 @@
 #include "Solver.h"
 #include "../Common/ParticleStruct.h"
 
+/*!
+@class Class to solve rigid body constraints.
+*/
 class RigidSolver : public Solver<uint, real, Real3>
 {
   DeviceArray<real> covarianceMatrix;

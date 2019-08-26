@@ -5,7 +5,7 @@
 #include "../Common/ParticleStruct.h"
 
 /*!
-@class Class to solve distance constraints
+@class Class to solve distance constraints.
 */
 class DistanceSolver : public LinearSolver<uint, real, Real3>
 {
