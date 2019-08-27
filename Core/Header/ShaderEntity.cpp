@@ -11,10 +11,10 @@ void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileNam
     localNew.insert(localNew.begin(), newType->begin(), newType->end());
   }
 
-  localOld.push_back("COMPUTE_SUB_GROUP_SIZE");
+  localOld.push_back("ComputeSimdWidth");
   localNew.push_back(to_string(compute->simdSize()));
 
-  localOld.push_back("COMPUTE_SUB_GROUP_EXP");
+  localOld.push_back("ComputeSimdWidthExp");
   localNew.push_back(to_string(mCeilExpOf2(compute->simdSize())));
 
 #ifdef USE_METAL_COMPUTE

@@ -27,7 +27,7 @@ const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* loca
   {
     ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 16]);
   }
-#if COMPUTE_SUB_GROUP_SIZE > 32
+#if ComputeSimdWidth > 32
   if (subGroupLocalIndex >= 32)
   {
     ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 32]);
@@ -39,21 +39,21 @@ const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* loca
 
 MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const ushort localIndex, const ushort elements)
 {
-  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
+  const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
 
   const MemberStructType subGroupSum = subGroupPrefixScan(localArray, localIndex, subGroupLocalIndex);
   localMemBarrier();
 
   // copy last element from each sub group to first sub group's local space
-  if (subGroupLocalIndex == (COMPUTE_SUB_GROUP_SIZE - 1))
+  if (subGroupLocalIndex == (ComputeSimdWidth - 1))
   {
     localArray[subGroupIndex] = subGroupSum;
   }
   localMemBarrier();
 
   // prefix scan first sub group
-  if (localIndex < (elements >> COMPUTE_SUB_GROUP_EXP))
+  if (localIndex < (elements >> ComputeSimdWidthExp))
   {
     const MemberStructType prev = localArray[localIndex];
     subGroupPrefixScan(localArray, localIndex, localIndex);
@@ -69,8 +69,8 @@ MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const usho
 
 inline MemberStructType simdGroupPrefixScan(MemberStructType reduceSum, volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
-  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
+  const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
 
   // per sub group reduce
   SCAN_FUNCTION(reduceSum, reduceSum);
@@ -86,9 +86,9 @@ inline MemberStructType simdGroupPrefixScan(MemberStructType reduceSum, volatile
     CLEAR_FUNCTION(prefixSum, 0);
 
     // copy last element from each sub group to first sub group's local space
-    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> ComputeSimdWidthExp))
     {
-      COPY_FUNCTION(prefixSum, localArray[(subGroupLocalIndex+1) * COMPUTE_SUB_GROUP_SIZE - 1]);
+      COPY_FUNCTION(prefixSum, localArray[(subGroupLocalIndex+1) * ComputeSimdWidth - 1]);
     }
 
     const MemberStructType prev = prefixSum;
@@ -97,15 +97,15 @@ inline MemberStructType simdGroupPrefixScan(MemberStructType reduceSum, volatile
     SCAN_FUNCTION(prefixSum, prefixSum);
     prefixSum -= prev;
 
-    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    if (subGroupLocalIndex < (PREFIX_SCAN_COMPUTE_THREADS >> ComputeSimdWidthExp))
     {
-      COPY_FUNCTION(localArray[subGroupLocalIndex * COMPUTE_SUB_GROUP_SIZE], prefixSum);
+      COPY_FUNCTION(localArray[subGroupLocalIndex * ComputeSimdWidth], prefixSum);
     }
   }
 
   localMemBarrier();
 
-  return reduceSum + localArray[subGroupIndex * COMPUTE_SUB_GROUP_SIZE];
+  return reduceSum + localArray[subGroupIndex * ComputeSimdWidth];
 }
 
 #endif

@@ -7,7 +7,7 @@
 
 void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
-#if COMPUTE_SUB_GROUP_SIZE > 32
+#if ComputeSimdWidth > 32
   if (subGroupLocalIndex < 32)
   {
     ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 32]);
@@ -64,8 +64,8 @@ void groupReduce(volatile Shared MemberStructType* localArray, const ushort loca
 //
 //  return;
 
-  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
+  const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
 
   // per sub group reduce
   subGroupReduce(localArray, localIndex, subGroupLocalIndex);
@@ -77,7 +77,7 @@ void groupReduce(volatile Shared MemberStructType* localArray, const ushort loca
     COPY_FUNCTION(localArray[subGroupIndex], localArray[localIndex]);
   }
   // set non copied elements to zero
-  if (subGroupIndex == 0 && subGroupLocalIndex >= (REDUCE_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+  if (subGroupIndex == 0 && subGroupLocalIndex >= (REDUCE_COMPUTE_THREADS >> ComputeSimdWidthExp))
   {
     CLEAR_FUNCTION(localArray[subGroupLocalIndex], 0);
   }
@@ -94,8 +94,8 @@ void groupReduce(volatile Shared MemberStructType* localArray, const ushort loca
 
 inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
-  const ushort subGroupLocalIndex = localIndex & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const ushort subGroupIndex = localIndex >> COMPUTE_SUB_GROUP_EXP;
+  const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
+  const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
 
   // per sub group reduce
   REDUCE_FUNCTION(localArray[localIndex], reduceSum);
@@ -108,9 +108,9 @@ inline MemberStructType simdGroupReduce(MemberStructType reduceSum, volatile Sha
     CLEAR_FUNCTION(reduceSum, 0);
 
     // copy last element from each sub group to first sub group's local space
-    if (subGroupLocalIndex < (REDUCE_COMPUTE_THREADS >> COMPUTE_SUB_GROUP_EXP))
+    if (subGroupLocalIndex < (REDUCE_COMPUTE_THREADS >> ComputeSimdWidthExp))
     {
-      COPY_FUNCTION(reduceSum, localArray[subGroupLocalIndex * COMPUTE_SUB_GROUP_SIZE]);
+      COPY_FUNCTION(reduceSum, localArray[subGroupLocalIndex * ComputeSimdWidth]);
     }
 
     // reduce first sub group

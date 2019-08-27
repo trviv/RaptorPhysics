@@ -669,8 +669,8 @@ Kernel void applyCollisions(
 
   localMemBarrier();
 
-  const uchar subGroupLocalIndex = threadLocalIndex() & (COMPUTE_SUB_GROUP_SIZE - 1);
-  const uchar subGroupIndex = threadLocalIndex() >> COMPUTE_SUB_GROUP_EXP;
+  const uchar subGroupLocalIndex = threadLocalIndex() & (ComputeSimdWidth - 1);
+  const uchar subGroupIndex = threadLocalIndex() >> ComputeSimdWidthExp;
 
   if (subGroupLocalIndex == 0)
   {
@@ -685,8 +685,8 @@ Kernel void applyCollisions(
   {
     if (subGroupLocalIndex == 0 && batchCount[subGroupIndex] == 0)
     {
-      batchOffset[subGroupIndex] = atomicAdd(batchCounter, COMPUTE_SUB_GROUP_SIZE * batchMultiple);
-      batchCount[subGroupIndex] = COMPUTE_SUB_GROUP_SIZE * batchMultiple;
+      batchOffset[subGroupIndex] = atomicAdd(batchCounter, ComputeSimdWidth * batchMultiple);
+      batchCount[subGroupIndex] = ComputeSimdWidth * batchMultiple;
     }
 
     const uint index = batchOffset[subGroupIndex] + subGroupLocalIndex;
@@ -744,8 +744,8 @@ Kernel void applyCollisions(
 
     if (subGroupLocalIndex == 0)
     {
-      batchOffset[subGroupIndex] += COMPUTE_SUB_GROUP_SIZE;
-      batchCount[subGroupIndex] -= COMPUTE_SUB_GROUP_SIZE;
+      batchOffset[subGroupIndex] += ComputeSimdWidth;
+      batchCount[subGroupIndex] -= ComputeSimdWidth;
     }
   }
 }
