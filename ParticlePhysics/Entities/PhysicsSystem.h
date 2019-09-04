@@ -5,78 +5,78 @@
 #include "PhysicsEntity.h"
 #include "../Solvers/Collision/CollisionSolver.h"
 
-/*
+/*!
 @class Class representing a system simulating physical entities.
 */
 class PhysicsSystem : protected ShaderEntity, public Window
 {
-  /*@member Compute interface on which the system will operate on.*/
+  /*!@member Compute interface on which the system will operate on.*/
   ComputeInterface*               compute;
 
-  /*@member Memory sections which needs updation.*/
+  /*!@member Memory sections which needs updation.*/
   vector<EntityLocation>          updates;
 
-  /*@member Memory allocators used by the system.*/
+  /*!@member Memory allocators used by the system.*/
   vector<SharedAllocator*>        allocators;
 
-  /*@member ushort solvers in the system.*/
-  Solver<ushort, real, Real3>*    solversUshort[SOLVER_MAX];
-
-  /*@member uint solvers in the system.*/
-  Solver<uint, real, Real3>*      solversUint[SOLVER_MAX];
-
-  /*@member Collision solver for the system.*/
+  /*!@member Collision solver for the system.*/
   CollisionSolver*                collisionSolver;
 
-  /*@member Registered entities.*/
+  /*!@member Registered entities.*/
   vector<PhysicsEntity*>          entities[SOLVER_MAX];
 
-  /*@member Number of unique nodes in the system.*/
+  /*!@member Number of unique nodes in the system.*/
   uint                            nodeCount;
 
-  /*@member Number of instanced nodes in the system.*/
+  /*!@member Number of instanced nodes in the system.*/
   uint                            instanceNodeCount;
 
-  /*@member Entity ids available for reuse.*/
+  /*!@member Entity ids available for reuse.*/
   vector<uint>                    availableEntityIds;
 
-  /*@member Offsets for different solvers.*/
+  /*!@member Offsets for different solvers.*/
   DeviceArray<PhySystemOffsets>   globalOffsets;
 
-  /*@member Thread index map to absolute node index.*/
+  /*!@member Thread index map to absolute node index.*/
   DeviceArray<uint>               indexMap;
 
-  /*@function Take one simulation step.*/
+  /*!@member ushort solvers in the system.*/
+  EntitySolver<ushort, real, Real3>*  solversUshort[SOLVER_MAX];
+
+  /*!@member uint solvers in the system.*/
+  EntitySolver<uint, real, Real3>*    solversUint[SOLVER_MAX];
+
+  /*!@function Take one simulation step.*/
   void step();
 
-  /*@function Get solver instance for a solver type.*/
+  /*!@function Get solver instance for a solver type.*/
   void* getSolver(SolverType type);
 
-  /*@function Perform integration and differentiation step.*/
+  /*!@function Perform integration and differentiation step.*/
   void positionUpdate(float timeStep);
 
-  /*@function Perform differentiation step.*/
+  /*!@function Perform differentiation step.*/
   void differentiate(float timeStep);
 
-  /*@function Perform integration step.*/
+  /*!@function Perform integration step.*/
   void integrate(float timeStep);
 
 public:
 
-  /*@constructor Create a new physics system using a compute interface.*/
+  /*!@constructor Create a new physics system using a compute interface.*/
   PhysicsSystem(ComputeInterface* compute);
 
-  /*@destructor Dellocate a physics system.*/
+  /*!@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
 
-  /*
+  /*!
   @function Register a physics entity to the system.
   @param entity Entity to register.
   @return Identifier for the registered entity.
   */
   PhysicsEntityId registerEntity(PhysicsEntity* entity);
 
-  /*
+  /*!
   @function Add instance(s) of the physics entity to the system.
   @param registeredEntityId Entity to register.
   @param instanceCount Number of entity instances.
@@ -105,19 +105,19 @@ public:
   bool    renderParticles;
   bool    renderSolids;
 
-  /*@member Particle radius available for reuse.*/
+  /*!@member Particle radius available for reuse.*/
   vector<float> solverParticleRadius[SOLVER_MAX];
 
   void createSphere(float radius);
 
   void createUnitBox();
 
-  /*@function Render all registered entities.*/
+  /*!@function Render all registered entities.*/
   void render();
 
 #endif
 
-  /*@function Take one simulation step using the time step.*/
+  /*!@function Take one simulation step using the time step.*/
   void step(float timeStep);
 };
 

@@ -22,6 +22,8 @@ class LBVHSolver : public CollisionSolver
 
 public:
 
+  LBVHSolver();
+
   ~LBVHSolver();
 
   void init(ComputeInterface* compute, SharedAllocator* allocator);

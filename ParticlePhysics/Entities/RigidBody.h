@@ -11,10 +11,10 @@ class RigidBody : public PhysicsEntity
 {
 public:
 
-  /*@constructor Create a new rigid entity.*/
+  /*!@constructor Create a new rigid entity.*/
   RigidBody();
 
-  /*
+  /*!
   @function Initialize a cube.
   @param dimensions Cube dimensions.
   @param particleRadius Radius for each particle.

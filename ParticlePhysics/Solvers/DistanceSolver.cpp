@@ -5,7 +5,7 @@
 //#define DEBUG_DISTANCE_SOLVER
 
 DistanceSolver::DistanceSolver(ComputeInterface* compute, SharedAllocator* allocator)
-  : LinearSolver(compute, allocator)
+  : Solver(compute, allocator), LinearSolver(compute, allocator)
 {
   type = SOLVER_CLOTH;
   iterations = 16;

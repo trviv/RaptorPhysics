@@ -20,6 +20,8 @@ protected:
 
 public:
 
+  UniformGridCollisionSolver();
+
   ~UniformGridCollisionSolver();
 
   void init(ComputeInterface* compute, SharedAllocator* allocator);

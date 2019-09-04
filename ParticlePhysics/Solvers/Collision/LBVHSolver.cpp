@@ -11,6 +11,12 @@
 static uint lbvhXABComputeUtilId;
 static uint lbvhSortComputeUtilId;
 
+LBVHSolver::LBVHSolver() :
+  Solver(NULL, NULL)
+{
+}
+
+
 LBVHSolver::~LBVHSolver()
 {
 }

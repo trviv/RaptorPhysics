@@ -12,6 +12,12 @@ static uint gridXABComputeUtilId;
 static uint gridComputeUtilId;
 static uint gridGetSystemRadiusUtilId;
 
+UniformGridCollisionSolver::UniformGridCollisionSolver() :
+  Solver(NULL, NULL)
+{
+  gridSize = 64;
+}
+
 UniformGridCollisionSolver::~UniformGridCollisionSolver()
 {
 }
@@ -24,8 +30,6 @@ DeviceArray<XAB>* UniformGridCollisionSolver::getBoundingBoxes()
 void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
 {
   CollisionSolver::init(compute, allocator);
-
-  gridSize = 64;
 
   includeFiles.push_back("CollisionSolver.shader");
 
@@ -52,7 +56,6 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   particlesTemp.create(compute, solverHeap, true);
   particleGroupBoundingBoxes.create(compute, solverHeap, true);
   systemBoundingBox.create(compute, NULL, true);
-  maxRadius.create(compute, NULL, true);
 #else
   gridCompactCellIndices.create(compute, solverHeap);
   gridParticleCellIndex.create(compute, solverHeap);
@@ -62,7 +65,6 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   particlesTemp.create(compute, solverHeap);
   particleGroupBoundingBoxes.create(compute, solverHeap);
   systemBoundingBox.create(compute, NULL);
-  maxRadius.create(compute, NULL);
 #endif
 
   // allocate space for fixed sized data
@@ -71,6 +73,7 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
 
   systemBoundingBox.resize(1, false);
 
+  maxRadius.create(compute, NULL, true);
   maxRadius.resize(1, false);
 
   // create utility classes

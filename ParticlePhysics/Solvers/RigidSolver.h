@@ -7,7 +7,7 @@
 /*!
 @class Class to solve rigid body constraints.
 */
-class RigidSolver : public Solver<uint, real, Real3>
+class RigidSolver : public EntitySolver<uint, real, Real3>
 {
   DeviceArray<real> covarianceMatrix;
 

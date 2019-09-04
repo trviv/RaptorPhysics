@@ -39,7 +39,7 @@ enum ComputeUtilKey
   ComputeUtilMaxKey
 };
 
-/*
+/*!
 @class Class representing utility functions.
 */
 class ComputeUtil : protected ShaderEntity
