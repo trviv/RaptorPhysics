@@ -11,10 +11,10 @@ class Cloth : public PhysicsEntity
 {
 public:
 
-  /*@constructor Create a new cloth entity.*/
+  /*!@constructor Create a new cloth entity.*/
   Cloth();
 
-  /*
+  /*!
   @function Initialize a 2D cloth based on the parameters.
   @param dimension Cloth xy dimension.
   @param subdivision Cloth xy dimension grid size.
@@ -22,7 +22,7 @@ public:
   */
   void initXY(const real dimensions[], const uint subdivision[], const real mass);
 
-  /*
+  /*!
   @function Initialize a 2D cloth based on the parameters.
   @param dimension Cloth xy dimension.
   @param particleRadius Radius of cloth particles.

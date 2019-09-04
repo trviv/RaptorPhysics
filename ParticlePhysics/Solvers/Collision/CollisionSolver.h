@@ -1,21 +1,17 @@
 #ifndef COLLISION_SOLVER_H
 #define COLLISION_SOLVER_H
 
-#include "../../Common/ParticleStruct.h"
-#include "../SharedAllocator.h"
+#include "../Solver.h"
 #include "CollisionSolverShared.h"
 
 /*!
 @class Class to solve collisions.
 */
-class CollisionSolver : public ShaderEntity
+class CollisionSolver : virtual public Solver
 {
 protected:
 
-  ComputeInterface* compute;
-  SharedAllocator*  allocator;
-  ComputeHeap*      solverHeap;
-
+  ComputeHeap*                  solverHeap;
   DeviceArray <ParticleStruct>  empty;
   DeviceArray <ParticleStruct>  particlesTemp;
   DeviceArray <XAB>             systemBoundingBox;

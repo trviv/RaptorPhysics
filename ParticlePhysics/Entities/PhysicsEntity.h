@@ -22,7 +22,7 @@ protected:
 
 #endif
 
-  /*@member Entity solver type.*/
+  /*!@member Entity solver type.*/
   SolverType  solver;
 
   friend class PhysicsSystem;

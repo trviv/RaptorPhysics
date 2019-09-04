@@ -11,10 +11,10 @@ class Fluid : public PhysicsEntity
 {
 public:
 
-  /*@constructor Create a new fluid entity.*/
+  /*!@constructor Create a new fluid entity.*/
   Fluid();
 
-  /*
+  /*!
   @function Initialize a cube.
   @param dimensions Cube dimensions.
   @param particleRadius Radius for each particle.

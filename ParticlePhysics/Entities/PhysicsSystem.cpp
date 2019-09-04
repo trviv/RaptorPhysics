@@ -121,7 +121,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
     collisionSolver->init(compute, allocator);
   }
 
-  Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(entity->solver);
+  EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(entity->solver);
 
   // create section data to issue updates
   EntityLocation systemUpdateInfo;
@@ -172,7 +172,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][entityId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
   const vector<ParticleCollisionData>* entityParticleCol = entity->particleCollisionData.host();
-  Solver<uint, real, Real3>* solver = (Solver<uint, real, Real3>*)getSolver(solverType);
+  EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(solverType);
 
   const uint lastPartitionOffset = solver->entityLocations.host()->at(entityId).node.offset;
 
@@ -210,7 +210,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   // update starting offset for each solver
   for (uint i = 2; i < SOLVER_MAX; i++)
   {
-    Solver<uint, real, Real3>* localSolver = (Solver<uint, real, Real3>*)getSolver((SolverType)(1 << (i - 2)));
+    EntitySolver<uint, real, Real3>* localSolver = (EntitySolver<uint, real, Real3>*)getSolver((SolverType)(1 << (i - 2)));
     if (localSolver)
     {
       cumulativeNode += localSolver->lastPartition().end();

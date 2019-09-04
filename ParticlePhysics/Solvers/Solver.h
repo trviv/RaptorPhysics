@@ -5,6 +5,23 @@
 
 #define DEBUG_SOLVERS
 
+/*!
+@class Base class for any solver.
+*/
+class Solver : protected ShaderEntity
+{
+protected:
+
+  ComputeInterface* compute;
+  SharedAllocator*  allocator;
+  uint              iterations;
+
+public:
+
+  Solver(ComputeInterface* compute, SharedAllocator* allocator);
+};
+
+
 enum SolverType
 {
   SOLVER_NULL = 0,
@@ -16,15 +33,15 @@ enum SolverType
   SOLVER_MAX = 4
 };
 
-template<class IndexType, class CoefficientType, class VariableType> class Solver :
-public SolverData<IndexType, CoefficientType, VariableType>, public ShaderEntity
+/*!
+@class Base class for all entity solvers.
+*/
+template<class IndexType, class CoefficientType, class VariableType>
+class EntitySolver : virtual protected Solver, protected SolverData<IndexType, CoefficientType, VariableType>
 {
 protected:
 
-  ComputeInterface*   compute;
-  SharedAllocator*    allocator;
-  SolverType          type;
-  uint                iterations;
+  SolverType type;
 
   friend class PhysicsSystem;
 
@@ -44,20 +61,24 @@ protected:
 
 public:
 
-  Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type);
+  /*!@construct Process all entity properties and commit to the device memory.*/
+  EntitySolver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type);
 
-  ~Solver();
+  ~EntitySolver();
 
+  /*!@function Process all entity properties and commit to the device memory.*/
   virtual void commit();
 
+  /*!@function Create the entity solver.*/
   virtual void create(ComputeInterface* compute) = 0;
 
+  /*!@function Solve the entity constrains.*/
   virtual void solve() = 0;
 
-  /*@function Get an available unique entity id.*/
+  /*!@function Get an available unique entity id.*/
   uint newEntityId();
 
-  /*@function Get an available unique instance id.*/
+  /*!@function Get an available unique instance id.*/
   uint newEntityInstanceId()const;
 };
 

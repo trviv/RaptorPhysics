@@ -153,47 +153,47 @@ typedef struct ParticleCollisionData_t ParticleCollisionData;
 */
 struct DEFAULT_ALIGN ParticleSharedData_t
 {
-  /*@member Mask for shared properties.*/
+  /*!@member Mask for shared properties.*/
   uint  isSharedMask;
-  /*@member Shared inverse mass.*/
+  /*!@member Shared inverse mass.*/
   float sharedInvMass;
-  /*@member Shared radius.*/
+  /*!@member Shared radius.*/
   float sharedRadius;
-  /*@member Stiffness for spring constraint.*/
+  /*!@member Stiffness for spring constraint.*/
   float stiffness;
-  /*@member Viscosity for fluid constraint.*/
+  /*!@member Viscosity for fluid constraint.*/
   float viscosity;
-  /*@member Velocity damping.*/
+  /*!@member Velocity damping.*/
   float velocityDamping;
-  /*@member Velocity damping.*/
+  /*!@member Velocity damping.*/
   float collisionDamping;
-  /*@member Kinetic friction coefficient.*/
+  /*!@member Kinetic friction coefficient.*/
   float kineticFrictionCoef;
-  /*@member Static friction coefficient.*/
+  /*!@member Static friction coefficient.*/
   float staticFrictionCoef;
 
   uint  padding[3];
 
-  /*@member Shared collision data.*/
+  /*!@member Shared collision data.*/
   ParticleCollisionData sharedCollisionData;
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;
 
 #ifndef COMPUTE_SHADER_SCOPE
-/*@function If mass is shared by particles of a body.*/
+/*!@function If mass is shared by particles of a body.*/
 static void setInvMassIsShared(ParticleSharedData& data, bool isShared)
 {
   data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_MASS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_MASS_MASK : 0);
 }
 
-/*@function If radius is shared by particles of a body.*/
+/*!@function If radius is shared by particles of a body.*/
 static void setRadiusIsShared(ParticleSharedData& data, bool isShared)
 {
   data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_RADIUS_MASK)) | (isShared ? PARTICLE_SHARED_DATA_RADIUS_MASK : 0);
 }
 
-/*@function If SDF is shared by particles of a body.*/
+/*!@function If SDF is shared by particles of a body.*/
 static void setCollisionDataIsShared(ParticleSharedData& data, bool isShared)
 {
   data.isSharedMask = (data.isSharedMask & (-1 ^ PARTICLE_SHARED_DATA_COLLISION_MASK)) | (isShared ? PARTICLE_SHARED_DATA_COLLISION_MASK : 0);
@@ -329,11 +329,11 @@ inline ParticleNodeIdentity uncompressToNodeIdentity(const IdentityInfo identity
 */
 struct ALIGN(4) ParticleNodeLocator_t
 {
-  /*@member Offset to first node of the entity instance, in the physics system.*/
+  /*!@member Offset to first node of the entity instance, in the physics system.*/
   uint absoluteNodeOffset;
-  /*@member Index to this node's property in the entity instance ,in the physics system.*/
+  /*!@member Index to this node's property in the entity instance ,in the physics system.*/
   uint absoluteNodeIndex;
-  /*@member Index to this node's shader property in the entity, in the physics system.*/
+  /*!@member Index to this node's shader property in the entity, in the physics system.*/
   uint commonNodeIndex;
 };
 

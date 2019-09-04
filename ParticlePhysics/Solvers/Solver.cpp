@@ -1,8 +1,14 @@
 #include "Solver.h"
 
+Solver::Solver(ComputeInterface* compute, SharedAllocator* allocator) :
+  compute(compute), allocator(allocator)
+{
+
+}
+
 template<class IndexType, class CoefficientType, class VariableType>
-Solver<IndexType, CoefficientType, VariableType>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type) :
-  SolverData<IndexType, CoefficientType, VariableType>(), compute(compute), allocator(allocator), type(type)
+EntitySolver<IndexType, CoefficientType, VariableType>::EntitySolver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type) :
+  Solver(compute, allocator), SolverData<IndexType, CoefficientType, VariableType>(), type(type)
 {
   this->constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS), true);
   this->constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES), true);
@@ -35,21 +41,21 @@ Solver<IndexType, CoefficientType, VariableType>::Solver(ComputeInterface* compu
   this->partitionsCount.host()->resize(1);
   this->entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
 
-  iterations = 1;
+  this->iterations = 1;
 
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("ConstrainStruct.h");
-  includeFiles.push_back("ParticleStruct.h");
+  this->includeFiles.push_back("ComputeHeader.shader");
+  this->includeFiles.push_back("ComputeShared.h");
+  this->includeFiles.push_back("ConstrainStruct.h");
+  this->includeFiles.push_back("ParticleStruct.h");
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-Solver<IndexType, CoefficientType, VariableType>::~Solver()
+EntitySolver<IndexType, CoefficientType, VariableType>::~EntitySolver()
 {
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-void Solver<IndexType, CoefficientType, VariableType>::commit()
+void EntitySolver<IndexType, CoefficientType, VariableType>::commit()
 {
   flatArray<CoefficientType>(*this->constrainCoefficients.host(), this->rawConstrainCoefficients);
 
@@ -66,7 +72,7 @@ void Solver<IndexType, CoefficientType, VariableType>::commit()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-void Solver<IndexType, CoefficientType, VariableType>::update()
+void EntitySolver<IndexType, CoefficientType, VariableType>::update()
 {
   // arrays to be exported to device
   for (const EntityLocation& section : this->updates)
@@ -125,26 +131,26 @@ void Solver<IndexType, CoefficientType, VariableType>::update()
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-uint Solver<IndexType, CoefficientType, VariableType>::newEntityId()
+uint EntitySolver<IndexType, CoefficientType, VariableType>::newEntityId()
 {
   return this->entityLocations.host()->size();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
-uint Solver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()const
+uint EntitySolver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()const
 {
   return this->partitions.host()->size();
 }
 
-#define classPrefix(x, y, z) template void Solver<x, y, z>
+#define classPrefix(x, y, z) template void EntitySolver<x, y, z>
 
 #define declareFunctions(x, y, z) \
-  template Solver<x, y, z>::Solver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type); \
-  template Solver<x, y, z>::~Solver(); \
+  template EntitySolver<x, y, z>::EntitySolver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type); \
+  template EntitySolver<x, y, z>::~EntitySolver(); \
   classPrefix(x, y, z)::update(); \
   classPrefix(x, y, z)::commit(); \
-  template uint Solver<x, y, z>::newEntityId(); \
-  template uint Solver<x, y, z>::newEntityInstanceId()const;
+  template uint EntitySolver<x, y, z>::newEntityId(); \
+  template uint EntitySolver<x, y, z>::newEntityInstanceId()const;
 
 declareFunctions(ushort, real, real)
 declareFunctions(uint, real, real)

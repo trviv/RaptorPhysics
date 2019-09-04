@@ -22,13 +22,13 @@ typedef struct ConstrainStruct_t ConstrainStruct;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-/*@function Extract constrain offset data.*/
+/*!@function Extract constrain offset data.*/
 static uint constrainOffset(const ConstrainStruct ref)
 {
   return ref.value & CONSTRAIN_OFFSET_MASK;
 }
 
-/*@function Extract constrain count data.*/
+/*!@function Extract constrain count data.*/
 static uint constrainCount(const ConstrainStruct ref)
 {
   return ref.value >> CONSTRAIN_OFFSET_BITS;

@@ -7,7 +7,11 @@
 //forward declaration
 class PhysicsSystem;
 
-template<class IndexType, class CoefficientType, class VariableType> class SolverData
+/*!
+@class Class containing data for all entity solvers.
+*/
+template<class IndexType, class CoefficientType, class VariableType>
+class SolverData
 {
   // datatype for host constrain
   typedef vector<IndexType>       SingleConstrain;
@@ -18,6 +22,7 @@ template<class IndexType, class CoefficientType, class VariableType> class Solve
   friend class PhysicsSystem;
 
 protected:
+
   // related to equation solver
   DeviceArray<Constrain>            constrainHeaders;
   DeviceArray<IndexType>            constrainIndices;
@@ -39,11 +44,11 @@ protected:
   vector<SingleConstrain>           rawConstrainConnections;
   vector<SingleCoefficient>         rawConstrainCoefficients;
 
-  /*@member Per entity simulation property.*/
+  /*!@member Per entity simulation property.*/
   DeviceArray<ParticleSharedData>   entitySharedData;
   DeviceArray<ParticleAuxData>      particleAuxData;
 
-  /*@member Per entity shared data info.*/
+  /*!@member Per entity shared data info.*/
   DeviceArray<EntityLocation>       entityLocations;
 
   vector<EntityLocation>            updates;

@@ -12,10 +12,10 @@
 */
 struct ALIGN(8) PartitionInfo_t
 {
-  /*@member Offset.*/
+  /*!@member Offset.*/
   uint  offset;
 
-  /*@member Count.*/
+  /*!@member Count.*/
   uint  count;
 
 #ifndef COMPUTE_SHADER_SCOPE

@@ -12,7 +12,7 @@ static uint matrix3x3UtilId;
 #define RIGID_SVD_SOLVER_ITERATIONS             4
 
 RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
-  : Solver(compute, allocator, SOLVER_RIGID_BODY)
+  : Solver(compute, allocator), EntitySolver(compute, allocator, SOLVER_RIGID_BODY)
 {
   iterations = 1;
   create(compute);
@@ -178,7 +178,7 @@ void RigidSolver::update()
 {
   if (!updates.size()) return;
 
-  Solver::update();
+  EntitySolver::update();
 
   particleRigidData.syncDevice();
 

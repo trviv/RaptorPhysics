@@ -3,8 +3,11 @@
 
 #include "Solver.h"
 
-template<class IndexType, class CoefficientType, class VariableType> class LinearSolver :
-public Solver<IndexType, CoefficientType, VariableType>
+/*!
+@class Class to solve linear constraints.
+*/
+template<class IndexType, class CoefficientType, class VariableType>
+class LinearSolver : public EntitySolver<IndexType, CoefficientType, VariableType>
 {
 protected:
 

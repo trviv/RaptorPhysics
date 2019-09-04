@@ -8,7 +8,6 @@
 */
 class ShaderEntity
 {
-
 protected:
 
   vector<ComputeProgram>  programs;

@@ -213,7 +213,7 @@ Kernel void reduce(
   }
 }
 
-/*@kernel Sum all the elements of a flat 2d array.*/
+/*!@kernel Sum all the elements of a flat 2d array.*/
 Kernel void reduce2DKernel(
   Device StructType*  array2D,
   constantKernelInput(uint, length),

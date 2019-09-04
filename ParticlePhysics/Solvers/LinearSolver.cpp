@@ -2,7 +2,7 @@
 
 template<class IndexType, class CoefficientType, class VariableType>
 LinearSolver<IndexType, CoefficientType, VariableType>::LinearSolver(ComputeInterface* compute, SharedAllocator* allocator) :
-Solver<IndexType, CoefficientType, VariableType>(compute, allocator, SOLVER_EQUATION)
+  Solver(compute, allocator), EntitySolver<IndexType, CoefficientType, VariableType>(compute, allocator, SOLVER_EQUATION)
 {
   this->iterations = 24;
 }
@@ -45,7 +45,7 @@ void LinearSolver<IndexType, CoefficientType, VariableType>::solve()
 template<class IndexType, class CoefficientType, class VariableType>
 void LinearSolver<IndexType, CoefficientType, VariableType>::update()
 {
-  Solver<IndexType, CoefficientType, VariableType>::update();
+  EntitySolver<IndexType, CoefficientType, VariableType>::update();
 }
 
 #define classPrefix(x, y, z) template void LinearSolver<x, y, z>

@@ -2,6 +2,8 @@
 #define PHYSICS_SYSTEM_SHADER
 
 //#define DEBUG_PHYSICS_SYSTEM
+#define PHYSICS_SYSTEM_EULER
+//#define PHYSICS_SYSTEM_LEAP_FROG
 
 Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
@@ -105,6 +107,7 @@ Kernel void startStep(
 
     if (invMass) // only if movable
     {
+#ifdef PHYSICS_SYSTEM_EULER
       velocity = particleDiff[index].velocity;
       velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
       velocity *= sharedData.velocityDamping;
@@ -114,6 +117,23 @@ Kernel void startStep(
       particle.position += velocity * timeStep;
       particle.identity = identity;
       particlesPredicted[index] = particle;
+#endif
+
+#ifdef PHYSICS_SYSTEM_LEAP_FROG
+      velocity = particleDiff[index].velocity;
+      velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep * .05f;
+
+      particle.position += velocity * timeStep;
+      particle.identity = identity;
+
+      velocity *= sharedData.velocityDamping;
+      velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep * .05f;
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.001f);
+
+      particleDiff[index].velocity = velocity;
+
+      particlesPredicted[index] = particle;
+#endif
     }
 #ifdef DEBUG_PHYSICS_SYSTEM
     printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
