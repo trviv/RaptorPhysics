@@ -3,6 +3,7 @@
 #include "../Solvers/LinearSolver.h"
 #include "../Solvers/DistanceSolver.h"
 #include "../Solvers/RigidSolver.h"
+#include "../Solvers/FluidSolver.h"
 
 #include "../Solvers/Collision/UniformGridCollisionSolver.h"
 #include "../Solvers/Collision/LBVHSolver.h"
@@ -50,9 +51,6 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
 
   indexMap.create(compute, NULL, true);
 
-//  collisionSolver = new UniformGridCollisionSolver();
-  collisionSolver = new LBVHSolver();
-
 #ifdef ENABLE_RENDERING
   renderParticles = true;
   renderSolids = false;
@@ -95,6 +93,11 @@ void* PhysicsSystem::getSolver(SolverType type)
       solversUint[index] = new RigidSolver(compute, allocators[0]);
       break;
     }
+    case SOLVER_FLUID:
+    {
+      solversUint[index] = new FluidSolver(compute, allocators[0]);
+      break;
+    }
     default:
       printf("Undefined!");
       assert(0);
@@ -118,7 +121,9 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
     allocator->particleAllocator.create(multiplier * 1024);
     allocator->constrainAllocator.create(multiplier * 1024, multiplier * 128);
     allocators.push_back(allocator);
-    collisionSolver->init(compute, allocator);
+    collisionSolver = new UniformGridCollisionSolver(compute, allocator);
+//    collisionSolver = new LBVHSolver(compute, allocator);
+    collisionSolver->init();
   }
 
   EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(entity->solver);
@@ -547,8 +552,8 @@ void PhysicsSystem::step(float timeStep)
     ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
-    ComputeUtil::get(0)->clearIntegerBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-      instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint));
+    float zero = 0.f;
+    ComputeUtil::get(0)->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(), instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint), *((uint*)&zero));
 
     updates.clear();
 

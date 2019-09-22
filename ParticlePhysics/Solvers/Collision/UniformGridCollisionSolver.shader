@@ -1,12 +1,6 @@
 #ifndef GRID_SOLVER_SHADER
 #define GRID_SOLVER_SHADER
 
-inline uint3 quantizePosition(const float3 position, const uint gridSize)
-{
-  const float3 particlePredictedScaled = fabs(position.xyz);
-  return constructUint3(particlePredictedScaled.x, particlePredictedScaled.y, particlePredictedScaled.z) & constructUint3(gridSize - 1);
-}
-
 /*
 @kernel Compute and store the cell index for each particle, and atomically increment the cell count for grid cell.
 @param gridCellIndexCount Particle count for each grid cell.
@@ -30,7 +24,7 @@ Kernel void createGridCellHistogram(
   if (index < nodeCount)
   {
     const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize * radius[0], systemBoundingBox->max - systemBoundingBox->min);
-    const uint3 quantizedPosition = constructUint3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
+    const int3 quantizedPosition = convertInt3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
     const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;

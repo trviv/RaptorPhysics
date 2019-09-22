@@ -3,12 +3,18 @@
 
 #include "LinearSolver.h"
 #include "../Common/ParticleStruct.h"
+#include "Collision/UniformGridCollisionSolver.h"
 
 /*!
-@class Class to fluid constraints.
+@class Class to solve fluid constraints.
 */
-class FluidSolver : public Solver<uint, real, Real3>
+class FluidSolver : public EntitySolver<uint, real, Real3>, protected UniformGridCollisionSolver
 {
+protected:
+
+  DeviceArray <float> particlesDensity;
+  DeviceArray <float> particlesLambda;
+
   void update();
 
 public:

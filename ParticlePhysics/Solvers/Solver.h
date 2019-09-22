@@ -61,9 +61,10 @@ protected:
 
 public:
 
-  /*!@construct Process all entity properties and commit to the device memory.*/
+  /*!@constructor Process all entity properties and commit to the device memory.*/
   EntitySolver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type);
 
+  /*!@destructor Process all entity properties and commit to the device memory.*/
   ~EntitySolver();
 
   /*!@function Process all entity properties and commit to the device memory.*/

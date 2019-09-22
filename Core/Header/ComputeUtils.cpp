@@ -371,7 +371,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
   groupStatus->resize(groupCount, false);
 
   uint mean = doMean ? 1 : 0;
-  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
+  clearBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
@@ -460,7 +460,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
   groupSum->resize(groupCount * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
+  clearBuffer(compute, groupStatus->device(), groupCount);
 
   uint divideFlag = doMean;
   uint threadGroupSizeExp = mCeilExpOf2(compute->maxThreadsPerGroup());
@@ -505,7 +505,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
+  clearBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { compactArrayCount, compactIndexArray, selectionArray, groupSum->device(), groupStatus->device() };
 
@@ -564,7 +564,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
-  clearIntegerBuffer(compute, groupStatus->device(), groupCount);
+  clearBuffer(compute, groupStatus->device(), groupCount);
 
   ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
 
@@ -702,7 +702,7 @@ void ComputeUtil::showMatrix(ComputeInterface* compute, ComputeMemory* memory, u
 //#endif
 }
 
-void ComputeUtil::clearIntegerBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length)
+void ComputeUtil::clearBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length, uint value)
 {
   size_t workgroupSize[3];
   size_t workgroupCount[3];
@@ -710,6 +710,7 @@ void ComputeUtil::clearIntegerBuffer(ComputeInterface* compute, ComputeMemory* d
 
   compute->configureSize(workgroupSize, workgroupCount, (length + batchSize - 1) / batchSize);
   kernels[kernelIndex].setArg(destination, 0);
-  kernels[kernelIndex].setArg<uint>(&length, 1);
+  kernels[kernelIndex].setArg<uint>(&value, 1);
+  kernels[kernelIndex].setArg<uint>(&length, 2);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }

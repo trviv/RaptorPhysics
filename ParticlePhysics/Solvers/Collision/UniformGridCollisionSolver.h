@@ -18,15 +18,22 @@ protected:
   DeviceArray <uint>  gridCellParticleIndices;
   uint                gridSize;
 
+  void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
+
 public:
 
-  UniformGridCollisionSolver();
+  /*!
+  @constructor Construct a Grid solver object.
+  @param compute Compute interface to be used for the solver.
+  @param allocator Shared memory allocator for the solver.
+  */
+  UniformGridCollisionSolver(ComputeInterface* compute, SharedAllocator* allocator);
 
+  /*!@destructor Destroy a Grid solver object.*/
   ~UniformGridCollisionSolver();
 
-  void init(ComputeInterface* compute, SharedAllocator* allocator);
-
-  void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
+  /*!@function Initialize a Grid solver object.*/
+  void init();
 
   void solve(uint instanceNodeCount, ComputeMemory* globalOffsets);
 

@@ -12,34 +12,10 @@ static uint gridXABComputeUtilId;
 static uint gridComputeUtilId;
 static uint gridGetSystemRadiusUtilId;
 
-UniformGridCollisionSolver::UniformGridCollisionSolver() :
-  Solver(NULL, NULL)
+UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute, SharedAllocator* allocator) :
+  Solver(compute, allocator), CollisionSolver(compute, allocator)
 {
   gridSize = 64;
-}
-
-UniformGridCollisionSolver::~UniformGridCollisionSolver()
-{
-}
-
-DeviceArray<XAB>* UniformGridCollisionSolver::getBoundingBoxes()
-{
-  return NULL;
-}
-
-void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
-{
-  CollisionSolver::init(compute, allocator);
-
-  includeFiles.push_back("CollisionSolver.shader");
-
-  registerShader(compute, "UniformGridCollisionSolver.shader", NULL, NULL);
-
-  kernels.push_back(programs[0].createKernel("getSystemMaxRadius"));
-  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
-  kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
-  kernels.push_back(programs[0].createKernel("createGridCellArrays"));
-  kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   solverHeap = new ComputeHeap(compute);
 
@@ -75,11 +51,32 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
 
   maxRadius.create(compute, NULL, true);
   maxRadius.resize(1, false);
+}
+
+UniformGridCollisionSolver::~UniformGridCollisionSolver()
+{
+}
+
+DeviceArray<XAB>* UniformGridCollisionSolver::getBoundingBoxes()
+{
+  return NULL;
+}
+
+void UniformGridCollisionSolver::init()
+{
+  const vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS", "SOLVER_FLUID"};
+  const vector<string> newType = {"", to_string(SOLVER_FLUID)};
+
+  registerShader(compute, "UniformGridCollisionSolver.shader", &oldType, &newType);
+
+  kernels.push_back(programs[0].createKernel("getSystemMaxRadius"));
+  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
+  kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
+  kernels.push_back(programs[0].createKernel("createGridCellArrays"));
+  kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   // create utility classes
-  vector<string> xabUtilInclude;
-  xabUtilInclude.push_back("ParticleStruct.h");
-  xabUtilInclude.push_back("CollisionSolverShared.h");
+  const vector<string> utilInclude = {"ParticleStruct.h"};
 
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
@@ -92,17 +89,13 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
   lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &xabUtilInclude);
+  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
   utilSetting[ComputeUtilStructTypeIntegral] = "1";
 
   gridComputeUtilId = ComputeUtil::create(compute, utilSetting);
-
-  vector<string> getRadiusUtilInclude;
-  getRadiusUtilInclude.push_back("ParticleStruct.h");
-  getRadiusUtilInclude.push_back("CollisionSolverShared.h");
 
   utilSetting.clear();
   utilSetting[ComputeUtilOnlyReduce] = "1";
@@ -111,7 +104,7 @@ void UniformGridCollisionSolver::init(ComputeInterface* compute, SharedAllocator
   utilSetting[ComputeUtilCustomReduceFunction] = "reduceFloat";
   utilSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
-  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &getRadiusUtilInclude);
+  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &utilInclude);
 }
 
 void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
@@ -142,7 +135,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
   }
 
   // TODO: Make a flag so that this is only done when needed
-  if (particleGroupBoundingBoxes.size() == 0)
+  if (maxRadius.host()->size() == 0)
   {
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
@@ -219,7 +212,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 #endif
 
   // clear index offset buffer
-  ComputeUtil::get(gridComputeUtilId)->clearIntegerBuffer(compute, gridCellParticleCount.device(), gridElements);
+  ComputeUtil::get(gridComputeUtilId)->clearBuffer(compute, gridCellParticleCount.device(), gridElements);
 
   { // get count for each grid cell
     size_t workgroupSize[3], workgroupCount[3];
