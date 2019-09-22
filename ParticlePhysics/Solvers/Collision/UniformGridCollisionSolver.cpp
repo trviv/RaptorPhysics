@@ -114,6 +114,14 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 
   const uint gridElements = gridSize * gridSize * gridSize;
 
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
+
+  if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
+  {
+    particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
+  }
+
   // 4 byte aligned for indirect dispatch
   if (gridCompactCellCount.size() == 0)
   {
@@ -137,14 +145,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
   // TODO: Make a flag so that this is only done when needed
   if (maxRadius.host()->size() == 0)
   {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
-
-    nodeBatchCount = workgroupSize[0] * workgroupCount[0];
-    if (particleGroupBoundingBoxes.size() < nodeBatchCount)
-    {
-      particleGroupBoundingBoxes.resize(nodeBatchCount, false);
-    }
+    uint nodeBatchCount = workgroupSize[0] * workgroupCount[0];
 
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
