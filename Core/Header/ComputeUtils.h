@@ -1,7 +1,6 @@
 #ifndef COMPUTE_UTILS_H
 #define COMPUTE_UTILS_H
 
-#include "Math.h"
 #include "ShaderEntity.h"
 #include "DeviceArray.h"
 

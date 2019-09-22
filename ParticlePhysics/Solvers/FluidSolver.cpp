@@ -1,6 +1,6 @@
 #include "FluidSolver.h"
 
-#define DEBUG_FLUID_SOLVER
+//#define DEBUG_FLUID_SOLVER
 
 #define FLUID_COLLISION_SOLVER_CREATE_BOUNDING_BOX  0
 #define FLUID_COLLISION_SOLVER_CELL_COUNTS          1
@@ -87,7 +87,7 @@ void FluidSolver::solve()
   }
 
   uint nodeBatchSize = 8;
-  uint nodeBatchCount = (particleCount + nodeBatchSize - 1) / nodeBatchSize;
+  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
 
   const uint gridElements = gridSize * gridSize * gridSize;
 

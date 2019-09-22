@@ -7,7 +7,7 @@
 
 #pragma pack(push, 4)
 
-/*
+/*!
 @struct Data describing an array sub-part.
 */
 struct ALIGN(8) PartitionInfo_t

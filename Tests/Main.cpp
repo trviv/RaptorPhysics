@@ -117,7 +117,7 @@ void testSetBuffer(ComputeInterface* compute)
   // warm up run
   if (!runOnlyFunctional)
   {
-    ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+    ComputeUtil::get(templateId)->clearBuffer(compute, data.device(), elements);
     compute->sync();
   }
 
@@ -128,7 +128,7 @@ void testSetBuffer(ComputeInterface* compute)
     ProfileBlock("Clear Bandwidth");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+      ComputeUtil::get(templateId)->clearBuffer(compute, data.device(), elements);
     }
   }
   compute->sync();
@@ -137,7 +137,7 @@ void testSetBuffer(ComputeInterface* compute)
 
   //--------------------------------------------------------------------------------
   // functional run
-  ComputeUtil::get(templateId)->clearIntegerBuffer(compute, data.device(), elements);
+  ComputeUtil::get(templateId)->clearBuffer(compute, data.device(), elements);
   compute->sync();
 
   data.syncHost();
@@ -735,11 +735,11 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   destination.syncHost();
   compute->sync();
 
-  std::sort(sortedData.begin(), sortedData.end(), sortFunction);
+  std::stable_sort(sortedData.begin(), sortedData.end(), sortFunction);
 
   for (uint i = 0; i < sortedData.size(); i++)
   {
-    if (sortedData[i].key != destination.host()->at(i).key)
+    if ((sortedData[i].key != destination.host()->at(i).key) || (sortedData[i].value != destination.host()->at(i).value))
     {
       std::cout << i << " " << sortedData.at(i).key << " " << sortedData.at(i).value << " " <<
         destination.host()->at(i).key << " " << destination.host()->at(i).value << "\n";

@@ -365,7 +365,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempReduceStatus];
 
-  uint groupCount = (length + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize * batchSize);
+  uint groupCount = mAlignBy(length, this->maxWorkgroupSize * batchSize);
 
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
@@ -455,7 +455,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempReduceStatus];
 
-  uint groupCount = (length + this->maxWorkgroupSize - 1) / (this->maxWorkgroupSize);
+  uint groupCount = mAlignBy(length, this->maxWorkgroupSize);
 
   groupSum->resize(groupCount * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
@@ -500,7 +500,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = (statusArrayLength + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize*batchSize);
+  uint groupCount = mAlignBy(statusArrayLength, this->maxWorkgroupSize * batchSize);
 
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
@@ -559,7 +559,7 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = (length + this->maxWorkgroupSize * batchSize - 1) / (this->maxWorkgroupSize*batchSize);
+  uint groupCount = mAlignBy(length, this->maxWorkgroupSize * batchSize);
 
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
@@ -619,7 +619,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   }
 
   const uint groupFactor = RADIX_SORT_BIT_COUNT * (RADIX_REDUCTION_PACKING_EXP << 1) * maxWorkgroupSize;
-  const uint groups = (length + groupFactor - 1) / groupFactor;
+  const uint groups = mAlignBy(length, groupFactor);
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
   localSumBuffer->resize(groups * radixBlockInstances * (1 << RADIX_SORT_BIT_COUNT), false);
@@ -708,7 +708,7 @@ void ComputeUtil::clearBuffer(ComputeInterface* compute, ComputeMemory* destinat
   size_t workgroupCount[3];
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER];
 
-  compute->configureSize(workgroupSize, workgroupCount, (length + batchSize - 1) / batchSize);
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(length, batchSize));
   kernels[kernelIndex].setArg(destination, 0);
   kernels[kernelIndex].setArg<uint>(&value, 1);
   kernels[kernelIndex].setArg<uint>(&length, 2);

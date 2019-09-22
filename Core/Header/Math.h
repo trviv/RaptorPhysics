@@ -85,4 +85,9 @@ template<class T>T mCeilExpOf2(T integer)
   return exp;
 }
 
+template<class A, class B> A mAlignBy(A value, B alignWidth)
+{
+  return (value + alignWidth - 1) / alignWidth;
+}
+
 #endif

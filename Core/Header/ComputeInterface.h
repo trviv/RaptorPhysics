@@ -2,6 +2,7 @@
 #define COMPUTE_INTERFACE_H
 
 #include "Root.h"
+#include "Math.h"
 
 #ifdef __APPLE__
 #import <Foundation/Foundation.h>
