@@ -91,10 +91,13 @@ void FluidSolver::solve()
 
   const uint gridElements = gridSize * gridSize * gridSize;
 
-//  if (particleGroupBoundingBoxes.size() < nodeBatchCount)
-//  {
-//    particleGroupBoundingBoxes.resize(nodeBatchCount, false);
-//  }
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
+
+  if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
+  {
+    particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
+  }
 
   // 4 byte aligned for indirect dispatch
   if (gridCompactCellCount.size() == 0)
