@@ -301,7 +301,7 @@ Kernel void radixSort32BitSortKernel(
 
     uint destOffset[1 << RadixPrefixScanPackingExp];
 
-    for (ushort j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
+    for (uint j = 0; j < RadixScanIterations*PackedParts; j += PackedParts)
     {
       RadixPackedType reduceSum = 0;
 
@@ -315,7 +315,7 @@ Kernel void radixSort32BitSortKernel(
 
       for (uchar i = 0; i < (1 << RadixPrefixScanPackingExp); i++)
       {
-        const char localKey = (localSortNodes[i].key >> rightShift) & (SortBitValue - 1);
+        const uchar localKey = (localSortNodes[i].key >> rightShift) & (SortBitValue - 1);
         setKey(localKeys, i, localKey);
 
         const uint sum = setLocalCount(localKey, j);

@@ -97,7 +97,7 @@ void LBVHSolver::init()
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
   uint nodeBatchSize = 8;
-  uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
+  uint nodeBatchCount = mAlignBy(instanceNodeCount, nodeBatchSize);
 
   if (particleLeafData.size() != instanceNodeCount)
   {
@@ -252,7 +252,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
 
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, (instanceNodeCount + batchesPerDispatch - 1) / batchesPerDispatch);
+    compute->configureSize(workgroupSize, workgroupCount, mAlignBy(instanceNodeCount, batchesPerDispatch));
 
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {

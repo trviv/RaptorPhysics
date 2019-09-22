@@ -110,7 +110,7 @@ void UniformGridCollisionSolver::init()
 void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 {
   uint nodeBatchSize = 8;
-  uint nodeBatchCount = (instanceNodeCount + nodeBatchSize - 1) / nodeBatchSize;
+  uint nodeBatchCount = mAlignBy(instanceNodeCount, nodeBatchSize);
 
   const uint gridElements = gridSize * gridSize * gridSize;
 

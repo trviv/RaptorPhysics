@@ -1,5 +1,4 @@
 #include "ShaderEntity.h"
-#include "Math.h"
 
 void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType)
 {

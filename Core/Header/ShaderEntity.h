@@ -3,7 +3,7 @@
 
 #include "ComputeInterface.h"
 
-/*
+/*!
 @class Class representing an shader using entities.
 */
 class ShaderEntity
