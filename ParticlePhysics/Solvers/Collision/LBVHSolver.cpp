@@ -11,38 +11,9 @@
 static uint lbvhXABComputeUtilId;
 static uint lbvhSortComputeUtilId;
 
-LBVHSolver::LBVHSolver() :
-  Solver(NULL, NULL)
+LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
+  Solver(compute, allocator), CollisionSolver(compute, allocator)
 {
-}
-
-
-LBVHSolver::~LBVHSolver()
-{
-}
-
-DeviceArray<XAB>* LBVHSolver::getBoundingBoxes()
-{
-  return &treeInternalNodeBoundingBoxes;
-}
-
-void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
-{
-  CollisionSolver::init(compute, allocator);
-
-  const vector<string> oldType = {"SET_PARTICLE_BOUNDING_BOXES"};
-  const vector<string> newType = {""};
-
-  includeFiles.push_back("CollisionSolver.shader");
-
-  registerShader(compute, "LBVHSolver.shader", &oldType, &newType);
-
-  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
-  kernels.push_back(programs[0].createKernel("assignMortonCode"));
-  kernels.push_back(programs[0].createKernel("constructBinaryTree"));
-  kernels.push_back(programs[0].createKernel("constructTreeBoundingBox"));
-  kernels.push_back(programs[0].createKernel("applyCollisions"));
-
   solverHeap = new ComputeHeap(compute);
 
 #ifdef DEBUG_LBVH_SOLVER
@@ -78,11 +49,31 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   empty.resize(1, false);
 
   systemBoundingBox.resize(1, false);
+}
+
+LBVHSolver::~LBVHSolver()
+{
+}
+
+DeviceArray<XAB>* LBVHSolver::getBoundingBoxes()
+{
+  return &treeInternalNodeBoundingBoxes;
+}
+
+void LBVHSolver::init()
+{
+  const vector<string> oldType = {"COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES", "COLLISION_SOLVER_USE_SYSTEM_OFFSETS", "SOLVER_FLUID"};
+  const vector<string> newType = {"", "", to_string(SOLVER_FLUID)};
+
+  registerShader(compute, "LBVHSolver.shader", &oldType, &newType);
+
+  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
+  kernels.push_back(programs[0].createKernel("assignMortonCode"));
+  kernels.push_back(programs[0].createKernel("constructBinaryTree"));
+  kernels.push_back(programs[0].createKernel("constructTreeBoundingBox"));
+  kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   // create utility classes
-  vector<string> utilInclude;
-  utilInclude.push_back("ParticleStruct.h");
-  utilInclude.push_back("CollisionSolverShared.h");
 
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
@@ -95,12 +86,12 @@ void LBVHSolver::init(ComputeInterface* compute, SharedAllocator* allocator)
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
   lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
+  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &this->includeFiles);
 
   map<ComputeUtilKey, string> lbvhSortSetting;
   lbvhSortSetting[ComputeUtilStructType] = "uint";
   lbvhSortSetting[ComputeUtilStructTypeIntegral] = "1";
-  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &utilInclude);
+  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &this->includeFiles);
 }
 
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)

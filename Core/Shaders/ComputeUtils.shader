@@ -143,6 +143,7 @@ Kernel void showMatrix(Device float* array,
 // kernel to clear an integer buffer to all 0s
 Kernel void clearIntegerBuffer(
   Device uint* destination,
+  constantKernelInput(uint, value),
   constantKernelInput(int, length)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -152,21 +153,21 @@ Kernel void clearIntegerBuffer(
   {
 #ifndef USE_METAL_COMPUTE
 #if BatchSize == 8
-    ((Device uint8*)destination)[threadIndex()] = 0;
+    ((Device uint8*)destination)[threadIndex()] = value;
 #elif BatchSize == 16
-    ((Device uint16*)destination)[threadIndex()] = 0;
+    ((Device uint16*)destination)[threadIndex()] = value;
 #elif BatchSize == 1
-    destination[threadIndex()] = 0;
+    destination[threadIndex()] = value;
 #else
     assert;
 #endif
 #else
 #if BatchSize == 8
-    ((Device dummy_uint8*)destination)[threadIndex()] = 0;
+    ((Device dummy_uint8*)destination)[threadIndex()] = value;
 #elif BatchSize == 16
-    ((Device dummy_uint16*)destination)[threadIndex()] = 0;
+    ((Device dummy_uint16*)destination)[threadIndex()] = value;
 #elif BatchSize == 1
-    destination[threadIndex()] = 0;
+    destination[threadIndex()] = value;
 #else
     assert;
 #endif
@@ -176,7 +177,7 @@ Kernel void clearIntegerBuffer(
   {
     for (int i = 0; i < writeSize; i++)
     {
-      (destination + threadIndex() * BatchSize)[i] = 0;
+      (destination + threadIndex() * BatchSize)[i] = value;
     }
   }
 }

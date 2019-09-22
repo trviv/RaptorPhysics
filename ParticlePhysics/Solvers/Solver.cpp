@@ -119,6 +119,7 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->particles.syncDevice();
   this->particlesPredicted.resize(this->particles.size(), false);
   this->compute->copyBuffer(this->particles.device(), this->particlesPredicted.device(), 0, 0, this->particles.size() * sizeof(ParticleStruct));
+  this->particleDifferential.resize(this->particles.size(), false);
   this->particleCollisionData.syncDevice();
   this->particleAuxData.syncDevice();
 

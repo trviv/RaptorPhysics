@@ -13,7 +13,7 @@
 
 #pragma pack(push, 4)
 
-/*
+/*!
 @struct Structor to uniquely represent a physical entity.
 */
 struct ALIGN(4) IdentityInfo_t
@@ -59,7 +59,7 @@ static ushort getSolverType(const IdentityInfo particleIdentity)
 }
 
 
-/*
+/*!
 @struct Allocation data shared by all the particles of an entity.
 */
 struct ALIGN(8) GroupData_t
@@ -71,7 +71,7 @@ struct ALIGN(8) GroupData_t
 typedef struct GroupData_t GroupData;
 
 
-/*
+/*!
 @struct Allocation data shared by all the particles of an entity.
 */
 struct DEFAULT_ALIGN EntityLocation_t
@@ -83,7 +83,7 @@ struct DEFAULT_ALIGN EntityLocation_t
 typedef struct EntityLocation_t EntityLocation;
 
 
-/*
+/*!
 @struct Base data for a particle.
 */
 struct DEFAULT_ALIGN ParticleStruct_t
@@ -110,7 +110,7 @@ struct DEFAULT_ALIGN ParticleStruct_t
 typedef struct ParticleStruct_t ParticleStruct;
 
 
-/*
+/*!
 @struct Collision data for each particle.
 */
 struct DEFAULT_ALIGN ParticleCollisionData_t
@@ -148,7 +148,8 @@ typedef struct ParticleCollisionData_t ParticleCollisionData;
 #define PARTICLE_SHARED_DATA_RADIUS_MASK    0x2
 #define PARTICLE_SHARED_DATA_COLLISION_MASK 0x4
 
-/*
+
+/*!
 @struct Data shared by all the particles of an entity.
 */
 struct DEFAULT_ALIGN ParticleSharedData_t
@@ -171,8 +172,12 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float kineticFrictionCoef;
   /*!@member Static friction coefficient.*/
   float staticFrictionCoef;
-
-  uint  padding[3];
+  /*!@member Kernel radius for fluid constraint.*/
+  float fluidKernelRadius;
+  /*!@member Initial density for fluid constraint.*/
+  float invRestDensity;
+  /*!@member Gas constant for fluid constraint.*/
+  float gasConstantK;
 
   /*!@member Shared collision data.*/
   ParticleCollisionData sharedCollisionData;
@@ -220,7 +225,7 @@ bool getCollisionDataIsShared(const Thread ParticleSharedData* sharedData)
 
 #endif
 
-/*
+/*!
 @struct Data for rigid solver particle.
 */
 struct DEFAULT_ALIGN ParticleRigidData_t
@@ -253,7 +258,7 @@ struct ALIGN(4) ParticleAuxData_t
 typedef struct ParticleAuxData_t ParticleAuxData;
 
 
-/*
+/*!
 @struct Particle differential data.
 */
 struct DEFAULT_ALIGN ParticleDifferential_t
@@ -301,7 +306,8 @@ float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedDat
   return particleAuxData[index].radius;
 }
 
-/*
+
+/*!
 @struct Uncompressed identity data for directl use at runtime.
 */
 struct ALIGN(8) ParticleNodeIdentity_t
@@ -324,7 +330,8 @@ inline ParticleNodeIdentity uncompressToNodeIdentity(const IdentityInfo identity
   return nodeIdentity;
 }
 
-/*
+
+/*!
 @struct Node index for various use.
 */
 struct ALIGN(4) ParticleNodeLocator_t
@@ -362,6 +369,58 @@ struct ALIGN(4) PhySystemOffsets_t
 };
 
 typedef struct PhySystemOffsets_t PhySystemOffsets;
+
+
+/*!
+@struct Bounding volume hierarchy leaf data.
+*/
+struct ALIGN(8) BVHLeafInfo_t
+{
+  uint mortonCode;
+  uint index;
+};
+
+typedef struct BVHLeafInfo_t BVHLeafInfo;
+
+
+/*!
+@struct Bounding volume hierarchy internal node data.
+*/
+struct ALIGN(8) BVHNodeInfo_t
+{
+  uint child[2];
+};
+
+typedef struct BVHNodeInfo_t BVHNodeInfo;
+
+
+/*!
+@struct Axis aligned bounding box data.
+*/
+struct DEFAULT_ALIGN XAB_t
+{
+  union
+  {
+    float3  min;
+    float   reserved1[4];
+  };
+  union
+  {
+    float3  max;
+    float   reserved2[4];
+  };
+};
+
+typedef struct XAB_t XAB;
+
+#define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
+#define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
+#define copyXAB(a, b)   { (a)->min = (b)->min; (a)->max = (b)->max;}
+#define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
+#define reduceXAB(o, i) { o.min = simdMin(i.min); o.max = simdMax(i.max);}
+
+#define mergeFloat(a, b)  { *a = max(*a, *b);}
+#define reduceFloat(o, i) { o = simdMax(i);}
 
 #pragma pack(pop)
 

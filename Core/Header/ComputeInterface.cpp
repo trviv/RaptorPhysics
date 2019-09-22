@@ -892,15 +892,13 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
 #endif
 }
 
-void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize2[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
+void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
 {
 #ifdef USE_OPENCL_COMPUTE
-  size_t workgroupSize[3];
-  size_t workgroupCount[3];
   uint count = 0;
   copyToHost(indirectBuffer, bufferOffset, 4, &count, true);
 
-  configureSize(workgroupSize, workgroupCount, count);
+  size_t workgroupCount[3] = {count, 1, 1};
 
   const size_t workgroup[3] = {
     workgroupSize[0] * workgroupCount[0],
@@ -931,11 +929,11 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize2
   // get encoder
   id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
   // set dispatch info
-  [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName, (int)(workgroupSize2[0]*workgroupSize2[1]*workgroupSize2[2])]];
+  [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName, (int)(workgroupSize[0]*workgroupSize[1]*workgroupSize[2])]];
   [encoder setComputePipelineState:kernel];
   [encoder dispatchThreadgroupsWithIndirectBuffer:(*indirectBuffer)
                              indirectBufferOffset:indirectBuffer->getOffset()+bufferOffset
-                            threadsPerThreadgroup:MTLSizeMake(workgroupSize2[0], workgroupSize2[1], workgroupSize2[2])];
+                            threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
   endEncoders();
   getComputeEncoder();
 #endif

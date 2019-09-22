@@ -2,7 +2,6 @@
 #define COLLISION_SOLVER_H
 
 #include "../Solver.h"
-#include "CollisionSolverShared.h"
 
 /*!
 @class Class to solve collisions.
@@ -18,13 +17,21 @@ protected:
   DeviceArray <XAB>             particleGroupBoundingBoxes;
   DeviceArray <float>           maxRadius;
 
+  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
+
 public:
+
+  /*!
+  @constructor Construct a collision solver object.
+  @param compute Compute interface to be used for the solver.
+  @param allocator Shared memory allocator for the solver.
+  */
+  CollisionSolver(ComputeInterface* compute, SharedAllocator* allocator);
 
   virtual ~CollisionSolver();
 
-  virtual void init(ComputeInterface* compute, SharedAllocator* allocator);
-
-  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
+  /*!@function Initialize a collision solver object.*/
+  virtual void init() = 0;
 
   virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
 
