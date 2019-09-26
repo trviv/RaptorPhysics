@@ -116,30 +116,29 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-  if (otherParticle->identity.identity != currentParticle->identity.identity)
-//    || (getSolverType(otherParticle->identity) == SOLVER_FLUID && currentNodeIndex != index))
+  if (otherParticle->identity.identity != currentParticle->identity.identity
+    || (getSolverType(otherParticle->identity) == SOLVER_FLUID && currentNodeIndex != index))
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
     const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
 
     // skip if the base and the batch particle are of the same object
     float3 collisionVector = currentParticle->position - otherParticle->position;
-    float actualDistance = dot(collisionVector, collisionVector);
+    float actualDistance = length(collisionVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
-    const float allowedDistance = sqr(fabs(collisionData2.radius) + fabs(collisionData->radius));
+    const float allowedDistance = (fabs(collisionData2.radius) + fabs(collisionData->radius));
 #else
-    const float allowedDistance = sqr(collisionData2.radius + collisionData->radius);
+    const float allowedDistance = (collisionData2.radius + collisionData->radius);
 #endif
 
     // if overlapping
     if (actualDistance < allowedDistance)
     {
-      actualDistance = sqrt(actualDistance);
       collisionVector /= actualDistance;
 
       // displacement magnitude
-      float separationDistance = actualDistance - (fabs(collisionData->radius) + fabs(collisionData2.radius));
+      float separationDistance = actualDistance - allowedDistance;
 
       // get normal according to minimum translation distance
       float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
@@ -303,10 +302,7 @@ Kernel void createBoundingBoxes(
     mergeXAB(&accumulatedBoundingBox, &particleBoundingBox);
   }
 
-  if (threadIndex() < nodeBatchCount)
-  {
-    particleGroupBoundingBoxes[threadIndex()] = accumulatedBoundingBox;
-  }
+  particleGroupBoundingBoxes[threadIndex()] = accumulatedBoundingBox;
 }
 
 #endif

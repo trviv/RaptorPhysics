@@ -248,9 +248,9 @@ Kernel void calculateForces(
             const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
             delta -= collisionVector * (sqr(1.f/60.f) * pressureTerm * distanceFunction / actualDistance);
 
-//            float3 velocityVector = particleDiff[currentNodeIndex].velocity - particleDiff[particleIndex].velocity;
-//            delta += (1.f/60.f) * .001f * velocityVector *
-//              select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / particlesDensity[currentNodeIndex];
+            float3 velocityVector = particleDiff[currentNodeIndex].velocity - particleDiff[particleIndex].velocity;
+            float viscosityTerm = select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+            delta += velocityVector * ((1.f/60.f) * viscosityTerm / particlesDensity[currentNodeIndex]);
           }
         }
       }
