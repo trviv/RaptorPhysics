@@ -107,7 +107,7 @@ void FluidSolver::solve()
 
   if (gridParticleCellIndex.size() < particleCount)
   {
-    UniformGridCollisionSolver::particlesTemp.resize(particleCount, false);
+    UniformGridCollisionSolver::particlesPredictedTemp.resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
     particlesLambda.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
@@ -219,7 +219,7 @@ void FluidSolver::solve()
   compute->sync();
 #endif
 
-  compute->copyBuffer(particlesPredicted.device(), UniformGridCollisionSolver::particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+  compute->copyBuffer(particlesPredicted.device(), UniformGridCollisionSolver::particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
   {
     size_t workgroupSize[3] = {1, 1, 1};
@@ -232,7 +232,7 @@ void FluidSolver::solve()
       gridCellParticleOffsets.device(),
       gridCellParticleCount.device(),
       gridCellParticleIndices.device(),
-      UniformGridCollisionSolver::particlesTemp.device(),
+      UniformGridCollisionSolver::particlesPredictedTemp.device(),
       entitySharedData.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -262,7 +262,7 @@ void FluidSolver::solve()
       gridCellParticleOffsets.device(),
       gridCellParticleCount.device(),
       gridCellParticleIndices.device(),
-      UniformGridCollisionSolver::particlesTemp.device(),
+      UniformGridCollisionSolver::particlesPredictedTemp.device(),
       entitySharedData.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);

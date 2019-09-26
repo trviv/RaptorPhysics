@@ -196,8 +196,6 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
   * ((Thread MemberStructType8*)elements) = (MemberStructType8)(0);
 #elif BatchSize == 4
   * ((Thread MemberStructType4*)elements) = (MemberStructType4)(0);
-#elif BatchSize == 1
-  CLEAR_FUNCTION(*elements, 0);
 #endif
 
   switch (readCount)
@@ -310,9 +308,11 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 #else
 
 #pragma message ("Using Loop Read")
-  for (uint i = 0; i < readCount; i++)
+  CLEAR_FUNCTION(*elements, 0);
+
+  if (readCount)
   {
-    elements[i] = array1D[indexOffset + i]STRUCT_MEMBER;
+    *elements = array1D[indexOffset]STRUCT_MEMBER;
   }
 
 #endif
@@ -436,9 +436,9 @@ inline static void batchWrite(const Thread MemberStructType *elements, Device St
 #else
 
 #pragma message ("Using Loop Write")
-  for (uint i = 0; i < writeCount; i++)
+  if (writeCount)
   {
-    ((Device StructType*)(array1D + indexOffset))[i]STRUCT_MEMBER = elements[i];
+    ((Device StructType*)(array1D + indexOffset))[0]STRUCT_MEMBER = *elements;
   }
 
 #endif

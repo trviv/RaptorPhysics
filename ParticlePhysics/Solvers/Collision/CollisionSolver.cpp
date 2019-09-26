@@ -14,7 +14,8 @@ CollisionSolver::CollisionSolver(ComputeInterface* compute, SharedAllocator* all
 CollisionSolver::~CollisionSolver()
 {
   empty.free();
-  particlesTemp.free();
+  particlesCurrentTemp.free();
+  particlesPredictedTemp.free();
   particleGroupBoundingBoxes.free();
   systemBoundingBox.free();
   maxRadius.free();

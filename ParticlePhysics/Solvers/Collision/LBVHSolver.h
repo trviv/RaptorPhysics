@@ -11,7 +11,6 @@ class LBVHSolver : public CollisionSolver
 {
 protected:
 
-  DeviceArray <ParticleStruct>  particlesTemp2;
   DeviceArray <BVHNodeInfo>     treeInternalNodes;
   DeviceArray <BVHLeafInfo>     particleLeafData;
   DeviceArray <BVHLeafInfo>     particleLeafDataSorted;

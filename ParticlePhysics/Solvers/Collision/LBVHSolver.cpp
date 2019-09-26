@@ -17,8 +17,8 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   solverHeap = new ComputeHeap(compute);
 
 #ifdef DEBUG_LBVH_SOLVER
-  particlesTemp.create(compute, NULL, true);
-  particlesTemp2.create(compute, NULL, true);
+  particlesCurrentTemp.create(compute, NULL, true);
+  particlesPredictedTemp.create(compute, NULL, true);
   treeInternalNodes.create(compute, NULL, true);
   particleLeafData.create(compute, NULL, true);
   particleLeafDataSorted.create(compute, NULL, true);
@@ -29,8 +29,8 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   particleBoundingBoxes.create(compute, NULL, true);
   particleGroupBoundingBoxes.create(compute, NULL, true);
 #else
-  particlesTemp.create(compute, NULL);
-  particlesTemp2.create(compute, NULL);
+  particlesCurrentTemp.create(compute, NULL);
+  particlesPredictedTemp.create(compute, NULL);
   treeInternalNodes.create(compute, NULL);
   particleLeafData.create(compute, NULL);
   particleLeafDataSorted.create(compute, NULL);
@@ -74,6 +74,7 @@ void LBVHSolver::init()
   kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   // create utility classes
+  const vector<string> utilInclude = {"ParticleStruct.h"};
 
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
@@ -86,12 +87,12 @@ void LBVHSolver::init()
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
   lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &this->includeFiles);
+  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
 
   map<ComputeUtilKey, string> lbvhSortSetting;
   lbvhSortSetting[ComputeUtilStructType] = "uint";
   lbvhSortSetting[ComputeUtilStructTypeIntegral] = "1";
-  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &this->includeFiles);
+  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &utilInclude);
 }
 
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
@@ -101,8 +102,8 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 
   if (particleLeafData.size() != instanceNodeCount)
   {
-    particlesTemp.resize(instanceNodeCount, false);
-    particlesTemp2.resize(instanceNodeCount, false);
+    particlesCurrentTemp.resize(instanceNodeCount, false);
+    particlesPredictedTemp.resize(instanceNodeCount, false);
     particleLeafData.resize(instanceNodeCount, false);
     particleLeafDataSorted.resize(instanceNodeCount, false);
     particleBoundingBoxes.resize(instanceNodeCount, false);
@@ -121,9 +122,9 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
     compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
 
     nodeBatchCount = workgroupSize[0] * workgroupCount[0];
-    if (particleGroupBoundingBoxes.size() < nodeBatchCount)
+    if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
     {
-      particleGroupBoundingBoxes.resize(nodeBatchCount, false);
+      particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
     }
 
     // compute axis aligned bounding boxes for particles
@@ -152,7 +153,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 #endif
 
   // find bounding box for the simulation space
-  ComputeUtil::get(lbvhXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), nodeBatchCount);
+  ComputeUtil::get(lbvhXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), workgroupSize[0] * workgroupCount[0]);
 
 #ifdef DEBUG_LBVH_SOLVER
   systemBoundingBox.syncHost();
@@ -244,11 +245,11 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
 
     build(instanceNodeCount, globalOffsets);
 
-    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
     // TODO: Figure out stablization pass
     if (second != empty.device())
-      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesTemp2.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesCurrentTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
@@ -259,8 +260,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
-      (second == empty.device())?allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get():particlesTemp2.device(),
-      particlesTemp.device(),
+      (second == empty.device()) ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : particlesCurrentTemp.device(),
+      particlesPredictedTemp.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),
       nodeParentNodeIndices.device(),

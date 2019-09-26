@@ -12,7 +12,8 @@ protected:
 
   ComputeHeap*                  solverHeap;
   DeviceArray <ParticleStruct>  empty;
-  DeviceArray <ParticleStruct>  particlesTemp;
+  DeviceArray <ParticleStruct>  particlesCurrentTemp;
+  DeviceArray <ParticleStruct>  particlesPredictedTemp;
   DeviceArray <XAB>             systemBoundingBox;
   DeviceArray <XAB>             particleGroupBoundingBoxes;
   DeviceArray <float>           maxRadius;
