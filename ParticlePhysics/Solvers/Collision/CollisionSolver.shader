@@ -231,7 +231,7 @@ Kernel void getSystemMaxRadius(
 
   if (threadIndex() < nodeBatchCount)
   {
-    groupRadius[threadIndex()] = maxRadius;
+    groupRadius[threadIndex()] = 2.f * maxRadius;
   }
 }
 

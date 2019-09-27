@@ -74,6 +74,7 @@ void FluidSolver::solve()
 
   if (!particleCount) return;
 
+  // update kernel radius
   float kernelRadius = 0.f;
   for (auto& esd : *entitySharedData.host())
   {
@@ -148,7 +149,7 @@ void FluidSolver::solve()
 #endif
 
   // find bounding box for the simulation space
-  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), nodeBatchCount);
+  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), workgroupSize[0] * workgroupCount[0]);
 
 #ifdef DEBUG_FLUID_SOLVER
   systemBoundingBox.syncHost();
