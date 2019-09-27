@@ -13,7 +13,6 @@ inline float poly6Function(const float r, const float h)
 inline float pressureFunction(const float density, const Thread ParticleSharedData* sharedData)
 {
   return sharedData->gasConstantK * (density - 1.f/sharedData->invRestDensity);
-//  return density;
 }
 
 inline float spikyFunction(const float r, const float h)
@@ -116,7 +115,7 @@ Kernel void calculateDensity(
             const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
 
             const float3 collisionVector = currentParticle.position - otherParticle.position;
-            const float actualDistance = length(collisionVector);
+            float actualDistance = length(collisionVector);
 
             density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
@@ -124,6 +123,8 @@ Kernel void calculateDensity(
             {
               continue;
             }
+
+            actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
             float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
 //            float3 gradient = constructFloat3(0.f);
@@ -234,29 +235,37 @@ Kernel void calculateForces(
             const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
 
             const float3 collisionVector = currentParticle.position - otherParticle.position;
-            const float actualDistance = length(collisionVector);
+            float actualDistance = length(collisionVector);
 
-//              // force due to pressure
-//              force += -mass * (pressure + pressureFunction(particleDensity, sharedData)) / (2.f * particleDensity) *
-//                select(0.f, select(0.f, spikyFunction(actualDistance, kernelSize), actualDistance < kernelSize), actualDistance > 0.f);
+            if (currentNodeIndex == particleIndex)
+            {
+              continue;
+            }
 
-            if (currentNodeIndex == particleIndex) continue;
+            actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
+
+            const float currentParticleDensity = particlesDensity[currentNodeIndex];
 
 //            delta += sharedData.invRestDensity * collisionVector * ((lambda + particlesLambda[currentNodeIndex] + scorrFunction(actualDistance, sharedData.fluidKernelRadius)) *
 //                select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
-            const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(particlesDensity[currentNodeIndex], &sharedData))/(2*particlesDensity[currentNodeIndex]);
+            const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) / (2.f * currentParticleDensity);
             const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
-            delta -= collisionVector * (sqr(1.f/60.f) * pressureTerm * distanceFunction / actualDistance);
+            float timeStep = 1.f/60.f;
+
+            // force due to pressure
+            delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
             float3 velocityVector = particleDiff[currentNodeIndex].velocity - particleDiff[particleIndex].velocity;
             float viscosityTerm = select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
-            delta += velocityVector * ((1.f/60.f) * viscosityTerm / particlesDensity[currentNodeIndex]);
+
+            // force due to viscosity
+            delta += velocityVector * (timeStep * viscosityTerm / particlesDensity[currentNodeIndex]);
           }
         }
       }
     }
 
-    currentParticle.position += delta * 1.f/sharedData.sharedInvMass;
+    currentParticle.position += delta * 1.f / sharedData.sharedInvMass;
     currentParticle.identity = identity;
     particlesPredictedNew[particleIndex] = currentParticle;
   }

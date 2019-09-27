@@ -488,10 +488,10 @@ inline float3 stacklessTraverseBinaryTree(
   particleCollisionData[index].radius = fabs(collisionData->radius) * (collided ? -1.f : 1.f);
 #endif
 
-//  if (collisionCount)
-//  {
-//    output /= collisionCount;
-//  }
+  if (collisionCount)
+  {
+    output /= collisionCount;
+  }
 
   return output;
 }
@@ -610,10 +610,10 @@ inline float3 stackTraverseBinaryTree(
   particleCollisionData[index].radius = fabs(collisionData->radius) * (collided ? -1.f : 1.f);
 #endif
 
-//  if (collisionCount)
-//  {
-//    output /= collisionCount;
-//  }
+  if (collisionCount)
+  {
+    output /= collisionCount;
+  }
 
   return output;
 }

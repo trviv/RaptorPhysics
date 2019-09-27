@@ -183,10 +183,10 @@ Kernel void applyCollisions(
       // apply boundary
       delta += boundaryCollision(&currentParticle, &collisionData);
 
-//      if (collisionCount)
-//      {
-//        delta /= collisionCount;
-//      }
+      if (collisionCount)
+      {
+        delta /= collisionCount;
+      }
 
       currentParticle.position += delta;
       currentParticle.identity = identity;

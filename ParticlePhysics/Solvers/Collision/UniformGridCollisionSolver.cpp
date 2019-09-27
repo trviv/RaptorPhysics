@@ -31,7 +31,6 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   gridCellParticleIndices.create(compute, solverHeap, true);
   particlesCurrentTemp.create(compute, solverHeap, true);
   particlesPredictedTemp.create(compute, solverHeap, true);
-  particleGroupBoundingBoxes.create(compute, solverHeap, true);
   systemBoundingBox.create(compute, NULL, true);
 #else
   gridCompactCellIndices.create(compute, solverHeap);
@@ -41,9 +40,10 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   gridCellParticleIndices.create(compute, solverHeap);
   particlesCurrentTemp.create(compute, solverHeap);
   particlesPredictedTemp.create(compute, solverHeap);
-  particleGroupBoundingBoxes.create(compute, solverHeap);
   systemBoundingBox.create(compute, NULL);
 #endif
+
+  particleGroupBoundingBoxes.create(compute, solverHeap, true);
 
   // allocate space for fixed sized data
   empty.create(compute, NULL, false);
@@ -61,7 +61,7 @@ UniformGridCollisionSolver::~UniformGridCollisionSolver()
 
 DeviceArray<XAB>* UniformGridCollisionSolver::getBoundingBoxes()
 {
-  return NULL;
+  return &particleGroupBoundingBoxes;
 }
 
 void UniformGridCollisionSolver::init()
