@@ -422,6 +422,15 @@ typedef struct XAB_t XAB;
 #define mergeFloat(a, b)  { *a = max(*a, *b);}
 #define reduceFloat(o, i) { o = simdMax(i);}
 
+
+struct ALIGN(4) PhySystemSettings_t
+{
+  XAB     systemBound;
+  float3  gravity;
+};
+
+typedef struct PhySystemSettings_t PhySystemSettings;
+
 #pragma pack(pop)
 
 #endif

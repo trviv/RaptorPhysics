@@ -233,7 +233,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
 #endif
 }
 
-void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
+void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings)
 {
   const int iterations = 1;
 
@@ -268,7 +268,8 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
       treeInternalNodeBoundingBoxes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      globalOffsets
+      globalOffsets,
+      systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);

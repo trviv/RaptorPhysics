@@ -45,16 +45,6 @@ inline uint get32BitMortonCode(const int3 quantizedPosition)
 
 //#define MARK_COLLIDED_PARTICLES
 
-#define BOUNDARY_BOTTOM   0.f
-#define BOUNDARY_LEFT     -20.f
-#define BOUNDARY_RIGHT    20.f
-#define BOUNDARY_FRONT    20.f
-#define BOUNDARY_BACK     -20.f
-//#define BOUNDARY_LEFT     -2.f
-//#define BOUNDARY_RIGHT    2.f
-//#define BOUNDARY_FRONT    -1.f
-//#define BOUNDARY_BACK     -7.f
-
 /*
 @kernel Apply boundary constrain.
 @param particles Initial particle buffer.
@@ -62,35 +52,37 @@ inline uint get32BitMortonCode(const int3 quantizedPosition)
 */
 inline float3 boundaryCollision(
   Thread ParticleStruct*              particle,
-  const Thread ParticleCollisionData* collisionData)
+  const Thread ParticleCollisionData* collisionData,
+  Const PhySystemSettings*            settings)
 {
   float3 ret = constructFloat3(0.f);
 
-  if (collisionData->invMass)  // only if movable
+  // only if movable
+  if (collisionData->invMass)
   {
-    if (particle->position.y <= BOUNDARY_BOTTOM)
+    if (particle->position.y <= settings->systemBound.min.y)
     {
-      ret.y = BOUNDARY_BOTTOM - particle->position.y;
+      ret.y = settings->systemBound.min.y - particle->position.y;
     }
 
-    if (particle->position.x <= BOUNDARY_LEFT)
+    if (particle->position.x <= settings->systemBound.min.x)
     {
-      ret.x = BOUNDARY_LEFT - particle->position.x;
+      ret.x = settings->systemBound.min.x - particle->position.x;
     }
 
-    if (particle->position.x >= BOUNDARY_RIGHT)
+    if (particle->position.x >= settings->systemBound.max.x)
     {
-      ret.x = BOUNDARY_RIGHT - particle->position.x;
+      ret.x = settings->systemBound.max.x - particle->position.x;
     }
 
-    if (particle->position.z >= BOUNDARY_FRONT)
+    if (particle->position.z >= settings->systemBound.max.z)
     {
-      ret.z = BOUNDARY_FRONT - particle->position.z;
+      ret.z = settings->systemBound.max.z - particle->position.z;
     }
 
-    if (particle->position.z <= BOUNDARY_BACK)
+    if (particle->position.z <= settings->systemBound.min.z)
     {
-      ret.z = BOUNDARY_BACK - particle->position.z;
+      ret.z = settings->systemBound.min.z - particle->position.z;
     }
   }
 

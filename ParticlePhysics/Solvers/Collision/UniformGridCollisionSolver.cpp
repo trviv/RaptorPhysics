@@ -280,7 +280,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 #endif
 }
 
-void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets)
+void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings)
 {
   const int iterations = 1;
 
@@ -312,7 +312,8 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
       particlesPredictedTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      globalOffsets
+      globalOffsets,
+      systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
