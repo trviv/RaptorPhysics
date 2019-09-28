@@ -37,6 +37,14 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("endStep"));
   kernels.push_back(programs[0].createKernel("integrateDifferentiateStep"));
 
+  systemSettings.create(compute, NULL, true);
+  systemSettings.resize(1, false);
+  systemSettings.host()->resize(1);
+  systemSettings.host()->at(0).systemBound.min = Real3(-20.f, 0.f, -20.f);
+  systemSettings.host()->at(0).systemBound.max = Real3(20.f, 0.f, 20.f);
+  systemSettings.host()->at(0).gravity = Real3(0.f, -9.8f, 0.f);
+  systemSettings.syncDevice();
+
   globalOffsets.create(compute, NULL, true);
   globalOffsets.resize(SOLVER_MAX, false);
 
@@ -464,7 +472,8 @@ void PhysicsSystem::integrate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets.device()
+    globalOffsets.device(),
+    systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
   kernels[0].setArgs(buffers, bufferCount);
@@ -623,7 +632,7 @@ void PhysicsSystem::step(float timeStep)
     integrate(timeStep);
   }
 
-  collisionSolver->solve(instanceNodeCount, globalOffsets.device());
+  collisionSolver->solve(instanceNodeCount, globalOffsets.device(), systemSettings.device());
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -634,4 +643,10 @@ void PhysicsSystem::step(float timeStep)
   }
 
   differentiate(timeStep);
+}
+
+void PhysicsSystem::setSystemBoundary(const XAB& bound)
+{
+  systemSettings.host()->at(0).systemBound = bound;
+  systemSettings.syncDevice();
 }

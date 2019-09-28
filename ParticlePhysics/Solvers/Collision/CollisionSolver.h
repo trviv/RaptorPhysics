@@ -34,7 +34,7 @@ public:
   /*!@function Initialize a collision solver object.*/
   virtual void init() = 0;
 
-  virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
+  virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings) = 0;
 
   virtual DeviceArray<XAB>* getBoundingBoxes();
 };

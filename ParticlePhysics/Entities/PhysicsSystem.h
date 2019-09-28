@@ -40,6 +40,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@member Thread index map to absolute node index.*/
   DeviceArray<uint>               indexMap;
 
+  /*!@member Physics system settings.*/
+  DeviceArray<PhySystemSettings>  systemSettings;
+
   /*!@member ushort solvers in the system.*/
   EntitySolver<ushort, real, Real3>*  solversUshort[SOLVER_MAX];
 
@@ -119,6 +122,9 @@ public:
 
   /*!@function Take one simulation step using the time step.*/
   void step(float timeStep);
+
+  /*!@function Set system bounding box of the system.*/
+  void setSystemBoundary(const XAB& bound);
 };
 
 #endif

@@ -35,7 +35,7 @@ public:
   /*!@function Initialize a Grid solver object.*/
   void init();
 
-  void solve(uint instanceNodeCount, ComputeMemory* globalOffsets);
+  void solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings);
 
   DeviceArray<XAB>* getBoundingBoxes();
 };

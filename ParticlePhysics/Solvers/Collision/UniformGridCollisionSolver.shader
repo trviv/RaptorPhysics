@@ -90,6 +90,7 @@ Kernel void applyCollisions(
 #endif
   const Device ParticleSharedData*    particleSharedData,
   Const PhySystemOffsets*             globalOffsets,
+  Const PhySystemSettings*            settings,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass)
   KERNEL_GLOBAL_ARGUMENTS
@@ -181,7 +182,7 @@ Kernel void applyCollisions(
       }
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &collisionData);
+      delta += boundaryCollision(&currentParticle, &collisionData, settings);
 
       if (collisionCount)
       {

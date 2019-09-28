@@ -14,6 +14,7 @@ Kernel void integrateDifferentiateStep(
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemOffsets*             globalOffsets,
+  Const PhySystemSettings*            settings,
   constantKernelInput(float,          timeStep),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -52,7 +53,7 @@ Kernel void integrateDifferentiateStep(
       particle.identity = identity;
       particles[index] = particle;
 
-      velocity += constructFloat3(0.f, -0.98f, 0.f) * timeStep;
+      velocity += settings->gravity * timeStep;
       velocity *= sharedData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
@@ -73,9 +74,10 @@ Kernel void startStep(
   Device ParticleDifferential*        particleDiff,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
-  const Device PartitionInfo*       	partitions,
+  const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*           	globalOffsets,
+  Const PhySystemOffsets*             globalOffsets,
+  Const PhySystemSettings*            settings,
   constantKernelInput(float,          timeStep),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -109,7 +111,7 @@ Kernel void startStep(
     {
 #ifdef PHYSICS_SYSTEM_EULER
       velocity = particleDiff[index].velocity;
-      velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep;
+      velocity += settings->gravity * timeStep;
       velocity *= sharedData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
@@ -121,13 +123,13 @@ Kernel void startStep(
 
 #ifdef PHYSICS_SYSTEM_LEAP_FROG
       velocity = particleDiff[index].velocity;
-      velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep * .05f;
+      velocity += settings->gravity * timeStep * .05f;
 
       particle.position += velocity * timeStep;
       particle.identity = identity;
 
       velocity *= sharedData.velocityDamping;
-      velocity += constructFloat3(0.f, -9.8f, 0.f) * timeStep * .05f;
+      velocity += settings->gravity * timeStep * .05f;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.001f);
 
       particleDiff[index].velocity = velocity;
