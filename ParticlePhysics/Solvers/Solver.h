@@ -21,18 +21,6 @@ public:
   Solver(ComputeInterface* compute, SharedAllocator* allocator);
 };
 
-
-enum SolverType
-{
-  SOLVER_NULL = 0,
-  SOLVER_CLOTH = 1,
-  SOLVER_RIGID_BODY = 2,
-  SOLVER_FLUID = 3,
-  SOLVER_EQUATION = 4,
-
-  SOLVER_MAX = 4
-};
-
 /*!
 @class Base class for all entity solvers.
 */

@@ -15,7 +15,8 @@ inline VariableType getDelta(
   const CoefficientType coefficient)
 {
   const VariableType delta = otherOldValue - selfOldValue;
-  const float deltaLength = length(delta);
+  float deltaLength = length(delta);
+  deltaLength = select(deltaLength, COMPUTE_EPSILON, deltaLength < COMPUTE_EPSILON);
   return delta * ((deltaLength - coefficient) * .5f / deltaLength);
 }
 

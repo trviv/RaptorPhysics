@@ -17,11 +17,12 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedInvMass = 0.f;
   setRadiusIsShared(sharedData, true);
   sharedData.sharedRadius = 0.f;
+  sharedData.viscosity = 0.01f;
   sharedData.kineticFrictionCoef = 0.9f;
   sharedData.staticFrictionCoef = 0.9f;
   sharedData.fluidKernelRadius = 1.f;
   sharedData.invRestDensity = 0.001f;
-  sharedData.gasConstantK = .00001f;
+  sharedData.gasConstantK = 0.001f;
   setCollisionDataIsShared(sharedData, true);
   sharedData.sharedCollisionData.initialSdfGradient = Real3(0, 0, 0);
   sharedData.sharedCollisionData.radius = 0.f;

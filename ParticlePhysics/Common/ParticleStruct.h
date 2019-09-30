@@ -13,6 +13,18 @@
 
 #pragma pack(push, 4)
 
+enum SolverType
+{
+  SOLVER_NULL = 0,
+  SOLVER_CLOTH = 1,
+  SOLVER_RIGID_BODY = 2,
+  SOLVER_FLUID = 3,
+  SOLVER_EQUATION = 4,
+
+  SOLVER_MAX = 4
+};
+
+
 /*!
 @struct Structor to uniquely represent a physical entity.
 */
@@ -427,6 +439,8 @@ struct ALIGN(4) PhySystemSettings_t
 {
   XAB     systemBound;
   float3  gravity;
+
+  PhySystemOffsets  globalOffsets[SOLVER_MAX];
 };
 
 typedef struct PhySystemSettings_t PhySystemSettings;

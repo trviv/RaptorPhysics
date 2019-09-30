@@ -23,6 +23,9 @@ inline float spikyFunction(const float r, const float h)
 
 inline float viscosityFunction(const float r, const float h)
 {
+//  float x = 1.f/h;
+//  x *= x;
+//  return (45.f / M_PI_F) * (h - r) * x * x * x;//(15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
   return (15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
 }
 
@@ -256,16 +259,16 @@ Kernel void calculateForces(
             delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
             float3 velocityVector = particleDiff[currentNodeIndex].velocity - particleDiff[particleIndex].velocity;
-            float viscosityTerm = select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+            float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
             // force due to viscosity
-            delta += velocityVector * (timeStep * viscosityTerm / particlesDensity[currentNodeIndex]);
+            delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
           }
         }
       }
     }
 
-    currentParticle.position += delta * 1.f / sharedData.sharedInvMass;
+    currentParticle.position += delta;
     currentParticle.identity = identity;
     particlesPredictedNew[particleIndex] = currentParticle;
   }

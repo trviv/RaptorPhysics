@@ -630,7 +630,7 @@ inline float3 stackTraverseBinaryTree(
 @param particleSharedData Particle entity shared data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
-@param globalOffsets Offsets to particle nodes all the solvers.
+@param systemSettings Settings for the physics system.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param nodeCount Total nodes in the solver.
 @param occupiedCellCount Total active grid cells.
@@ -651,8 +651,7 @@ Kernel void applyCollisions(
   const Device ParticleCollisionData* particleCollisionData,
 #endif
   const Device ParticleSharedData*    particleSharedData,
-  Const PhySystemOffsets*             globalOffsets,
-  Const PhySystemSettings*            settings,
+  Const PhySystemSettings*            systemSettings,
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(uint,           stablizationPass)
   KERNEL_GLOBAL_ARGUMENTS
@@ -706,7 +705,7 @@ Kernel void applyCollisions(
       ParticleStruct currentParticle = particlesOld[index];
       const IdentityInfo identity = currentParticle.identity;
       ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-      const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+      const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
       nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
       nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
@@ -729,7 +728,7 @@ Kernel void applyCollisions(
         index);
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &collisionData, settings);
+      delta += boundaryCollision(&currentParticle, &collisionData, systemSettings);
 
       // update position
       currentParticle.position += delta;

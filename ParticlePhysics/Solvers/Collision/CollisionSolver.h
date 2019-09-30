@@ -18,7 +18,7 @@ protected:
   DeviceArray <XAB>             particleGroupBoundingBoxes;
   DeviceArray <float>           maxRadius;
 
-  virtual void build(uint instanceNodeCount, ComputeMemory* globalOffsets) = 0;
+  virtual void build(uint instanceNodeCount, ComputeMemory* systemSettings) = 0;
 
 public:
 
@@ -34,7 +34,7 @@ public:
   /*!@function Initialize a collision solver object.*/
   virtual void init() = 0;
 
-  virtual void solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings) = 0;
+  virtual void solve(uint instanceNodeCount, ComputeMemory* systemSettings) = 0;
 
   virtual DeviceArray<XAB>* getBoundingBoxes();
 };
