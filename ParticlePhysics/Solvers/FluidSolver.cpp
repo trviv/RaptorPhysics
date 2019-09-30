@@ -30,12 +30,9 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
 
 void FluidSolver::create(ComputeInterface* compute)
 {
-  const vector<string> oldType = {"SOLVER_FLUID"};
-  const vector<string> newType = {to_string(SOLVER_FLUID)};
-
   includeFiles.push_back("UniformGridCollisionSolver.shader");
 
-  registerShader(compute, "FluidSolver.shader", &oldType, &newType);
+  registerShader(compute, "FluidSolver.shader", NULL, NULL);
 
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
@@ -272,6 +269,7 @@ void FluidSolver::solve()
 
     compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_FORCES], workgroupSize, gridCompactCellCount.device(), 0);
   }
+
 #ifdef DEBUG_FLUID_SOLVER
   particlesPredicted.syncHost();
   particlesDensity.syncHost();

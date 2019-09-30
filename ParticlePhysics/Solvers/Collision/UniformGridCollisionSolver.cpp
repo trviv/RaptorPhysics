@@ -66,8 +66,8 @@ DeviceArray<XAB>* UniformGridCollisionSolver::getBoundingBoxes()
 
 void UniformGridCollisionSolver::init()
 {
-  const vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS", "SOLVER_FLUID"};
-  const vector<string> newType = {"", to_string(SOLVER_FLUID)};
+  const vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
+  const vector<string> newType = {""};
 
   registerShader(compute, "UniformGridCollisionSolver.shader", &oldType, &newType);
 
@@ -109,7 +109,7 @@ void UniformGridCollisionSolver::init()
   gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &utilInclude);
 }
 
-void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* globalOffsets)
+void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings)
 {
   uint nodeBatchSize = 8;
   uint nodeBatchCount = mAlignBy(instanceNodeCount, nodeBatchSize);
@@ -158,7 +158,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-      globalOffsets
+      systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_GET_MAX_RADIUS].setArgs(buffers, bufferCount);
@@ -192,7 +192,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-      globalOffsets
+      systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArgs(buffers, bufferCount);
@@ -280,7 +280,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* gl
 #endif
 }
 
-void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings)
+void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
 {
   const int iterations = 1;
 
@@ -290,7 +290,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
   {
     second = (i==(iterations-1)) ? empty.device() : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
 
-    build(instanceNodeCount, globalOffsets);
+    build(instanceNodeCount, systemSettings);
 
     compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
@@ -312,7 +312,6 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* gl
       particlesPredictedTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      globalOffsets,
       systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);

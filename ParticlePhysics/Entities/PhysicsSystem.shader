@@ -13,8 +13,7 @@ Kernel void integrateDifferentiateStep(
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
-  Const PhySystemSettings*            settings,
+  Const PhySystemSettings*            systemSettings,
   constantKernelInput(float,          timeStep),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -27,7 +26,7 @@ Kernel void integrateDifferentiateStep(
     const IdentityInfo identity = particle.identity;
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
@@ -53,7 +52,7 @@ Kernel void integrateDifferentiateStep(
       particle.identity = identity;
       particles[index] = particle;
 
-      velocity += settings->gravity * timeStep;
+      velocity += systemSettings->gravity * timeStep;
       velocity *= sharedData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
@@ -76,8 +75,7 @@ Kernel void startStep(
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
-  Const PhySystemSettings*            settings,
+  Const PhySystemSettings*            systemSettings,
   constantKernelInput(float,          timeStep),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -90,7 +88,7 @@ Kernel void startStep(
     IdentityInfo identity = particle.identity;
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
@@ -111,7 +109,7 @@ Kernel void startStep(
     {
 #ifdef PHYSICS_SYSTEM_EULER
       velocity = particleDiff[index].velocity;
-      velocity += settings->gravity * timeStep;
+      velocity += systemSettings->gravity * timeStep;
       velocity *= sharedData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
@@ -123,13 +121,13 @@ Kernel void startStep(
 
 #ifdef PHYSICS_SYSTEM_LEAP_FROG
       velocity = particleDiff[index].velocity;
-      velocity += settings->gravity * timeStep * .05f;
+      velocity += systemSettings->gravity * timeStep * .05f;
 
       particle.position += velocity * timeStep;
       particle.identity = identity;
 
       velocity *= sharedData.velocityDamping;
-      velocity += settings->gravity * timeStep * .05f;
+      velocity += systemSettings->gravity * timeStep * .05f;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.001f);
 
       particleDiff[index].velocity = velocity;
@@ -151,7 +149,7 @@ Kernel void endStep(
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
-  Const PhySystemOffsets*             globalOffsets,
+  Const PhySystemSettings*            systemSettings,
   constantKernelInput(float,          timeStep),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -164,7 +162,7 @@ Kernel void endStep(
     IdentityInfo identity = particle.identity;
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
 
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;

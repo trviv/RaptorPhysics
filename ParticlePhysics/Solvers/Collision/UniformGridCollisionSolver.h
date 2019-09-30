@@ -18,7 +18,7 @@ protected:
   DeviceArray <uint>  gridCellParticleIndices;
   uint                gridSize;
 
-  void build(uint instanceNodeCount, ComputeMemory* globalOffsets);
+  void build(uint instanceNodeCount, ComputeMemory* systemSettings);
 
 public:
 
@@ -35,7 +35,7 @@ public:
   /*!@function Initialize a Grid solver object.*/
   void init();
 
-  void solve(uint instanceNodeCount, ComputeMemory* globalOffsets, ComputeMemory* systemSettings);
+  void solve(uint instanceNodeCount, ComputeMemory* systemSettings);
 
   DeviceArray<XAB>* getBoundingBoxes();
 };

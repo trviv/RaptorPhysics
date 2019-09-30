@@ -43,19 +43,15 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   systemSettings.host()->at(0).systemBound.min = Real3(-20.f, 0.f, -20.f);
   systemSettings.host()->at(0).systemBound.max = Real3(20.f, 0.f, 20.f);
   systemSettings.host()->at(0).gravity = Real3(0.f, -9.8f, 0.f);
-  systemSettings.syncDevice();
-
-  globalOffsets.create(compute, NULL, true);
-  globalOffsets.resize(SOLVER_MAX, false);
-
-  globalOffsets.host()->resize(SOLVER_MAX);
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
-    (*globalOffsets.host())[i].globalNodeOffset = 0;
-    (*globalOffsets.host())[i].globalInstanceOffset = 0;
-    (*globalOffsets.host())[i].globalSolverOffset = 0;
+    systemSettings.host()->at(0).globalOffsets[i].globalNodeOffset = 0;
+    systemSettings.host()->at(0).globalOffsets[i].globalInstanceOffset = 0;
+    systemSettings.host()->at(0).globalOffsets[i].globalSolverOffset = 0;
   }
+
+  systemSettings.syncDevice();
 
   indexMap.create(compute, NULL, true);
 
@@ -230,12 +226,12 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       cumulativeSolver += localSolver->newEntityId();
       cumulativeInstance += localSolver->newEntityInstanceId();
     }
-    (*globalOffsets.host())[i].globalNodeOffset = cumulativeNode;
-    (*globalOffsets.host())[i].globalSolverOffset = cumulativeSolver;
-    (*globalOffsets.host())[i].globalInstanceOffset = cumulativeInstance;
+    systemSettings.host()->at(0).globalOffsets[i].globalNodeOffset = cumulativeNode;
+    systemSettings.host()->at(0).globalOffsets[i].globalSolverOffset = cumulativeSolver;
+    systemSettings.host()->at(0).globalOffsets[i].globalInstanceOffset = cumulativeInstance;
   }
+  systemSettings.syncDevice();
 
-  globalOffsets.syncDevice();
   updates.push_back(EntityLocation());
 }
 
@@ -472,7 +468,6 @@ void PhysicsSystem::integrate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets.device(),
     systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -501,7 +496,7 @@ void PhysicsSystem::differentiate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets.device()
+    systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
   kernels[1].setArgs(buffers, bufferCount);
@@ -529,7 +524,7 @@ void PhysicsSystem::positionUpdate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
-    globalOffsets.device()
+    systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
   kernels[2].setArgs(buffers, bufferCount);
@@ -632,7 +627,7 @@ void PhysicsSystem::step(float timeStep)
     integrate(timeStep);
   }
 
-  collisionSolver->solve(instanceNodeCount, globalOffsets.device(), systemSettings.device());
+  collisionSolver->solve(instanceNodeCount, systemSettings.device());
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {

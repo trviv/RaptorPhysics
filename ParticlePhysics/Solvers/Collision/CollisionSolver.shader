@@ -53,36 +53,36 @@ inline uint get32BitMortonCode(const int3 quantizedPosition)
 inline float3 boundaryCollision(
   Thread ParticleStruct*              particle,
   const Thread ParticleCollisionData* collisionData,
-  Const PhySystemSettings*            settings)
+  Const PhySystemSettings*            systemSettings)
 {
   float3 ret = constructFloat3(0.f);
 
   // only if movable
   if (collisionData->invMass)
   {
-    if (particle->position.y <= settings->systemBound.min.y)
+    if (particle->position.y <= systemSettings->systemBound.min.y)
     {
-      ret.y = settings->systemBound.min.y - particle->position.y;
+      ret.y = systemSettings->systemBound.min.y - particle->position.y;
     }
 
-    if (particle->position.x <= settings->systemBound.min.x)
+    if (particle->position.x <= systemSettings->systemBound.min.x)
     {
-      ret.x = settings->systemBound.min.x - particle->position.x;
+      ret.x = systemSettings->systemBound.min.x - particle->position.x;
     }
 
-    if (particle->position.x >= settings->systemBound.max.x)
+    if (particle->position.x >= systemSettings->systemBound.max.x)
     {
-      ret.x = settings->systemBound.max.x - particle->position.x;
+      ret.x = systemSettings->systemBound.max.x - particle->position.x;
     }
 
-    if (particle->position.z >= settings->systemBound.max.z)
+    if (particle->position.z >= systemSettings->systemBound.max.z)
     {
-      ret.z = settings->systemBound.max.z - particle->position.z;
+      ret.z = systemSettings->systemBound.max.z - particle->position.z;
     }
 
-    if (particle->position.z <= settings->systemBound.min.z)
+    if (particle->position.z <= systemSettings->systemBound.min.z)
     {
-      ret.z = settings->systemBound.min.z - particle->position.z;
+      ret.z = systemSettings->systemBound.min.z - particle->position.z;
     }
   }
 
@@ -185,7 +185,7 @@ inline float3 processParticleCollision(
 @param particleAuxData Additional particle data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
-@param globalOffsets Offsets to particle nodes all the solvers.
+@param systemSettings Settings for the physics system.
 @param nodeBatchCount Total number of node batches.
 @param nodeCount Total nodes in the solver.
 */
@@ -196,7 +196,7 @@ Kernel void getSystemMaxRadius(
   const Device ParticleAuxData*     particleAuxData,
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
-  Const PhySystemOffsets*           globalOffsets,
+  Const PhySystemSettings*          systemSettings,
   constantKernelInput(uint,         nodeBatchCount),
   constantKernelInput(uint,         nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
@@ -210,7 +210,7 @@ Kernel void getSystemMaxRadius(
   {
     const ParticleStruct particle = particles[index];
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
@@ -235,7 +235,7 @@ Kernel void getSystemMaxRadius(
 @param particleAuxData Additional particle data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
-@param globalOffsets Offsets to particle nodes all the solvers.
+@param systemSettings Settings for the physics system.
 @param nodeCount Total nodes in the solver.
 */
 Kernel void createBoundingBoxes(
@@ -249,7 +249,7 @@ Kernel void createBoundingBoxes(
   const Device PartitionInfo*       partitions,
   const Device EntityLocation*      entityLocation,
 #ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-  Const PhySystemOffsets*           globalOffsets,
+  Const PhySystemSettings*          systemSettings,
 #endif
   constantKernelInput(uint,         nodeBatchCount),
   constantKernelInput(uint,         nodeCount)
@@ -268,7 +268,7 @@ Kernel void createBoundingBoxes(
     const ParticleStruct particle = particlesPredicted[index];
     ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
 #ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-    const PhySystemOffsets phySystemOffsets = globalOffsets[nodeIdentity.solverType];
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;

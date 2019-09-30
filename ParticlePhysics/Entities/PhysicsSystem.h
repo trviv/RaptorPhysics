@@ -34,9 +34,6 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@member Entity ids available for reuse.*/
   vector<uint>                    availableEntityIds;
 
-  /*!@member Offsets for different solvers.*/
-  DeviceArray<PhySystemOffsets>   globalOffsets;
-
   /*!@member Thread index map to absolute node index.*/
   DeviceArray<uint>               indexMap;
 
