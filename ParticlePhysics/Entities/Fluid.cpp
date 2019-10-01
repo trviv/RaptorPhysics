@@ -52,7 +52,7 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
 
   int index = 0;
 
-  const real perParticleInvMass = real(mass) / real(particleCount);
+  const real perParticleInvMass = real(particleCount) / real(mass);
 
   setInvMassIsShared((*entitySharedData.host())[0], true);
   (*entitySharedData.host())[0].sharedInvMass = perParticleInvMass;

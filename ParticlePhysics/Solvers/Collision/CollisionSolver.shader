@@ -89,6 +89,18 @@ inline float3 boundaryCollision(
   return ret;
 }
 
+inline float3 positionAfterCorrection(const float3 correction, const Thread ParticleStruct* particle, const Thread ParticleStruct* particleInit)
+{
+  return correction + particle->position - particleInit->position;
+}
+
+inline float3 calculateFriction(
+  const float3 correctedPositionSelf,
+  const float3 correctedPositionOther)
+{
+  return constructFloat3(0.f);
+}
+
 // function to process particle collision
 inline float3 processParticleCollision(
   const Thread ParticleStruct* currentParticle,

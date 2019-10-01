@@ -4,6 +4,7 @@
 //#define DEBUG_PHYSICS_SYSTEM
 #define PHYSICS_SYSTEM_EULER
 //#define PHYSICS_SYSTEM_LEAP_FROG
+//#define PHYSICS_SYSTEM_VERLET
 
 Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
@@ -111,7 +112,7 @@ Kernel void startStep(
       velocity = particleDiff[index].velocity;
       velocity += systemSettings->gravity * timeStep;
       velocity *= sharedData.velocityDamping;
-      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity) < constructFloat3(0.01f));
 
       particleDiff[index].velocity = velocity;
       particle.position += velocity * timeStep;
@@ -120,18 +121,25 @@ Kernel void startStep(
 #endif
 
 #ifdef PHYSICS_SYSTEM_LEAP_FROG
-      velocity = particleDiff[index].velocity;
-      velocity += systemSettings->gravity * timeStep * .05f;
+      velocity = particleDiff[index].velocity + systemSettings->gravity * (timeStep * 0.5f);
 
       particle.position += velocity * timeStep;
       particle.identity = identity;
 
-      velocity *= sharedData.velocityDamping;
-      velocity += systemSettings->gravity * timeStep * .05f;
-      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.001f);
+      velocity += systemSettings->gravity * (timeStep * 0.5f);
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity) < constructFloat3(0.01f));
 
       particleDiff[index].velocity = velocity;
+      particlesPredicted[index] = particle;
+#endif
 
+#ifdef PHYSICS_SYSTEM_VERLET
+      velocity = particleDiff[index].velocity + systemSettings->gravity * (timeStep * timeStep);
+
+      particle.position = velocity;
+      particle.identity = identity;
+
+      particleDiff[index].velocity = velocity;
       particlesPredicted[index] = particle;
 #endif
     }
@@ -183,6 +191,10 @@ Kernel void endStep(
     {
       particlePositionPredicted = particlesPredicted[index].position;
       velocity = (particlePositionPredicted - particle.position) / timeStep;
+
+#ifdef PHYSICS_SYSTEM_VERLET
+      velocity = (2.f * particlePositionPredicted - particle.position);
+#endif
 
       particle.position = particlePositionPredicted;
       particle.identity = identity;
