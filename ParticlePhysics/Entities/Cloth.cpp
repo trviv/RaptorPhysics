@@ -35,7 +35,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   const real diag_len = mSqrt(mSqr(x_len) + mSqr(y_len));
   vector<Real3> pointPosition;
 
-  const real perParticleInvMass = real(mass) / real(subdivision[0] * subdivision[1]);
+  const real perParticleInvMass = real(subdivision[0] * subdivision[1]) / real(mass);
   const float minRadius = (x_len < y_len ? x_len : y_len) / 2;
 
   setRadiusIsShared((*entitySharedData.host())[0], true);

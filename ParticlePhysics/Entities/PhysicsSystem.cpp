@@ -640,6 +640,12 @@ void PhysicsSystem::step(float timeStep)
   differentiate(timeStep);
 }
 
+void PhysicsSystem::setGravity(const Real3& gravity)
+{
+  systemSettings.host()->at(0).gravity = gravity;
+  systemSettings.syncDevice();
+}
+
 void PhysicsSystem::setSystemBoundary(const XAB& bound)
 {
   systemSettings.host()->at(0).systemBound = bound;

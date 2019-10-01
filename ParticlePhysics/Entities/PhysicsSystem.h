@@ -120,6 +120,9 @@ public:
   /*!@function Take one simulation step using the time step.*/
   void step(float timeStep);
 
+  /*!@function Set acceleration due to gravity for the system.*/
+  void setGravity(const Real3& gravity);
+
   /*!@function Set system bounding box of the system.*/
   void setSystemBoundary(const XAB& bound);
 };

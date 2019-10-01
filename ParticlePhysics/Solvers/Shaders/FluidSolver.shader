@@ -145,12 +145,9 @@ Kernel void calculateDensity(
     gradientMagnitude += dot(accumulatedGradient, accumulatedGradient);
     gradientMagnitude *= sharedData.invRestDensity;
 
-//    density = (density * sharedData.invRestDensity / sharedData.sharedInvMass - 1.f);
-    density *= 1.f/sharedData.sharedInvMass;
-//    density = max(sharedData.invRestDensity, density);
+    density /= sharedData.sharedInvMass;
 
     particlesDensity[particleIndex] = density;
-//    particlesLambda[particleIndex] = - density  / (gradientMagnitude + FLUID_SIM_EPSILON);
   }
 }
 
@@ -207,7 +204,6 @@ Kernel void calculateForces(
     const IdentityInfo identity = currentParticle.identity;
     const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const float mass = 1.f/sharedData.sharedInvMass;
     const float lambda = particlesLambda[particleIndex];
     const float density = particlesDensity[particleIndex];
 
@@ -268,7 +264,7 @@ Kernel void calculateForces(
       }
     }
 
-    currentParticle.position += delta;
+    currentParticle.position += delta / sharedData.sharedInvMass;
     currentParticle.identity = identity;
     particlesPredictedNew[particleIndex] = currentParticle;
   }
