@@ -29,7 +29,6 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   gridCellParticleCount.create(compute, solverHeap, true);
   gridCellParticleOffsets.create(compute, solverHeap, true);
   gridCellParticleIndices.create(compute, solverHeap, true);
-  particlesCurrentTemp.create(compute, solverHeap, true);
   particlesPredictedTemp.create(compute, solverHeap, true);
   systemBoundingBox.create(compute, NULL, true);
 #else
@@ -38,7 +37,6 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   gridCellParticleCount.create(compute, solverHeap);
   gridCellParticleOffsets.create(compute, solverHeap);
   gridCellParticleIndices.create(compute, solverHeap);
-  particlesCurrentTemp.create(compute, solverHeap);
   particlesPredictedTemp.create(compute, solverHeap);
   systemBoundingBox.create(compute, NULL);
 #endif
@@ -132,7 +130,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 
   if (gridParticleCellIndex.size() < instanceNodeCount)
   {
-    particlesCurrentTemp.resize(instanceNodeCount, false);
     particlesPredictedTemp.resize(instanceNodeCount, false);
     gridParticleCellIndex.resize(instanceNodeCount, false);
     gridCellParticleIndices.resize(instanceNodeCount, false);
@@ -294,10 +291,6 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
-    // TODO: Figure out stablization pass
-    if (second != empty.device())
-      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesCurrentTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
-
     size_t workgroupSize[3] = {1, 1, 1};
     workgroupSize[0] = this->compute->maxThreadsPerGroup();
 
@@ -308,7 +301,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
       gridCellParticleIndices.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
-      (second == empty.device()) ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : particlesCurrentTemp.device(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       particlesPredictedTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),

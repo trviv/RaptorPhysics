@@ -291,7 +291,8 @@ inline int intersectXAB(const Thread XAB* a, const Thread XAB* b)
 inline float3 stacklessTraverseBinaryTree(
   const Thread ParticleStruct*        currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
-  const Device ParticleStruct*        particlesInit,
+  const ParticleDifferential          selfParticleDiff,
+  const Device ParticleDifferential*  particlesDiff,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device uint*                  leafParentNodeIndices,
   const Device uint*                  nodeParentNodeIndices,
@@ -308,8 +309,6 @@ inline float3 stacklessTraverseBinaryTree(
 #ifdef MARK_COLLIDED_PARTICLES
   bool collided = false;
 #endif
-
-  const ParticleStruct particleInit = particlesInit[index];
 
   float3 output = constructFloat3(0.f);
   short collisionCount = 0;
@@ -466,8 +465,8 @@ inline float3 stacklessTraverseBinaryTree(
     if (index != currentNodeIndex)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
-      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+      const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
+      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
         collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
@@ -499,7 +498,8 @@ inline float3 stacklessTraverseBinaryTree(
 inline float3 stackTraverseBinaryTree(
   const Thread ParticleStruct*        currentParticle,
   const Device ParticleStruct*        particlesPredictedOld,
-  const Device ParticleStruct*        particlesInit,
+  const ParticleDifferential          selfParticleDiff,
+  const Device ParticleDifferential*  particlesDiff,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device uint*                  leafParentNodeIndices,
   const Device uint*                  nodeParentNodeIndices,
@@ -520,7 +520,6 @@ inline float3 stackTraverseBinaryTree(
   bool collided = false;
 #endif
 
-  const ParticleStruct particleInit = particlesInit[index];
   float3 output = constructFloat3(0.f);
   short collisionCount = 0;
 
@@ -586,8 +585,8 @@ inline float3 stackTraverseBinaryTree(
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
-      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+      const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
+      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
         collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
@@ -637,10 +636,10 @@ inline float3 stackTraverseBinaryTree(
 */
 Kernel void applyCollisions(
   atomicKernelInput(uint,             batchCounter),
-  Device ParticleStruct*              particles,
-  Device ParticleStruct*              particles2,
-  const Device ParticleStruct*        particlesInit,
-  const Device ParticleStruct*        particlesOld,
+  Device ParticleStruct*              particlesPredictedNew,
+  Device ParticleStruct*              particlesInit,
+  const Device ParticleDifferential*  particlesDiff,
+  const Device ParticleStruct*        particlesPredictedOld,
   const Device BVHNodeInfo*           treeInternalNodes,
   const Device uint*                  leafParentNodeIndices,
   const Device uint*                  nodeParentNodeIndices,
@@ -702,7 +701,7 @@ Kernel void applyCollisions(
 #endif
     {
       // get all the data for particle being processed
-      ParticleStruct currentParticle = particlesOld[index];
+      ParticleStruct currentParticle = particlesPredictedOld[index];
       const IdentityInfo identity = currentParticle.identity;
       ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
       const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
@@ -713,11 +712,14 @@ Kernel void applyCollisions(
       ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
       ParticleCollisionData collisionData = particleCollisionData[index];
 
+      const ParticleDifferential selfParticleDiff = particlesDiff[index];
+
       // find position change due to collision
       float3 delta = stackTraverseBinaryTree(
         &currentParticle,
-        particlesOld,
-        particlesInit,
+        particlesPredictedOld,
+        selfParticleDiff,
+        particlesDiff,
         treeInternalNodes,
         leafParentNodeIndices,
         nodeParentNodeIndices,
@@ -728,17 +730,21 @@ Kernel void applyCollisions(
         index);
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &collisionData, systemSettings);
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings,
+#ifdef MARK_COLLIDED_PARTICLES
+        &particleCollisionData[index],
+#endif
+        &sharedData);
 
       // update position
       currentParticle.position += delta;
       currentParticle.identity = identity;
-      particles[index] = currentParticle;
+      particlesPredictedNew[index] = currentParticle;
 
       if (stablizationPass)
       {
-        particles2[index].position += delta;
-        particles2[index].identity = identity;
+        particlesInit[index].position += delta;
+        particlesInit[index].identity = identity;
       }
     }
 

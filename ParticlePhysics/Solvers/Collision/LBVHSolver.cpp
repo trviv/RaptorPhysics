@@ -17,7 +17,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   solverHeap = new ComputeHeap(compute);
 
 #ifdef DEBUG_LBVH_SOLVER
-  particlesCurrentTemp.create(compute, NULL, true);
   particlesPredictedTemp.create(compute, NULL, true);
   treeInternalNodes.create(compute, NULL, true);
   particleLeafData.create(compute, NULL, true);
@@ -29,7 +28,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   particleBoundingBoxes.create(compute, NULL, true);
   particleGroupBoundingBoxes.create(compute, NULL, true);
 #else
-  particlesCurrentTemp.create(compute, NULL);
   particlesPredictedTemp.create(compute, NULL);
   treeInternalNodes.create(compute, NULL);
   particleLeafData.create(compute, NULL);
@@ -102,7 +100,6 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings)
 
   if (particleLeafData.size() != instanceNodeCount)
   {
-    particlesCurrentTemp.resize(instanceNodeCount, false);
     particlesPredictedTemp.resize(instanceNodeCount, false);
     particleLeafData.resize(instanceNodeCount, false);
     particleLeafDataSorted.resize(instanceNodeCount, false);
@@ -247,10 +244,6 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
 
     compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
 
-    // TODO: Figure out stablization pass
-    if (second != empty.device())
-      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesCurrentTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
-
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, mAlignBy(instanceNodeCount, batchesPerDispatch));
@@ -260,7 +253,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
       second,
-      (second == empty.device()) ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : particlesCurrentTemp.device(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
       particlesPredictedTemp.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),
