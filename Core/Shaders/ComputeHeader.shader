@@ -111,7 +111,7 @@
 #endif
 
 #define COMPUTE_SHADER_SCOPE
-#define COMPUTE_EPSILON         0.0001f
+#define COMPUTE_EPSILON 0.0001f
 #define DEFAULT_ALIGN   ALIGN(16)
 
 #define NUM_BANKS       16

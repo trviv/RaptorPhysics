@@ -80,8 +80,8 @@ Kernel void applyCollisions(
   const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
   Device ParticleStruct*              particlesPredictedNew,
-  Device ParticleStruct*              particles2,
-  const Device ParticleStruct*        particlesInit,
+  Device ParticleStruct*              particlesInit,
+  const Device ParticleDifferential*  particlesDiff,
   const Device ParticleStruct*        particlesPredictedOld,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
@@ -114,7 +114,7 @@ Kernel void applyCollisions(
     float3 delta = constructFloat3(0.f);
     IdentityInfo identity;
     ParticleStruct currentParticle;
-    ParticleStruct particleInit;
+    ParticleDifferential selfParticleDiff;
     ParticleSharedData sharedData;
     ParticleCollisionData collisionData;
     float sdfMagnitude;
@@ -127,7 +127,7 @@ Kernel void applyCollisions(
     { // read this batch
       particleIndex = gridCellParticleIndices[baseIndex];
       currentParticle = particlesPredictedOld[particleIndex];
-      particleInit = particlesInit[particleIndex];
+      selfParticleDiff = particlesDiff[particleIndex];
       identity = currentParticle.identity;
 
       ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
@@ -167,8 +167,8 @@ Kernel void applyCollisions(
               const int currentNodeIndex = gridCellParticleIndices[otherIndex];
 
               const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-              const ParticleStruct otherParticleInit = particlesInit[currentNodeIndex];
-              delta += sharedData.collisionDamping * processParticleCollision(&currentParticle, &particleInit, &otherParticle, &otherParticleInit,
+              const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
+              delta += sharedData.collisionDamping * processParticleCollision(&currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
                 &collisionData, &sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
                 particleCollisionData, &collided);
@@ -181,7 +181,11 @@ Kernel void applyCollisions(
       }
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &collisionData, systemSettings);
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings,
+#ifdef MARK_COLLIDED_PARTICLES
+        &particleCollisionData[particleIndex],
+#endif
+        &sharedData);
 
       if (collisionCount)
       {
@@ -195,8 +199,8 @@ Kernel void applyCollisions(
 
       if (stablizationPass)
       {
-        particles2[particleIndex].position += delta;
-        particles2[particleIndex].identity = identity;
+        particlesInit[particleIndex].position += delta;
+        particlesInit[particleIndex].identity = identity;
       }
 
 #ifdef MARK_COLLIDED_PARTICLES

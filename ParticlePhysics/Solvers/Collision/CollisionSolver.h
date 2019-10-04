@@ -12,7 +12,6 @@ protected:
 
   ComputeHeap*                  solverHeap;
   DeviceArray <ParticleStruct>  empty;
-  DeviceArray <ParticleStruct>  particlesCurrentTemp;
   DeviceArray <ParticleStruct>  particlesPredictedTemp;
   DeviceArray <XAB>             systemBoundingBox;
   DeviceArray <XAB>             particleGroupBoundingBoxes;
