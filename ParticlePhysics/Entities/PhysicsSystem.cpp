@@ -10,7 +10,7 @@
 
 //#define DEBUG_PHYSICS_SYSTEM
 
-PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
+PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   : compute(compute)
 {
   nodeCount = 0;
@@ -54,6 +54,19 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute)
   systemSettings.syncDevice();
 
   indexMap.create(compute, NULL, true);
+
+  // create memory heap allocators for the system
+  if (!allocators.size())
+  {
+    SharedAllocator* allocator = new SharedAllocator(compute);
+    allocator->particleAllocator.create(maxParticles);
+    allocator->constrainAllocator.create(maxParticles, maxParticles);
+    allocators.push_back(allocator);
+    collisionSolver = new UniformGridCollisionSolver(compute, allocator);
+//    collisionSolver = new LBVHSolver(compute, allocator);
+    collisionSolver->init();
+  }
+
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;
@@ -116,19 +129,6 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
 {
   PhysicsEntityId entityId;
   resetIdentity(entityId);
-
-  // create memory heap allocators for the system
-  if (!allocators.size())
-  {
-    SharedAllocator* allocator = new SharedAllocator(compute);
-    int multiplier = 2048;
-    allocator->particleAllocator.create(multiplier * 1024);
-    allocator->constrainAllocator.create(multiplier * 1024, multiplier * 128);
-    allocators.push_back(allocator);
-    collisionSolver = new UniformGridCollisionSolver(compute, allocator);
-//    collisionSolver = new LBVHSolver(compute, allocator);
-    collisionSolver->init();
-  }
 
   EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(entity->solver);
 

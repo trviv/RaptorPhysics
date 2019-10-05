@@ -19,8 +19,10 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 
   solverHeap = new ComputeHeap(compute);
 
-  // allocate for 3*grid size + 2*number of max particles + 1* max particles particle structure
-  solverHeap->create((3 * gridSize * gridSize * gridSize + 2 * (1 * 1024 * 1024) + 8 * (1 * 1024 * 1024)) * sizeof(uint) + (1 * 1024 * 1024) * sizeof(XAB));
+  const uint maxParticles = allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get()->getSize() / sizeof(ParticleStruct);
+
+  // allocate for 3*grid size (for grid indices) + 2*number of max particles(for particle indices) + 2*max particles particle structure (for temp buffers)
+  solverHeap->create((3 * gridSize * gridSize * gridSize + 2 * maxParticles + 8 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
 
   gridCompactCellCount.create(compute, solverHeap, true);
 #ifdef DEBUG_GRID_SOLVER
