@@ -10,7 +10,7 @@
 */
 class PhysicsSystem : protected ShaderEntity, public Window
 {
-  /*!@member Compute interface on which the system will operate on.*/
+  /*!@member Compute interface through which the system will operate.*/
   ComputeInterface*               compute;
 
   /*!@member Memory sections which needs updation.*/
@@ -63,8 +63,12 @@ class PhysicsSystem : protected ShaderEntity, public Window
 
 public:
 
-  /*!@constructor Create a new physics system using a compute interface.*/
-  PhysicsSystem(ComputeInterface* compute);
+  /*!
+  @constructor Create a new physics system using a compute interface.
+  @param compute Compute interface through which the system will operate.
+  @param maxParticles Maximum number of particles in the system.
+  */
+  PhysicsSystem(ComputeInterface* compute, const uint maxParticles = 1024 * 16);
 
   /*!@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
