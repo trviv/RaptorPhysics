@@ -53,9 +53,20 @@
 
 #define CL_SILENCE_DEPRECATION
 #define GL_SILENCE_DEPRECATION
+#define GLES_SILENCE_DEPRECATION
 
 #if REN_GL
+#include "TargetConditionals.h"
+#if TARGET_IPHONE_SIMULATOR
+// iOS Simulator
+#elif TARGET_OS_IPHONE
+#include <OpenGLES/ES3/glext.h>
+#undef USE_SIMD_COMPUTE
+#elif TARGET_OS_MAC
 #include <OpenGL/gl3.h>
+#else
+#   error "Unknown Apple platform"
+#endif
 #endif
 
 #endif
@@ -115,6 +126,7 @@ typedef uint16_t  half;
 
 #define prompt(X) assert(X)
 
+#define _ARM_PARAM_H_
 #if defined(__CUDACC__) // NVCC
 #define ALIGN(n)  __align__(n)
 #elif defined(__clang__)

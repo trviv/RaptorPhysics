@@ -124,9 +124,15 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE,   8);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   32);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+#if TARGET_OS_IPHONE
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#else
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 
   SDL_CheckError();
 
@@ -141,10 +147,12 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_MakeCurrent(sdl_window, gl_context);
   SDL_CheckError();
 
+#if !TARGET_OS_IPHONE
   if (SDL_GL_SetSwapInterval(1))
   {
     printf ("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
   }
+#endif
 
   std::cout<<glGetString(GL_VERSION)<<"\n";
 

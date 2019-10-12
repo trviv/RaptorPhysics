@@ -199,12 +199,14 @@ void Texture::gen(float buffer[], int type)
   bind();
   if (type == COLOR_BUFFER)
   {
+#if !TARGET_IPHONE_SIMULATOR
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
     GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, buffer));
     //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
+#endif
   }
   else if (type == 1)
   {
@@ -288,9 +290,11 @@ GLuint Texture::get()const
 
 void Texture::get(float target[])const
 {
+#if !TARGET_OS_IPHONE
   bind();
   GL_CHECK(glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, target));
   unbind();
+#endif
 }
 
 Render::Render()

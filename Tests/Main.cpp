@@ -6,6 +6,12 @@ static ComputeInterface* compute;
 
 static bool runOnlyFunctional = false;
 
+#if TARGET_OS_IPHONE
+  const int roughElements = 12345678;
+#else
+  const int roughElements = 123456789;
+#endif
+
 void printStats(float mean, uint elements, uint rwCount, uint sizeOfElements)
 {
   printf("Average time    : %f ms\n", mean);
@@ -479,7 +485,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   DeviceArray<DataType> backupData(compute, NULL, false);
   vector<DataType> prefixSum;
 
-  const int elements = 123456789;
+  const int elements = roughElements;
   DataType sum = 0;
   const uint iterations = runOnlyFunctional?0:10;
 
@@ -550,7 +556,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   DeviceArray<DataType> selectionArray(compute, NULL, true);
   vector<uint> statusOutput;
 
-  const int elements = 123456789;
+  const int elements = roughElements;
   const uint iterations = runOnlyFunctional?0:10;
 
   selectionArray.host()->reserve(elements);

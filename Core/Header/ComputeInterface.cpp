@@ -511,8 +511,12 @@ void ComputeInterface::create(int deviceIndex)
     status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
     computeCheckError(status, 0);
 #else
+#if TARGET_OS_OSX
     NSArray<id<MTLDevice>> *localDevices = MTLCopyAllDevices();
-    deviceCount = localDevices.count;
+#else
+    NSArray<id<MTLDevice>> *localDevices = [[NSArray<id<MTLDevice>> alloc] initWithObjects:MTLCreateSystemDefaultDevice(), nil];
+#endif
+    deviceCount = (uint)localDevices.count;
     for (int i=0; i<deviceCount; i++)
     {
       devices[i] = [localDevices objectAtIndex:i];
@@ -631,7 +635,11 @@ std::string readFile(const char* fileName)
   std::string directory = getCurrentDir();
   std::string data;
   std::ifstream file;
+#if __APPLE__ && TARGET_OS_OSX
+  file.open(directory + "/../Resources/" + fileName, std::ios::binary);
+#else
   file.open(directory + "/" + fileName, std::ios::binary);
+#endif
 
   file.seekg(0, std::ios::end);
   data.reserve((size_t)file.tellg());
@@ -955,12 +963,12 @@ void ComputeInterface::sync()
 
 uint ComputeInterface::maxThreadsPerGroup()const
 {
-  return maxThreadsPerWorkgroup;
+  return (uint)maxThreadsPerWorkgroup;
 }
 
 uint ComputeInterface::simdSize()const
 {
-  return simdGroupSize;
+  return (uint)simdGroupSize;
 }
 
 uint ComputeInterface::maxCores()const
