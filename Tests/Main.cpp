@@ -168,7 +168,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   DeviceArray<DataType> data(compute, NULL, true);
   DeviceArray<DataType> output(compute, NULL, true);
 
-  const int elements = 123456792;
+  const int elements = roughElements;
   double sum = 0;
   uint iterations = runOnlyFunctional?0:10;
 

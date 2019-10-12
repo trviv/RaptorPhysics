@@ -310,7 +310,7 @@ void PhysicsSystem::createSphere(float radius)
     }
   }
   displayVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
-  displayElements.copyData(&sphereIndices[0], sphereIndices.size());
+  displayElements.copyData(&sphereIndices[0], (uint)sphereIndices.size());
 }
 
 void PhysicsSystem::createUnitBox()
@@ -431,7 +431,7 @@ void PhysicsSystem::render()
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
-    displayBoxBuffer.copy((float*)boxes, 0, 0, collisionBoundingBoxes->host()->size() * 2);
+    displayBoxBuffer.copy((float*)boxes, 0, 0, (uint)collisionBoundingBoxes->host()->size() * 2);
 
     GL_CHECK(glEnable(GL_BLEND));
     GL_CHECK(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
@@ -443,7 +443,7 @@ void PhysicsSystem::render()
 
     displayBoxVertex.bind();
     displayBoxElements.bind();
-    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, collisionBoundingBoxes->host()->size()));
+    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, (uint)collisionBoundingBoxes->host()->size()));
     displayBoxElements.unbind();
     displayBoxVertex.unbind();
 
@@ -549,7 +549,7 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
-  uint firstStep = updates.size();
+  uint firstStep = (uint)updates.size();
 
   if (updates.size())
   {

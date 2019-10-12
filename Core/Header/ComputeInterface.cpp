@@ -585,6 +585,10 @@ void ComputeInterface::create(int deviceIndex)
         {
           simdGroupSize = 32;
         }
+        if (name.find("Apple") != name.npos)
+        {
+          simdGroupSize = 32;
+        }
       }
 
       if (absoluteDeviceIndex == 0)

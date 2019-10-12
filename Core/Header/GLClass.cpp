@@ -430,7 +430,7 @@ int loadShader(const char* filename, GLchar** shader_source, GLint* len)
 {
   std::string data = readFile(filename);
   *shader_source = new GLchar[data.size()];
-  *len = data.size();
+  *len = (uint)data.size();
   memcpy(*shader_source, data.c_str(), *len);
 
   return 0; // No Error

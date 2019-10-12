@@ -94,7 +94,7 @@ void FluidSolver::solve()
 
   if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
   {
-    particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
+    particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
   }
 
   // 4 byte aligned for indirect dispatch
@@ -146,7 +146,7 @@ void FluidSolver::solve()
 #endif
 
   // find bounding box for the simulation space
-  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), workgroupSize[0] * workgroupCount[0]);
+  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), (uint)(workgroupSize[0] * workgroupCount[0]));
 
 #ifdef DEBUG_FLUID_SOLVER
   systemBoundingBox.syncHost();

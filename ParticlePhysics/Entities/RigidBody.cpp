@@ -172,7 +172,7 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
   displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1] * subdivision[2], 0, sizeof(Real3));
 
   displayElements.gen();
-  displayElements.copyData((GLuint*)&connectionElements[0], connectionElements.size());
+  displayElements.copyData((GLuint*)&connectionElements[0], (uint)connectionElements.size());
 
   displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
 #endif

@@ -132,15 +132,15 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   if (pos != computeConfig.end())
   {
     logComputeMessage("Using existing utility instance.\n");
-    return pos - computeConfig.begin();
+    return (uint)(pos - computeConfig.begin());
   }
 
   logComputeMessage("Adding utility kernels");
 
-  util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = kernelNames.size();
+  util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = (uint)kernelNames.size();
   kernelNames.push_back("showMatrix");
 
-  util.kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER] = kernelNames.size();
+  util.kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER] = (uint)kernelNames.size();
   kernelNames.push_back("clearIntegerBuffer");
 
   // use size tuned for best performance
@@ -259,24 +259,24 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   {
     if (dataMap.find(ComputeUtilSkipParallelPrimitives) == dataMap.end())
     {
-      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
+      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = (uint)kernelNames.size();
       kernelNames.push_back("reduce");
 
-      util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = kernelNames.size();
+      util.kernelIndices[COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL] = (uint)kernelNames.size();
       kernelNames.push_back("reduce2DKernel");
 
-      util.kernelIndices[COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL] = kernelNames.size();
+      util.kernelIndices[COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL] = (uint)kernelNames.size();
       kernelNames.push_back("prefixGroupScanKernel");
 
       if (dataMap.find(ComputeUtilStructTypeIntegral) != dataMap.end())
       {
-        util.kernelIndices[COMPUTE_UTIL_BITONIC_SORT] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_BITONIC_SORT] = (uint)kernelNames.size();
         kernelNames.push_back("bitonicSort32BitKernel");
 
-        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT1] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT1] = (uint)kernelNames.size();
         kernelNames.push_back("radixSort32BitReduceKernel");
 
-        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT2] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_RADIX_SORT2] = (uint)kernelNames.size();
         kernelNames.push_back("radixSort32BitSortKernel");
 
         oldType.push_back("SortBits");
@@ -291,14 +291,14 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
         oldType.push_back("BankConflictShift");
         newType.push_back(to_string(2));
 
-        util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY] = (uint)kernelNames.size();
         kernelNames.push_back("compactSparseArray");
       }
     }
     else
       if (dataMap.find(ComputeUtilOnlyReduce) != dataMap.end())
       {
-        util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = (uint)kernelNames.size();
         kernelNames.push_back("reduce");
       }
 
@@ -312,12 +312,12 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
     if (dataMap.find(ComputeUtilOnlyReduce) == dataMap.end())
     {
-      util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = kernelNames.size();
+      util.kernelIndices[COMPUTE_UTIL_CONSOLIDATE_FROM_PARTITIONS] = (uint)kernelNames.size();
       kernelNames.push_back("consolidateFromPartitionsKernel");
 
       if (dataMap.find(ComputeUtilIdentityStructType) != dataMap.end())
       {
-        util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = kernelNames.size();
+        util.kernelIndices[COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL] = (uint)kernelNames.size();
         kernelNames.push_back("sumIrregular2DKernel");
       }
     }
@@ -336,7 +336,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   computeConfig.push_back(key);
   computeUtils.push_back(util);
 
-  return computeUtils.size() - 1;
+  return (uint)(computeUtils.size() - 1);
 }
 
 ComputeUtil* ComputeUtil::get(uint templateId)

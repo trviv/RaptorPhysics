@@ -62,10 +62,10 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::commit()
   EntityLocation updateInfo;
 
   updateInfo.node.offset = this->nodes();
-  updateInfo.node.count = this->constrainConstants.host()->size() - this->nodes();
+  updateInfo.node.count = (uint)this->constrainConstants.host()->size() - this->nodes();
 
   updateInfo.connection.offset = this->connectionCount();
-  updateInfo.connection.count = this->constrainCoefficients.host()->size() - this->connectionCount();
+  updateInfo.connection.count = (uint)this->constrainCoefficients.host()->size() - this->connectionCount();
 
   this->updates.push_back(updateInfo);
   this->entityLocations.host()->push_back(updateInfo);
@@ -91,7 +91,7 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
           this->constrainIndices.host()->push_back(this->rawConstrainConnections[this->constrainHeaders.host()->size()][j]);
           indexOffset++;
         }
-        newConstrain.setCount(this->rawConstrainConnections[this->constrainHeaders.host()->size()].size());
+        newConstrain.setCount((uint)this->rawConstrainConnections[this->constrainHeaders.host()->size()].size());
         this->constrainHeaders.host()->push_back(newConstrain);
       }
 
@@ -124,7 +124,7 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->particleAuxData.syncDevice();
 
   this->partitions.syncDevice();
-  (*this->partitionsCount.host())[0] = this->partitions.host()->size();
+  (*this->partitionsCount.host())[0] = (uint)this->partitions.host()->size();
   this->partitionsCount.syncDevice();
   this->entityLocations.syncDevice();
 
@@ -134,13 +134,13 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
 template<class IndexType, class CoefficientType, class VariableType>
 uint EntitySolver<IndexType, CoefficientType, VariableType>::newEntityId()
 {
-  return this->entityLocations.host()->size();
+  return (uint)this->entityLocations.host()->size();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>
 uint EntitySolver<IndexType, CoefficientType, VariableType>::newEntityInstanceId()const
 {
-  return this->partitions.host()->size();
+  return (uint)this->partitions.host()->size();
 }
 
 #define classPrefix(x, y, z) template void EntitySolver<x, y, z>
