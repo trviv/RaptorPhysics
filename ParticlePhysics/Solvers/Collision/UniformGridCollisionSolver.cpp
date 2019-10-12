@@ -19,7 +19,7 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 
   solverHeap = new ComputeHeap(compute);
 
-  const uint maxParticles = allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get()->getSize() / sizeof(ParticleStruct);
+  const uint maxParticles = (uint)allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get()->getSize() / sizeof(ParticleStruct);
 
   // allocate for 3*grid size (for grid indices) + 2*number of max particles(for particle indices) + 2*max particles particle structure (for temp buffers)
   solverHeap->create((3 * gridSize * gridSize * gridSize + 2 * maxParticles + 8 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
@@ -121,7 +121,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 
   if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
   {
-    particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
+    particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
   }
 
   // 4 byte aligned for indirect dispatch
@@ -147,7 +147,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
   // TODO: Make a flag so that this is only done when needed
   if (maxRadius.host()->size() == 0)
   {
-    uint nodeBatchCount = workgroupSize[0] * workgroupCount[0];
+    uint nodeBatchCount = (uint)(workgroupSize[0] * workgroupCount[0]);
 
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
@@ -207,7 +207,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 #endif
 
   // find bounding box for the simulation space
-  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), workgroupSize[0] * workgroupCount[0]);
+  ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), (uint)(workgroupSize[0] * workgroupCount[0]));
 
 #ifdef DEBUG_GRID_SOLVER
   systemBoundingBox.syncHost();

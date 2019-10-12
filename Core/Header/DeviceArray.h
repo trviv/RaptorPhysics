@@ -185,7 +185,7 @@ public:
     }
     if ((offset + size) != elements)
     {
-      resize((offset + size), true);
+      resize((uint)(offset + size), true);
     }
     if (hostBuffer->size())
     {

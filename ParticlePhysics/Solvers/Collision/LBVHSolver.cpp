@@ -118,10 +118,10 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings)
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
 
-    nodeBatchCount = workgroupSize[0] * workgroupCount[0];
+    nodeBatchCount = (uint)(workgroupSize[0] * workgroupCount[0]);
     if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
     {
-      particleGroupBoundingBoxes.resize(workgroupSize[0] * workgroupCount[0], false);
+      particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
     }
 
     // compute axis aligned bounding boxes for particles
@@ -150,7 +150,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings)
 #endif
 
   // find bounding box for the simulation space
-  ComputeUtil::get(lbvhXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), workgroupSize[0] * workgroupCount[0]);
+  ComputeUtil::get(lbvhXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), (uint)(workgroupSize[0] * workgroupCount[0]));
 
 #ifdef DEBUG_LBVH_SOLVER
   systemBoundingBox.syncHost();
