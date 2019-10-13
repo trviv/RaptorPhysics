@@ -152,7 +152,9 @@ Kernel void clearIntegerBuffer(
   if (writeSize >= BatchSize)
   {
 #ifndef USE_METAL_COMPUTE
-#if BatchSize == 8
+#if BatchSize == 4
+    ((Device uint4*)destination)[threadIndex()] = value;
+#elif BatchSize == 8
     ((Device uint8*)destination)[threadIndex()] = value;
 #elif BatchSize == 16
     ((Device uint16*)destination)[threadIndex()] = value;
@@ -162,7 +164,9 @@ Kernel void clearIntegerBuffer(
     assert;
 #endif
 #else
-#if BatchSize == 8
+#if BatchSize == 4
+    ((Device uint4*)destination)[threadIndex()] = value;
+#elif BatchSize == 8
     ((Device dummy_uint8*)destination)[threadIndex()] = value;
 #elif BatchSize == 16
     ((Device dummy_uint16*)destination)[threadIndex()] = value;

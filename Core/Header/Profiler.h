@@ -153,6 +153,16 @@ public:
   ~ProfileBlock();
 };
 
+#else
+
+#define ProfileBlock(x)
+namespace ProfileManager
+{
+void Reset() {}
+float Get_Time_Since_Reset() {return 0.f;}
+void dumpAll(FILE* f) {}
+void Increment_Frame_Counter() {}
+}
 #endif
 
 #endif

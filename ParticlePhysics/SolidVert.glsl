@@ -1,5 +1,3 @@
-#version 150
-
 in vec3 position;
 
 uniform mat4 modelViewMatrix;

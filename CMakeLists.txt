@@ -126,18 +126,23 @@ macro(CREATE_LIB_AND_EXE)
     source_group(Frameworks FILES ${SOURCES_FRAMEWORK})
 
     if (PROJECT_EXECUTABLE)
-      add_executable(${PROJECT_STRING} MACOSX_BUNDLE ${SOURCES_S} ${SOURCES_C} ${SOURCES_SHADER} ${SOURCES_FRAMEWORK})
-      set_target_properties(${PROJECT_STRING} PROPERTIES XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks")
+      add_executable(${PROJECT_STRING} MACOSX_BUNDLE ${SOURCES_S} ${SOURCES_C}
+        ${SOURCES_SHADER} ${SOURCES_FRAMEWORK} ${APPLE_RESOURCES}
+        "${CMAKE_SOURCE_DIR}/Shared/plist.in")
+      # using custom info.plist embedded with story board
+      set_target_properties(${PROJECT_STRING} PROPERTIES
+        XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/Shared/plist.in"
+        RESOURCE "${APPLE_RESOURCES}")
       if (CREATE_IOS_PROJECT)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
-        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign 32829D10AF65A8C73D0FF92EB45256B780AB9177 --timestamp=none $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign ${SIGNING_IDENTITY} --timestamp=none $<TARGET_FILE_DIR:${PROJECT_STRING}>)
       else (CREATE_IOS_PROJECT)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>/../Resources/)
-        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign 32829D10AF65A8C73D0FF92EB45256B780AB9177 --timestamp=none ${CMAKE_CURRENT_BINARY_DIR}/\${CONFIGURATION}/${PROJECT_STRING}.app)
+        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign ${SIGNING_IDENTITY} --timestamp=none ${CMAKE_CURRENT_BINARY_DIR}/\${CONFIGURATION}/${PROJECT_STRING}.app)
       endif (CREATE_IOS_PROJECT)
-      #set_target_properties(${PROJECT_STRING} PROPERTIES RESOURCE "${SOURCES_SHADER}")
       set_source_files_properties(${SOURCES_FRAMEWORK} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
-      set_source_files_properties(${SOURCES_SHADER} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+      set_source_files_properties(${APPLE_RESOURCES} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     else (PROJECT_EXECUTABLE)
       add_library(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -179,9 +184,12 @@ endif (WIN32)
 if (APPLE)
   if (CREATE_IOS_PROJECT)
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/iOS/")
+    set(APPLE_RESOURCES "${CMAKE_SOURCE_DIR}/Shared/LaunchScreen.storyboard"
+      "${CMAKE_SOURCE_DIR}/Shared/Main.storyboard")
   else (CREATE_IOS_PROJECT)
     set(SOURCES_FRAMEWORK "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/SDL2.framework")
   endif (CREATE_IOS_PROJECT)
+  set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Default-568h@2x.png")
 endif (APPLE)
 
 find_package(Vulkan)

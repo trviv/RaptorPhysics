@@ -190,18 +190,22 @@ string getCurrentDir(void)
 
 void logComputeMessage(const char* format, ...)
 {
+#ifndef DISABLE_LOGGING
   va_list args;
   va_start(args, format);
   printf("\nInfo: ");
   vprintf(format, args);
+#endif
 }
 
 void logComputeError(const char* format, ...)
 {
+#ifndef DISABLE_LOGGING
   va_list args;
   va_start(args, format);
   printf("\nError: ");
   vprintf(format, args);
+#endif
   assert(0);
 }
 
@@ -356,8 +360,7 @@ void ComputeHeap::free(ComputeMemory* memory)
   }
   else if (memory != heap) // not during destructor
   {
-    printf("Error: Trying to free outside memory!");
-    assert(0);
+    logComputeError("Trying to free outside memory!");
   }
 }
 
@@ -501,10 +504,10 @@ void ComputeInterface::create(int deviceIndex)
     status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, MAX_STRING_LENGTH - 1, version, NULL);
     computeCheckError(status, 0);
 
-    printf("Platform info:\n");
-    printf("  Platform vendor:  %s\n", vendor);
-    printf("  Platform name:    %s\n", name);
-    printf("  Platform version: %s\n", version);
+    logComputeMessage("Platform info:");
+    logComputeMessage("  Platform vendor:  %s", vendor);
+    logComputeMessage("  Platform name:    %s", name);
+    logComputeMessage("  Platform version: %s", version);
 
     platform = platforms[i];
 
@@ -523,7 +526,7 @@ void ComputeInterface::create(int deviceIndex)
     }
 #endif
 
-    printf("  Device info:\n");
+    logComputeMessage("  Device info:");
 
     // print device info and select one if not supplied
     for (uint j = 0; j < deviceCount; j++)
@@ -547,17 +550,22 @@ void ComputeInterface::create(int deviceIndex)
       status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t) * 3, maxWorkitemSizes, NULL);
       computeCheckError(status, 0);
 #else
+#if TARGET_OS_IPHONE
+      // TODO: investigate 1024 thread group size not working with irregular reduce
+      size_t  maxWorkgroupSize = 512;//deviceId.maxThreadsPerThreadgroup.width;
+#else
       // TODO: remove this size once other issues are resolved.
       size_t  maxWorkgroupSize = 256;//deviceId.maxThreadsPerThreadgroup.width;
+#endif
       size_t  maxComputeUnits = 64;
       size_t  maxWorkitemSizes[3] = {0, 0, 0};
       const char *deviceName = deviceId.name.UTF8String;
       const char *deviceVendor = deviceId.name.UTF8String;
 #endif
-      printf("    Device Name:        %s\n", deviceName);
-      printf("    Compute Units:      %ld\n", maxComputeUnits);
-      printf("    Max Workgroup Size: %ld\n", maxWorkgroupSize);
-      printf("    Max Workitems:      %ld %ld %ld\n\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
+      logComputeMessage("    Device Name:        %s", deviceName);
+      logComputeMessage("    Compute Units:      %ld", maxComputeUnits);
+      logComputeMessage("    Max Workgroup Size: %ld", maxWorkgroupSize);
+      logComputeMessage("    Max Workitems:      %ld %ld %ld\n", maxWorkitemSizes[0], maxWorkitemSizes[1], maxWorkitemSizes[2]);
 
       if (deviceIndex == -1)
       {
@@ -608,7 +616,7 @@ void ComputeInterface::create(int deviceIndex)
 
   deviceId = selectedDeviceId;
 
-  printf("Selected device:   %s\nAssumed SIMD size: %ld\n", selectedDevice.c_str(), simdGroupSize);
+  logComputeMessage("Selected device:   %s\nAssumed SIMD size: %ld", selectedDevice.c_str(), simdGroupSize);
 
 #ifdef USE_OPENCL_COMPUTE
   /* Create OpenCL context */
@@ -698,7 +706,7 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   if (logs.size() != 0)
   {
     // Print the log
-    logComputeMessage("Compilation Log:\n%s\n", log);
+    logComputeMessage("Compilation Log:\n%s", log);
   }
 
   delete[] log;
@@ -769,7 +777,7 @@ void eventCallback(cl_event event, cl_int event_command_exec_status, void *user_
   status = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
   computeCheckError(status, 0);
 
-  printf("%s time: %f\n", ((std::string*)user_data)->c_str(), (end - start) * 1.0e-6f);
+  logComputeMessage("%s time: %f", ((std::string*)user_data)->c_str(), (end - start) * 1.0e-6f);
 
   delete (std::string*)user_data;
 }

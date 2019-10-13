@@ -1,7 +1,5 @@
-#version 150
-
-in vec4 col;
-out vec4 outputColor;
+in highp vec4 col;
+out highp vec4 outputColor;
 
 void main()
 {

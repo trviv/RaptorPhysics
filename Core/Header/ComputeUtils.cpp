@@ -137,6 +137,11 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   logComputeMessage("Adding utility kernels");
 
+  for (auto& index : util.kernelIndices)
+  {
+    index = -1;
+  }
+
   util.kernelIndices[COMPUTE_UTIL_SHOW_MATRIX_KERNEL] = (uint)kernelNames.size();
   kernelNames.push_back("showMatrix");
 
