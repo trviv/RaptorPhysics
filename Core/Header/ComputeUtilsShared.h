@@ -95,6 +95,7 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 
 #pragma message ("Struct type: " STR(StructType) ", Member Struct type: " STR(MemberStructType))
 #pragma message ("Atomics for: " STR(MemberStructType))
+#pragma message ("Batch Size: " STR(BatchSize))
 
 #define COMPUTE_MAX_THREADS         MaxWorkgroupSize
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize

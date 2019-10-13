@@ -61,6 +61,11 @@
 // iOS Simulator
 #elif TARGET_OS_IPHONE
 #include <OpenGLES/ES3/glext.h>
+// disable logging and profiling in release config
+#ifdef NDEBUG
+#define DISABLE_PROFILING
+#define DISABLE_LOGGING
+#endif
 #undef USE_SIMD_COMPUTE
 #elif TARGET_OS_MAC
 #include <OpenGL/gl3.h>

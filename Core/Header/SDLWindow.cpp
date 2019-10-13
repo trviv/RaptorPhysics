@@ -124,10 +124,13 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE,   8);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   32);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+  int windowFlags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL;
 #if TARGET_OS_IPHONE
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  windowFlags |= SDL_WINDOW_MAXIMIZED;
 #else
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -138,7 +141,7 @@ void Window::init(int argc, char** argv, int width, int height,
 
   // Create an application window with the following settings:
   sdl_window = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-    win_width, win_height, SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL);
+    win_width, win_height, windowFlags);
   SDL_CheckError();
 
   gl_context = SDL_GL_CreateContext(sdl_window);

@@ -199,14 +199,12 @@ void Texture::gen(float buffer[], int type)
   bind();
   if (type == COLOR_BUFFER)
   {
-#if !TARGET_IPHONE_SIMULATOR
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
     GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
     GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, buffer));
     //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
-#endif
   }
   else if (type == 1)
   {
@@ -428,7 +426,13 @@ unsigned long getFileLength(std::ifstream& file)
 
 int loadShader(const char* filename, GLchar** shader_source, GLint* len)
 {
-  std::string data = readFile(filename);
+#if TARGET_OS_IPHONE
+  std::string data = "#version 300 es\n";
+#else
+  std::string data = "#version 150\n";
+#endif
+  data += readFile(filename);
+
   *shader_source = new GLchar[data.size()];
   *len = (uint)data.size();
   memcpy(*shader_source, data.c_str(), *len);
@@ -456,8 +460,10 @@ bool checkShader(GLuint shader, const char* file)
       "Compilation issue: " << std::endl << log << std::endl;
     return false;
   }
+#ifndef DISABLE_LOGGING
   std::cout << "Shader: " << file << std::endl <<
     "Compilation log: " << std::endl << log << std::endl;
+#endif
   return true;
 }
 

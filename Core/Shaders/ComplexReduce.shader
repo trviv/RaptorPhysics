@@ -5,7 +5,7 @@
 
 //#define DEBUG_COMPLEX_REDUCE
 
-void groupReduceId(Shared MemberStructType* localArray, Shared ushort* isValid, const Shared uint* identityArray, const ushort localIndex, const int threadGroupSizeExp)
+void groupReduceId(Shared MemberStructType* localArray, Shared uchar* isValid, const Shared uint* identityArray, const ushort localIndex, const int threadGroupSizeExp)
 {
   // log n iterations
   for (int i=0; i<threadGroupSizeExp; i++)
@@ -73,7 +73,7 @@ Kernel void sumIrregular2DKernel(
   const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
-  Shared ushort isValid[REDUCE_COMPUTE_THREADS];
+  Shared uchar isValid[REDUCE_COMPUTE_THREADS];
   Shared uint prevIdentity;
   Shared uint identityArray[REDUCE_COMPUTE_THREADS+1];
   Shared uint lastValidIndex;
