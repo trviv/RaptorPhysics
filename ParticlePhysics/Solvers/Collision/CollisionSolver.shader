@@ -142,7 +142,7 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-  if (otherParticle->identity.identity != otherParticle->identity.identity
+  if (otherParticle->identity.identity != selfParticle->identity.identity
     || (getSolverType(otherParticle->identity) == SOLVER_FLUID && currentNodeIndex != index))
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];

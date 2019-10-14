@@ -3,6 +3,9 @@
 template<class IndexType, class CoefficientType, class VariableType>
 SolverData<IndexType, CoefficientType, VariableType>::SolverData()
 {
+  updates.clear();
+  rawConstrainConnections.clear();
+  rawConstrainCoefficients.clear();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

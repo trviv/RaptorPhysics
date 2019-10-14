@@ -1,5 +1,12 @@
 #include "ShaderEntity.h"
 
+ShaderEntity::ShaderEntity()
+{
+  programs.clear();
+  kernels.clear();
+  includeFiles.clear();
+}
+
 void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType)
 {
   vector<string> localOld, localNew;

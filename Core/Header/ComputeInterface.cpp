@@ -260,7 +260,9 @@ size_t ComputeMemory::getSize()const
 
 ComputeHeap::ComputeHeap(ComputeInterface* compute, bool bypass)
   : bypass(bypass), heap(NULL), compute(compute)
-{}
+{
+  childs.clear();
+}
 
 ComputeHeap::~ComputeHeap()
 {
