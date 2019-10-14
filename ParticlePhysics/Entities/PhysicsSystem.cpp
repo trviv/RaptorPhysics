@@ -16,9 +16,12 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   nodeCount = 0;
   instanceNodeCount = 0;
   availableEntityIds.clear();
+  allocators.clear();
+  updates.clear();
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
+    entities[i].clear();
     solversUshort[i] = NULL;
     solversUint[i] = NULL;
 #ifdef ENABLE_RENDERING

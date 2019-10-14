@@ -14,6 +14,8 @@ protected:
   vector<ComputeKernel>   kernels;
   vector<string>          includeFiles;
 
+  ShaderEntity();
+
   void registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType);
 };
 
