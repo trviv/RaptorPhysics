@@ -110,7 +110,7 @@ inline float3 boundaryCollision(
     if (dot(ret, ret) > 0.f)
     {
       const float3 friction = calculateFriction(selfParticleDiff->velocity, constructFloat3(0.f), -normalize(ret), length(ret), sharedData);
-//      ret -= friction;
+      ret -= friction;
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData->invMass;
@@ -194,7 +194,7 @@ inline float3 processParticleCollision(
       const float3 displacementFactor = contactNormal * separationDistance;
 
       float3 displacement1 = -displacementFactor;
-//      displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
+      displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;

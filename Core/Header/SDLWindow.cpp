@@ -12,6 +12,8 @@ SDL_GLContext gl_context;
 #define WINDOW_MAX_TRANSLATION_RATE 2.f
 #define WINDOW_TRANSLATION_RATE     0.10f
 #define WINDOW_ROTATION_SCALE       0.005f
+#define MOUSE_SENSITIVITY           0.25f
+#define MOVE_FRICTION               0.75f
 
 #define clamp(x, y, z) x<y?y:(x>z?z:x);
 
@@ -109,7 +111,7 @@ void setLookAtMatrix(float view[], const Real3& position, const Real3& target, R
 void Window::init(int argc, char** argv, int width, int height,
                   const char* name)
 {
-  if (SDL_Init(SDL_INIT_VIDEO) < 0)
+  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_JOYSTICK) < 0)
   {
     printf ("SDL_Init failed: %s\n", SDL_GetError());
     assert(0);
@@ -149,6 +151,14 @@ void Window::init(int argc, char** argv, int width, int height,
 
   SDL_GL_MakeCurrent(sdl_window, gl_context);
   SDL_CheckError();
+
+  down.set(0.f, 0.f, 0.f);
+
+  // enable joystick if found
+  if (SDL_NumJoysticks() >= 1)
+  {
+    SDL_JoystickOpen(0);
+  }
 
 #if !TARGET_OS_IPHONE
   if (SDL_GL_SetSwapInterval(1))
@@ -263,9 +273,8 @@ void Window::mouseDrag(int x, int y)
   intial_mouse_x = x;
   intial_mouse_y = y;
 
-  float sensitivity = 1.f;
-  deltaX *= sensitivity;
-  deltaY *= sensitivity;
+  deltaX *= MOUSE_SENSITIVITY;
+  deltaY *= MOUSE_SENSITIVITY;
 
   // update angles
   yaw   += deltaX;
@@ -289,6 +298,38 @@ void Window::mouseWheel(int button, int dir, int x, int y)
 {
 }
 
+void Window::scroll(float x, float y)
+{
+  float dx = x - scroll_prev_x;
+  float dy = y - scroll_prev_y;
+
+  scroll_prev_x = x;
+  scroll_prev_y = y;
+
+  dx *= MOVE_FRICTION;
+  dy *= MOVE_FRICTION;
+
+  if(abs(dx) < 0.001f) dx = 0.f;
+  if(abs(dy) < 0.001f) dy = 0.f;
+
+  cameraSideSpeed = -dx * 100.f;
+  cameraUpSpeed = dy * 100.f;
+}
+
+void Window::pinch(float d)
+{
+  if(abs(d) < 0.001f) d = 0;
+
+  if (d < 0)
+  {
+    this->keyboard(SDLK_s, 0, 0);
+  }
+  else if (d > 0)
+  {
+    this->keyboard(SDLK_w, 0, 0);
+  }
+}
+
 void Window::start()
 {
   SDL_CheckError();
@@ -296,6 +337,10 @@ void Window::start()
   setProjectionMatrix(projectionMatrix, (float)width()/(float)height());
 
   bool mouseDown = false;
+  bool gesture = false;
+  bool scrolling = false;
+
+  SDL_FingerID fingerId;
   Real3 eyeVector(0.f);
 
   while (!quit)
@@ -307,9 +352,18 @@ void Window::start()
 
     setLookAtMatrix(modelMatrix, cameraPosition, cameraPosition + cameraFront, cameraUp);
 
-    cameraUpSpeed *= 0.9f;
-    cameraSideSpeed *= 0.9f;
-    cameraForwardSpeed *= 0.9f;
+    cameraUpSpeed *= MOVE_FRICTION;
+    cameraSideSpeed *= MOVE_FRICTION;
+    cameraForwardSpeed *= MOVE_FRICTION;
+
+    gesture = SDL_HasEvent(SDL_MULTIGESTURE);
+
+    if (!gesture)
+    {
+      scrolling = false;
+    }
+
+    Real3 downVector(0.f, 0.f, 0.f);
 
     // handle events
     SDL_Event event;
@@ -334,31 +388,50 @@ void Window::start()
         }
           break;
 
+        case SDL_MULTIGESTURE:
+        {
+          // scroll x, y axis for 2 fingures
+          if(event.mgesture.numFingers == 2)
+          {
+            pinch(event.mgesture.dDist);
+
+            if (scrolling)
+            {
+              scroll(event.mgesture.x, event.mgesture.y);
+            }
+            scrolling = true;
+
+            scroll_prev_x = event.mgesture.x;
+            scroll_prev_y = event.mgesture.y;
+          }
+          fingerId = -1;
+          mouseDown = false;
+        }
+          break;
+
         case SDL_FINGERDOWN:
         {
           if (!mouseDown)
           {
+            fingerId = event.tfinger.fingerId;
             mouse(0, 0, event.tfinger.x*width(), event.tfinger.y*height());
             mouseDown = true;
           }
-          SDL_Init (SDL_INIT_EVENTS);
         }
           break;
 
         case SDL_FINGERUP:
         {
           mouseDown = false;
-          SDL_Init (SDL_INIT_EVENTS);
         }
           break;
 
         case SDL_FINGERMOTION:
         {
-          if (mouseDown)
+          if (mouseDown && !gesture && fingerId == event.tfinger.fingerId)
           {
             mouseDrag(event.tfinger.x*width(), event.tfinger.y*height());
           }
-          SDL_Init (SDL_INIT_EVENTS);
         }
           break;
 
@@ -375,10 +448,37 @@ void Window::start()
         }
           break;
 
+        case SDL_JOYAXISMOTION:
+        {
+          if (event.jaxis.axis == 0)
+          {
+            downVector[1] = event.jaxis.value;
+          }
+          else if (event.jaxis.axis == 1)
+          {
+            downVector[0] = event.jaxis.value;
+          }
+          else if (event.jaxis.axis == 2)
+          {
+            downVector[2] = event.jaxis.value;
+          }
+        }
+          break;
+
         default:
           break;
       }
     }
+
+    // set down only if down vector recorded
+    if (downVector.length() > 0.f)
+    {
+      downVector *= 5.f / 32767.f;
+      downVector[2] += 0.75f;
+      down = downVector;
+    }
+
+    SDL_Init (SDL_INIT_EVENTS);
 
     // main work
     display();

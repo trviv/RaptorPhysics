@@ -12,6 +12,9 @@ class Window
   int intial_mouse_x;
   int intial_mouse_y;
 
+  float scroll_prev_x;
+  float scroll_prev_y;
+
   float yaw, pitch;
 
   Real3 cameraUp;
@@ -22,6 +25,8 @@ class Window
   float cameraForwardSpeed;
 
 protected:
+
+  Real3 down;
 
   float clearColor[4];
 
@@ -52,6 +57,10 @@ public:
   void mouse(int button, int dir, int x, int y);
   void mouseDrag(int x, int y);
   void mouseWheel(int button, int dir, int x, int y);
+
+  void scroll(float x, float y);
+
+  void pinch(float d);
 
   void start();
   void display();
