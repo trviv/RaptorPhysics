@@ -635,7 +635,7 @@ void ComputeInterface::create(int deviceIndex)
 #else
   // initialize metal objects
   queue = [deviceId newCommandQueue];
-  tempBuffer = [deviceId newBufferWithLength:1024*1024 options:MTLResourceStorageModeShared];
+  tempBuffer = [deviceId newBufferWithLength:1024 options:MTLResourceStorageModeShared];
   currentCommandBuffer = [queue commandBuffer];
   captureManager = [MTLCaptureManager sharedCaptureManager];
   captureScope = [captureManager newCaptureScopeWithCommandQueue:queue];

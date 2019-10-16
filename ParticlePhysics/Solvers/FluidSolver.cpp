@@ -193,6 +193,7 @@ void FluidSolver::solve()
 
 #ifdef DEBUG_FLUID_SOLVER
   gridCompactCellIndices.syncHost();
+  compute->sync();
 #endif
 
   { // put particle indices in cell array

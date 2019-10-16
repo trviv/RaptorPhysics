@@ -621,6 +621,14 @@ void PhysicsSystem::step(float timeStep)
     indexMap.resize(instanceNodeCount, false);
   }
 
+  // update gravity if
+  if (down.length() > 0.f)
+  {
+    down.normalize();
+    down *= 9.8f;
+    setGravity(down);
+  }
+
   if (firstStep)
   {
 //    positionUpdate(timeStep);

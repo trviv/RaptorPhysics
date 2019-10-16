@@ -254,6 +254,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 
 #ifdef DEBUG_GRID_SOLVER
   gridCompactCellIndices.syncHost();
+  compute->sync();
 #endif
 
   { // put particle indices in cell array
