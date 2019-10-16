@@ -161,29 +161,19 @@ inline float3 processParticleCollision(
     // if overlapping
     if (actualDistance < allowedDistance)
     {
-      collisionVector /= actualDistance;
-
+      // TODO: Look into SDF
       // displacement magnitude
       float separationDistance = actualDistance - allowedDistance;
 
       // get normal according to minimum translation distance
       float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
-      sdfGradient = normalize(sdfGradient);
-
-      float3 contactNormal = collisionVector;
 
       // sample signed distance field and modify normal
-//      const float collDot = dot(sdfGradient, collisionVector);
-//      if (collDot < 0.f)
-//      {
-//        contactNormal = collisionVector - (2.f * collDot) * contactNormal;
-////        separationDistance = actualDistance - (collisionData.radius + collisionData2.radius);
-//      }
-//      else
-//      {
-//        contactNormal = collisionVector;
-//      }
-//      contactNormal = normalize(contactNormal);
+      const float collDot = dot(sdfGradient, collisionVector);
+      float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
+      //contactNormal = normalize(contactNormal);
+
+      contactNormal = collisionVector / actualDistance;
 
 #ifdef MARK_COLLIDED_PARTICLES
       *collided = true;

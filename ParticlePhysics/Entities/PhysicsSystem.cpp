@@ -362,50 +362,29 @@ void PhysicsSystem::render()
 
       if (renderParticles)
       {
-        // display particles
-        ParticleStruct* particles = &((*solversUint[i]->particles.host())[0]);
-        for (uint j = 0; j < elements; j++)
-        {
-          particles[j].radius = solverParticleRadius[i][j];
-        }
-        displayPositionBuffer.copy((float*)particles, 0, 0, elements);
-
-        // display lines showing SDF data
-        ParticleCollisionData* particleCol = &((*solversUint[i]->particleCollisionData.host())[0]);
-        float* particleSdf = new float[elements * 4];
-        for (uint j = 0; j < elements; j++)
-        {
-          particleSdf[j * 4] = particleCol[j].transformedSdfGradient.x;
-          particleSdf[j * 4 + 1] = particleCol[j].transformedSdfGradient.y;
-          particleSdf[j * 4 + 2] = particleCol[j].transformedSdfGradient.z;
-          particleSdf[j * 4 + 3] = particleCol[j].radius;
-        }
-        displayAuxBuffer.copy((float*)particleSdf, 0, 0, elements);
-        delete[] particleSdf;
+        // copy particle position and collision data for display
+        displayPositionBuffer.copy((float*)&((*solversUint[i]->particles.host())[0]), 0, 0, elements);
+        displayAuxBuffer.copy((float*)&((*solversUint[i]->particleCollisionData.host())[0]), 0, 0, elements * 2);
 
         displayShader.bind();
         displayShader.set("modelViewMatrix", this->modelMatrix);
         displayShader.set("projectionMatrix", this->projectionMatrix);
         displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayShader.activateTexture("particleSDFGrad", 1, displayAuxBuffer);
-
+        displayShader.activateTexture("particleCollData", 1, displayAuxBuffer);
         displayVertex.bind();
         displayElements.bind();
         GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, elements));
         displayElements.unbind();
-
         displayVertex.unbind();
         displayShader.unbind();
 
         displayLineShader.bind();
-        displayLineVertex.bind();
         displayLineShader.set("modelViewMatrix", this->modelMatrix);
         displayLineShader.set("projectionMatrix", this->projectionMatrix);
         displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayLineShader.activateTexture("particleSDFGrad", 1, displayAuxBuffer);
-
+        displayLineShader.activateTexture("particleCollData", 1, displayAuxBuffer);
+        displayLineVertex.bind();
         GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
-
         displayLineVertex.unbind();
         displayLineShader.unbind();
       }
@@ -565,21 +544,21 @@ void PhysicsSystem::step(float timeStep)
     updates.clear();
 
 #ifdef ENABLE_RENDERING
-    uint width = 16;
-    uint height = (instanceNodeCount + 15) / 16;
+    const uint textureWidth = 128;
+    const uint textureHeight = (instanceNodeCount + textureWidth - 1) / textureWidth;
     displayVertex.gen();
     displayLineVertex.gen();
     displayElements.gen();
     displayBoxVertex.gen();
     displayBoxElements.gen();
 
-    displayPositionBuffer.init(width, height);
+    displayPositionBuffer.init(textureWidth, textureHeight);
     displayPositionBuffer.gen();
-    displayColorBuffer.init(width, height);
+    displayColorBuffer.init(textureWidth, textureHeight);
     displayColorBuffer.gen();
-    displayAuxBuffer.init(width, height);
+    displayAuxBuffer.init(textureWidth, textureHeight * 2);
     displayAuxBuffer.gen();
-    displayBoxBuffer.init(128, (instanceNodeCount * 2 + 127) / 128);
+    displayBoxBuffer.init(textureWidth, textureHeight * 2);
     displayBoxBuffer.gen();
 
     clearColor[0] = 0.7f;
