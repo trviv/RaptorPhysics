@@ -432,13 +432,17 @@ void ProfileManager::dumpAll(FILE* f)
 
 ProfileBlock::ProfileBlock(const char* description)
 {
+#ifndef DISABLE_PROFILING
   ProfileManager::StartProfile(description);
+#endif
   //b3EnterProfileZone(description);
 }
 
 ProfileBlock::~ProfileBlock()
 {
+#ifndef DISABLE_PROFILING
   ProfileManager::StopProfile();
+#endif
   //b3LeaveProfileZone();
 }
 
