@@ -46,6 +46,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@member uint solvers in the system.*/
   EntitySolver<uint, real, Real3>*    solversUint[SOLVER_MAX];
 
+  float elapsedSimTime;
+  int   frameCount;
+
   /*!@function Take one simulation step.*/
   void step();
 
@@ -108,6 +111,8 @@ public:
 
   bool    renderParticles;
   bool    renderSolids;
+
+  float   elapsedRenderTime;
 
   /*!@member Particle radius available for reuse.*/
   vector<float> solverParticleRadius[SOLVER_MAX];

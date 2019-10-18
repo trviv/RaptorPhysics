@@ -2,6 +2,9 @@
 
 #if ENV_APPLE
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl.h"
+#include "imgui/imgui_impl_opengl3.h"
 #include <SDL2/SDL.h>
 
 int Window::del_time = 5;
@@ -152,6 +155,24 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_MakeCurrent(sdl_window, gl_context);
   SDL_CheckError();
 
+  // Setup GUI
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+
+  frameTextSize.x = 256;
+  frameTextSize.y = 64;
+
+  // Setup Platform/Renderer bindings
+  ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
+  #if TARGET_OS_IPHONE
+    ImGui_ImplOpenGL3_Init("#version 300 es\n");
+  #else
+    ImGui_ImplOpenGL3_Init("#version 150\n");
+  #endif
+
+  SDL_CheckError();
+
   down.set(0.f, 0.f, 0.f);
 
   // enable joystick if found
@@ -191,6 +212,10 @@ void Window::init(int argc, char** argv, int width, int height,
 
 Window::~Window()
 {
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplSDL2_Shutdown();
+  ImGui::DestroyContext();
+
   SDL_DelEventWatch(watch, NULL);
   SDL_GL_DeleteContext(gl_context);
   SDL_DestroyWindow(sdl_window);
@@ -365,10 +390,17 @@ void Window::start()
 
     Real3 downVector(0.f, 0.f, 0.f);
 
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame(sdl_window);
+
     // handle events
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+      ImGui_ImplSDL2_ProcessEvent(&event);
+      if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
+        continue;
+
       switch (event.type)
       {
         case SDL_QUIT:
@@ -480,9 +512,20 @@ void Window::start()
 
     SDL_Init (SDL_INIT_EVENTS);
 
+    ImGui::NewFrame();
+
+    ImGui::Begin("Stats: ", NULL, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
+    ImGui::SetWindowSize({frameTextSize.x, frameTextSize.y});
+    ImGui::SetWindowPos({24, 16});
+    ImGui::Text("Frame Info:\n%s", frameText.c_str());
+    ImGui::End();
+
+    ImGui::Render();
+
     // main work
     display();
 
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(sdl_window);
     SDL_CheckError();
   }

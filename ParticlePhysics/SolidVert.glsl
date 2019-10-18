@@ -1,4 +1,4 @@
-in vec3 position;
+in vec4 position;
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;

@@ -18,6 +18,8 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   availableEntityIds.clear();
   allocators.clear();
   updates.clear();
+  elapsedSimTime = 0.f;
+  frameCount = 0;
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -74,6 +76,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
 #ifdef ENABLE_RENDERING
   renderParticles = true;
   renderSolids = false;
+  elapsedRenderTime = 0.f;
 #endif
 }
 
@@ -240,17 +243,83 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 
 void PhysicsSystem::step()
 {
+  // finish all graphics work
   glFinish();
-  const float lastStepTime = ProfileManager::Get_Time_Since_Reset() / 1000.f;
+
+  // record render time
+  const float renderTime = ProfileManager::Get_Time_Since_Reset();
 
   ProfileManager::Reset();
+
+  // declare to start compute work
+  // useful for proper profiling
+  compute->sync(SYNC_MODE_START);
 
 //  step(lastStepTime);
   step(1.f / 60.f);
 
-  compute->sync();
+#ifdef ENABLE_RENDERING
+  // sync all output buffers
+  for (uint solver = 0; solver < SOLVER_MAX; solver++)
+  {
+    if (solversUint[solver])
+    {
+      uint elements = solversUint[solver]->lastPartition().end();
+
+      if (!elements) continue;
+
+      solversUint[solver]->particles.syncHost(0, elements);
+      solversUint[solver]->particleCollisionData.syncHost(0, elements);
+      compute->sync();
+    }
+  }
+
+  if (collisionSolver->getBoundingBoxes())
+  {
+    DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
+    collisionBoundingBoxes->syncHost();
+    compute->sync();
+  }
+#endif
+
+  compute->sync(SYNC_MODE_FINISH_WAIT);
+
+  elapsedSimTime += ProfileManager::Get_Time_Since_Reset();
+  elapsedRenderTime += renderTime;
+
+#ifdef ENABLE_RENDERING
+
+  // Display frame info
+#define GUI_REFRESH_AFTER_FRAMES 0x7
+  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
+  {
+    frameTextSize.x = 192;
+    frameTextSize.y = 128;
+    frameText.clear();
+
+    char temp[64];
+    sprintf(temp, "\nParticles:   %d\n", instanceNodeCount);
+    frameText += temp;
+    sprintf(temp, "Vertices:    %d\n", displayVertex.count() * instanceNodeCount);
+    frameText += temp;
+    sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);
+    frameText += temp;
+    sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / GUI_REFRESH_AFTER_FRAMES);
+    frameText += temp;
+    sprintf(temp, "Frame Rate:  %.1f fps", (1000.f * GUI_REFRESH_AFTER_FRAMES) / (elapsedSimTime + elapsedRenderTime));
+    frameText += temp;
+    elapsedSimTime = 0.f;
+    elapsedRenderTime = 0.f;
+  }
+  frameCount++;
+#endif
+
+#ifndef DISABLE_PROFILING
   ProfileManager::dumpAll(stdout);
+#endif
   ProfileManager::Increment_Frame_Counter();
+
+  ProfileManager::Reset();
 }
 
 #ifdef ENABLE_RENDERING
@@ -348,23 +417,19 @@ void PhysicsSystem::render()
   GL_CHECK(glDepthFunc(GL_LESS));
   GL_CHECK(glDisable(GL_BLEND));
 
-  for (uint i = 0; i < SOLVER_MAX; i++)
+  for (uint solver = 0; solver < SOLVER_MAX; solver++)
   {
-    if (solversUint[i])
+    if (solversUint[solver])
     {
-      uint elements = solversUint[i]->lastPartition().end();
+      uint elements = solversUint[solver]->lastPartition().end();
 
       if (!elements) continue;
-
-      solversUint[i]->particles.syncHost(0, elements);
-      solversUint[i]->particleCollisionData.syncHost(0, elements);
-      compute->sync();
 
       if (renderParticles)
       {
         // copy particle position and collision data for display
-        displayPositionBuffer.copy((float*)&((*solversUint[i]->particles.host())[0]), 0, 0, elements);
-        displayAuxBuffer.copy((float*)&((*solversUint[i]->particleCollisionData.host())[0]), 0, 0, elements * 2);
+        displayPositionBuffer.copy((float*)&((*solversUint[solver]->particles.host())[0]), 0, 0, elements);
+        displayAuxBuffer.copy((float*)&((*solversUint[solver]->particleCollisionData.host())[0]), 0, 0, elements * 2);
 
         displayShader.bind();
         displayShader.set("modelViewMatrix", this->modelMatrix);
@@ -391,15 +456,22 @@ void PhysicsSystem::render()
 
       if (renderSolids)
       {
-        // display solid
-        for (const PartitionInfo &partition : *solversUint[i]->partitions.host())
-        {
-          IdentityInfo identity = solversUint[i]->particles.host()->at(partition.offset).identity;
-          uint solverId = getEntityId(identity);
-          ParticleStruct* pos = &((*solversUint[i]->particles.host())[partition.offset]);
+        GL_CHECK(glEnable(GL_DEPTH_TEST));
+        GL_CHECK(glDisable(GL_BLEND));
 
-          entities[i][solverId]->render(pos);
+        displayShader.bind();
+
+        displayShader.set("modelViewMatrix", this->modelMatrix);
+        displayShader.set("projectionMatrix", this->projectionMatrix);
+
+        // display solid
+        for (const PartitionInfo &partition : *solversUint[solver]->partitions.host())
+        {
+          IdentityInfo identity = solversUint[solver]->particles.host()->at(partition.offset).identity;
+          entities[solver][getEntityId(identity)]->render(&((*solversUint[solver]->particles.host())[partition.offset]));
         }
+
+        displayShader.unbind();
       }
     }
   }
@@ -408,8 +480,6 @@ void PhysicsSystem::render()
   if (collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
-    collisionBoundingBoxes->syncHost();
-    compute->sync();
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
@@ -583,7 +653,8 @@ void PhysicsSystem::step(float timeStep)
       displayShader.linkPrograms();
       displayLineShader.linkPrograms();
     }
-    else if (renderSolids)
+
+    if (renderSolids)
     {
       displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
       displayLineShader.init("LineVert.glsl", "LineFrag.glsl");

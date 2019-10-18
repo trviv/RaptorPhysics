@@ -27,7 +27,6 @@ subject to the following restrictions:
 #define PROFILER_H
 
 //To disable built-in profiling, please comment out next line
-#ifndef DISABLE_PROFILING
 
 #include <stdio.h>
 #include "Clock.h"
@@ -152,17 +151,5 @@ public:
 
   ~ProfileBlock();
 };
-
-#else
-
-#define ProfileBlock(x)
-namespace ProfileManager
-{
-void Reset() {}
-float Get_Time_Since_Reset() {return 0.f;}
-void dumpAll(FILE* f) {}
-void Increment_Frame_Counter() {}
-}
-#endif
 
 #endif

@@ -115,13 +115,14 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   }
 
 #ifdef ENABLE_RENDERING
-  displayVertex.gen();
-  displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1], 0, sizeof(Real3));
+//  displayVertex.gen();
+//  displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1], 0, sizeof(Real3));
 
   displayElements.gen();
   displayElements.copyData((GLuint*)&connectionElements[0], (uint)connectionElements.size());
 
-  displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
+//  displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
+//  displayShader.linkPrograms();
 #endif
 }
 
@@ -129,29 +130,16 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
 
 void Cloth::render(ParticleStruct* particles)
 {
-  GLfloat model_mat[16], proj_mat[16];
-//  GL_CHECK(glGetFloatv(GL_PROJECTION_MATRIX, proj_mat));
-//  GL_CHECK(glGetFloatv(GL_MODELVIEW_MATRIX, model_mat));
+//  displayVertex.bind();
 
-  GL_CHECK(glEnable(GL_DEPTH_TEST));
-  GL_CHECK(glDisable(GL_BLEND));
-
-//  GL_CHECK(glPushMatrix());
-  displayShader.bind();
-  displayShader.set("modelViewMatrix", model_mat);
-  displayShader.set("projectionMatrix", proj_mat);
-
-  //displayVertex.bind();
   GL_CHECK(glEnableVertexAttribArray(0));
   GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
   displayElements.bind();
   GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
   displayElements.unbind();
   GL_CHECK(glDisableVertexAttribArray(0));
-  //displayVertex.unbind();
 
-  displayShader.unbind();
-//  GL_CHECK(glPopMatrix());
+//  displayVertex.unbind();
 }
 
 #endif

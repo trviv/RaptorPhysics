@@ -961,17 +961,29 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
 #endif
 }
 
-void ComputeInterface::sync()
+void ComputeInterface::sync(SyncFlag syncFlag)
 {
 #ifdef USE_OPENCL_COMPUTE
-  ComputeStatus status = clFinish(queue);
-  computeCheckError(status, 0);
+  if (syncFlag & SYNC_MODE_FINISH)
+  {
+    ComputeStatus status = clFinish(queue);
+    computeCheckError(status, 0);
+  }
 #else
-  endEncoders();
-  [currentCommandBuffer commit];
-  [currentCommandBuffer waitUntilCompleted];
-  currentCommandBuffer = [queue commandBuffer];
-  getComputeEncoder();
+  if (syncFlag & SYNC_MODE_FINISH)
+  {
+    endEncoders();
+    [currentCommandBuffer commit];
+  }
+  if ((syncFlag & SYNC_MODE_FINISH_WAIT) == SYNC_MODE_FINISH_WAIT)
+  {
+    [currentCommandBuffer waitUntilCompleted];
+  }
+  if (syncFlag & SYNC_MODE_START)
+  {
+    currentCommandBuffer = [queue commandBuffer];
+    getComputeEncoder();
+  }
 #endif
 }
 

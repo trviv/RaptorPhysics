@@ -28,6 +28,10 @@ protected:
 
   Real3 down;
 
+  // GUI Frame info relates variables
+  Real3   frameTextSize;
+  string  frameText;
+
   float clearColor[4];
 
   float modelMatrix[16];
