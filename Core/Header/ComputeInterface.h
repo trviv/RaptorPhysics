@@ -235,7 +235,7 @@ public:
 
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
 
-  void sync(SyncFlag syncFlag = SYNC_MODE_FINISH_WAIT_START);
+  void sync();
 
   uint simdSize()const;
 
