@@ -22,13 +22,111 @@ static ComputeDeviceId devices[8];
 static uint deviceCount = 0;
 
 #ifdef USE_METAL_COMPUTE
+#ifndef DISABLE_PROFILING
+#define ALWAYS_END_ENCODERS
+#endif
 id<MTLCaptureScope> captureScope = nil;
 MTLCaptureManager *captureManager = nil;
-volatile id<MTLBuffer> tempBuffer = nil;
+static vector<pair<char, id<MTLBuffer>>> tempBuffers;
+volatile id<MTLCommandQueue> commandQueue = nil;
 volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
 volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
 volatile id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
 map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
+
+// 128 bytes aligned
+uint alignAllocSize(uint minimumSize)
+{
+  return ((minimumSize & 0x7F) > 0) ? ((minimumSize & (~0x7F)) + 0x80) : minimumSize;
+}
+
+static id<MTLBuffer> getTempBuffer(int minimumSize)
+{
+  // find a suitable candidate if available
+  uint smallerSizeDifference = -1;
+  uint biggerSizeDifference = -1;
+  int smallerBufferIndex = -1;
+  int biggerBufferIndex = -1;
+
+  const int maxAllowedDifference = 1024;
+
+  id<MTLDevice> device = commandQueue.device;
+
+  minimumSize = alignAllocSize(minimumSize);
+
+  for (int i=0; i<tempBuffers.size(); i++)
+  {
+    // if not occupied
+    if (tempBuffers[i].first == 1)
+      continue;
+
+    const int sizeDiff  = abs((int)tempBuffers[i].second.length - (int)minimumSize);
+
+    if (sizeDiff > maxAllowedDifference)
+      continue;
+
+    if (tempBuffers[i].second.length >= minimumSize && sizeDiff < biggerSizeDifference)
+    {
+      biggerBufferIndex = i;
+      biggerSizeDifference = (int)tempBuffers[i].second.length - minimumSize;
+      if (biggerSizeDifference == 0)
+      {
+        break;
+      }
+    }
+    if (tempBuffers[i].second.length < minimumSize && sizeDiff < smallerSizeDifference)
+    {
+      smallerBufferIndex = i;
+      smallerSizeDifference = minimumSize - (int)tempBuffers[i].second.length;
+    }
+  }
+
+  // if both found
+  if (smallerSizeDifference != -1 && biggerSizeDifference != -1)
+  {
+    // expand smaller if its closer in size
+    if (smallerSizeDifference < biggerSizeDifference)
+    {
+      tempBuffers[smallerBufferIndex] = pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
+      return tempBuffers[smallerBufferIndex].second;
+    }
+    // if bigger is closer in size return it
+    else
+    {
+      tempBuffers[biggerBufferIndex].first = 1;
+      return tempBuffers[biggerBufferIndex].second;
+    }
+  }
+  else if (biggerSizeDifference != -1)
+  {
+    tempBuffers[biggerBufferIndex].first = 1;
+    return tempBuffers[biggerBufferIndex].second;
+  }
+  else if (smallerSizeDifference != -1)
+  {
+    tempBuffers[smallerBufferIndex] = pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
+    return tempBuffers[smallerBufferIndex].second;
+  }
+  else
+  {
+    tempBuffers.insert(tempBuffers.begin(), pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
+    return tempBuffers.front().second;
+  }
+  return nil;
+}
+
+static void freeTempBuffer(id<MTLBuffer> buffer)
+{
+  for (int i=0; i<tempBuffers.size(); i++)
+  {
+    // if not occupied
+    if (tempBuffers[i].second == buffer)
+    {
+      tempBuffers[i].first = 0;
+      return;
+    }
+  }
+}
 
 static id<MTLBlitCommandEncoder> getBlitEncoder()
 {
@@ -40,6 +138,10 @@ static id<MTLBlitCommandEncoder> getBlitEncoder()
   if (currentBlitEncoder != nil)
   {
     return currentBlitEncoder;
+  }
+  if (currentCommandBuffer == nil)
+  {
+    currentCommandBuffer = [commandQueue commandBuffer];
   }
   currentBlitEncoder = [currentCommandBuffer blitCommandEncoder];
   return currentBlitEncoder;
@@ -55,6 +157,10 @@ static id<MTLComputeCommandEncoder> getComputeEncoder()
   if (currentComputeEncoder != nil)
   {
     return currentComputeEncoder;
+  }
+  if (currentCommandBuffer == nil)
+  {
+    currentCommandBuffer = [commandQueue commandBuffer];
   }
   currentComputeEncoder = [currentCommandBuffer computeCommandEncoder];
   return currentComputeEncoder;
@@ -383,7 +489,7 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
   ComputeStatus status = clSetKernelArg(ref, argIndex, valueSize, valuePtr);
   computeCheckError(status, 0);
 #else
-  [currentComputeEncoder setBytes:valuePtr length:valueSize atIndex:argIndex];
+  [getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];
 #endif
 }
 
@@ -393,7 +499,7 @@ void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
 #ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
 #else
-  [currentComputeEncoder setBuffer:ident offset:buffer->getOffset() atIndex:index];
+  [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
 #endif
 }
 
@@ -405,7 +511,7 @@ void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* in
 #ifdef USE_OPENCL_COMPUTE
     setArg<ComputeMemoryIdentifier>(&ident, indices ? indices[i] : i);
 #else
-    [currentComputeEncoder setBuffer:ident offset:buffers[i]->getOffset() atIndex:(indices ? indices[i] : i)];
+    [getComputeEncoder() setBuffer:ident offset:buffers[i]->getOffset() atIndex:(indices ? indices[i] : i)];
 #endif
   }
 }
@@ -635,8 +741,9 @@ void ComputeInterface::create(int deviceIndex)
 #else
   // initialize metal objects
   queue = [deviceId newCommandQueue];
-  tempBuffer = [deviceId newBufferWithLength:1024 options:MTLResourceStorageModeShared];
+  tempBuffers.clear();
   currentCommandBuffer = [queue commandBuffer];
+  commandQueue = queue;
   captureManager = [MTLCaptureManager sharedCaptureManager];
   captureScope = [captureManager newCaptureScopeWithCommandQueue:queue];
   context = deviceId;
@@ -804,8 +911,9 @@ void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* de
 #endif
 #else
   [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
+#ifdef ALWAYS_END_ENCODERS
   endEncoders();
-  getComputeEncoder();
+#endif
 #endif
 }
 
@@ -823,11 +931,21 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
-  while (sizeInBytes > tempBuffer.length)
-  { tempBuffer = [deviceId newBufferWithLength:tempBuffer.length*2 options:MTLResourceStorageModeShared];}
+  id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:tempBuffer destinationOffset:0 size:sizeInBytes];
-  sync();
-  memcpy(hostPtr, tempBuffer.contents, sizeInBytes);
+  [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
+    memcpy(hostPtr, tempBuffer.contents, sizeInBytes);
+    freeTempBuffer(tempBuffer);
+  }];
+#ifdef ALWAYS_END_ENCODERS
+  endEncoders();
+#endif
+
+  if (waitForFinish)
+  {
+    sync();
+    freeTempBuffer(tempBuffer);
+  }
 #endif
 }
 
@@ -837,11 +955,21 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
   ComputeStatus status = clEnqueueWriteBuffer(queue, *destination, waitForFinish, destinationOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
-  while (sizeInBytes > tempBuffer.length)
-  { tempBuffer = [deviceId newBufferWithLength:tempBuffer.length*2 options:MTLResourceStorageModeShared];}
+  id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   memcpy(tempBuffer.contents, hostPtr, sizeInBytes);
   [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
-  sync();
+  [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
+    freeTempBuffer(tempBuffer);
+  }];
+#ifdef ALWAYS_END_ENCODERS
+  endEncoders();
+#endif
+
+  if (waitForFinish)
+  {
+    sync();
+    freeTempBuffer(tempBuffer);
+  }
 #endif
 }
 
@@ -909,8 +1037,10 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   [encoder setComputePipelineState:kernel];
   [encoder dispatchThreadgroups:MTLSizeMake(workgroupCount[0], workgroupCount[1], workgroupCount[2])
           threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
+#ifdef ALWAYS_END_ENCODERS
   endEncoders();
   getComputeEncoder();
+#endif
 #endif
 }
 
@@ -956,33 +1086,25 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   [encoder dispatchThreadgroupsWithIndirectBuffer:(*indirectBuffer)
                              indirectBufferOffset:indirectBuffer->getOffset()+bufferOffset
                             threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
+#ifdef ALWAYS_END_ENCODERS
   endEncoders();
   getComputeEncoder();
 #endif
+#endif
 }
 
-void ComputeInterface::sync(SyncFlag syncFlag)
+void ComputeInterface::sync()
 {
 #ifdef USE_OPENCL_COMPUTE
-  if (syncFlag & SYNC_MODE_FINISH)
-  {
-    ComputeStatus status = clFinish(queue);
-    computeCheckError(status, 0);
-  }
+  ComputeStatus status = clFinish(queue);
+  computeCheckError(status, 0);
 #else
-  if (syncFlag & SYNC_MODE_FINISH)
+  endEncoders();
+  if (currentCommandBuffer)
   {
-    endEncoders();
     [currentCommandBuffer commit];
-  }
-  if ((syncFlag & SYNC_MODE_FINISH_WAIT) == SYNC_MODE_FINISH_WAIT)
-  {
     [currentCommandBuffer waitUntilCompleted];
-  }
-  if (syncFlag & SYNC_MODE_START)
-  {
-    currentCommandBuffer = [queue commandBuffer];
-    getComputeEncoder();
+    currentCommandBuffer = nil;
   }
 #endif
 }

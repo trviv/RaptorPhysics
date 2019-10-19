@@ -251,10 +251,6 @@ void PhysicsSystem::step()
 
   ProfileManager::Reset();
 
-  // declare to start compute work
-  // useful for proper profiling
-  compute->sync(SYNC_MODE_START);
-
 //  step(lastStepTime);
   step(1.f / 60.f);
 
@@ -270,7 +266,6 @@ void PhysicsSystem::step()
 
       solversUint[solver]->particles.syncHost(0, elements);
       solversUint[solver]->particleCollisionData.syncHost(0, elements);
-      compute->sync();
     }
   }
 
@@ -278,11 +273,10 @@ void PhysicsSystem::step()
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
-    compute->sync();
   }
 #endif
 
-  compute->sync(SYNC_MODE_FINISH_WAIT);
+  compute->sync();
 
   elapsedSimTime += ProfileManager::Get_Time_Since_Reset();
   elapsedRenderTime += renderTime;
