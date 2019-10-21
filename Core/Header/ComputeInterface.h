@@ -68,14 +68,6 @@ enum ComputeMemoryFlag
 
 #endif
 
-enum SyncFlag
-{
-  SYNC_MODE_START = 1,
-  SYNC_MODE_FINISH = 2,
-  SYNC_MODE_FINISH_WAIT = 6,
-  SYNC_MODE_FINISH_WAIT_START = 7
-};
-
 extern string readFile(const char* fileName);
 extern const char* getStatusMessage(ComputeStatus status);
 

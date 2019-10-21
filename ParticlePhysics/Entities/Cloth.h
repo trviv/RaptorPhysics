@@ -29,11 +29,6 @@ public:
   @param mass Cloth mass.
   */
   void initXY(const real dimensions[], const real particleRadius, const real mass);
-
-#ifdef ENABLE_RENDERING
-  void render(ParticleStruct* particles);
-#endif
-
 };
 
 #endif

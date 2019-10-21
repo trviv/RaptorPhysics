@@ -8,6 +8,8 @@ RigidBody::RigidBody()
 void RigidBody::initCube(const real dimensions[], real particleRadius, const real mass)
 {
   vector<uint32_t> connectionElements;
+  vector<uint32_t> endIndices;
+
   uint subdivision[3];
   const int density = 2;
   const bool reducedParticles = true;
@@ -93,27 +95,11 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         pointPosition.push_back(newPosition);
 
 #ifdef ENABLE_RENDERING
-        for (int zn = -1; zn < 2; zn++)
+        if ((x == 0 || x == (signedSubdivision[0] - 1)) &&
+            (y == 0 || y == (signedSubdivision[1] - 1)) &&
+            (z == 0 || z == (signedSubdivision[2] - 1)))
         {
-          int tempz = z + zn;
-          if (tempz < 0 || tempz >= signedSubdivision[2]) continue;
-          for (int yn = -1; yn < 2; yn++)
-          {
-            int tempy = y + yn;
-            if (tempy < 0 || tempy >= signedSubdivision[1]) continue;
-            for (int xn = -1; xn < 2; xn++)
-            {
-              int tempx = x + xn;
-              if (tempx < 0 || tempx >= signedSubdivision[0]) continue;
-
-              int index1 = tempx + (tempy*signedSubdivision[0]) + (tempz*signedSubdivision[0] * signedSubdivision[1]);
-
-              if (index == index1) continue;
-
-              connectionElements.push_back(index);
-              connectionElements.push_back(index1);
-            }
-          }
+          endIndices.push_back(index);
         }
 #endif
 
@@ -149,6 +135,30 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
     }
   }
 
+  for (int i=0; i<2; i++)
+  {
+    connectionElements.push_back(endIndices[i * 4 + 0]);
+    connectionElements.push_back(endIndices[i * 4 + 1]);
+    connectionElements.push_back(endIndices[i * 4 + 2]);
+    connectionElements.push_back(endIndices[i * 4 + 2]);
+    connectionElements.push_back(endIndices[i * 4 + 1]);
+    connectionElements.push_back(endIndices[i * 4 + 3]);
+
+    connectionElements.push_back(endIndices[i * 2 + 0]);
+    connectionElements.push_back(endIndices[i * 2 + 1]);
+    connectionElements.push_back(endIndices[i * 2 + 4]);
+    connectionElements.push_back(endIndices[i * 2 + 4]);
+    connectionElements.push_back(endIndices[i * 2 + 1]);
+    connectionElements.push_back(endIndices[i * 2 + 5]);
+
+    connectionElements.push_back(endIndices[i + 0]);
+    connectionElements.push_back(endIndices[i + 2]);
+    connectionElements.push_back(endIndices[i + 4]);
+    connectionElements.push_back(endIndices[i + 4]);
+    connectionElements.push_back(endIndices[i + 2]);
+    connectionElements.push_back(endIndices[i + 6]);
+  }
+
   Real3 com(0);
   uint prev_value_count = 0;
   vector<Real3>* points = constrainConstants.host();
@@ -168,31 +178,19 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
   }
 
 #ifdef ENABLE_RENDERING
-//  displayVertex.gen();
-//  displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1] * subdivision[2], 0, sizeof(Real3));
-
   displayElements.gen();
   displayElements.copyData((GLuint*)&connectionElements[0], (uint)connectionElements.size());
 
-//  displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
-//  displayShader.linkPrograms();
+  displayEdges.gen();
+  uint boxIndices[] = {
+    endIndices[0], endIndices[1], endIndices[0], endIndices[2], endIndices[0], endIndices[4],
+    endIndices[1], endIndices[3], endIndices[1], endIndices[5],
+    endIndices[2], endIndices[3], endIndices[2], endIndices[6],
+    endIndices[3], endIndices[7],
+    endIndices[4], endIndices[5], endIndices[4], endIndices[6],
+    endIndices[5], endIndices[7],
+    endIndices[6], endIndices[7]
+  };
+  displayEdges.copyData(boxIndices, 24);
 #endif
 }
-
-#ifdef ENABLE_RENDERING
-
-void RigidBody::render(ParticleStruct* particles)
-{
-//  displayVertex.bind();
-
-  GL_CHECK(glEnableVertexAttribArray(0));
-  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
-  displayElements.bind();
-  GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, 0, 1));
-  displayElements.unbind();
-  GL_CHECK(glDisableVertexAttribArray(0));
-
-//  displayVertex.unbind();
-}
-
-#endif

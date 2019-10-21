@@ -1,8 +1,18 @@
 in highp vec4 col;
+in highp vec3 normal;
+
+uniform int fill;
 out highp vec4 outputColor;
 
 void main()
 {
-  //outputColor = vec4(0.0,1.0,0.0,1.0);//vec4((col+1.0)/2.0);
-  outputColor = vec4((col+1.0)/2.0);
+  highp vec4 scaledColor = col + vec4(0.4f, 0.4f, 0.4f, 1.0f);
+  if (fill == 1)
+  {
+    outputColor = scaledColor * clamp(dot(normal, vec3(0.f, 1.f, 0.f)), 0.2f, 1.f);
+  }
+  else
+  {
+    outputColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+  }
 }

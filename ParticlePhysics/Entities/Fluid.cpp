@@ -119,11 +119,3 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
     particleRigidData.host()->push_back(rigidData);
   }
 }
-
-#ifdef ENABLE_RENDERING
-
-void Fluid::render(ParticleStruct* particles)
-{
-}
-
-#endif

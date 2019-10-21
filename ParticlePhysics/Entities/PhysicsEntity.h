@@ -15,11 +15,8 @@ class PhysicsEntity : protected SolverData<uint, real, Real3>
 protected:
 
 #ifdef ENABLE_RENDERING
-
-  Vertex  displayVertex;
-  Shader  displayShader;
   Face    displayElements;
-
+  Face    displayEdges;
 #endif
 
   /*!@member Entity solver type.*/
@@ -34,10 +31,6 @@ public:
   PhysicsEntity();
 
   virtual ~PhysicsEntity();
-
-#ifdef ENABLE_RENDERING
-  virtual void render(ParticleStruct* particles) = 0;
-#endif
 };
 
 #endif

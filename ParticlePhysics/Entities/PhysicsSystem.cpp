@@ -75,7 +75,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
 
 #ifdef ENABLE_RENDERING
   renderParticles = true;
-  renderSolids = false;
+  renderSolids = true;
   elapsedRenderTime = 0.f;
 #endif
 }
@@ -243,9 +243,6 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 
 void PhysicsSystem::step()
 {
-  // finish all graphics work
-  glFinish();
-
   // record render time
   const float renderTime = ProfileManager::Get_Time_Since_Reset();
 
@@ -294,7 +291,23 @@ void PhysicsSystem::step()
     char temp[64];
     sprintf(temp, "\nParticles:   %d\n", instanceNodeCount);
     frameText += temp;
-    sprintf(temp, "Vertices:    %d\n", displayVertex.count() * instanceNodeCount);
+
+    uint vertexCount = 0;
+    if (renderParticles)
+    {
+      vertexCount += displayParticleVertex.count() * instanceNodeCount;
+      vertexCount += displayLineVertex.count() * instanceNodeCount;
+    }
+    if (renderSolids)
+    {
+      // TODO: Find a good way to find this value, ignore for now
+      //vertexCount += displaySolidVertex.count();
+    }
+    if (collisionSolver->getBoundingBoxes())
+    {
+      vertexCount += displayBoxVertex.count() * collisionSolver->getBoundingBoxes()->host()->size();
+    }
+    sprintf(temp, "Vertices:    %d\n", vertexCount);
     frameText += temp;
     sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);
     frameText += temp;
@@ -375,8 +388,8 @@ void PhysicsSystem::createSphere(float radius)
       *i++ = (r + 1) * sectors + (s + 1);
     }
   }
-  displayVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
-  displayElements.copyData(&sphereIndices[0], (uint)sphereIndices.size());
+  displayParticleVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
+  displayParticleElements.copyData(&sphereIndices[0], (uint)sphereIndices.size());
 }
 
 void PhysicsSystem::createUnitBox()
@@ -411,37 +424,52 @@ void PhysicsSystem::render()
   GL_CHECK(glDepthFunc(GL_LESS));
   GL_CHECK(glDisable(GL_BLEND));
 
+  displayParticleShader.bind();
+  displayParticleShader.set("modelViewMatrix", this->modelMatrix);
+  displayParticleShader.set("projectionMatrix", this->projectionMatrix);
+  displayParticleShader.unbind();
+
+  displayLineShader.bind();
+  displayLineShader.set("modelViewMatrix", this->modelMatrix);
+  displayLineShader.set("projectionMatrix", this->projectionMatrix);
+  displayLineShader.unbind();
+
+  displaySolidShader.bind();
+  displaySolidShader.set("modelViewMatrix", this->modelMatrix);
+  displaySolidShader.set("projectionMatrix", this->projectionMatrix);
+  displaySolidShader.unbind();
+
   for (uint solver = 0; solver < SOLVER_MAX; solver++)
   {
     if (solversUint[solver])
     {
-      uint elements = solversUint[solver]->lastPartition().end();
+      const uint elements = solversUint[solver]->lastPartition().end();
 
       if (!elements) continue;
+
+      // copy particle position and collision data for display
+      float* collisionData = (float*)&((*solversUint[solver]->particleCollisionData.host())[0]);
+      ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[0];
 
       if (renderParticles)
       {
         // copy particle position and collision data for display
-        displayPositionBuffer.copy((float*)&((*solversUint[solver]->particles.host())[0]), 0, 0, elements);
-        displayAuxBuffer.copy((float*)&((*solversUint[solver]->particleCollisionData.host())[0]), 0, 0, elements * 2);
+        displayPositionBuffer.copy((float*)particles, 0, 0, elements);
+        displayCollisionBuffer.copy(collisionData, 0, 0, elements * 2);
 
-        displayShader.bind();
-        displayShader.set("modelViewMatrix", this->modelMatrix);
-        displayShader.set("projectionMatrix", this->projectionMatrix);
-        displayShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayShader.activateTexture("particleCollData", 1, displayAuxBuffer);
-        displayVertex.bind();
-        displayElements.bind();
-        GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, elements));
-        displayElements.unbind();
-        displayVertex.unbind();
-        displayShader.unbind();
+        displayParticleShader.bind();
+        displayParticleShader.activateTexture("particlePos", 0, displayPositionBuffer);
+        displayParticleShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
+        displayParticleVertex.bind();
+        displayParticleElements.bind();
+        GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayParticleElements.count(), GL_UNSIGNED_INT, NULL, elements));
+        displayParticleElements.unbind();
+        displayParticleVertex.unbind();
+        displayParticleShader.unbind();
 
         displayLineShader.bind();
-        displayLineShader.set("modelViewMatrix", this->modelMatrix);
-        displayLineShader.set("projectionMatrix", this->projectionMatrix);
         displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayLineShader.activateTexture("particleCollData", 1, displayAuxBuffer);
+        displayLineShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
         displayLineVertex.bind();
         GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
         displayLineVertex.unbind();
@@ -450,22 +478,35 @@ void PhysicsSystem::render()
 
       if (renderSolids)
       {
-        GL_CHECK(glEnable(GL_DEPTH_TEST));
-        GL_CHECK(glDisable(GL_BLEND));
+        displaySolidShader.bind();
+        displaySolidVertex.bind();
 
-        displayShader.bind();
-
-        displayShader.set("modelViewMatrix", this->modelMatrix);
-        displayShader.set("projectionMatrix", this->projectionMatrix);
-
-        // display solid
-        for (const PartitionInfo &partition : *solversUint[solver]->partitions.host())
+        for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
         {
+          GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 4, particles + partition.offset));
+          GL_CHECK(glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 3 + collisionData + 8 * partition.offset));
+          GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 4 + collisionData + 8 * partition.offset));
           IdentityInfo identity = solversUint[solver]->particles.host()->at(partition.offset).identity;
-          entities[solver][getEntityId(identity)]->render(&((*solversUint[solver]->particles.host())[partition.offset]));
-        }
+          PhysicsEntity* entity = entities[solver][getEntityId(identity)];
 
-        displayShader.unbind();
+          displaySolidShader.set("fill", 1);
+          if (entity->displayElements.count())
+          {
+            entity->displayElements.bind();
+            GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, entity->displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
+            entity->displayElements.unbind();
+          }
+
+          displaySolidShader.set("fill", 0);
+          if (entity->displayEdges.count())
+          {
+            entity->displayEdges.bind();
+            GL_CHECK(glDrawElementsInstanced(GL_LINES, entity->displayEdges.count(), GL_UNSIGNED_INT, NULL, 1));
+            entity->displayEdges.unbind();
+          }
+        }
+        displaySolidVertex.unbind();
+        displaySolidShader.unbind();
       }
     }
   }
@@ -610,18 +651,20 @@ void PhysicsSystem::step(float timeStep)
 #ifdef ENABLE_RENDERING
     const uint textureWidth = 128;
     const uint textureHeight = (instanceNodeCount + textureWidth - 1) / textureWidth;
-    displayVertex.gen();
+    displayParticleVertex.gen();
+    displaySolidVertex.gen();
     displayLineVertex.gen();
-    displayElements.gen();
     displayBoxVertex.gen();
+
+    displayParticleElements.gen();
     displayBoxElements.gen();
 
     displayPositionBuffer.init(textureWidth, textureHeight);
     displayPositionBuffer.gen();
     displayColorBuffer.init(textureWidth, textureHeight);
     displayColorBuffer.gen();
-    displayAuxBuffer.init(textureWidth, textureHeight * 2);
-    displayAuxBuffer.gen();
+    displayCollisionBuffer.init(textureWidth, textureHeight * 2);
+    displayCollisionBuffer.gen();
     displayBoxBuffer.init(textureWidth, textureHeight * 2);
     displayBoxBuffer.gen();
 
@@ -630,36 +673,32 @@ void PhysicsSystem::step(float timeStep)
     clearColor[2] = 0.7f;
     clearColor[3] = 1.0f;
 
-    if (renderParticles)
-    {
-      displayShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
-      displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
-
-      createSphere(1.f);
-      float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-      displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
-
-      displayVertex.bind();
-      displayShader.bindLocation(0, "position");
-      GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
-      displayVertex.unbind();
-
-      displayShader.linkPrograms();
-      displayLineShader.linkPrograms();
-    }
-
-    if (renderSolids)
-    {
-      displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
-      displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
-
-      displayShader.linkPrograms();
-      displayLineShader.linkPrograms();
-    }
-
+    displayParticleShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
+    displaySolidShader.init("SolidVert.glsl", "SolidFrag.glsl");
     displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
+    displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
+
+    createSphere(1.f);
+    displayParticleVertex.bind();
+    displayParticleShader.bindLocation(0, "position");
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+    displayParticleVertex.unbind();
+
+    displaySolidVertex.bind();
+    displaySolidShader.bindLocation(0, "position");
+    displaySolidShader.bindLocation(1, "radius");
+    displaySolidShader.bindLocation(2, "transformedGradient");
+    displaySolidVertex.unbind();
+
     createUnitBox();
+
+    float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
+    displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
+
+    displayParticleShader.linkPrograms();
+    displaySolidShader.linkPrograms();
     displayBoxShader.linkPrograms();
+    displayLineShader.linkPrograms();
 #endif
 
     indexMap.resize(instanceNodeCount, false);

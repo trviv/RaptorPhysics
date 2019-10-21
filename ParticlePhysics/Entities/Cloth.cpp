@@ -17,6 +17,7 @@ void Cloth::initXY(const real dimensions[], const real particleRadius, const rea
 void Cloth::initXY(const real dimensions[], const uint subdivision[], const real mass)
 {
   vector<uint32_t> connectionElements;
+  vector<uint32_t> edgeElements;
 
   Real3 del_x(0);
   if (subdivision[0] > 1)
@@ -47,7 +48,7 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
     uint index = y * subdivision[0];
     for (uint x = 0; x < subdivision[0]; x++)
     {
-      addConnection(index, index, y ? perParticleInvMass : 0);
+      addConnection(index, index, y || (x > 0 && x < subdivision[0]-1) ? perParticleInvMass : 0);
       ParticleAuxData auxData;
       auxData.invMass = rawConstrainCoefficients[index][0];
       auxData.radius = minRadius;
@@ -102,6 +103,12 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
         connectionElements.push_back(index);
         connectionElements.push_back(index + subdivision[0] + 1);
         connectionElements.push_back(index + 1);
+
+        edgeElements.push_back(index);
+        edgeElements.push_back(index + 1);
+
+        edgeElements.push_back(index);
+        edgeElements.push_back(index + subdivision[0]);
       }
       if (x >= 1 && y + 1 < subdivision[1])
       {
@@ -115,31 +122,10 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
   }
 
 #ifdef ENABLE_RENDERING
-//  displayVertex.gen();
-//  displayVertex.copyData(&pointPosition[0][0], subdivision[0] * subdivision[1], 0, sizeof(Real3));
-
   displayElements.gen();
   displayElements.copyData((GLuint*)&connectionElements[0], (uint)connectionElements.size());
 
-//  displayShader.init("SolidVert.glsl", "SolidFrag.glsl");
-//  displayShader.linkPrograms();
+  displayEdges.gen();
+  displayEdges.copyData((GLuint*)&edgeElements[0], (uint)edgeElements.size());
 #endif
 }
-
-#ifdef ENABLE_RENDERING
-
-void Cloth::render(ParticleStruct* particles)
-{
-//  displayVertex.bind();
-
-  GL_CHECK(glEnableVertexAttribArray(0));
-  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), particles));
-  displayElements.bind();
-  GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayElements.count(), GL_UNSIGNED_INT, NULL, 1));
-  displayElements.unbind();
-  GL_CHECK(glDisableVertexAttribArray(0));
-
-//  displayVertex.unbind();
-}
-
-#endif
