@@ -21,11 +21,6 @@ public:
   @param mass Entity mass.
   */
   void initCube(const real dimensions[], const real particleRadius, const real mass);
-
-#ifdef ENABLE_RENDERING
-  void render(ParticleStruct* particles);
-#endif
-
 };
 
 #endif

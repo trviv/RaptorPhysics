@@ -21,11 +21,6 @@ public:
   @param mass Entity mass.
   */
   void initFluid(const real dimensions[], const real particleRadius, const real mass, float kernelRadius);
-
-#ifdef ENABLE_RENDERING
-  void render(ParticleStruct* particles);
-#endif
-
 };
 
 #endif

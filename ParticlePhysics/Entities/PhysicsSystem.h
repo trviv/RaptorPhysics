@@ -95,18 +95,20 @@ public:
 
   Texture displayPositionBuffer;
   Texture displayColorBuffer;
-  Texture displayAuxBuffer;
+  Texture displayCollisionBuffer;
   Texture displayBoxBuffer;
 
-  Vertex  displayVertex;
+  Vertex  displayParticleVertex;
+  Vertex  displaySolidVertex;
   Vertex  displayBoxVertex;
   Vertex  displayLineVertex;
 
-  Shader  displayShader;
+  Shader  displayParticleShader;
+  Shader  displaySolidShader;
   Shader  displayBoxShader;
   Shader  displayLineShader;
 
-  Face    displayElements;
+  Face    displayParticleElements;
   Face    displayBoxElements;
 
   bool    renderParticles;

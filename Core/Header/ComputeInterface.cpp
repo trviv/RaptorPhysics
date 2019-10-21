@@ -40,7 +40,7 @@ uint alignAllocSize(uint minimumSize)
   return ((minimumSize & 0x7F) > 0) ? ((minimumSize & (~0x7F)) + 0x80) : minimumSize;
 }
 
-static id<MTLBuffer> getTempBuffer(int minimumSize)
+static id<MTLBuffer> getTempBuffer(uint minimumSize)
 {
   // find a suitable candidate if available
   uint smallerSizeDifference = -1;
