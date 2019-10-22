@@ -85,8 +85,9 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
         {
           normal.normalize();
         }
-        colData.initialSdfGradient = normal * particleRadius;
+        colData.initialSdfGradient = Real3(0.f);
         colData.radius = particleRadius;
+        colData.transformedSdfGradient = Real3(0.f);
         colData.invMass = perParticleInvMass;
 
         particleCollisionData.host()->push_back(colData);

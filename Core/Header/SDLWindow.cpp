@@ -181,14 +181,7 @@ void Window::init(int argc, char** argv, int width, int height,
     SDL_JoystickOpen(0);
   }
 
-#if !TARGET_OS_IPHONE
-  if (SDL_GL_SetSwapInterval(1))
-  {
-    printf ("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
-  }
-#endif
-
-  std::cout<<glGetString(GL_VERSION)<<"\n";
+  logComputeMessage("OpenGL version: %s\n", glGetString(GL_VERSION));
 
   cameraUpSpeed = 0.f;
   cameraSideSpeed = 0.f;
@@ -370,6 +363,8 @@ void Window::start()
 
   while (!quit)
   {
+    const uint frameStartTime = SDL_GetTicks();
+
     // update camera settings
     Real3 cross = cameraFront.cross(cameraUp);
     cross.normalize();
@@ -528,6 +523,13 @@ void Window::start()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(sdl_window);
     SDL_CheckError();
+
+    // limit the frame rate
+    const uint frameEndTime = SDL_GetTicks();
+    if ((frameEndTime - frameStartTime) < (1000.f / 60.f))
+    {
+      SDL_Delay((1000.f / 60.f) - (frameEndTime - frameStartTime));
+    }
   }
 }
 
