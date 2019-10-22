@@ -411,7 +411,11 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryF
       0, sizeInBytes);
     computeCheckError(status, 0);
 #else
+#if TARGET_OS_IPHONE
+    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModeShared], 0, sizeInBytes);
+#else
     ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModePrivate], 0, sizeInBytes);
+#endif
 #endif
   }
   else
@@ -931,6 +935,7 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
+#if !TARGET_OS_IPHONE
   id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:tempBuffer destinationOffset:0 size:sizeInBytes];
   [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
@@ -946,6 +951,9 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
     sync();
     freeTempBuffer(tempBuffer);
   }
+#else
+  memcpy(hostPtr, (char*)(id<MTLBuffer>(*source)).contents + (sourceOffset + source->getOffset()), sizeInBytes);
+#endif
 #endif
 }
 
@@ -955,6 +963,7 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
   ComputeStatus status = clEnqueueWriteBuffer(queue, *destination, waitForFinish, destinationOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
+#if !TARGET_OS_IPHONE
   id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   memcpy(tempBuffer.contents, hostPtr, sizeInBytes);
   [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
@@ -970,6 +979,9 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
     sync();
     freeTempBuffer(tempBuffer);
   }
+#else
+  memcpy((char*)(id<MTLBuffer>(*destination)).contents + (destinationOffset + destination->getOffset()), hostPtr, sizeInBytes);
+#endif
 #endif
 }
 

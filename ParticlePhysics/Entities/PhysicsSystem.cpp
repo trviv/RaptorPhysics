@@ -9,7 +9,7 @@
 #include "../Solvers/Collision/LBVHSolver.h"
 
 //#define DEBUG_PHYSICS_SYSTEM
-
+Clock physicsSystemClock;
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   : compute(compute)
 {
@@ -74,7 +74,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
 
 
 #ifdef ENABLE_RENDERING
-  renderParticles = true;
+  renderParticles = false;
   renderSolids = true;
   elapsedRenderTime = 0.f;
 #endif
@@ -244,11 +244,9 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 void PhysicsSystem::step()
 {
   // record render time
-  const float renderTime = ProfileManager::Get_Time_Since_Reset();
+  const float renderTime = physicsSystemClock.getTimeMilliseconds();
+  physicsSystemClock.reset();
 
-  ProfileManager::Reset();
-
-//  step(lastStepTime);
   step(1.f / 60.f);
 
 #ifdef ENABLE_RENDERING
@@ -275,13 +273,13 @@ void PhysicsSystem::step()
 
   compute->sync();
 
-  elapsedSimTime += ProfileManager::Get_Time_Since_Reset();
+  elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
   elapsedRenderTime += renderTime;
 
 #ifdef ENABLE_RENDERING
 
   // Display frame info
-#define GUI_REFRESH_AFTER_FRAMES 0x7
+#define GUI_REFRESH_AFTER_FRAMES 0xF
   if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
   {
     frameTextSize.x = 192;
@@ -321,12 +319,7 @@ void PhysicsSystem::step()
   frameCount++;
 #endif
 
-#ifndef DISABLE_PROFILING
-  ProfileManager::dumpAll(stdout);
-#endif
-  ProfileManager::Increment_Frame_Counter();
-
-  ProfileManager::Reset();
+  physicsSystemClock.reset();
 }
 
 #ifdef ENABLE_RENDERING
@@ -489,7 +482,7 @@ void PhysicsSystem::render()
           IdentityInfo identity = solversUint[solver]->particles.host()->at(partition.offset).identity;
           PhysicsEntity* entity = entities[solver][getEntityId(identity)];
 
-          displaySolidShader.set("fill", 1);
+          displaySolidShader.set("fillShader", 1.f);
           if (entity->displayElements.count())
           {
             entity->displayElements.bind();
@@ -497,7 +490,7 @@ void PhysicsSystem::render()
             entity->displayElements.unbind();
           }
 
-          displaySolidShader.set("fill", 0);
+          displaySolidShader.set("fillShader", 0.f);
           if (entity->displayEdges.count())
           {
             entity->displayEdges.bind();
