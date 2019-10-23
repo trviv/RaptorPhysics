@@ -4,6 +4,34 @@
 #include "GLClass.h"
 #include "../Vector/Matrix.h"
 
+enum WindowOptionType
+{
+  WINDOW_OPTION_BOOL,
+  WINDOW_OPTION_STRING
+};
+
+struct WindowOption
+{
+  WindowOptionType  type;
+  string            name;
+  bool              boolValue;
+  string            stringValue;
+
+  WindowOption(const string& name, const bool value)
+  {
+    type = WINDOW_OPTION_BOOL;
+    this->name = name;
+    boolValue = value;
+  }
+
+  WindowOption(const string& name, const string& value)
+  {
+    type = WINDOW_OPTION_STRING;
+    this->name = name;
+    stringValue = value;
+  }
+};
+
 class Window
 {
   int win_width;
@@ -32,10 +60,17 @@ protected:
   Real3   frameTextSize;
   string  frameText;
 
+  Real3   frameOptionSize;
+  vector<WindowOption>  frameOptionList;
+  map<string, uint>     frameOptionIndex;
+
   float clearColor[4];
 
   float modelMatrix[16];
   float projectionMatrix[16];
+
+  void addFrameOption(const WindowOption& option);
+  const WindowOption& getFrameOption(const string& name);
 
 public:
 

@@ -9,7 +9,13 @@
 #include "../Solvers/Collision/LBVHSolver.h"
 
 //#define DEBUG_PHYSICS_SYSTEM
+
+static const string RENDER_PARTICLES_OPTION       ("Render\nParticles");
+static const string RENDER_SOLIDS_OPTION          ("Render\nSolids");
+static const string RENDER_BOUNDING_BOXES_OPTION  ("Render\nBounding Boxes");
+
 Clock physicsSystemClock;
+
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   : compute(compute)
 {
@@ -72,6 +78,9 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
+  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, false));
+  addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, true));
+  addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, false));
 
 #ifdef ENABLE_RENDERING
   renderParticles = false;
@@ -264,7 +273,7 @@ void PhysicsSystem::step()
     }
   }
 
-  if (collisionSolver->getBoundingBoxes())
+  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
     collisionBoundingBoxes->syncHost();
@@ -282,26 +291,24 @@ void PhysicsSystem::step()
 #define GUI_REFRESH_AFTER_FRAMES 0xF
   if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
   {
-    frameTextSize.x = 192;
-    frameTextSize.y = 128;
     frameText.clear();
 
     char temp[64];
-    sprintf(temp, "\nParticles:   %d\n", instanceNodeCount);
+    sprintf(temp, "Particles:   %d\n", instanceNodeCount);
     frameText += temp;
 
     uint vertexCount = 0;
-    if (renderParticles)
+    if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
     {
       vertexCount += displayParticleVertex.count() * instanceNodeCount;
       vertexCount += displayLineVertex.count() * instanceNodeCount;
     }
-    if (renderSolids)
+    if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue)
     {
       // TODO: Find a good way to find this value, ignore for now
       //vertexCount += displaySolidVertex.count();
     }
-    if (collisionSolver->getBoundingBoxes())
+    if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
     {
       vertexCount += displayBoxVertex.count() * collisionSolver->getBoundingBoxes()->host()->size();
     }
@@ -310,8 +317,6 @@ void PhysicsSystem::step()
     sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);
     frameText += temp;
     sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / GUI_REFRESH_AFTER_FRAMES);
-    frameText += temp;
-    sprintf(temp, "Frame Rate:  %.1f fps", (1000.f * GUI_REFRESH_AFTER_FRAMES) / (elapsedSimTime + elapsedRenderTime));
     frameText += temp;
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
@@ -444,7 +449,7 @@ void PhysicsSystem::render()
       float* collisionData = (float*)&((*solversUint[solver]->particleCollisionData.host())[0]);
       ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[0];
 
-      if (renderParticles)
+      if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
       {
         // copy particle position and collision data for display
         displayPositionBuffer.copy((float*)particles, 0, 0, elements);
@@ -469,7 +474,7 @@ void PhysicsSystem::render()
         displayLineShader.unbind();
       }
 
-      if (renderSolids)
+      if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue)
       {
         displaySolidShader.bind();
         displaySolidVertex.bind();
@@ -505,7 +510,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (collisionSolver->getBoundingBoxes())
+  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
 
