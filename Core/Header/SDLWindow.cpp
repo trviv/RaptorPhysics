@@ -5,6 +5,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl.h"
 #include "imgui/imgui_impl_opengl3.h"
+#include "imgui/imgui_internal.h"
 #include <SDL2/SDL.h>
 
 int Window::del_time = 5;
@@ -160,8 +161,11 @@ void Window::init(int argc, char** argv, int width, int height,
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
 
-  frameTextSize.x = 256;
-  frameTextSize.y = 64;
+  frameTextSize.x = 192;
+  frameTextSize.y = 128;
+
+  frameOptionSize.x = 192;
+  frameOptionSize.y = 128;
 
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
@@ -348,6 +352,60 @@ void Window::pinch(float d)
   }
 }
 
+void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
+{
+  ImVec2 position = ImGui::GetCursorScreenPos();
+  ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+  float radius = width * 0.5f;
+  bool changed = false;
+
+  ImGui::InvisibleButton(buttonIdentifier, ImVec2(width, height));
+  if (ImGui::IsItemClicked())
+  {
+    changed = true;
+    *value = !*value;
+  }
+
+  float toggle = *value ? 1.0f : 0.0f;
+
+  ImGuiContext& context = *ImGui::GetCurrentContext();
+  float animationSpeed = 0.08f;
+  if (context.LastActiveId == context.CurrentWindow->GetID(buttonIdentifier))
+  {
+    const float animationTime = ImSaturate(context.LastActiveIdTimer / animationSpeed);
+    toggle = *value ? animationTime : (1.0f - animationTime);
+  }
+
+  ImU32 backgroundColor;
+  if (ImGui::IsItemHovered())
+  {
+    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.78f, 0.78f, 0.78f, 1.0f), ImVec4(0.64f, 0.83f, 0.34f, 1.0f), toggle));
+  }
+  else
+  {
+    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), ImVec4(0.56f, 0.83f, 0.26f, 1.0f), toggle));
+  }
+
+  drawList->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, width * 0.15f);
+  position.x += toggle * (width - radius);
+  drawList->AddRectFilled(position, ImVec2(position.x + radius, position.y + height), IM_COL32(255, 255, 255, 255), width * 0.15f);
+
+  ImGui::SameLine();
+  ImGui::Text("%s", buttonIdentifier);
+}
+
+void Window::addFrameOption(const WindowOption& option)
+{
+  frameOptionList.push_back(option);
+  frameOptionIndex[option.name] = (uint)frameOptionList.size() - 1;
+}
+
+const WindowOption& Window::getFrameOption(const string& name)
+{
+  return frameOptionList[frameOptionIndex[name]];
+}
+
 void Window::start()
 {
   SDL_CheckError();
@@ -392,6 +450,24 @@ void Window::start()
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+      // process before io processing so it works even after loosing focus
+      if (event.type == SDL_JOYAXISMOTION)
+      {
+        if (event.jaxis.axis == 0)
+        {
+          downVector[1] = event.jaxis.value;
+        }
+        else if (event.jaxis.axis == 1)
+        {
+          downVector[0] = event.jaxis.value;
+        }
+        else if (event.jaxis.axis == 2)
+        {
+          downVector[2] = event.jaxis.value;
+        }
+        continue;
+      }
+
       ImGui_ImplSDL2_ProcessEvent(&event);
       if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
         continue;
@@ -475,23 +551,6 @@ void Window::start()
         }
           break;
 
-        case SDL_JOYAXISMOTION:
-        {
-          if (event.jaxis.axis == 0)
-          {
-            downVector[1] = event.jaxis.value;
-          }
-          else if (event.jaxis.axis == 1)
-          {
-            downVector[0] = event.jaxis.value;
-          }
-          else if (event.jaxis.axis == 2)
-          {
-            downVector[2] = event.jaxis.value;
-          }
-        }
-          break;
-
         default:
           break;
       }
@@ -509,10 +568,24 @@ void Window::start()
 
     ImGui::NewFrame();
 
-    ImGui::Begin("Stats: ", NULL, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
+
+    ImGui::Begin("Stats", NULL, windowFlags);
     ImGui::SetWindowSize({frameTextSize.x, frameTextSize.y});
     ImGui::SetWindowPos({24, 16});
-    ImGui::Text("Frame Info:\n%s", frameText.c_str());
+    ImGui::Text("Frame Rate:  %.1f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
+    ImGui::End();
+
+    ImGui::Begin("Options", NULL, windowFlags);
+    ImGui::SetWindowSize({frameOptionSize.x, frameOptionList.size() * 32.f});
+    ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - frameOptionSize.x - 24, 16});
+    for (auto& option : frameOptionList)
+    {
+      if (option.type == WINDOW_OPTION_BOOL)
+      {
+        ToggleButton(option.name.c_str(), &option.boolValue, 32, 32);
+      }
+    }
     ImGui::End();
 
     ImGui::Render();
