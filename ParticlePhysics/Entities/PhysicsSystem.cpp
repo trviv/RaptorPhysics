@@ -83,8 +83,6 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, false));
 
 #ifdef ENABLE_RENDERING
-  renderParticles = false;
-  renderSolids = true;
   elapsedRenderTime = 0.f;
 #endif
 }

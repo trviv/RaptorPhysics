@@ -111,9 +111,6 @@ public:
   Face    displayParticleElements;
   Face    displayBoxElements;
 
-  bool    renderParticles;
-  bool    renderSolids;
-
   float   elapsedRenderTime;
 
   /*!@member Particle radius available for reuse.*/

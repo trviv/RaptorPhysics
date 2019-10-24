@@ -186,4 +186,52 @@ Kernel void clearIntegerBuffer(
   }
 }
 
+// kernel to copy from a source to a destination buffer
+Kernel void copyBuffer(
+  Device uint* destination,
+  const Device uint* source,
+  constantKernelInput(uint, sourceOffset),
+  constantKernelInput(uint, destinationOffset),
+  constantKernelInput(int, sizeInBytes)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  int writeSize = sizeInBytes - (int)threadIndex() * BatchSize;
+
+  if (writeSize >= BatchSize)
+  {
+#ifndef USE_METAL_COMPUTE
+#if BatchSize == 4
+    ((Device uint4*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint4*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 8
+    ((Device uint8*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint8*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 16
+    ((Device uint16*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint16*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 1
+    (destination + destinationOffset/4)[threadIndex()] = (source + sourceOffset/4)[threadIndex()];
+#else
+    assert;
+#endif
+#else
+#if BatchSize == 4
+    ((Device uint4*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint4*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 8
+    ((Device dummy_uint8*)(destination + destinationOffset/4))[threadIndex()] = ((Device dummy_uint8*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 16
+    ((Device dummy_uint16*)(destination + destinationOffset/4))[threadIndex()] = ((Device dummy_uint16*)(source + sourceOffset/4))[threadIndex()];
+#elif BatchSize == 1
+    (destination + destinationOffset/4)[threadIndex()] = (source + sourceOffset/4)[threadIndex()];
+#else
+    assert;
+#endif
+#endif
+  }
+  else
+  {
+    for (int i = 0; i < writeSize; i++)
+    {
+      ((destination + destinationOffset/4) + threadIndex() * BatchSize)[i] = ((source + sourceOffset/4) + threadIndex() * BatchSize)[i];
+    }
+  }
+}
+
 #endif

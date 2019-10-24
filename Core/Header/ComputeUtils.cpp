@@ -16,6 +16,7 @@ vector<string>      computeConfig;
 #define COMPUTE_UTIL_RADIX_SORT2                      9
 #define COMPUTE_UTIL_BITONIC_SORT                     10
 #define COMPUTE_UTIL_CLEAR_BUFFER                     11
+#define COMPUTE_UTIL_COPY_BUFFER                      12
 
 enum UtilTemporaryBuffer
 {
@@ -147,6 +148,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   util.kernelIndices[COMPUTE_UTIL_CLEAR_BUFFER] = (uint)kernelNames.size();
   kernelNames.push_back("clearIntegerBuffer");
+
+  util.kernelIndices[COMPUTE_UTIL_COPY_BUFFER] = (uint)kernelNames.size();
+  kernelNames.push_back("copyBuffer");
 
   // use size tuned for best performance
   util.batchSize = 8;
@@ -717,5 +721,20 @@ void ComputeUtil::clearBuffer(ComputeInterface* compute, ComputeMemory* destinat
   kernels[kernelIndex].setArg(destination, 0);
   kernels[kernelIndex].setArg<uint>(&value, 1);
   kernels[kernelIndex].setArg<uint>(&length, 2);
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+}
+
+void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes)
+{
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COPY_BUFFER];
+
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(sizeInBytes/4, batchSize));
+  kernels[kernelIndex].setArg(destination, 0);
+  kernels[kernelIndex].setArg(source, 1);
+  kernels[kernelIndex].setArg<uint>(&sourceOffset, 2);
+  kernels[kernelIndex].setArg<uint>(&destinationOffset, 3);
+  kernels[kernelIndex].setArg<uint>(&sizeInBytes, 4);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
