@@ -77,6 +77,8 @@ public:
   void showMatrix(ComputeInterface* compute, ComputeMemory* memory, uint rowSize, uint strideIn4Byte, uint length, bool showOnlyFaults = false);
 
   void clearBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length, uint value = 0);
+
+  void copyBuffer(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes);
 };
 
 #endif

@@ -81,9 +81,6 @@ void testBandwidthRW(ComputeInterface* compute)
   data.resize(elements, false);
   outdata.resize(elements, false);
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-
   //--------------------------------------------------------------------------------
   // warm up run
   compute->copyBuffer(data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
@@ -103,6 +100,67 @@ void testBandwidthRW(ComputeInterface* compute)
 
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
   printStats(mean, elements, 2, sizeof(uint));
+}
+
+void testCustomBandwidthRW(ComputeInterface* compute)
+{
+  logComputeMessage("Read/Write custom bandwidth test:");
+
+  DeviceArray<float> data(compute, NULL, true);
+  DeviceArray<float> outdata(compute, NULL, true);
+  const int elements = 1024 * 1024 * 16;
+  uint iterations = runOnlyFunctional?0:20;
+
+  data.resize(elements, false);
+  outdata.resize(elements, false);
+
+  data.host()->reserve(elements);
+  outdata.host()->reserve(elements);
+
+  for (int i = 0; i < elements; i++)
+  {
+    data.host()->push_back(rand()&0x3);
+    outdata.host()->push_back(0);
+  }
+
+  data.syncDevice();
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  ComputeUtil::create(compute, utilSetting);
+
+  //--------------------------------------------------------------------------------
+  // warm up run
+  ComputeUtil::get(0)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
+  compute->sync();
+
+  //--------------------------------------------------------------------------------
+  // performance run
+  ProfileManager::Reset();
+  {
+    ProfileBlock("R/W Custom Bandwidth");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(0)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
+    }
+  }
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  outdata.syncHost();
+  compute->sync();
+
+  printStats(mean, elements, 2, sizeof(uint));
+
+  for (int i = 0; i < elements; i++)
+  {
+    if (outdata.host()->at(i) != data.host()->at(i))
+    {
+      std::cout << i << " " << outdata.host()->at(i) << "\n";
+      assert(0);
+    }
+  }
 }
 
 void testSetBuffer(ComputeInterface* compute)
@@ -532,6 +590,9 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   //--------------------------------------------------------------------------------
   // functional run
   ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), data.device(), elements);
+#if TARGET_OS_IPHONE
+  compute->sync();
+#endif
   data.syncHost();
   compute->sync();
 
@@ -762,6 +823,7 @@ int main(int argc, char** argv)
   compute->create();
 
   testBandwidthRW(compute);
+  testCustomBandwidthRW(compute);
   testSetBuffer(compute);
   //testSectionOffsets(compute);
   //testBandwidthRead(compute);
