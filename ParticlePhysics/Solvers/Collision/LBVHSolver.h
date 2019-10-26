@@ -38,8 +38,6 @@ public:
   void init();
 
   void solve(uint instanceNodeCount, ComputeMemory* systemSettings);
-
-  DeviceArray<XAB>* getBoundingBoxes();
 };
 
 #endif

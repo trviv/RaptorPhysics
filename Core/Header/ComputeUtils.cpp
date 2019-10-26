@@ -730,7 +730,11 @@ void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, C
   size_t workgroupCount[3];
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COPY_BUFFER];
 
-  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(sizeInBytes/4, batchSize));
+  sourceOffset /= 4;
+  destinationOffset /= 4;
+  sizeInBytes /= 4;
+
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(sizeInBytes, batchSize));
   kernels[kernelIndex].setArg(destination, 0);
   kernels[kernelIndex].setArg(source, 1);
   kernels[kernelIndex].setArg<uint>(&sourceOffset, 2);

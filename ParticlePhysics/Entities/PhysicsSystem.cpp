@@ -10,9 +10,10 @@
 
 //#define DEBUG_PHYSICS_SYSTEM
 
-static const string RENDER_PARTICLES_OPTION       ("Render\nParticles");
-static const string RENDER_SOLIDS_OPTION          ("Render\nSolids");
-static const string RENDER_BOUNDING_BOXES_OPTION  ("Render\nBounding Boxes");
+static const string RENDER_PARTICLES_OPTION       ("Particles");
+static const string RENDER_SOLIDS_OPTION          ("Solids");
+static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
+static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Bounding Box");
 
 Clock physicsSystemClock;
 
@@ -78,9 +79,10 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, false));
-  addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, true));
+  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, true));
+  addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, false));
   addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, false));
+  addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, false));
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
@@ -271,10 +273,14 @@ void PhysicsSystem::step()
     }
   }
 
-  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
+  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
-    DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
-    collisionBoundingBoxes->syncHost();
+    collisionSolver->particleGroupBoundingBoxes.syncHost();
+  }
+
+  if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+  {
+    collisionSolver->systemBoundingBox.syncHost();
   }
 #endif
 
@@ -306,9 +312,13 @@ void PhysicsSystem::step()
       // TODO: Find a good way to find this value, ignore for now
       //vertexCount += displaySolidVertex.count();
     }
-    if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
+    if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
     {
-      vertexCount += displayBoxVertex.count() * collisionSolver->getBoundingBoxes()->host()->size();
+      vertexCount += displayBoxVertex.count() * collisionSolver->particleGroupBoundingBoxes.host()->size();
+    }
+    if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+    {
+      vertexCount += displayBoxVertex.count() * collisionSolver->systemBoundingBox.host()->size();
     }
     sprintf(temp, "Vertices:    %d\n", vertexCount);
     frameText += temp;
@@ -508,9 +518,35 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->getBoundingBoxes())
+  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
-    DeviceArray<XAB>* collisionBoundingBoxes = collisionSolver->getBoundingBoxes();
+    DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->particleGroupBoundingBoxes;
+
+    XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
+
+    displayBoxBuffer.copy((float*)boxes, 0, 0, (uint)collisionBoundingBoxes->host()->size() * 2);
+
+    GL_CHECK(glEnable(GL_BLEND));
+    GL_CHECK(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
+    displayBoxShader.bind();
+    displayBoxShader.set("modelViewMatrix", this->modelMatrix);
+    displayBoxShader.set("projectionMatrix", this->projectionMatrix);
+    displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
+
+    displayBoxVertex.bind();
+    displayBoxElements.bind();
+    GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, (uint)collisionBoundingBoxes->host()->size()));
+    displayBoxElements.unbind();
+    displayBoxVertex.unbind();
+
+    displayBoxShader.unbind();
+  }
+
+  // render boundign boxes if supplied by the colision solver
+  if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+  {
+    DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->systemBoundingBox;
 
     XAB* boxes = &((*collisionBoundingBoxes->host())[0]);
 
