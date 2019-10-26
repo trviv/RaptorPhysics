@@ -78,31 +78,33 @@ inline float3 boundaryCollision(
   const Thread ParticleSharedData*    sharedData)
 {
   float3 ret = constructFloat3(0.f);
+  const float3 min = systemSettings->systemBound.min + constructFloat3(collisionData->radius);
+  const float3 max = systemSettings->systemBound.max - constructFloat3(collisionData->radius);
 
   // only if movable
   if (collisionData->invMass)
   {
-    if (particle->position.y <= systemSettings->systemBound.min.y)
+    if (particle->position.y <= min.y)
     {
-      ret.y = systemSettings->systemBound.min.y - particle->position.y;
+      ret.y = min.y - particle->position.y;
     }
 
-    if (particle->position.x <= systemSettings->systemBound.min.x)
+    if (particle->position.x <= min.x)
     {
-      ret.x = systemSettings->systemBound.min.x - particle->position.x;
+      ret.x = min.x - particle->position.x;
     }
 
-    if (particle->position.x >= systemSettings->systemBound.max.x)
+    if (particle->position.x >= max.x)
     {
-      ret.x = systemSettings->systemBound.max.x - particle->position.x;
+      ret.x = max.x - particle->position.x;
     }
 
-    if (particle->position.z >= systemSettings->systemBound.max.z)
+    if (particle->position.z >= max.z)
     {
-      ret.z = systemSettings->systemBound.max.z - particle->position.z;
+      ret.z = max.z - particle->position.z;
     }
 
-    if (particle->position.z <= systemSettings->systemBound.min.z)
+    if (particle->position.z <= min.z)
     {
       ret.z = systemSettings->systemBound.min.z - particle->position.z;
     }

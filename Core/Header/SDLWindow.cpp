@@ -583,7 +583,7 @@ void Window::start()
     {
       if (option.type == WINDOW_OPTION_BOOL)
       {
-        ToggleButton(option.name.c_str(), &option.boolValue, 32, 32);
+        ToggleButton(option.name.c_str(), &option.boolValue, 32, 24);
       }
     }
     ImGui::End();

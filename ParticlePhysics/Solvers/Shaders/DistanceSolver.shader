@@ -3,6 +3,8 @@
 
 #define successiveOverRealaxation 1.5f
 
+#define DISTANCE_SOLVER_CACHE_VALUES
+
 /*
 @function Function to calculate gradient between 2 constrained objects
 @param selfOldValue Current value for object 1.
@@ -56,11 +58,31 @@ Kernel void distanceSolverSpring(
 
     const ConstrainStruct constrain = constrainNodes[nodeLocator.commonNodeIndex];
     const uint commonConnectionIndex = localEntityLocation.connection.offset + constrainOffset(constrain);
-    const uint count = constrainCount(constrain);
+    const ushort count = constrainCount(constrain);
 
     if (coefficients[commonConnectionIndex]) // if self movement allowed
     {
-      for (uint i = 1; i < count; i++)
+#ifdef DISTANCE_SOLVER_CACHE_VALUES
+      uchar iteration;
+      uint cachedIndices[4];
+      float cachedCoefficients[4];
+      for (ushort i = 1; i < count; i++)
+      {
+        iteration = ((i - 1) & 3);
+        if (iteration == 0)
+        {
+          ((Thread uint4*)cachedIndices)[0] = ((Device uint4*)(indexArray + commonConnectionIndex + i))[0];
+          ((Thread float4*)cachedCoefficients)[0] = ((Device float4*)(coefficients + commonConnectionIndex + i))[0];
+
+          ((Thread uint4*)cachedIndices)[0] += nodeLocator.absoluteNodeOffset;
+        }
+
+        sum += getDelta(oldValue.position,
+          oldPositions[cachedIndices[iteration]].position,
+          cachedCoefficients[iteration]);
+      }
+#else
+      for (ushort i = 1; i < count; i++)
       {
         const uint absoluteConnectionNodeIndex = nodeLocator.absoluteNodeOffset + indexArray[commonConnectionIndex + i];
 
@@ -68,6 +90,7 @@ Kernel void distanceSolverSpring(
           oldPositions[absoluteConnectionNodeIndex].position,
           coefficients[commonConnectionIndex + i]);
       }
+#endif
       oldValue.position += sum * (successiveOverRealaxation / (count - 1));
       // division is for under relaxation
       // concept of constraint averaging [Bridson et al. 2002], or masssplitting [Tonge et al. 2012].

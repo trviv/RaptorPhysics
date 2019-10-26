@@ -201,25 +201,25 @@ Kernel void copyBuffer(
   {
 #ifndef USE_METAL_COMPUTE
 #if BatchSize == 4
-    ((Device uint4*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint4*)(source + sourceOffset/4))[threadIndex()];
+    ((Device uint4*)(destination + destinationOffset))[threadIndex()] = ((Device uint4*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 8
-    ((Device uint8*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint8*)(source + sourceOffset/4))[threadIndex()];
+    ((Device uint8*)(destination + destinationOffset))[threadIndex()] = ((Device uint8*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 16
-    ((Device uint16*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint16*)(source + sourceOffset/4))[threadIndex()];
+    ((Device uint16*)(destination + destinationOffset))[threadIndex()] = ((Device uint16*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 1
-    (destination + destinationOffset/4)[threadIndex()] = (source + sourceOffset/4)[threadIndex()];
+    (destination + destinationOffset)[threadIndex()] = (source + sourceOffset)[threadIndex()];
 #else
     assert;
 #endif
 #else
 #if BatchSize == 4
-    ((Device uint4*)(destination + destinationOffset/4))[threadIndex()] = ((Device uint4*)(source + sourceOffset/4))[threadIndex()];
+    ((Device uint4*)(destination + destinationOffset))[threadIndex()] = ((Device uint4*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 8
-    ((Device dummy_uint8*)(destination + destinationOffset/4))[threadIndex()] = ((Device dummy_uint8*)(source + sourceOffset/4))[threadIndex()];
+    ((Device dummy_uint8*)(destination + destinationOffset))[threadIndex()] = ((Device dummy_uint8*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 16
-    ((Device dummy_uint16*)(destination + destinationOffset/4))[threadIndex()] = ((Device dummy_uint16*)(source + sourceOffset/4))[threadIndex()];
+    ((Device dummy_uint16*)(destination + destinationOffset))[threadIndex()] = ((Device dummy_uint16*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 1
-    (destination + destinationOffset/4)[threadIndex()] = (source + sourceOffset/4)[threadIndex()];
+    (destination + destinationOffset)[threadIndex()] = (source + sourceOffset)[threadIndex()];
 #else
     assert;
 #endif
@@ -229,7 +229,7 @@ Kernel void copyBuffer(
   {
     for (int i = 0; i < writeSize; i++)
     {
-      ((destination + destinationOffset/4) + threadIndex() * BatchSize)[i] = ((source + sourceOffset/4) + threadIndex() * BatchSize)[i];
+      ((destination + destinationOffset) + threadIndex() * BatchSize)[i] = ((source + sourceOffset) + threadIndex() * BatchSize)[i];
     }
   }
 }

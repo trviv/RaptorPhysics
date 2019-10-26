@@ -24,7 +24,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   visitedInternalNodes.create(compute, NULL, true);
   leafParentNodeIndices.create(compute, NULL, true);
   nodeParentNodeIndices.create(compute, NULL, true);
-  systemBoundingBox.create(compute, NULL, true);
   particleBoundingBoxes.create(compute, NULL, true);
   particleGroupBoundingBoxes.create(compute, NULL, true);
 #else
@@ -35,7 +34,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   visitedInternalNodes.create(compute, NULL);
   leafParentNodeIndices.create(compute, NULL);
   nodeParentNodeIndices.create(compute, NULL);
-  systemBoundingBox.create(compute, NULL);
   particleBoundingBoxes.create(compute, NULL);
   particleGroupBoundingBoxes.create(compute, NULL);
 #endif
@@ -46,16 +44,12 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   empty.create(compute, NULL, false);
   empty.resize(1, false);
 
+  systemBoundingBox.create(compute, NULL, true);
   systemBoundingBox.resize(1, false);
 }
 
 LBVHSolver::~LBVHSolver()
 {
-}
-
-DeviceArray<XAB>* LBVHSolver::getBoundingBoxes()
-{
-  return &treeInternalNodeBoundingBoxes;
 }
 
 void LBVHSolver::init()

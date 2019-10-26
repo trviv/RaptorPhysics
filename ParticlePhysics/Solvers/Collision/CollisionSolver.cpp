@@ -22,8 +22,3 @@ CollisionSolver::~CollisionSolver()
   delete solverHeap;
   solverHeap = NULL;
 }
-
-DeviceArray<XAB>* CollisionSolver::getBoundingBoxes()
-{
-  return NULL;
-}
