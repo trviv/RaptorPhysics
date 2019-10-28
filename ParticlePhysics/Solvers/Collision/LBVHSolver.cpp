@@ -17,7 +17,7 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   solverHeap = new ComputeHeap(compute);
 
 #ifdef DEBUG_LBVH_SOLVER
-  particlesPredictedTemp.create(compute, NULL, true);
+  particlesBufferTemp.create(compute, NULL, true);
   treeInternalNodes.create(compute, NULL, true);
   particleLeafData.create(compute, NULL, true);
   particleLeafDataSorted.create(compute, NULL, true);
@@ -27,7 +27,7 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   particleBoundingBoxes.create(compute, NULL, true);
   particleGroupBoundingBoxes.create(compute, NULL, true);
 #else
-  particlesPredictedTemp.create(compute, NULL);
+  particlesBufferTemp.create(compute, NULL);
   treeInternalNodes.create(compute, NULL);
   particleLeafData.create(compute, NULL);
   particleLeafDataSorted.create(compute, NULL);
@@ -40,9 +40,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
 
   // allocate space for fixed sized data
   treeInternalNodeBoundingBoxes.create(compute, NULL, true);
-
-  empty.create(compute, NULL, false);
-  empty.resize(1, false);
 
   systemBoundingBox.create(compute, NULL, true);
   systemBoundingBox.resize(1, false);
@@ -87,14 +84,14 @@ void LBVHSolver::init()
   lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &utilInclude);
 }
 
-void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings)
+void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer)
 {
   uint nodeBatchSize = 8;
   uint nodeBatchCount = mAlignBy(instanceNodeCount, nodeBatchSize);
 
   if (particleLeafData.size() != instanceNodeCount)
   {
-    particlesPredictedTemp.resize(instanceNodeCount, false);
+    particlesBufferTemp.resize(instanceNodeCount, false);
     particleLeafData.resize(instanceNodeCount, false);
     particleLeafDataSorted.resize(instanceNodeCount, false);
     particleBoundingBoxes.resize(instanceNodeCount, false);
@@ -228,15 +225,22 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
 {
   const int iterations = 1;
 
-  ComputeMemory* second;
-
   for (int i=0; i<iterations; i++)
   {
-    second = (i==(iterations-1)) ? empty.device() : allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get();
+    uint stablizationPass = (i < (iterations-1));
 
-    build(instanceNodeCount, systemSettings);
+    ComputeMemory* particleBuffer = stablizationPass ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
 
-    compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesPredictedTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+    build(instanceNodeCount, systemSettings, particleBuffer);
+
+    if (stablizationPass)
+    {
+      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+    }
+    else
+    {
+      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+    }
 
     const uint batchesPerDispatch = 8;
     size_t workgroupSize[3], workgroupCount[3];
@@ -246,9 +250,9 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
     ComputeMemory* buffers[] = {
       visitedInternalNodes.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      second,
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
-      particlesPredictedTemp.device(),
+      particlesBufferTemp.device(),
       treeInternalNodes.device(),
       leafParentNodeIndices.device(),
       nodeParentNodeIndices.device(),
@@ -260,7 +264,6 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount);
-    uint stablizationPass = (second != empty.device());
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
 
     compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);

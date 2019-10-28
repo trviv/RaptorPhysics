@@ -20,7 +20,7 @@ protected:
   DeviceArray <XAB>             particleBoundingBoxes;
   DeviceArray <XAB>             treeInternalNodeBoundingBoxes;
 
-  void build(uint instanceNodeCount, ComputeMemory* systemSettings);
+  void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer);
 
 public:
 

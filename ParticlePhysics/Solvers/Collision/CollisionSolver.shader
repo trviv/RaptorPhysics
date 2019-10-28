@@ -72,6 +72,7 @@ inline float3 boundaryCollision(
   const Thread ParticleDifferential*  selfParticleDiff,
   const Thread ParticleCollisionData* collisionData,
   Const PhySystemSettings*            systemSettings,
+  const uint                          stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #endif
@@ -112,7 +113,10 @@ inline float3 boundaryCollision(
     if (dot(ret, ret) > 0.f)
     {
       const float3 friction = calculateFriction(selfParticleDiff->velocity, constructFloat3(0.f), -normalize(ret), length(ret), sharedData);
-      ret -= friction;
+      if (!stablizationPass)
+      {
+        ret -= friction;
+      }
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData->invMass;
@@ -137,6 +141,7 @@ inline float3 processParticleCollision(
   const uint index,
   const float sdfMagnitude,
   Thread short* collisionCount,
+  const uint stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData* particleCollisionData,
   Thread bool* collided)
@@ -165,17 +170,17 @@ inline float3 processParticleCollision(
     {
       // TODO: Look into SDF
       // displacement magnitude
-      float separationDistance = actualDistance - allowedDistance;
+      const float separationDistance = actualDistance - allowedDistance + COMPUTE_EPSILON;
 
       // get normal according to minimum translation distance
-      float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
+      //float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
 
       // sample signed distance field and modify normal
-      const float collDot = dot(sdfGradient, collisionVector);
-      float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
+      //const float collDot = dot(sdfGradient, collisionVector);
+      //float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
       //contactNormal = normalize(contactNormal);
 
-      contactNormal = collisionVector / actualDistance;
+      float3 contactNormal = collisionVector / actualDistance;
 
 #ifdef MARK_COLLIDED_PARTICLES
       *collided = true;
@@ -186,7 +191,10 @@ inline float3 processParticleCollision(
       const float3 displacementFactor = contactNormal * separationDistance;
 
       float3 displacement1 = -displacementFactor;
-      displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
+      if (!stablizationPass)
+      {
+        displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
+      }
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;

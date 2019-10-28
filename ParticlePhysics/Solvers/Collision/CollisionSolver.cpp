@@ -13,8 +13,7 @@ CollisionSolver::CollisionSolver(ComputeInterface* compute, SharedAllocator* all
 
 CollisionSolver::~CollisionSolver()
 {
-  empty.free();
-  particlesPredictedTemp.free();
+  particlesBufferTemp.free();
   particleGroupBoundingBoxes.free();
   systemBoundingBox.free();
   maxRadius.free();
