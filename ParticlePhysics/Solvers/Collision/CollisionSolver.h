@@ -11,11 +11,10 @@ class CollisionSolver : virtual public Solver
 protected:
 
   ComputeHeap*                  solverHeap;
-  DeviceArray <ParticleStruct>  empty;
-  DeviceArray <ParticleStruct>  particlesPredictedTemp;
+  DeviceArray <ParticleStruct>  particlesBufferTemp;
   DeviceArray <float>           maxRadius;
 
-  virtual void build(uint instanceNodeCount, ComputeMemory* systemSettings) = 0;
+  virtual void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer) = 0;
 
 public:
 

@@ -18,7 +18,7 @@ protected:
   DeviceArray <uint>  gridCellParticleIndices;
   uint                gridSize;
 
-  void build(uint instanceNodeCount, ComputeMemory* systemSettings);
+  void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer);
 
 public:
 

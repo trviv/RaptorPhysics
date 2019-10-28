@@ -169,7 +169,7 @@ Kernel void applyCollisions(
               const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
               const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
               delta += sharedData.collisionDamping * processParticleCollision(&currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-                &collisionData, &sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount,
+                &collisionData, &sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
                 particleCollisionData, &collided);
 #else
@@ -181,7 +181,7 @@ Kernel void applyCollisions(
       }
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings,
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
         &particleCollisionData[particleIndex],
 #endif
@@ -192,10 +192,9 @@ Kernel void applyCollisions(
         delta /= collisionCount;
       }
 
-      currentParticle.position += delta;
-      currentParticle.identity = identity;
-
-      particlesPredictedNew[particleIndex] = currentParticle;
+      // update position
+      particlesPredictedNew[particleIndex].position += delta;
+      particlesPredictedNew[particleIndex].identity = identity;
 
       if (stablizationPass)
       {

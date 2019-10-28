@@ -298,6 +298,7 @@ inline float3 stacklessTraverseBinaryTree(
   const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
+  const uint                          stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
@@ -467,7 +468,7 @@ inline float3 stacklessTraverseBinaryTree(
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
       output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
+        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -505,6 +506,7 @@ inline float3 stackTraverseBinaryTree(
   const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
+  const uint                          stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
@@ -587,7 +589,7 @@ inline float3 stackTraverseBinaryTree(
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
       output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount,
+        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -725,21 +727,21 @@ Kernel void applyCollisions(
         nodeParentNodeIndices,
         treeInternalNodeBoundingBoxes,
         &collisionData,
+        stablizationPass,
         particleCollisionData,
         &sharedData,
         index);
 
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings,
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
         &particleCollisionData[index],
 #endif
         &sharedData);
 
       // update position
-      currentParticle.position += delta;
-      currentParticle.identity = identity;
-      particlesPredictedNew[index] = currentParticle;
+      particlesPredictedNew[index].position += delta;
+      particlesPredictedNew[index].identity = identity;
 
       if (stablizationPass)
       {
