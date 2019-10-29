@@ -209,4 +209,165 @@ Kernel void applyCollisions(
   }
 }
 
+/*
+@kernel Resolve particle collisions.
+@param gridCellParticleOffsets Starting offset for each grid cell.
+@param gridCellIndexCount Particle count for each grid cell.
+@param gridCellParticleIndices Output array for particle indices.
+@param gridParticleCellIndex Computed cell index for each particle.
+@param particlesPredictedNew Updated particle positions post collision processing.
+@param particlesNew Integrated particle position.
+@param particlesBufferOld Old particle position.
+@param particleCollisionData Array containing particle SDF mass and radius data.
+@param particleSharedData Particle entity shared data.
+@param partitions Instance partition data.
+@param entityLocation Entity section data.
+@param systemSettings Settings for the physics system.
+@param gridSize Size of grid in one dimension.
+@param stablizationPass Marks if this is a stablization pass.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void applyCollisionsPerParticle(
+  const Device uint*                  gridCellParticleOffsets,
+  const Device uint*                  gridCellIndexCount,
+  const Device uint*                  gridCellParticleIndices,
+  const Device uint*                  gridParticleCellIndex,
+  Device ParticleStruct*              particlesPredictedNew,
+  Device ParticleStruct*              particlesNew,
+  const Device ParticleDifferential*  particlesDiff,
+  const Device ParticleStruct*        particlesBufferOld,
+#ifdef MARK_COLLIDED_PARTICLES
+  Device ParticleCollisionData*       particleCollisionData,
+#else
+  const Device ParticleCollisionData* particleCollisionData,
+#endif
+  const Device ParticleSharedData*    particleSharedData,
+  Const PhySystemSettings*            systemSettings,
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(uint,           stablizationPass),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  uint particleIndex = threadIndex();
+
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  particleIndex = gridCellParticleIndices[particleIndex];
+
+  const uint gridCellIndex = gridParticleCellIndex[particleIndex];
+  short collisionCount = 0;
+
+  // current particle data
+  float3 positionDiff = constructFloat3(0.f);
+  ParticleStruct selfParticle = particlesBufferOld[particleIndex];
+  const IdentityInfo identity = selfParticle.identity;
+  const ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
+
+  float sdfMagnitude;
+
+#ifdef MARK_COLLIDED_PARTICLES
+  bool collided = false;
+#endif
+
+  ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
+
+  nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
+  nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
+
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const ParticleCollisionData collisionData = particleCollisionData[particleIndex];
+
+  sdfMagnitude = length(collisionData.transformedSdfGradient);
+
+  const short3 particleGridCellIndex = constructShort3(
+    gridCellIndex & (gridSize - 1),
+    (gridCellIndex / gridSize) & (gridSize - 1),
+    gridCellIndex / (gridSize * gridSize)
+  );
+
+  for (short k=-1; k<2; k++)
+  {
+    const short z = particleGridCellIndex.z + k;
+    if (z < 0 || z >= gridSize)
+    {
+      continue;
+    }
+    for (short j=-1; j<2; j++)
+    {
+      const short y = particleGridCellIndex.y + j;
+      if (y < 0 || y >= gridSize)
+      {
+        continue;
+      }
+      for (short i=-1; i<2; i++)
+      {
+        const short x = particleGridCellIndex.x + i;
+        if (x < 0 || x >= gridSize)
+        {
+          continue;
+        }
+        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        int count = gridCellIndexCount[gridCellIndex];
+
+        if (count == 0)
+        {
+          continue;
+        }
+
+        const int end = gridCellParticleOffsets[gridCellIndex];
+
+        // batchwise iterate over indices in the cell
+        for (int otherIndex = end - count; otherIndex < end; otherIndex++)
+        {
+          // iterate over each particle in the loaded batch
+          const int otherNodeIndex = gridCellParticleIndices[otherIndex];
+
+          const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
+          const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
+          positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+            &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+#ifdef MARK_COLLIDED_PARTICLES
+            particleCollisionData, &collided);
+#else
+            particleCollisionData);
+#endif
+        }
+      }
+    }
+  }
+
+  // apply boundary
+  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
+#ifdef MARK_COLLIDED_PARTICLES
+    &particleCollisionData[particleIndex],
+#endif
+    &sharedData);
+
+  if (collisionCount)
+  {
+    positionDiff /= collisionCount;
+  }
+
+  // update position
+  particlesPredictedNew[particleIndex].position += positionDiff;
+  particlesPredictedNew[particleIndex].identity = identity;
+
+  if (stablizationPass)
+  {
+    particlesNew[particleIndex].position += positionDiff;
+    particlesNew[particleIndex].identity = identity;
+  }
+
+#ifdef MARK_COLLIDED_PARTICLES
+  particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
+#endif
+}
+
+
 #endif

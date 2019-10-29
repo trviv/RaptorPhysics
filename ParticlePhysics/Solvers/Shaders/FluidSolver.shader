@@ -60,95 +60,115 @@ Kernel void calculateDensity(
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
+  const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleSharedData*    particleSharedData,
-  constantKernelInput(int,            gridSize)
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  const uint gridCellIndex = gridCompactCellIndices[threadGroupIndex()];
+  uint particleIndex = threadIndex();
 
-  // particle index buffer
-  const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
-  const int indexBufferCount = gridCellIndexCount[gridCellIndex];
-
-  // batchwise iterate over indices in the cell
-  for (int particlePointerIndex = indexBufferEnd - indexBufferCount + threadLocalIndex(); particlePointerIndex < indexBufferEnd; particlePointerIndex += threadGroupSize())
+  if (particleIndex >= nodeCount)
   {
+    return;
+  }
+
+  particleIndex = gridCellParticleIndices[particleIndex];
+
+  const uint gridCellIndex = gridParticleCellIndex[particleIndex];
+
 #ifdef MARK_COLLIDED_PARTICLES
-    bool collided = false;
+  bool collided = false;
 #endif
 
-    // current particle data
-    float density = 0.f;
-    float gradientMagnitude = 0.f;
-    float3 accumulatedGradient = constructFloat3(0.f);
+  // current particle data
+  float density = 0.f;
+  float gradientMagnitude = 0.f;
+  float3 accumulatedGradient = constructFloat3(0.f);
 
-    const int particleIndex = gridCellParticleIndices[particlePointerIndex];
-    const ParticleStruct currentParticle = particlesPredictedOld[particleIndex];
-    const IdentityInfo identity = currentParticle.identity;
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+  const IdentityInfo identity = selfParticle.identity;
+  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
-    for (short k=-1; k<2; k++)
+  const short3 particleGridCellIndex = constructShort3(
+    gridCellIndex & (gridSize - 1),
+    (gridCellIndex / gridSize) & (gridSize - 1),
+    gridCellIndex / (gridSize * gridSize)
+  );
+
+  for (short k=-1; k<2; k++)
+  {
+    const short z = particleGridCellIndex.z + k;
+    if (z < 0 || z >= gridSize)
     {
-      const int z = (gridCellIndex / (gridSize * gridSize) + k + gridSize) & (gridSize - 1);
-      for (short j=-1; j<2; j++)
+      continue;
+    }
+    for (short j=-1; j<2; j++)
+    {
+      const short y = particleGridCellIndex.y + j;
+      if (y < 0 || y >= gridSize)
       {
-        const int y = ((gridCellIndex / gridSize) + j + gridSize) & (gridSize - 1);
-        for (short i=-1; i<2; i++)
+        continue;
+      }
+      for (short i=-1; i<2; i++)
+      {
+        const short x = particleGridCellIndex.x + i;
+        if (x < 0 || x >= gridSize)
         {
-          const int x = (gridCellIndex + i + gridSize) & (gridSize - 1);
-          const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
-          int indexBufferCount2 = gridCellIndexCount[gridCellIndex2];
+          continue;
+        }
+        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        int indexBufferCount = gridCellIndexCount[gridCellIndex];
 
-          if (indexBufferCount2 == 0)
+        if (indexBufferCount == 0)
+        {
+          continue;
+        }
+
+        const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
+
+        // batchwise iterate over indices in the cell
+        for (int otherParticlePointerIndex = indexBufferEnd - indexBufferCount; otherParticlePointerIndex < indexBufferEnd; otherParticlePointerIndex++)
+        {
+          // iterate over each particle in the loaded batch
+          const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
+          const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+
+          const float3 collisionVector = selfParticle.position - otherParticle.position;
+          float actualDistance = length(collisionVector);
+
+          density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+
+          if (otherNodeIndex == particleIndex)
           {
             continue;
           }
 
-          const int indexBufferEnd2 = gridCellParticleOffsets[gridCellIndex2];
+          actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
-          // batchwise iterate over indices in the cell
-          for (int otherParticlePointerIndex = indexBufferEnd2 - indexBufferCount2; otherParticlePointerIndex < indexBufferEnd2; otherParticlePointerIndex++)
-          {
-            // iterate over each particle in the loaded batch
-            const int currentNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
-            const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-
-            const float3 collisionVector = currentParticle.position - otherParticle.position;
-            float actualDistance = length(collisionVector);
-
-            density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
-
-            if (currentNodeIndex == particleIndex)
-            {
-              continue;
-            }
-
-            actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
-
-            float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
+          float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
 //            float3 gradient = constructFloat3(0.f);
 //            if (actualDistance < sharedData.fluidKernelRadius)
 //            {
 //              gradient = - collisionVector * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance;
 //            }
-            gradientMagnitude += dot(gradient, gradient);
-            accumulatedGradient += gradient;
-          }
+          gradientMagnitude += dot(gradient, gradient);
+          accumulatedGradient += gradient;
         }
       }
     }
-
-    gradientMagnitude += dot(accumulatedGradient, accumulatedGradient);
-    gradientMagnitude *= sharedData.invRestDensity;
-
-    density /= sharedData.sharedInvMass;
-
-    particlesDensity[particleIndex] = density;
   }
+
+  gradientMagnitude += dot(accumulatedGradient, accumulatedGradient);
+  gradientMagnitude *= sharedData.invRestDensity;
+
+  density /= sharedData.sharedInvMass;
+
+  particlesDensity[particleIndex] = density;
 }
 
 /*
@@ -175,99 +195,120 @@ Kernel void calculateForces(
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
+  const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleSharedData*    particleSharedData,
-  constantKernelInput(int,            gridSize)
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  const uint gridCellIndex = gridCompactCellIndices[threadGroupIndex()];
+  uint particleIndex = threadIndex();
 
-  // particle index buffer
-  const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
-  const int indexBufferCount = gridCellIndexCount[gridCellIndex];
-
-  // batchwise iterate over indices in the cell
-  for (int particlePointerIndex = indexBufferEnd - indexBufferCount + threadLocalIndex(); particlePointerIndex < indexBufferEnd; particlePointerIndex += threadGroupSize())
+  if (particleIndex >= nodeCount)
   {
+    return;
+  }
+
+  particleIndex = gridCellParticleIndices[particleIndex];
+
+  const uint gridCellIndex = gridParticleCellIndex[particleIndex];
+
 #ifdef MARK_COLLIDED_PARTICLES
-    bool collided = false;
+  bool collided = false;
 #endif
 
-    float force = 0.f;
-    float3 delta = constructFloat3(0.f);
+  float force = 0.f;
+  float3 delta = constructFloat3(0.f);
 
-    // current particle data
-    const int particleIndex = gridCellParticleIndices[particlePointerIndex];
-    ParticleStruct currentParticle = particlesPredictedOld[particleIndex];
-    const IdentityInfo identity = currentParticle.identity;
-    const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const float lambda = particlesLambda[particleIndex];
-    const float density = particlesDensity[particleIndex];
+  // current particle data
+  //const int particleIndex = gridCellParticleIndices[particlePointerIndex];
+  ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+  const IdentityInfo identity = selfParticle.identity;
+  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const float lambda = particlesLambda[particleIndex];
+  const float density = particlesDensity[particleIndex];
 
-    for (short k=-1; k<2; k++)
+  const short3 particleGridCellIndex = constructShort3(
+    gridCellIndex & (gridSize - 1),
+    (gridCellIndex / gridSize) & (gridSize - 1),
+    gridCellIndex / (gridSize * gridSize)
+  );
+
+  for (short k=-1; k<2; k++)
+  {
+    const short z = particleGridCellIndex.z + k;
+    if (z < 0 || z >= gridSize)
     {
-      const int z = (gridCellIndex / (gridSize * gridSize) + k + gridSize) & (gridSize - 1);
-      for (short j=-1; j<2; j++)
+      continue;
+    }
+    for (short j=-1; j<2; j++)
+    {
+      const short y = particleGridCellIndex.y + j;
+      if (y < 0 || y >= gridSize)
       {
-        const int y = ((gridCellIndex / gridSize) + j + gridSize) & (gridSize - 1);
-        for (short i=-1; i<2; i++)
+        continue;
+      }
+      for (short i=-1; i<2; i++)
+      {
+        const short x = particleGridCellIndex.x + i;
+        if (x < 0 || x >= gridSize)
         {
-          const int x = (gridCellIndex + i + gridSize) & (gridSize - 1);
-          const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
-          int indexBufferCount2 = gridCellIndexCount[gridCellIndex2];
+          continue;
+        }
+        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        int indexBufferCount = gridCellIndexCount[gridCellIndex];
 
-          if (indexBufferCount2 == 0)
+        if (indexBufferCount == 0)
+        {
+          continue;
+        }
+
+        const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
+
+        // batchwise iterate over indices in the cell
+        for (int otherParticlePointerIndex = indexBufferEnd - indexBufferCount; otherParticlePointerIndex < indexBufferEnd; otherParticlePointerIndex++)
+        {
+          // iterate over each particle in the loaded batch
+          const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
+          const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+
+          const float3 collisionVector = selfParticle.position - otherParticle.position;
+          float actualDistance = length(collisionVector);
+
+          if (otherNodeIndex == particleIndex)
           {
             continue;
           }
 
-          const int indexBufferEnd2 = gridCellParticleOffsets[gridCellIndex2];
+          actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
-          // batchwise iterate over indices in the cell
-          for (int otherParticlePointerIndex = indexBufferEnd2 - indexBufferCount2; otherParticlePointerIndex < indexBufferEnd2; otherParticlePointerIndex++)
-          {
-            // iterate over each particle in the loaded batch
-            const int currentNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
-            const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
+          const float currentParticleDensity = particlesDensity[otherNodeIndex];
 
-            const float3 collisionVector = currentParticle.position - otherParticle.position;
-            float actualDistance = length(collisionVector);
-
-            if (currentNodeIndex == particleIndex)
-            {
-              continue;
-            }
-
-            actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
-
-            const float currentParticleDensity = particlesDensity[currentNodeIndex];
-
-//            delta += sharedData.invRestDensity * collisionVector * ((lambda + particlesLambda[currentNodeIndex] + scorrFunction(actualDistance, sharedData.fluidKernelRadius)) *
+//            delta += sharedData.invRestDensity * collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorrFunction(actualDistance, sharedData.fluidKernelRadius)) *
 //                select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
-            const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) / (2.f * currentParticleDensity);
-            const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
-            float timeStep = 1.f/60.f;
+          const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) / (2.f * currentParticleDensity);
+          const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+          float timeStep = 1.f/60.f;
 
-            // force due to pressure
-            delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
+          // force due to pressure
+          delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
-            float3 velocityVector = particleDiff[currentNodeIndex].velocity - particleDiff[particleIndex].velocity;
-            float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+          float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
+          float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
-            // force due to viscosity
-            delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
-          }
+          // force due to viscosity
+          delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
         }
       }
     }
-
-    currentParticle.position += delta / sharedData.sharedInvMass;
-    currentParticle.identity = identity;
-    particlesPredictedNew[particleIndex] = currentParticle;
   }
+
+  selfParticle.position += delta / sharedData.sharedInvMass;
+  selfParticle.identity = identity;
+  particlesPredictedNew[particleIndex] = selfParticle;
 }
 
 #endif

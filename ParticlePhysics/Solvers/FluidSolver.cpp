@@ -220,10 +220,9 @@ void FluidSolver::solve()
 
   compute->copyBuffer(particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
-  {
-    size_t workgroupSize[3] = {1, 1, 1};
-    workgroupSize[0] = this->compute->maxThreadsPerGroup();
+  compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
+  {
     ComputeMemory* buffers[] = {
       particlesDensity.device(),
       particlesLambda.device(),
@@ -231,14 +230,16 @@ void FluidSolver::solve()
       gridCellParticleOffsets.device(),
       gridCellParticleCount.device(),
       gridCellParticleIndices.device(),
+      gridParticleCellIndex.device(),
       UniformGridCollisionSolver::particlesBufferTemp.device(),
       entitySharedData.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArgs(buffers, bufferCount);
     kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&gridSize, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&particleCount, bufferCount + 1);
 
-    compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY], workgroupSize, gridCompactCellCount.device(), 0);
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY], workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_FLUID_SOLVER
@@ -249,9 +250,6 @@ void FluidSolver::solve()
 #endif
 
   {
-    size_t workgroupSize[3] = {1, 1, 1};
-    workgroupSize[0] = this->compute->maxThreadsPerGroup();
-
     ComputeMemory* buffers[] = {
       particlesPredicted.device(),
       particlesDensity.device(),
@@ -261,14 +259,16 @@ void FluidSolver::solve()
       gridCellParticleOffsets.device(),
       gridCellParticleCount.device(),
       gridCellParticleIndices.device(),
+      gridParticleCellIndex.device(),
       UniformGridCollisionSolver::particlesBufferTemp.device(),
       entitySharedData.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArgs(buffers, bufferCount);
     kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 1);
 
-    compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_FORCES], workgroupSize, gridCompactCellCount.device(), 0);
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_FORCES], workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_FLUID_SOLVER
