@@ -22,6 +22,7 @@
 #define Thread  __private
 
 #define constructUshort4    (ushort4)
+#define constructShort3     (short3)
 #define constructFloat2     (float2)
 #define constructFloat3     (float3)
 #define constructFloat4     (float4)
@@ -73,6 +74,7 @@
 #define Thread  thread
 
 #define constructUshort4    ushort4
+#define constructShort3     short3
 #define constructFloat2     float2
 #define constructFloat3     float3
 #define constructFloat4     float4
