@@ -86,8 +86,8 @@ Kernel void calculateDensity(
 
   // current particle data
   float density = 0.f;
-  float gradientMagnitude = 0.f;
-  float3 accumulatedGradient = constructFloat3(0.f);
+  float sumGradientMagnitude = 0.f;
+  float3 sumGradientVector = constructFloat3(0.f);
 
   const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
   const IdentityInfo identity = selfParticle.identity;
@@ -151,24 +151,21 @@ Kernel void calculateDensity(
           actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
           float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
-//            float3 gradient = constructFloat3(0.f);
-//            if (actualDistance < sharedData.fluidKernelRadius)
-//            {
-//              gradient = - collisionVector * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance;
-//            }
-          gradientMagnitude += dot(gradient, gradient);
-          accumulatedGradient += gradient;
+          sumGradientMagnitude += dot(gradient, gradient);
+          sumGradientVector += gradient;
         }
       }
     }
   }
 
-  gradientMagnitude += dot(accumulatedGradient, accumulatedGradient);
-  gradientMagnitude *= sharedData.invRestDensity;
+  sumGradientMagnitude += dot(sumGradientVector, sumGradientVector);
+  //sumGradientMagnitude *= sharedData.invRestDensity;
 
   density /= sharedData.sharedInvMass;
 
-  particlesDensity[particleIndex] = density;
+  //particlesDensity[particleIndex] = density;
+  density = density * sharedData.invRestDensity - 1.f;
+  particlesDensity[particleIndex] = -density / (sumGradientMagnitude + 10.1f) ;
 }
 
 /*
@@ -223,7 +220,6 @@ Kernel void calculateForces(
   float3 delta = constructFloat3(0.f);
 
   // current particle data
-  //const int particleIndex = gridCellParticleIndices[particlePointerIndex];
   ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
   const IdentityInfo identity = selfParticle.identity;
   const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
@@ -294,18 +290,23 @@ Kernel void calculateForces(
           float timeStep = 1.f/60.f;
 
           // force due to pressure
-          delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
+          //delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
           float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
           float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
           // force due to viscosity
-          delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
+          //delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
+
+          const float corr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
+          delta += collisionVector * ((density + currentParticleDensity + corr) *
+            select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
         }
       }
     }
   }
 
+  delta *= sharedData.invRestDensity;
   selfParticle.position += delta / sharedData.sharedInvMass;
   selfParticle.identity = identity;
   particlesPredictedNew[particleIndex] = selfParticle;

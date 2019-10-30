@@ -79,35 +79,40 @@ inline float3 boundaryCollision(
   const Thread ParticleSharedData*    sharedData)
 {
   float3 ret = constructFloat3(0.f);
+#ifdef MARK_COLLIDED_PARTICLES
+  const float3 min = systemSettings->systemBound.min + constructFloat3(fabs(collisionData->radius));
+  const float3 max = systemSettings->systemBound.max - constructFloat3(fabs(collisionData->radius));
+#else
   const float3 min = systemSettings->systemBound.min + constructFloat3(collisionData->radius);
   const float3 max = systemSettings->systemBound.max - constructFloat3(collisionData->radius);
+#endif
 
   // only if movable
   if (collisionData->invMass)
   {
-    if (particle->position.y <= min.y)
+    if (particle->position.y < min.y)
     {
       ret.y = min.y - particle->position.y;
     }
 
-    if (particle->position.x <= min.x)
+    if (particle->position.x < min.x)
     {
       ret.x = min.x - particle->position.x;
     }
 
-    if (particle->position.x >= max.x)
+    if (particle->position.x > max.x)
     {
       ret.x = max.x - particle->position.x;
     }
 
-    if (particle->position.z >= max.z)
+    if (particle->position.z < min.z)
     {
-      ret.z = max.z - particle->position.z;
+      ret.z = min.z - particle->position.z;
     }
 
-    if (particle->position.z <= min.z)
+    if (particle->position.z > max.z)
     {
-      ret.z = systemSettings->systemBound.min.z - particle->position.z;
+      ret.z = max.z - particle->position.z;
     }
 
     if (dot(ret, ret) > 0.f)
@@ -120,7 +125,7 @@ inline float3 boundaryCollision(
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData->invMass;
-      particleCollisionData->transformedSdfGradient = 2.f * collisionData->radius * normalize(friction);
+      particleCollisionData->transformedSdfGradient = 2.f * fabs(collisionData->radius) * normalize(friction);
       particleCollisionData->invMass = invMass;
 #endif
     }
@@ -180,7 +185,7 @@ inline float3 processParticleCollision(
       //float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
       //contactNormal = normalize(contactNormal);
 
-      float3 contactNormal = collisionVector / actualDistance;
+      float3 contactNormal = collisionVector / max(COMPUTE_EPSILON, actualDistance);
 
 #ifdef MARK_COLLIDED_PARTICLES
       *collided = true;
@@ -198,7 +203,7 @@ inline float3 processParticleCollision(
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;
-      particleCollisionData[index].transformedSdfGradient = 2.f * collisionData->radius * normalize(contactNormal);
+      particleCollisionData[index].transformedSdfGradient = 2.f * fabs(collisionData->radius) * normalize(contactNormal);
       particleCollisionData[index].invMass = invMass;
 #endif
 
