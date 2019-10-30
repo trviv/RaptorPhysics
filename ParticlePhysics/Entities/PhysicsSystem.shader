@@ -102,8 +102,8 @@ Kernel void startStep(
     float3 velocity;
 
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf ("In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
+    printf ("Start In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf ("Start In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
 #endif
 
     if (invMass) // only if movable
@@ -144,7 +144,7 @@ Kernel void startStep(
 #endif
     }
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
+    printf("Start Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
 #endif
   }
 }
@@ -183,8 +183,8 @@ Kernel void endStep(
     float3 velocity, particlePositionPredicted;
 
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf ("In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf ("In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
+    printf ("End In: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf ("End In: %d %d %f %f %f\n", index, identity.identity, particlesPredicted[index].position.x, particlesPredicted[index].position.y, particlesPredicted[index].position.z);
 #endif
 
     if (invMass) // only if movable
@@ -204,8 +204,8 @@ Kernel void endStep(
     }
 
 #ifdef DEBUG_PHYSICS_SYSTEM
-    printf("Out: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
-    printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
+    printf("End Out: %d %d %f %f %f\n", index, identity.identity, particleDiff[index].velocity.x, particleDiff[index].velocity.y, particleDiff[index].velocity.z);
+    printf("End Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
 #endif
   }
 }

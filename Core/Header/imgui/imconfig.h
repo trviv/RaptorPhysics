@@ -13,6 +13,9 @@
 
 #pragma once
 
+#define CL_SILENCE_DEPRECATION
+#define GL_SILENCE_DEPRECATION
+#define GLES_SILENCE_DEPRECATION
 #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM <OpenGL/gl3.h>
 
 //---- Define assertion handler. Defaults to calling assert().
