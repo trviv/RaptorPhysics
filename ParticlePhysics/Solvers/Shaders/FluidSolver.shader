@@ -3,6 +3,7 @@
 
 #define successiveOverRealaxation 1.5f
 #define FLUID_SIM_EPSILON         1.f
+//#define FLUID_USE_LAMBDA
 
 inline float poly6Function(const float r, const float h)
 {
@@ -163,9 +164,12 @@ Kernel void calculateDensity(
 
   density /= sharedData.sharedInvMass;
 
-  //particlesDensity[particleIndex] = density;
+#ifdef FLUID_USE_LAMBDA
   density = density * sharedData.invRestDensity - 1.f;
   particlesDensity[particleIndex] = -density / (sumGradientMagnitude + 10.1f) ;
+#else
+  particlesDensity[particleIndex] = density;
+#endif
 }
 
 /*
@@ -289,18 +293,20 @@ Kernel void calculateForces(
           const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
           float timeStep = 1.f/60.f;
 
+#ifndef FLUID_USE_LAMBDA
           // force due to pressure
-          //delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
+          delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
           float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
           float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
           // force due to viscosity
-          //delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
-
+          delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
+#else
           const float corr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
           delta += collisionVector * ((density + currentParticleDensity + corr) *
             select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
+#endif
         }
       }
     }

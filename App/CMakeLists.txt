@@ -15,6 +15,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/LineFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/ParticleVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/ParticleFrag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/FlatVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/BoxVert.glsl"
