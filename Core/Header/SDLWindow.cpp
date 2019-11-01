@@ -560,7 +560,7 @@ void Window::start()
     if (downVector.length() > 0.f)
     {
       downVector *= 5.f / 32767.f;
-      downVector[2] += 0.75f;
+      downVector[2] += 0.6f;
       down = downVector;
     }
 

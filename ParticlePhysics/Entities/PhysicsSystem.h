@@ -49,6 +49,12 @@ class PhysicsSystem : protected ShaderEntity, public Window
   float elapsedSimTime;
   int   frameCount;
 
+  void createSphere(float radius);
+
+  void createUnitBox();
+
+  void createUnitCircle();
+
   /*!@function Take one simulation step.*/
   void step();
 
@@ -100,11 +106,13 @@ public:
 
   Vertex  displayParticleVertex;
   Vertex  displaySolidVertex;
+  Vertex  displayFlatVertex;
   Vertex  displayBoxVertex;
   Vertex  displayLineVertex;
 
   Shader  displayParticleShader;
   Shader  displaySolidShader;
+  Shader  displayFlatShader;
   Shader  displayBoxShader;
   Shader  displayLineShader;
 
@@ -115,10 +123,6 @@ public:
 
   /*!@member Particle radius available for reuse.*/
   vector<float> solverParticleRadius[SOLVER_MAX];
-
-  void createSphere(float radius);
-
-  void createUnitBox();
 
   /*!@function Render all registered entities.*/
   void render();
