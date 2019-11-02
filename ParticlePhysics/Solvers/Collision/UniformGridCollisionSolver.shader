@@ -1,6 +1,8 @@
 #ifndef GRID_SOLVER_SHADER
 #define GRID_SOLVER_SHADER
 
+//#define GRID_SOLVER_SEPARATE_LOOPS
+
 /*
 @kernel Compute and store the cell index for each particle, and atomically increment the cell count for grid cell.
 @param gridCellIndexCount Particle count for each grid cell.
@@ -209,6 +211,18 @@ Kernel void applyCollisions(
   }
 }
 
+inline uchar encodeCellOffset(short x, short y, short z)
+{
+  x++, y++, z++;
+  return (z << 4) | (y << 2) | x;
+}
+
+inline uint decodeCellIndex(uchar encodedOffset, short3 baseIndex, int gridSize)
+{
+  baseIndex--;
+  return baseIndex.x + (encodedOffset & 3) + (baseIndex.y + ((encodedOffset >> 2) & 3) + (baseIndex.z + (encodedOffset >> 4)) * gridSize) * gridSize;
+}
+
 /*
 @kernel Resolve particle collisions.
 @param gridCellParticleOffsets Starting offset for each grid cell.
@@ -291,6 +305,7 @@ Kernel void applyCollisionsPerParticle(
     gridCellIndex / (gridSize * gridSize)
   );
 
+#ifndef GRID_SOLVER_SEPARATE_LOOPS
   for (short k=-1; k<2; k++)
   {
     const short z = particleGridCellIndex.z + k;
@@ -341,6 +356,77 @@ Kernel void applyCollisionsPerParticle(
       }
     }
   }
+#else
+  uchar validNeighbourIndex[27];
+  uchar validNeighbourCount = 1;
+
+  validNeighbourIndex[0] = encodeCellOffset(0, 0, 0);
+  for (short k=-1; k<2; k++)
+  {
+    const short z = particleGridCellIndex.z + k;
+    if (z < 0 || z >= gridSize)
+    {
+      continue;
+    }
+    for (short j=-1; j<2; j++)
+    {
+      const short y = particleGridCellIndex.y + j;
+      if (y < 0 || y >= gridSize)
+      {
+        continue;
+      }
+      for (short i=-1; i<2; i++)
+      {
+        const short x = particleGridCellIndex.x + i;
+        if (x < 0 || x >= gridSize)
+        {
+          continue;
+        }
+        const uint gridCellIndex2 = x + gridSize * (y + z * gridSize);
+
+        if (gridCellIndex2 == gridCellIndex)
+        {
+          continue;
+        }
+
+        int count = gridCellIndexCount[gridCellIndex2];
+
+        if (count == 0)
+        {
+          continue;
+        }
+
+        validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(i, j, k);
+      }
+    }
+  }
+
+  for (uchar i=0; i<validNeighbourCount; i++)
+  {
+        const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSize);
+        int count = gridCellIndexCount[gridCellIndex];
+
+        const int end = gridCellParticleOffsets[gridCellIndex];
+
+        // batchwise iterate over indices in the cell
+        for (int otherIndex = end - count; otherIndex < end; otherIndex++)
+        {
+          // iterate over each particle in the loaded batch
+          const int otherNodeIndex = gridCellParticleIndices[otherIndex];
+
+          const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
+          const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
+          positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+            &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+#ifdef MARK_COLLIDED_PARTICLES
+            particleCollisionData, &collided);
+#else
+            particleCollisionData);
+#endif
+        }
+  }
+
+#endif
 
   // apply boundary
   positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
