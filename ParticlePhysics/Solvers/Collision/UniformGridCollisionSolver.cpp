@@ -314,7 +314,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
       particlesBufferTemp.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      systemSettings
+      systemSettings,
+      systemBoundingBox.device(),
+      maxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS_PER_PARTICLE].setArgs(buffers, bufferCount);

@@ -2,6 +2,36 @@
 #define GRID_SOLVER_SHADER
 
 //#define GRID_SOLVER_SEPARATE_LOOPS
+#define GRID_SOLVER_HASH_FUNCTION
+
+inline ushort getMinComponentIndex(const float3 vector)
+{
+  if (vector.x <= vector.y && vector.x <= vector.z)
+  {
+    return 0;
+  }
+  else if (vector.y <= vector.x && vector.y <= vector.z)
+  {
+    return 1;
+  }
+  return 2;
+}
+
+inline int3 positionHashFunction(const float3 position, const int gridSize, const ushort minComponent)
+{
+  const int3 quantizedPosition = convertInt3(position) + gridSize;
+  const int3 multiplier = quantizedPosition / gridSize - 1;
+
+  switch (minComponent)
+  {
+    case 0:
+      return (quantizedPosition + (constructInt3(multiplier.y + multiplier.z * 3, 0, 0) * 5)) & constructInt3(gridSize - 1);
+    case 1:
+      return (quantizedPosition + (constructInt3(0, multiplier.z + multiplier.x * 3, 0) * 5)) & constructInt3(gridSize - 1);
+    default:
+      return (quantizedPosition + (constructInt3(0, 0, multiplier.x + multiplier.y * 3) * 5)) & constructInt3(gridSize - 1);
+  }
+}
 
 /*
 @kernel Compute and store the cell index for each particle, and atomically increment the cell count for grid cell.
@@ -25,8 +55,12 @@ Kernel void createGridCellHistogram(
 
   if (index < nodeCount)
   {
+#ifndef GRID_SOLVER_HASH_FUNCTION
     const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize * radius[0], systemBoundingBox->max - systemBoundingBox->min);
     const int3 quantizedPosition = convertInt3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
+#else
+    const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) / radius[0], gridSize, getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min));
+#endif
     const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
     gridParticleCellIndex[index] = gridCountOffset;
@@ -223,6 +257,11 @@ inline uint decodeCellIndex(uchar encodedOffset, short3 baseIndex, int gridSize)
   return baseIndex.x + (encodedOffset & 3) + (baseIndex.y + ((encodedOffset >> 2) & 3) + (baseIndex.z + (encodedOffset >> 4)) * gridSize) * gridSize;
 }
 
+inline short3 decodeCellVector(uchar encodedOffset)
+{
+  return constructShort3(encodedOffset, (encodedOffset >> 2), (encodedOffset >> 4)) & 3;
+}
+
 /*
 @kernel Resolve particle collisions.
 @param gridCellParticleOffsets Starting offset for each grid cell.
@@ -257,6 +296,8 @@ Kernel void applyCollisionsPerParticle(
 #endif
   const Device ParticleSharedData*    particleSharedData,
   Const PhySystemSettings*            systemSettings,
+  Const XAB*                          systemBoundingBox,
+  Const float*                        radius,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass),
   constantKernelInput(uint,           nodeCount)
@@ -305,29 +346,43 @@ Kernel void applyCollisionsPerParticle(
     gridCellIndex / (gridSize * gridSize)
   );
 
+#ifdef GRID_SOLVER_HASH_FUNCTION
+  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
+  const ushort minComponent = getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min);
+#endif
+
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
   for (short k=-1; k<2; k++)
   {
+#ifndef GRID_SOLVER_HASH_FUNCTION
     const short z = particleGridCellIndex.z + k;
     if (z < 0 || z >= gridSize)
     {
       continue;
     }
+#endif
     for (short j=-1; j<2; j++)
     {
+#ifndef GRID_SOLVER_HASH_FUNCTION
       const short y = particleGridCellIndex.y + j;
       if (y < 0 || y >= gridSize)
       {
         continue;
       }
+#endif
       for (short i=-1; i<2; i++)
       {
+#ifndef GRID_SOLVER_HASH_FUNCTION
         const short x = particleGridCellIndex.x + i;
         if (x < 0 || x >= gridSize)
         {
           continue;
         }
         const int gridCellIndex = x + gridSize * (y + z * gridSize);
+#else
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+#endif
         int count = gridCellIndexCount[gridCellIndex];
 
         if (count == 0)
@@ -363,27 +418,35 @@ Kernel void applyCollisionsPerParticle(
   validNeighbourIndex[0] = encodeCellOffset(0, 0, 0);
   for (short k=-1; k<2; k++)
   {
+#ifndef GRID_SOLVER_HASH_FUNCTION
     const short z = particleGridCellIndex.z + k;
     if (z < 0 || z >= gridSize)
     {
       continue;
     }
+#endif
     for (short j=-1; j<2; j++)
     {
+#ifndef GRID_SOLVER_HASH_FUNCTION
       const short y = particleGridCellIndex.y + j;
       if (y < 0 || y >= gridSize)
       {
         continue;
       }
+#endif
       for (short i=-1; i<2; i++)
       {
+#ifndef GRID_SOLVER_HASH_FUNCTION
         const short x = particleGridCellIndex.x + i;
         if (x < 0 || x >= gridSize)
         {
           continue;
         }
         const uint gridCellIndex2 = x + gridSize * (y + z * gridSize);
-
+#else
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int gridCellIndex2 = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+#endif
         if (gridCellIndex2 == gridCellIndex)
         {
           continue;
@@ -403,7 +466,12 @@ Kernel void applyCollisionsPerParticle(
 
   for (uchar i=0; i<validNeighbourCount; i++)
   {
+#ifndef GRID_SOLVER_HASH_FUNCTION
         const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSize);
+#else
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructFloat3(1)), gridSize, minComponent);
+        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+#endif
         int count = gridCellIndexCount[gridCellIndex];
 
         const int end = gridCellParticleOffsets[gridCellIndex];

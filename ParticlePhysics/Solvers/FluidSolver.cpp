@@ -232,7 +232,9 @@ void FluidSolver::solve()
       gridCellParticleIndices.device(),
       gridParticleCellIndex.device(),
       UniformGridCollisionSolver::particlesBufferTemp.device(),
-      entitySharedData.device()
+      entitySharedData.device(),
+      systemBoundingBox.device(),
+      maxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArgs(buffers, bufferCount);
@@ -261,7 +263,9 @@ void FluidSolver::solve()
       gridCellParticleIndices.device(),
       gridParticleCellIndex.device(),
       UniformGridCollisionSolver::particlesBufferTemp.device(),
-      entitySharedData.device()
+      entitySharedData.device(),
+      systemBoundingBox.device(),
+      maxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArgs(buffers, bufferCount);
