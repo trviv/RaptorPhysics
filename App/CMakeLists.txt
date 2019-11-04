@@ -20,6 +20,8 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/SolidFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/BoxVert.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/BoxFrag.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/GridVert.glsl"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/GridFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeHeader.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComputeUtils.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/PrefixScan.shader"

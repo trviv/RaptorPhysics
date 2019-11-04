@@ -12,14 +12,14 @@ protected:
 
   ComputeHeap*                  solverHeap;
   DeviceArray <ParticleStruct>  particlesBufferTemp;
-  DeviceArray <float>           maxRadius;
 
   virtual void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer) = 0;
 
 public:
 
-  DeviceArray <XAB> systemBoundingBox;
-  DeviceArray <XAB> particleGroupBoundingBoxes;
+  DeviceArray <float> maxRadius;
+  DeviceArray <XAB>   systemBoundingBox;
+  DeviceArray <XAB>   particleGroupBoundingBoxes;
 
   /*!
   @constructor Construct a collision solver object.
