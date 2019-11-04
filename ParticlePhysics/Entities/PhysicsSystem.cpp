@@ -14,11 +14,12 @@ static const string RENDER_PARTICLES_OPTION       ("Particles");
 static const string RENDER_SOLIDS_OPTION          ("Solids");
 static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
 static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Bounding Box");
+static const string RENDER_GRID_HEATMAP_OPTION    ("Grid Heatmap");
 
 Clock physicsSystemClock;
 
 PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
-  : compute(compute)
+  : compute(compute), displayGridBuffer(TextureFormat::TEXTURE_FORMAT_INT)
 {
   nodeCount = 0;
   instanceNodeCount = 0;
@@ -83,6 +84,7 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, true));
   addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, false));
   addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, false));
+  addFrameOption(WindowOption(RENDER_GRID_HEATMAP_OPTION, true));
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
@@ -282,6 +284,12 @@ void PhysicsSystem::step()
   {
     collisionSolver->systemBoundingBox.syncHost();
   }
+
+  if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+  {
+    ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.syncHost();
+    collisionSolver->systemBoundingBox.syncHost();
+  }
 #endif
 
   compute->sync();
@@ -422,6 +430,13 @@ void PhysicsSystem::createUnitBox()
   displayBoxShader.bindLocation(0, "position");
   GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
   displayBoxVertex.unbind();
+
+  uint gridIndices[] = {
+    0, 1, 2, 2, 1, 3,
+    0, 6, 4, 6, 0, 2,
+    0, 4, 1, 1, 4, 5
+  };
+  displayGridElements.copyData(gridIndices, sizeof(gridIndices) / sizeof(uint));
 }
 
 void PhysicsSystem::createUnitCircle()
@@ -475,6 +490,11 @@ void PhysicsSystem::render()
   displayLineShader.set("modelViewMatrix", this->modelMatrix);
   displayLineShader.set("projectionMatrix", this->projectionMatrix);
   displayLineShader.unbind();
+
+  displayGridShader.bind();
+  displayGridShader.set("modelViewMatrix", this->modelMatrix);
+  displayGridShader.set("projectionMatrix", this->projectionMatrix);
+  displayGridShader.unbind();
 
   for (uint solver = 0; solver < SOLVER_MAX; solver++)
   {
@@ -602,6 +622,29 @@ void PhysicsSystem::render()
   displayBoxVertex.unbind();
   displayBoxShader.unbind();
 
+  if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+  {
+    displayGridShader.bind();
+    displayBoxVertex.bind();
+    displayGridElements.bind();
+
+    DeviceArray <uint>* gridCellParticleCount = &((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount;
+
+    displayGridBuffer.copy((float*)&((*gridCellParticleCount->host())[0]), 0, 0, (uint)gridCellParticleCount->host()->size() / 4);
+    displayGridShader.activateTexture("gridCellParticleCount", 0, displayGridBuffer);
+    Real3 systemMin = collisionSolver->systemBoundingBox.host()->at(0).min;
+    displayGridShader.set("systemMin", systemMin.x, systemMin.y, systemMin.z, 0.f);
+    displayGridShader.set("maxRadius", ((UniformGridCollisionSolver*)collisionSolver)->maxRadius.host()->at(0));
+    displayGridShader.set("gridSize", (int)((UniformGridCollisionSolver*)collisionSolver)->gridSize);
+    displayGridShader.set("totalParticles", (float)instanceNodeCount);
+
+    GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayGridElements.count(), GL_UNSIGNED_INT, NULL, (uint)gridCellParticleCount->host()->size()));
+
+    displayGridElements.unbind();
+    displayBoxVertex.unbind();
+    displayGridShader.unbind();
+  }
+
   GL_CHECK(glDisable(GL_BLEND));
 }
 
@@ -726,6 +769,7 @@ void PhysicsSystem::step(float timeStep)
 
     displayParticleElements.gen();
     displayBoxElements.gen();
+    displayGridElements.gen();
 
     displayPositionBuffer.init(textureWidth, textureHeight);
     displayPositionBuffer.gen();
@@ -735,6 +779,14 @@ void PhysicsSystem::step(float timeStep)
     displayCollisionBuffer.gen();
     displayBoxBuffer.init(textureWidth, textureHeight * 2);
     displayBoxBuffer.gen();
+
+    {
+      const uint gridElements = (((UniformGridCollisionSolver*)collisionSolver)->gridSize * mSqr(((UniformGridCollisionSolver*)collisionSolver)->gridSize)) / 4;
+      const uint textureHeight = (gridElements + textureWidth - 1) / textureWidth;
+
+      displayGridBuffer.init(textureWidth, textureHeight);
+      displayGridBuffer.gen();
+    }
 
     clearColor[0] = 0.7f;
     clearColor[1] = 0.7f;
@@ -746,10 +798,13 @@ void PhysicsSystem::step(float timeStep)
     displayFlatShader.init("FlatVert.glsl", "SolidFrag.glsl");
     displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
     displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
+    displayGridShader.init("GridVert.glsl", "GridFrag.glsl");
 
     createSphere(1.f);
     displayParticleVertex.bind();
     displayParticleShader.bindLocation(0, "position");
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+    displayGridShader.bindLocation(0, "position");
     GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
     displayParticleVertex.unbind();
 
@@ -775,6 +830,7 @@ void PhysicsSystem::step(float timeStep)
     displayFlatShader.linkPrograms();
     displayBoxShader.linkPrograms();
     displayLineShader.linkPrograms();
+    displayGridShader.linkPrograms();
 #endif
 
     indexMap.resize(instanceNodeCount, false);

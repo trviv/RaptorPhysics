@@ -129,16 +129,23 @@ public:
   void free();
 };
 
+enum TextureFormat
+{
+  TEXTURE_FORMAT_FLOAT = GL_FLOAT,
+  TEXTURE_FORMAT_INT = GL_INT
+};
+
 class Texture :public GLObject
 {
   GLsizei w, h;
+  TextureFormat format;
 
 public:
   static const int COLOR_BUFFER = 0;
   static const int DEPTH_BUFFER = 2;
 
 public:
-  Texture();
+  Texture(TextureFormat format = TEXTURE_FORMAT_FLOAT);
 
   Texture(GLsizei w, GLsizei h);
 

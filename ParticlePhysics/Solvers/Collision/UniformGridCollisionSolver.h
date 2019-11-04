@@ -13,14 +13,15 @@ protected:
   DeviceArray <uint>  gridCompactCellCount;
   DeviceArray <uint>  gridCompactCellIndices;
   DeviceArray <uint>  gridParticleCellIndex;
-  DeviceArray <uint>  gridCellParticleCount;
   DeviceArray <uint>  gridCellParticleOffsets;
   DeviceArray <uint>  gridCellParticleIndices;
-  uint                gridSize;
 
   void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer);
 
 public:
+
+  uint                gridSize;
+  DeviceArray <uint>  gridCellParticleCount;
 
   /*!
   @constructor Construct a Grid solver object.

@@ -33,18 +33,17 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 #ifdef DEBUG_GRID_SOLVER
   gridCompactCellIndices.create(compute, solverHeap, true);
   gridParticleCellIndex.create(compute, solverHeap, true);
-  gridCellParticleCount.create(compute, solverHeap, true);
   gridCellParticleOffsets.create(compute, solverHeap, true);
   gridCellParticleIndices.create(compute, solverHeap, true);
   particlesBufferTemp.create(compute, solverHeap, true);
 #else
   gridCompactCellIndices.create(compute, solverHeap);
   gridParticleCellIndex.create(compute, solverHeap);
-  gridCellParticleCount.create(compute, solverHeap);
   gridCellParticleOffsets.create(compute, solverHeap);
   gridCellParticleIndices.create(compute, solverHeap);
   particlesBufferTemp.create(compute, solverHeap);
 #endif
+  gridCellParticleCount.create(compute, solverHeap, true);
 
   particleGroupBoundingBoxes.create(compute, solverHeap, true);
 
@@ -168,9 +167,9 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 #endif
 
     ComputeUtil::get(gridGetSystemRadiusUtilId)->sum1D(compute, maxRadius.device(), particlesBufferTemp.device(), nodeBatchCount);
+    maxRadius.syncHost();
 
 #ifdef DEBUG_GRID_SOLVER
-    maxRadius.syncHost();
     compute->sync();
 #endif
   }

@@ -103,6 +103,7 @@ public:
   Texture displayColorBuffer;
   Texture displayCollisionBuffer;
   Texture displayBoxBuffer;
+  Texture displayGridBuffer;
 
   Vertex  displayParticleVertex;
   Vertex  displaySolidVertex;
@@ -114,10 +115,12 @@ public:
   Shader  displaySolidShader;
   Shader  displayFlatShader;
   Shader  displayBoxShader;
+  Shader  displayGridShader;
   Shader  displayLineShader;
 
   Face    displayParticleElements;
   Face    displayBoxElements;
+  Face    displayGridElements;
 
   float   elapsedRenderTime;
 
