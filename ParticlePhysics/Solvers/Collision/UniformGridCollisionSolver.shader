@@ -4,33 +4,11 @@
 //#define GRID_SOLVER_SEPARATE_LOOPS
 #define GRID_SOLVER_HASH_FUNCTION
 
-inline ushort getMinComponentIndex(const float3 vector)
-{
-  if (vector.x <= vector.y && vector.x <= vector.z)
-  {
-    return 0;
-  }
-  else if (vector.y <= vector.x && vector.y <= vector.z)
-  {
-    return 1;
-  }
-  return 2;
-}
-
-inline int3 positionHashFunction(const float3 position, const int gridSize, const ushort minComponent)
+inline int3 positionHashFunction(const float3 position, const int gridSize)
 {
   const int3 quantizedPosition = convertInt3(position) + gridSize;
   const int3 multiplier = quantizedPosition / gridSize - 1;
-
-  switch (minComponent)
-  {
-    case 0:
-      return (quantizedPosition + (constructInt3(multiplier.y + multiplier.z * 3, 0, 0) * 5)) & constructInt3(gridSize - 1);
-    case 1:
-      return (quantizedPosition + (constructInt3(0, multiplier.z + multiplier.x * 3, 0) * 5)) & constructInt3(gridSize - 1);
-    default:
-      return (quantizedPosition + (constructInt3(0, 0, multiplier.x + multiplier.y * 3) * 5)) & constructInt3(gridSize - 1);
-  }
+  return (quantizedPosition + (multiplier.yzx + multiplier.zxy * 3) * 5) & constructInt3(gridSize - 1);
 }
 
 /*
@@ -59,7 +37,7 @@ Kernel void createGridCellHistogram(
     const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize * radius[0], systemBoundingBox->max - systemBoundingBox->min);
     const int3 quantizedPosition = convertInt3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
 #else
-    const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) / radius[0], gridSize, getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min));
+    const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) / radius[0], gridSize);
 #endif
     const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 
@@ -348,7 +326,6 @@ Kernel void applyCollisionsPerParticle(
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
-  const ushort minComponent = getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min);
 #endif
 
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
@@ -380,7 +357,7 @@ Kernel void applyCollisionsPerParticle(
         }
         const int gridCellIndex = x + gridSize * (y + z * gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
         const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
         int count = gridCellIndexCount[gridCellIndex];
@@ -444,7 +421,7 @@ Kernel void applyCollisionsPerParticle(
         }
         const uint gridCellIndex2 = x + gridSize * (y + z * gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
         const int gridCellIndex2 = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
         if (gridCellIndex2 == gridCellIndex)
@@ -469,7 +446,7 @@ Kernel void applyCollisionsPerParticle(
 #ifndef GRID_SOLVER_HASH_FUNCTION
         const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructFloat3(1)), gridSize, minComponent);
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructShort3(1)), gridSize);
         const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
         int count = gridCellIndexCount[gridCellIndex];
