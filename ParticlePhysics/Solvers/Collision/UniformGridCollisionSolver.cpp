@@ -11,8 +11,6 @@
 #define GRID_COLLISION_SOLVER_APPLY_COLLISIONS    4
 #define GRID_COLLISION_SOLVER_APPLY_COLLISIONS_PER_PARTICLE    5
 
-
-
 static uint gridXABComputeUtilId;
 static uint gridComputeUtilId;
 static uint gridGetSystemRadiusUtilId;

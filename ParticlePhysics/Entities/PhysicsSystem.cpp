@@ -328,6 +328,10 @@ void PhysicsSystem::step()
     {
       vertexCount += displayBoxVertex.count() * collisionSolver->systemBoundingBox.host()->size();
     }
+    if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+    {
+      vertexCount += displayBoxVertex.count() * ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size();
+    }
     sprintf(temp, "Vertices:    %d\n", vertexCount);
     frameText += temp;
     sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);

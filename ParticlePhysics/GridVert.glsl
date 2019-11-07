@@ -7,7 +7,7 @@ uniform float maxRadius;
 uniform int gridSize;
 uniform float totalParticles;
 
-uniform isampler2D gridCellParticleCount;
+uniform highp isampler2D gridCellParticleCount;
 
 out vec4 col;
 
@@ -23,7 +23,7 @@ void main()
 
   if (count[gl_InstanceID & 3] > 0)
   {
-    col = vec4(1.f , 0.f, 0.f, .05f * count[gl_InstanceID & 3]);
+    col = vec4(1.f , 0.f, 0.f, .02f * float(count[gl_InstanceID & 3]));
   }
   else
   {

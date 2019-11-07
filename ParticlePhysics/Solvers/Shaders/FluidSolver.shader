@@ -105,7 +105,6 @@ Kernel void calculateDensity(
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
-  const ushort minComponent = getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min);
 #endif
 
   for (short k=-1; k<2; k++)
@@ -136,7 +135,7 @@ Kernel void calculateDensity(
         }
         const int gridCellIndex = x + gridSize * (y + z * gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
         const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
         int indexBufferCount = gridCellIndexCount[gridCellIndex];
@@ -257,7 +256,6 @@ Kernel void calculateForces(
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
-  const ushort minComponent = getMinComponentIndex(systemBoundingBox->max - systemBoundingBox->min);
 #endif
 
   for (short k=-1; k<2; k++)
@@ -288,7 +286,7 @@ Kernel void calculateForces(
         }
         const int gridCellIndex = x + gridSize * (y + z * gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, minComponent);
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
         const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
         int indexBufferCount = gridCellIndexCount[gridCellIndex];
