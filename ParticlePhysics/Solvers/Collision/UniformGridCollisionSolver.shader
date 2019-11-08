@@ -242,7 +242,7 @@ inline uint decodeCellIndex(uchar encodedOffset, short3 baseIndex, int gridSize)
 
 inline short3 decodeCellVector(uchar encodedOffset)
 {
-  return constructShort3(encodedOffset, (encodedOffset >> 2), (encodedOffset >> 4)) & 3;
+  return constructShort3(encodedOffset, (encodedOffset >> 2), (encodedOffset >> 4)) & constructShort3(3);
 }
 
 /*

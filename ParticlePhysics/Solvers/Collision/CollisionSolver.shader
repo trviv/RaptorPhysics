@@ -154,8 +154,9 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-  if (otherParticle->identity.identity != selfParticle->identity.identity
-    || (getSolverType(otherParticle->identity) == SOLVER_FLUID && currentNodeIndex != index))
+  const ushort solverType = getSolverType(otherParticle->identity);
+  if (otherParticle->identity.identity != selfParticle->identity.identity ||
+    ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex != index))
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
     const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);

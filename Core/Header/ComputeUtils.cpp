@@ -163,6 +163,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   oldType.push_back(getKeyName(ComputeUtilBatchSize));
   newType.push_back(to_string(util.batchSize));
 
+  oldType.push_back("BatchSizeExp");
+  newType.push_back(to_string(mlog2(util.batchSize)));
+
   util.maxWorkgroupSize = compute->maxThreadsPerGroup();
   // override if specified
   if (dataMap.find(ComputeUtilMaxWorkgroupSize) != dataMap.end())
