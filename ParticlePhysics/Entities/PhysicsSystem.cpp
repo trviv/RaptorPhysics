@@ -9,6 +9,7 @@
 #include "../Solvers/Collision/LBVHSolver.h"
 
 //#define DEBUG_PHYSICS_SYSTEM
+#define PHYSICS_SYSTEM_SINGLE_UPDATE
 
 static const string RENDER_PARTICLES_OPTION       ("Particles");
 static const string RENDER_SOLIDS_OPTION          ("Solids");
@@ -848,11 +849,13 @@ void PhysicsSystem::step(float timeStep)
     setGravity(down);
   }
 
-  if (firstStep)
+#ifdef PHYSICS_SYSTEM_SINGLE_UPDATE
+  if (!firstStep)
   {
-//    positionUpdate(timeStep);
+    positionUpdate(timeStep);
   }
   else
+#endif
   {
     integrate(timeStep);
   }
@@ -867,7 +870,9 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
+#ifndef PHYSICS_SYSTEM_SINGLE_UPDATE
   differentiate(timeStep);
+#endif
 }
 
 void PhysicsSystem::setGravity(const Real3& gravity)

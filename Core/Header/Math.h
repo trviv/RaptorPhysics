@@ -90,4 +90,9 @@ template<class A, class B> A mAlignBy(A value, B alignWidth)
   return (value + alignWidth - 1) / alignWidth;
 }
 
+static int32_t mlog2(int32_t x)
+{
+  return sizeof(int32_t) * CHAR_BIT - __builtin_clz(x) - 1;
+}
+
 #endif

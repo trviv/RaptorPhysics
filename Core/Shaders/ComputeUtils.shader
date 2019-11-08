@@ -147,7 +147,7 @@ Kernel void clearIntegerBuffer(
   constantKernelInput(int, length)
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  int writeSize = length - (int)threadIndex() * BatchSize;
+  int writeSize = length - (threadIndex() << BatchSizeExp);
 
   if (writeSize >= BatchSize)
   {
@@ -181,7 +181,7 @@ Kernel void clearIntegerBuffer(
   {
     for (int i = 0; i < writeSize; i++)
     {
-      (destination + threadIndex() * BatchSize)[i] = value;
+      (destination + (threadIndex() << BatchSizeExp))[i] = value;
     }
   }
 }
@@ -195,7 +195,7 @@ Kernel void copyBuffer(
   constantKernelInput(int, sizeInBytes)
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  int writeSize = sizeInBytes - (int)threadIndex() * BatchSize;
+  int writeSize = sizeInBytes - (threadIndex() << BatchSizeExp);
 
   if (writeSize >= BatchSize)
   {
@@ -229,7 +229,7 @@ Kernel void copyBuffer(
   {
     for (int i = 0; i < writeSize; i++)
     {
-      ((destination + destinationOffset) + threadIndex() * BatchSize)[i] = ((source + sourceOffset) + threadIndex() * BatchSize)[i];
+      ((destination + destinationOffset) + (threadIndex() << BatchSizeExp))[i] = ((source + sourceOffset) + (threadIndex() << BatchSizeExp))[i];
     }
   }
 }

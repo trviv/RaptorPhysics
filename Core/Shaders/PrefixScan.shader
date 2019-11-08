@@ -316,7 +316,7 @@ Kernel void compactSparseArray(
 
   localExclusiveScan(originalValues, prefixSum);
 
-  const uint indexOffset = index * BatchSize;
+  const uint indexOffset = (index << BatchSizeExp);
   const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
   uint mask = (1 << (BatchSize - 1));

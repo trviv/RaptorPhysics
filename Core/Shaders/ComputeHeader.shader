@@ -102,11 +102,11 @@
 #define KERNEL_GLOBAL_ARGUMENTS \
   , uint3 thread_position_in_grid [[ thread_position_in_grid ]]
 #define KERNEL_THREAD_ARGUMENTS \
-  , uint thread_index_in_threadgroup [[ thread_index_in_threadgroup ]] \
-  , uint3 threads_per_threadgroup [[ threads_per_threadgroup ]]
+  , ushort thread_index_in_threadgroup [[ thread_index_in_threadgroup ]] \
+  , ushort3 threads_per_threadgroup [[ threads_per_threadgroup ]]
 #define KERNEL_THREADGROUP_ARGUMENTS \
-  , uint3 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]] \
-  , uint3 threadgroups_per_grid [[ threadgroups_per_grid ]]
+  , ushort3 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]] \
+  , ushort3 threadgroups_per_grid [[ threadgroups_per_grid ]]
 
 #define ALIGN(n)            __attribute__((packed)) alignas(n)
 

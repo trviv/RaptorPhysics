@@ -185,7 +185,7 @@ inline static MemberStructType localReduce(const Thread MemberStructType *elemen
 
 inline static void batchRead(Thread MemberStructType *elements, const Device StructType* array1D, const uint index, const uint length)
 {
-  const uint indexOffset = index * BatchSize;
+  const uint indexOffset = (index << BatchSizeExp);
   const uint readCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
 #if defined(NoMemberStruct) && BatchSize > 1
@@ -321,7 +321,7 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 
 inline static void batchWrite(const Thread MemberStructType *elements, Device StructType* array1D, const uint index, const uint length)
 {
-  const uint indexOffset = index * BatchSize;
+  const uint indexOffset = (index << BatchSizeExp);
   const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
 #if defined(NoMemberStruct) && BatchSize > 1
