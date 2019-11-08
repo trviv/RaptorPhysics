@@ -4,11 +4,16 @@
 //#define GRID_SOLVER_SEPARATE_LOOPS
 #define GRID_SOLVER_HASH_FUNCTION
 
+inline uint gridIndexInt3Int(const int3 relativeIndex, const int gridSize)
+{
+  return mad24(mad24(relativeIndex.z, gridSize, relativeIndex.y), gridSize, relativeIndex.x);
+}
+
 inline int3 positionHashFunction(const float3 position, const int gridSize)
 {
   const int3 quantizedPosition = convertInt3(position) + gridSize;
   const int3 multiplier = quantizedPosition / gridSize - 1;
-  return (quantizedPosition + (multiplier.yzx + multiplier.zxy * 3) * 5) & constructInt3(gridSize - 1);
+  return mad24(mad24(multiplier.zxy, 3, multiplier.yzx), 5, quantizedPosition) & constructInt3(gridSize - 1);
 }
 
 /*
@@ -24,9 +29,9 @@ Kernel void createGridCellHistogram(
   Device uint*                      gridParticleCellIndex,
   const Device ParticleStruct*      particles,
   Const XAB*                        systemBoundingBox,
-  Const float*                      radius,
+  Const float*                      invRadius,
   constantKernelInput(uint,         nodeCount),
-  constantKernelInput(uint,         gridSize)
+  constantKernelInput(int,          gridSize)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -34,12 +39,12 @@ Kernel void createGridCellHistogram(
   if (index < nodeCount)
   {
 #ifndef GRID_SOLVER_HASH_FUNCTION
-    const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize * radius[0], systemBoundingBox->max - systemBoundingBox->min);
+    const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize / invRadius[0], systemBoundingBox->max - systemBoundingBox->min);
     const int3 quantizedPosition = convertInt3((particles[index].position - systemBoundingBox->min) * inverseMergedBoxSize);
 #else
-    const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) / radius[0], gridSize);
+    const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) * invRadius[0], gridSize);
 #endif
-    const uint gridCountOffset = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+    const uint gridCountOffset = gridIndexInt3Int(quantizedPosition, gridSize);
 
     gridParticleCellIndex[index] = gridCountOffset;
     atomicAdd(&gridCellIndexCount[gridCountOffset], 1);
@@ -275,7 +280,7 @@ Kernel void applyCollisionsPerParticle(
   const Device ParticleSharedData*    particleSharedData,
   Const PhySystemSettings*            systemSettings,
   Const XAB*                          systemBoundingBox,
-  Const float*                        radius,
+  Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass),
   constantKernelInput(uint,           nodeCount)
@@ -321,11 +326,11 @@ Kernel void applyCollisionsPerParticle(
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
     (gridCellIndex / gridSize) & (gridSize - 1),
-    gridCellIndex / (gridSize * gridSize)
+    gridCellIndex / mul24(gridSize, gridSize)
   );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
-  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
+  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
@@ -355,10 +360,10 @@ Kernel void applyCollisionsPerParticle(
         {
           continue;
         }
-        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSize);
 #else
         const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
-        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSize);
 #endif
         int count = gridCellIndexCount[gridCellIndex];
 

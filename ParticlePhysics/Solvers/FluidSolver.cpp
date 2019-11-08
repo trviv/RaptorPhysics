@@ -40,7 +40,7 @@ void FluidSolver::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("calculateDensity"));
   kernels.push_back(programs[0].createKernel("calculateForces"));
 
-  maxRadius.host()->push_back(-1.f);
+  invMaxRadius.host()->push_back(-1.f);
 
   // create utility classes
   const vector<string> utilInclude = {"ParticleStruct.h"};
@@ -78,10 +78,10 @@ void FluidSolver::solve()
     kernelRadius = max(esd.fluidKernelRadius, kernelRadius);
   }
 
-  if (kernelRadius != maxRadius.host()->at(0))
+  if (kernelRadius != invMaxRadius.host()->at(0))
   {
-    (*maxRadius.host())[0] = kernelRadius;
-    maxRadius.syncDevice();
+    (*invMaxRadius.host())[0] = 1.f/kernelRadius;
+    invMaxRadius.syncDevice();
   }
 
   uint nodeBatchSize = 8;
@@ -165,7 +165,7 @@ void FluidSolver::solve()
       gridParticleCellIndex.device(),
       particlesPredicted.device(),
       systemBoundingBox.device(),
-      maxRadius.device()
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
@@ -218,7 +218,7 @@ void FluidSolver::solve()
   compute->sync();
 #endif
 
-  compute->copyBuffer(particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+   ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
   compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
@@ -234,7 +234,7 @@ void FluidSolver::solve()
       UniformGridCollisionSolver::particlesBufferTemp.device(),
       entitySharedData.device(),
       systemBoundingBox.device(),
-      maxRadius.device()
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArgs(buffers, bufferCount);
@@ -265,7 +265,7 @@ void FluidSolver::solve()
       UniformGridCollisionSolver::particlesBufferTemp.device(),
       entitySharedData.device(),
       systemBoundingBox.device(),
-      maxRadius.device()
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArgs(buffers, bufferCount);

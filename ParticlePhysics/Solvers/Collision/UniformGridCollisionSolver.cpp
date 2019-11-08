@@ -48,8 +48,8 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   systemBoundingBox.create(compute, NULL, true);
   systemBoundingBox.resize(1, false);
 
-  maxRadius.create(compute, NULL, true);
-  maxRadius.resize(1, false);
+  invMaxRadius.create(compute, NULL, true);
+  invMaxRadius.resize(1, false);
 }
 
 UniformGridCollisionSolver::~UniformGridCollisionSolver()
@@ -138,7 +138,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
   }
 
   // TODO: Make a flag so that this is only done when needed
-  if (maxRadius.host()->size() == 0)
+  if (invMaxRadius.host()->size() == 0)
   {
     uint nodeBatchCount = (uint)(workgroupSize[0] * workgroupCount[0]);
 
@@ -164,8 +164,11 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
     compute->sync();
 #endif
 
-    ComputeUtil::get(gridGetSystemRadiusUtilId)->sum1D(compute, maxRadius.device(), particlesBufferTemp.device(), nodeBatchCount);
-    maxRadius.syncHost();
+    ComputeUtil::get(gridGetSystemRadiusUtilId)->sum1D(compute, invMaxRadius.device(), particlesBufferTemp.device(), nodeBatchCount);
+    invMaxRadius.syncHost();
+    compute->sync();
+    invMaxRadius.host()->at(0) = 1.f/invMaxRadius.host()->at(0);
+    invMaxRadius.syncDevice();
 
 #ifdef DEBUG_GRID_SOLVER
     compute->sync();
@@ -219,7 +222,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       gridParticleCellIndex.device(),
       particleBuffer,
       systemBoundingBox.device(),
-      maxRadius.device()
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
@@ -287,11 +290,11 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     if (stablizationPass)
     {
-      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+      ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
     }
     else
     {
-      compute->copyBuffer(allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+      ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
     }
 
     size_t workgroupSize[3] = {1, 1, 1};
@@ -313,7 +316,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       systemSettings,
       systemBoundingBox.device(),
-      maxRadius.device()
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS_PER_PARTICLE].setArgs(buffers, bufferCount);
