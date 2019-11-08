@@ -612,7 +612,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
   size_t workgroupCount[3] = { 1, 1, 1 };
 
   const uint localSortThreads = compute->simdSize();
-  const uint radixBlockInstances = 256 / localSortThreads;
+  const uint radixBlockInstances = maxWorkgroupSize / localSortThreads;
 
   if (!localArrays[UtilTempRadixGroupSum])
   {
@@ -675,7 +675,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   if ((i & RADIX_SORT_BIT_COUNT) == 0)
   {
-    compute->copyBuffer(source, destination, 0, 0, length * sizeof(SortNode32));
+    ComputeUtil::get(0)->copyBuffer(compute, source, destination, 0, 0, length * sizeof(SortNode32));
   }
 }
 

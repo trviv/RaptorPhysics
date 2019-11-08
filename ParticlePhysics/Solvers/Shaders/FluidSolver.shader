@@ -65,7 +65,7 @@ Kernel void calculateDensity(
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
-  Const float*                        radius,
+  Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
@@ -100,11 +100,11 @@ Kernel void calculateDensity(
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
     (gridCellIndex / gridSize) & (gridSize - 1),
-    gridCellIndex / (gridSize * gridSize)
+    gridCellIndex / mul24(gridSize, gridSize)
   );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
-  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
+  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
   for (short k=-1; k<2; k++)
@@ -133,10 +133,10 @@ Kernel void calculateDensity(
         {
           continue;
         }
-        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSize);
 #else
         const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
-        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSize);
 #endif
         int indexBufferCount = gridCellIndexCount[gridCellIndex];
 
@@ -215,7 +215,7 @@ Kernel void calculateForces(
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
-  Const float*                        radius,
+  Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
@@ -251,11 +251,11 @@ Kernel void calculateForces(
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
     (gridCellIndex / gridSize) & (gridSize - 1),
-    gridCellIndex / (gridSize * gridSize)
+    gridCellIndex / mul24(gridSize, gridSize)
   );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
-  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) / radius[0];
+  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
   for (short k=-1; k<2; k++)
@@ -284,10 +284,10 @@ Kernel void calculateForces(
         {
           continue;
         }
-        const int gridCellIndex = x + gridSize * (y + z * gridSize);
+        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSize);
 #else
         const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
-        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSize);
 #endif
         int indexBufferCount = gridCellIndexCount[gridCellIndex];
 

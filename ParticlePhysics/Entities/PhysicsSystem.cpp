@@ -638,7 +638,7 @@ void PhysicsSystem::render()
     displayGridShader.activateTexture("gridCellParticleCount", 0, displayGridBuffer);
     Real3 systemMin = collisionSolver->systemBoundingBox.host()->at(0).min;
     displayGridShader.set("systemMin", systemMin.x, systemMin.y, systemMin.z, 0.f);
-    displayGridShader.set("maxRadius", ((UniformGridCollisionSolver*)collisionSolver)->maxRadius.host()->at(0));
+    displayGridShader.set("maxRadius", 1.f/((UniformGridCollisionSolver*)collisionSolver)->invMaxRadius.host()->at(0));
     displayGridShader.set("gridSize", (int)((UniformGridCollisionSolver*)collisionSolver)->gridSize);
     displayGridShader.set("totalParticles", (float)instanceNodeCount);
 

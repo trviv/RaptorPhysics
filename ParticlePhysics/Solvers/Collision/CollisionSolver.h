@@ -17,7 +17,7 @@ protected:
 
 public:
 
-  DeviceArray <float> maxRadius;
+  DeviceArray <float> invMaxRadius;
   DeviceArray <XAB>   systemBoundingBox;
   DeviceArray <XAB>   particleGroupBoundingBoxes;
 
