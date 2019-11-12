@@ -76,158 +76,6 @@ Kernel void createGridCellArrays(
   }
 }
 
-/*
-@kernel Resolve particle collisions.
-@param gridCompactCellIndices Map to the cell index to be processed.
-@param gridCellParticleOffsets Starting offset for each grid cell.
-@param gridCellIndexCount Particle count for each grid cell.
-@param gridCellParticleIndices Output array for particle indices.
-@param particlesPredictedNew Updated particle positions post collision processing.
-@param particlesPredictedOld Integrated particle position.
-@param particleCollisionData Array containing particle SDF mass and radius data.
-@param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
-@param systemSettings Settings for the physics system.
-@param gridParticleCellIndex Computed cell index for each particle.
-@param nodeCount Total nodes in the solver.
-@param occupiedCellCount Total active grid cells.
-*/
-Kernel void applyCollisions(
-  const Device uint*                  gridCompactCellIndices,
-  const Device uint*                  gridCellParticleOffsets,
-  const Device uint*                  gridCellIndexCount,
-  const Device uint*                  gridCellParticleIndices,
-  Device ParticleStruct*              particlesPredictedNew,
-  Device ParticleStruct*              particlesInit,
-  const Device ParticleDifferential*  particlesDiff,
-  const Device ParticleStruct*        particlesPredictedOld,
-#ifdef MARK_COLLIDED_PARTICLES
-  Device ParticleCollisionData*       particleCollisionData,
-#else
-  const Device ParticleCollisionData* particleCollisionData,
-#endif
-  const Device ParticleSharedData*    particleSharedData,
-  Const PhySystemSettings*            systemSettings,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(uint,           stablizationPass)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
-{
-  const uint gridCellIndex = gridCompactCellIndices[threadGroupIndex()];
-
-  // particle index buffer
-  const int end = gridCellParticleOffsets[gridCellIndex];
-  int count = gridCellIndexCount[gridCellIndex];
-
-  const int batchBegin = end - count + threadLocalIndex();
-  const int batchEnd = end;
-  short collisionCount = 0;
-
-  // batchwise iterate over indices in the cell
-  for (int baseIndex = batchBegin; baseIndex < batchEnd; baseIndex += threadGroupSize())
-  {
-    // current particle data
-    int particleIndex;
-    float3 delta = constructFloat3(0.f);
-    IdentityInfo identity;
-    ParticleStruct currentParticle;
-    ParticleDifferential selfParticleDiff;
-    ParticleSharedData sharedData;
-    ParticleCollisionData collisionData;
-    float sdfMagnitude;
-
-#ifdef MARK_COLLIDED_PARTICLES
-    bool collided = false;
-#endif
-
-    if (baseIndex < end)
-    { // read this batch
-      particleIndex = gridCellParticleIndices[baseIndex];
-      currentParticle = particlesPredictedOld[particleIndex];
-      selfParticleDiff = particlesDiff[particleIndex];
-      identity = currentParticle.identity;
-
-      ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-      const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
-
-      nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-      nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-      sharedData = particleSharedData[nodeIdentity.entityId];
-      collisionData = particleCollisionData[particleIndex];
-
-      sdfMagnitude = length(collisionData.transformedSdfGradient);
-
-      for (short k=-1; k<2; k++)
-      {
-        const int z = (gridCellIndex / (gridSize * gridSize) + k + gridSize) & (gridSize - 1);
-        for (short j=-1; j<2; j++)
-        {
-          const int y = ((gridCellIndex / gridSize) + j + gridSize) & (gridSize - 1);
-          for (short i=-1; i<2; i++)
-          {
-            const int x = (gridCellIndex + i + gridSize) & (gridSize - 1);
-            const int gridCellIndex2 = x + gridSize * (y + z * gridSize);
-            int count2 = gridCellIndexCount[gridCellIndex2];
-
-            if (count2 == 0)
-            {
-              continue;
-            }
-
-            const int end2 = gridCellParticleOffsets[gridCellIndex2];
-
-            // batchwise iterate over indices in the cell
-            for (int otherIndex = end2 - count2; otherIndex < end2; otherIndex++)
-            {
-              // iterate over each particle in the loaded batch
-              const int currentNodeIndex = gridCellParticleIndices[otherIndex];
-
-              const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-              const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-              delta += sharedData.collisionDamping * processParticleCollision(&currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-                &collisionData, &sharedData, currentNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
-#ifdef MARK_COLLIDED_PARTICLES
-                particleCollisionData, &collided);
-#else
-                particleCollisionData);
-#endif
-            }
-          }
-        }
-      }
-
-      // apply boundary
-      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
-#ifdef MARK_COLLIDED_PARTICLES
-        &particleCollisionData[particleIndex],
-#endif
-        &sharedData);
-
-      if (collisionCount)
-      {
-        delta /= collisionCount;
-      }
-
-      // update position
-      particlesPredictedNew[particleIndex].position += delta;
-      particlesPredictedNew[particleIndex].identity = identity;
-
-      if (stablizationPass)
-      {
-        particlesInit[particleIndex].position += delta;
-        particlesInit[particleIndex].identity = identity;
-      }
-
-#ifdef MARK_COLLIDED_PARTICLES
-      particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
-#endif
-    }
-  }
-}
-
 inline uchar encodeCellOffset(short x, short y, short z)
 {
   x++, y++, z++;
@@ -244,6 +92,51 @@ inline short3 decodeCellVector(uchar encodedOffset)
 {
   return constructShort3(encodedOffset, (encodedOffset >> 2), (encodedOffset >> 4)) & constructShort3(3);
 }
+
+#ifdef GRID_SOLVER_HASH_FUNCTION
+
+#define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
+  for (short k=-1; k<2; k++) \
+  { \
+    for (short j=-1; j<2; j++) \
+    { \
+      for (short i=-1; i<2; i++) \
+      { \
+        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize); \
+        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSize);
+
+#else
+
+#define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
+  for (short k=-1; k<2; k++) \
+  { \
+    const short z = particleGridCellIndex.z + k; \
+    if (z < 0 || z >= gridSize) \
+    { \
+      continue; \
+    } \
+    for (short j=-1; j<2; j++) \
+    { \
+      const short y = particleGridCellIndex.y + j; \
+      if (y < 0 || y >= gridSize) \
+      { \
+        continue; \
+      } \
+      for (short i=-1; i<2; i++) \
+      { \
+        const short x = particleGridCellIndex.x + i; \
+        if (x < 0 || x >= gridSize) \
+        { \
+          continue; \
+        } \
+        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSize);
+
+#endif
+
+#define GRID_SOLVER_NEIGHBOUR_LOOP_END \
+      } \
+    } \
+  }
 
 /*
 @kernel Resolve particle collisions.
@@ -263,7 +156,7 @@ inline short3 decodeCellVector(uchar encodedOffset)
 @param stablizationPass Marks if this is a stablization pass.
 @param nodeCount Total nodes in the solver.
 */
-Kernel void applyCollisionsPerParticle(
+Kernel void applyCollisions(
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
@@ -284,9 +177,7 @@ Kernel void applyCollisionsPerParticle(
   constantKernelInput(int,            gridSize),
   constantKernelInput(uint,           stablizationPass),
   constantKernelInput(uint,           nodeCount)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   uint particleIndex = threadIndex();
 
@@ -334,146 +225,76 @@ Kernel void applyCollisionsPerParticle(
 #endif
 
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
-  for (short k=-1; k<2; k++)
-  {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-    const short z = particleGridCellIndex.z + k;
-    if (z < 0 || z >= gridSize)
+  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
+    int count = gridCellIndexCount[gridCellIndex];
+
+    if (count == 0)
     {
       continue;
     }
-#endif
-    for (short j=-1; j<2; j++)
+
+    const int end = gridCellParticleOffsets[gridCellIndex];
+
+    // batchwise iterate over indices in the cell
+    for (int otherIndex = end - count; otherIndex < end; otherIndex++)
     {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-      const short y = particleGridCellIndex.y + j;
-      if (y < 0 || y >= gridSize)
-      {
-        continue;
-      }
-#endif
-      for (short i=-1; i<2; i++)
-      {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-        const short x = particleGridCellIndex.x + i;
-        if (x < 0 || x >= gridSize)
-        {
-          continue;
-        }
-        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSize);
-#else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
-        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSize);
-#endif
-        int count = gridCellIndexCount[gridCellIndex];
+      // iterate over each particle in the loaded batch
+      const int otherNodeIndex = gridCellParticleIndices[otherIndex];
 
-        if (count == 0)
-        {
-          continue;
-        }
-
-        const int end = gridCellParticleOffsets[gridCellIndex];
-
-        // batchwise iterate over indices in the cell
-        for (int otherIndex = end - count; otherIndex < end; otherIndex++)
-        {
-          // iterate over each particle in the loaded batch
-          const int otherNodeIndex = gridCellParticleIndices[otherIndex];
-
-          const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
-          const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
-          positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-            &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+      const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
+      const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
+      positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
-            particleCollisionData, &collided);
+        particleCollisionData, &collided);
 #else
-            particleCollisionData);
+        particleCollisionData);
 #endif
-        }
-      }
     }
-  }
+  GRID_SOLVER_NEIGHBOUR_LOOP_END
 #else
   uchar validNeighbourIndex[27];
-  uchar validNeighbourCount = 1;
+  uchar validNeighbourCount = 0;
 
-  validNeighbourIndex[0] = encodeCellOffset(0, 0, 0);
-  for (short k=-1; k<2; k++)
-  {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-    const short z = particleGridCellIndex.z + k;
-    if (z < 0 || z >= gridSize)
+  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
+    int count = gridCellIndexCount[gridCellIndex];
+
+    if (count == 0)
     {
       continue;
     }
-#endif
-    for (short j=-1; j<2; j++)
-    {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-      const short y = particleGridCellIndex.y + j;
-      if (y < 0 || y >= gridSize)
-      {
-        continue;
-      }
-#endif
-      for (short i=-1; i<2; i++)
-      {
-#ifndef GRID_SOLVER_HASH_FUNCTION
-        const short x = particleGridCellIndex.x + i;
-        if (x < 0 || x >= gridSize)
-        {
-          continue;
-        }
-        const uint gridCellIndex2 = x + gridSize * (y + z * gridSize);
-#else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize);
-        const int gridCellIndex2 = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
-#endif
-        if (gridCellIndex2 == gridCellIndex)
-        {
-          continue;
-        }
 
-        int count = gridCellIndexCount[gridCellIndex2];
-
-        if (count == 0)
-        {
-          continue;
-        }
-
-        validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(i, j, k);
-      }
-    }
-  }
+    validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(i, j, k);
+  GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   for (uchar i=0; i<validNeighbourCount; i++)
   {
 #ifndef GRID_SOLVER_HASH_FUNCTION
-        const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSize);
+    const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSize);
 #else
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructShort3(1)), gridSize);
-        const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
+    const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructShort3(1)), gridSize);
+    const int gridCellIndex = (quantizedPosition.z * gridSize + quantizedPosition.y) * gridSize + quantizedPosition.x;
 #endif
-        int count = gridCellIndexCount[gridCellIndex];
+    int count = gridCellIndexCount[gridCellIndex];
 
-        const int end = gridCellParticleOffsets[gridCellIndex];
+    const int end = gridCellParticleOffsets[gridCellIndex];
 
-        // batchwise iterate over indices in the cell
-        for (int otherIndex = end - count; otherIndex < end; otherIndex++)
-        {
-          // iterate over each particle in the loaded batch
-          const int otherNodeIndex = gridCellParticleIndices[otherIndex];
+    // batchwise iterate over indices in the cell
+    for (int otherIndex = end - count; otherIndex < end; otherIndex++)
+    {
+      // iterate over each particle in the loaded batch
+      const int otherNodeIndex = gridCellParticleIndices[otherIndex];
 
-          const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
-          const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
-          positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-            &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+      const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
+      const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
+      positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
 #ifdef MARK_COLLIDED_PARTICLES
-            particleCollisionData, &collided);
+        particleCollisionData, &collided);
 #else
-            particleCollisionData);
+        particleCollisionData);
 #endif
-        }
+    }
   }
 
 #endif
