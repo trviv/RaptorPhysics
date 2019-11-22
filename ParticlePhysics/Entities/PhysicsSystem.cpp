@@ -517,7 +517,7 @@ void PhysicsSystem::render()
       {
         // copy particle position and collision data for display
         displayPositionBuffer.copy((float*)particles, 0, 0, elements);
-        displayCollisionBuffer.copy(collisionData, 0, 0, elements * 2);
+        displayCollisionBuffer.copy(collisionData, 0, 0, elements);
 
         displayParticleShader.bind();
         displayParticleShader.activateTexture("particlePos", 0, displayPositionBuffer);
@@ -529,6 +529,7 @@ void PhysicsSystem::render()
         displayParticleVertex.unbind();
         displayParticleShader.unbind();
 
+        //TODO: Debug why line is not working with cloth rendering on when z vector is 0
         displayLineShader.bind();
         displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
         displayLineShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
@@ -546,8 +547,7 @@ void PhysicsSystem::render()
         for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
         {
           GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 4, particles + partition.offset));
-          GL_CHECK(glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 3 + collisionData + 8 * partition.offset));
-          GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 4 + collisionData + 8 * partition.offset));
+          GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 4, collisionData + 4 * partition.offset));
           IdentityInfo identity = solversUint[solver]->particles.host()->at(partition.offset).identity;
           PhysicsEntity* entity = entities[solver][getEntityId(identity)];
 
@@ -577,7 +577,7 @@ void PhysicsSystem::render()
 
         // copy particle position and collision data for display
         displayPositionBuffer.copy((float*)particles, 0, 0, elements);
-        displayCollisionBuffer.copy(collisionData, 0, 0, elements * 2);
+        displayCollisionBuffer.copy(collisionData, 0, 0, elements);
 
         displayFlatShader.activateTexture("particlePos", 0, displayPositionBuffer);
         displayFlatShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
@@ -780,7 +780,7 @@ void PhysicsSystem::step(float timeStep)
     displayPositionBuffer.gen();
     displayColorBuffer.init(textureWidth, textureHeight);
     displayColorBuffer.gen();
-    displayCollisionBuffer.init(textureWidth, textureHeight * 2);
+    displayCollisionBuffer.init(textureWidth, textureHeight);
     displayCollisionBuffer.gen();
     displayBoxBuffer.init(textureWidth, textureHeight * 2);
     displayBoxBuffer.gen();
@@ -815,8 +815,7 @@ void PhysicsSystem::step(float timeStep)
 
     displaySolidVertex.bind();
     displaySolidShader.bindLocation(0, "position");
-    displaySolidShader.bindLocation(1, "radius");
-    displaySolidShader.bindLocation(2, "transformedGradient");
+    displaySolidShader.bindLocation(1, "particleData");
     displaySolidVertex.unbind();
 
     createUnitCircle();

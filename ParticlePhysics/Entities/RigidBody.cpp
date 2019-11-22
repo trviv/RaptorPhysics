@@ -103,7 +103,6 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         }
 #endif
 
-        ParticleCollisionData colData;
         /*if ((normal[0] == normal[1]) && (normal[0] == normal[2]) && (normal[0] == 0))
         {
         Real3 axis(x - signedSubdivision[0] / 2, y - signedSubdivision[1] / 2, z - signedSubdivision[2] / 2);
@@ -119,11 +118,18 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         {
           normal.normalize();
         }
-        colData.initialSdfGradient = normal * particleRadius;
-        colData.radius = particleRadius;
-        colData.invMass = perParticleInvMass;
 
+        ParticleCollisionData colData;
+        colData.transformedSdfGradient = 0;
+        colData.gradientMagnitude = 0.f;
+        colData.invMass = perParticleInvMass;
+        colData.radius = particleRadius;
         particleCollisionData.host()->push_back(colData);
+
+        ParticleRigidData rigidData;
+        rigidData.initialSdfGradient = normal;
+        rigidData.gradientMagnitude = particleRadius;
+        particleRigidData.host()->push_back(rigidData);
 
         ParticleAuxData auxData;
         auxData.invMass = perParticleInvMass;
@@ -172,9 +178,7 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
 
   for (uint i = prev_value_count; i < points->size(); i++)
   {
-    ParticleRigidData rigidData;
-    rigidData.initialComOffset = (*points)[i] - com;
-    particleRigidData.host()->push_back(rigidData);
+    particleRigidData.host()->at(i).initialComOffset = (*points)[i] - com;
   }
 
 #ifdef ENABLE_RENDERING

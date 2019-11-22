@@ -31,6 +31,7 @@
 #define constructInt2       (int2)
 #define constructInt3       (int3)
 
+#define convertShort2(a)    convert_short2(a)
 #define convertUshort4(a)   convert_ushort4(a)
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
@@ -83,6 +84,7 @@
 #define constructInt2       int2
 #define constructInt3       int3
 
+#define convertShort2(a)    short2(a)
 #define convertUshort4(a)   ushort4(a)
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)

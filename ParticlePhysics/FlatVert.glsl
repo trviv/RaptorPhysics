@@ -14,9 +14,8 @@ out vec3 normal;
 
 void main()
 {
-  int positionIndex = gl_InstanceID * 2;
   vec4 pos = texelFetch(particlePos, ivec2(gl_InstanceID & (texureWidth - 1), gl_InstanceID >> texureWidthExp), 0);
-  float radius = texelFetch(particleCollData, ivec2(positionIndex & (texureWidth - 1), positionIndex >> texureWidthExp), 0).w;
+  float radius = texelFetch(particleCollData, ivec2(gl_InstanceID & (texureWidth - 1), gl_InstanceID >> texureWidthExp), 0).w;
 
   pos.w = abs(radius);
 

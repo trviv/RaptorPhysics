@@ -209,24 +209,26 @@ Kernel void setDeltaPosition(
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
     rigidSolverFunction(localMatrix, matrixData, iterations, nodeIdentity.instanceId);
-    const float3 initialComOffset = rigidBodyData[nodeLocator.commonNodeIndex].initialComOffset;
+    const ParticleRigidData rigidData = rigidBodyData[nodeLocator.commonNodeIndex];
 
     float3 comOffsetCrossQ;
     Thread float* comOffsetCrossQPtr = (Thread float*)&comOffsetCrossQ;
-    ParticleCollisionData collisionData = particleCollisionData[index];
-    const float3 sdfGradientIn = collisionData.initialSdfGradient;
+
     float sdfGradientOut[3];
 
     for (uint i = 0; i < 3; i++)
     {
       const Thread float* particleMatrix = localMatrix + i;
       const float3 column = constructFloat3(particleMatrix[0], particleMatrix[3], particleMatrix[6]);
-      comOffsetCrossQPtr[i] = dot(initialComOffset, column);
-      sdfGradientOut[i] = dot(sdfGradientIn, column);
+
+      comOffsetCrossQPtr[i] = dot(rigidData.initialComOffset, column);
+      sdfGradientOut[i] = dot(rigidData.initialSdfGradient, column);
     }
 
-    particleCollisionData[index].transformedSdfGradient = constructFloat3(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]);
-    particleCollisionData[index].invMass = collisionData.invMass;
+    const float3 normalizedSdfGradient = normalize(constructFloat3(sdfGradientOut[0], sdfGradientOut[1], sdfGradientOut[2]));
+
+    particleCollisionData[index].transformedSdfGradient = encodeDirection(normalizedSdfGradient);
+    particleCollisionData[index].gradientMagnitude = rigidData.gradientMagnitude;
 
     particlesPredicted[index].position += comOffsetCrossQ;
     particlesPredicted[index].identity = delta.identity;

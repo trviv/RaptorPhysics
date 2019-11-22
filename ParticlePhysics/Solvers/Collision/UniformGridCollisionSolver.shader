@@ -212,7 +212,7 @@ Kernel void applyCollisions(
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
   const ParticleCollisionData collisionData = particleCollisionData[particleIndex];
 
-  sdfMagnitude = length(collisionData.transformedSdfGradient);
+  sdfMagnitude = collisionData.gradientMagnitude;
 
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),

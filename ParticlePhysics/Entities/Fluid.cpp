@@ -79,17 +79,16 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
         setConstant(index, newPosition);
         pointPosition.push_back(newPosition);
 
-        ParticleCollisionData colData;
-
         if (magnitude > 0)
         {
           normal.normalize();
         }
-        colData.initialSdfGradient = Real3(0.f);
-        colData.radius = particleRadius;
-        colData.transformedSdfGradient = Real3(0.f);
-        colData.invMass = perParticleInvMass;
 
+        ParticleCollisionData colData;
+        colData.transformedSdfGradient = 0;
+        colData.gradientMagnitude = 0.f;
+        colData.invMass = perParticleInvMass;
+        colData.radius = particleRadius;
         particleCollisionData.host()->push_back(colData);
 
         ParticleAuxData auxData;
