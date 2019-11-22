@@ -429,7 +429,7 @@ int loadShader(const char* filename, GLchar** shader_source, GLint* len)
 #if TARGET_OS_IPHONE
   std::string data = "#version 300 es\n";
 #else
-  std::string data = "#version 150\n";
+  std::string data = "#version 330\n";
 #endif
   data += readFile(filename);
 

@@ -127,34 +127,29 @@ typedef struct ParticleStruct_t ParticleStruct;
 */
 struct DEFAULT_ALIGN ParticleCollisionData_t
 {
-  union
-  {
-    struct
-    {
-      float3  initialSdfGradient;
-    };
-    struct
-    {
-      float   reserved1[3];
-      float   radius;
-    };
-  };
-  union
-  {
-    struct
-    {
-      float3  transformedSdfGradient;
-    };
-    struct
-    {
-      float   reserved2[3];
-      float   invMass;
-    };
-  };
+  int   transformedSdfGradient;
+  float gradientMagnitude;
+  float invMass;
+  float radius;
 };
 
 typedef struct ParticleCollisionData_t ParticleCollisionData;
 
+#ifdef COMPUTE_SHADER_SCOPE
+
+inline int encodeDirection(const float3 normalizedDirection)
+{
+  const int3 transformedGradientShort3 = convertInt3(constructFloat3(normalizedDirection.x, normalizedDirection.y, normalizedDirection.z) * 511.f) & 0x3FF;
+  return ((int)transformedGradientShort3[0]) | (((int)transformedGradientShort3[1]) << 10) | (((int)transformedGradientShort3[2]) << 20);
+}
+
+inline int3 decodeDirection(const int encodedDirection)
+{
+  const int3 magnitude = constructInt3(encodedDirection, encodedDirection >> 10, encodedDirection >> 20) & 0x3FF;
+  return magnitude | select(constructInt3(0), constructInt3(0xFFFFFC00), (magnitude & constructInt3(0x200)) > constructInt3(0));
+}
+
+#endif
 
 #define PARTICLE_SHARED_DATA_MASS_MASK      0x1
 #define PARTICLE_SHARED_DATA_RADIUS_MASK    0x2
@@ -246,11 +241,23 @@ struct DEFAULT_ALIGN ParticleRigidData_t
   {
     struct
     {
+      float3  initialSdfGradient;
+    };
+    struct
+    {
+      uint    reserved1[3];
+      float   gradientMagnitude;
+    };
+  };
+  union
+  {
+    struct
+    {
       float3  initialComOffset;
     };
     struct
     {
-      uint    reserved[4];
+      uint    reserved2[4];
     };
   };
 };

@@ -24,10 +24,10 @@ PhysicsEntity::PhysicsEntity()
   sharedData.invRestDensity = 0.001f;
   sharedData.gasConstantK = 0.001f;
   setCollisionDataIsShared(sharedData, true);
-  sharedData.sharedCollisionData.initialSdfGradient = Real3(0, 0, 0);
-  sharedData.sharedCollisionData.radius = 0.f;
-  sharedData.sharedCollisionData.transformedSdfGradient = Real3(0, 0, 0);
+  sharedData.sharedCollisionData.transformedSdfGradient = 0;
+  sharedData.sharedCollisionData.gradientMagnitude = 0.f;
   sharedData.sharedCollisionData.invMass = 0.f;
+  sharedData.sharedCollisionData.radius = 0.f;
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);
 }

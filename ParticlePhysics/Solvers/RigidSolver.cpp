@@ -83,7 +83,7 @@ void RigidSolver::solve()
 
 #ifdef DEBUG_RIGID_SOLVER
     printf("\nMean:\n");
-    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, 3 * totalEntities);
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 4, 3 * newEntityInstanceId());
     particlesTemp[0].syncHost();
     particlesPredicted.syncHost();
     compute->sync();
@@ -120,14 +120,14 @@ void RigidSolver::solve()
 
 #ifdef DEBUG_RIGID_SOLVER
     printf("\nM:\n");
-    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * newEntityInstanceId());
     covarianceMatrix.syncHost();
     particlesTemp[0].syncHost();
     compute->sync();
 
     {
       size_t workgroupSize[3], workgroupCount[3];
-      compute->configureSize(workgroupSize, workgroupCount, totalEntities);
+      compute->configureSize(workgroupSize, workgroupCount, count);
 
       ComputeMemory* buffers[] = {
         particlesTemp[0].device()
@@ -138,12 +138,12 @@ void RigidSolver::solve()
       uint bufferOffset = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArgs(buffers, bufferOffset);
       kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&svdIterations, bufferOffset);
-      kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&totalEntities, bufferOffset + 1);
+      kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX].setArg<uint>(&count, bufferOffset + 1);
       compute->execute(kernels[RIGID_SOLVER_KERNEL_DETERMINE_MATRIX], workgroupSize, workgroupCount);
     }
 
     printf("\nQ:\n");
-    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * totalEntities);
+    ComputeUtil::get(matrix3x3UtilId)->showMatrix(compute, particlesTemp[0].device(), 3, 3, 9 * newEntityInstanceId());
     compute->sync();
 #endif
 
@@ -169,6 +169,7 @@ void RigidSolver::solve()
 #ifdef DEBUG_RIGID_SOLVER
     printf("\nNew Positions:\n");
     ComputeUtil::get(positionUtilId)->showMatrix(compute, particlesPredicted.device(), 3, 4, count * 3);
+    particleCollisionData.syncHost();
     compute->sync();
 #endif
   }

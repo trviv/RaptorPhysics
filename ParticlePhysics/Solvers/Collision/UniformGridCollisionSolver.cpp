@@ -134,7 +134,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
   }
 
   // TODO: Make a flag so that this is only done when needed
-  if (invMaxRadius.host()->size() == 0)
+  if (invMaxRadius.host()->size() == 0 || invMaxRadius.host()->at(0) == 0.f)
   {
     uint nodeBatchCount = (uint)(workgroupSize[0] * workgroupCount[0]);
 
@@ -163,8 +163,11 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
     ComputeUtil::get(gridGetSystemRadiusUtilId)->sum1D(compute, invMaxRadius.device(), particlesBufferTemp.device(), nodeBatchCount);
     invMaxRadius.syncHost();
     compute->sync();
-    invMaxRadius.host()->at(0) = 1.f/invMaxRadius.host()->at(0);
-    invMaxRadius.syncDevice();
+    if (invMaxRadius.host()->at(0) != 0.f)
+    {
+      invMaxRadius.host()->at(0) = 1.f/invMaxRadius.host()->at(0);
+      invMaxRadius.syncDevice();
+    }
 
 #ifdef DEBUG_GRID_SOLVER
     compute->sync();

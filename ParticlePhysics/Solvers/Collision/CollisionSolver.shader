@@ -125,7 +125,7 @@ inline float3 boundaryCollision(
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData->invMass;
-      particleCollisionData->transformedSdfGradient = 2.f * fabs(collisionData->radius) * normalize(friction);
+      particleCollisionData->transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(friction));
       particleCollisionData->invMass = invMass;
 #endif
     }
@@ -159,7 +159,7 @@ inline float3 processParticleCollision(
     ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex != index))
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
-    const float sdfMagnitude2 = length(collisionData2.transformedSdfGradient);
+    const float sdfMagnitude2 = collisionData2.gradientMagnitude;
 
     // skip if the base and the batch particle are of the same object
     float3 collisionVector = selfParticle->position - otherParticle->position;
@@ -204,7 +204,7 @@ inline float3 processParticleCollision(
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;
-      particleCollisionData[index].transformedSdfGradient = 2.f * fabs(collisionData->radius) * normalize(contactNormal);
+      particleCollisionData[index].transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(contactNormal));
       particleCollisionData[index].invMass = invMass;
 #endif
 
