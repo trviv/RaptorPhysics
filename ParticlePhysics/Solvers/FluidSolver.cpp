@@ -78,7 +78,7 @@ void FluidSolver::solve()
     kernelRadius = max(esd.fluidKernelRadius, kernelRadius);
   }
 
-  if (kernelRadius != invMaxRadius.host()->at(0))
+  if (1.f/kernelRadius != invMaxRadius.host()->at(0))
   {
     (*invMaxRadius.host())[0] = 1.f/kernelRadius;
     invMaxRadius.syncDevice();
