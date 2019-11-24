@@ -15,6 +15,7 @@ static uint gridGetSystemRadiusUtilId;
 UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   Solver(compute, allocator), CollisionSolver(compute, allocator)
 {
+  iterations = 1;
   gridSize = 64;
 
   solverHeap = new ComputeHeap(compute);
@@ -277,8 +278,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 
 void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
 {
-  const int iterations = 1;
-
   for (int i=0; i<iterations; i++)
   {
     uint stablizationPass = (i < (iterations-1));
