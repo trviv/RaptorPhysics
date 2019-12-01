@@ -255,7 +255,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 
   { // put particle indices in cell array
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, compute->simdSize());
 
     ComputeMemory* buffers[] = {
       gridCellParticleIndices.device(),
@@ -298,7 +298,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     size_t workgroupSize[3] = {1, 1, 1};
     size_t workgroupCount[3];
 
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount);
+    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, compute->simdSize());
 
     ComputeMemory* buffers[] = {
       gridCellParticleOffsets.device(),
