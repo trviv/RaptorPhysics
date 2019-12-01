@@ -36,6 +36,9 @@
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
 #define asFloat(x)          as_float(x)
+#define simdAll(x)          assert
+#define simdFirst(x)        assert
+#define simdIsFirst()       assert
 #define simdReduce(x)       assert
 #define simdScan(x)         assert
 #define simdMin(x)          assert
@@ -89,6 +92,9 @@
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
 #define asFloat(x)          as_type<float>(x)
+#define simdAll(x)          simd_all(x)
+#define simdFirst(x)        simd_broadcast_first(x)
+#define simdIsFirst()       simd_is_first()
 #define simdReduce(x)       simd_sum(x)
 #define simdScan(x)         simd_prefix_inclusive_sum(x)
 #define simdMin(x)          simd_min(x)

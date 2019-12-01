@@ -200,7 +200,7 @@ void FluidSolver::solve()
 
     { // put particle indices in cell array
       size_t workgroupSize[3], workgroupCount[3];
-      compute->configureSize(workgroupSize, workgroupCount, particleCount);
+      compute->configureSize(workgroupSize, workgroupCount, particleCount, compute->simdSize());
 
       ComputeMemory* buffers[] = {
         gridCellParticleIndices.device(),
@@ -220,9 +220,9 @@ void FluidSolver::solve()
     compute->sync();
   #endif
 
-     ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
-    compute->configureSize(workgroupSize, workgroupCount, particleCount);
+    compute->configureSize(workgroupSize, workgroupCount, particleCount, compute->simdSize());
 
     {
       ComputeMemory* buffers[] = {

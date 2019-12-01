@@ -47,7 +47,23 @@ Kernel void createGridCellHistogram(
     const uint gridCountOffset = gridIndexInt3Int(quantizedPosition, gridSize);
 
     gridParticleCellIndex[index] = gridCountOffset;
-    atomicAdd(&gridCellIndexCount[gridCountOffset], 1);
+
+#ifdef USE_SIMD_COMPUTE
+    const bool simdWriteToSame = simdAll(simdFirst(gridCountOffset) == gridCountOffset);
+
+    if (simdWriteToSame)
+    {
+      const uint activeSimdThreads = simdReduce(1);
+      if (simdIsFirst())
+      {
+        atomicAdd(&gridCellIndexCount[gridCountOffset], activeSimdThreads);
+      }
+    }
+    else
+#endif
+    {
+      atomicAdd(&gridCellIndexCount[gridCountOffset], 1);
+    }
   }
 }
 
