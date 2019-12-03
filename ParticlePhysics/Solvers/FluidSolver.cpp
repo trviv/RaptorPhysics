@@ -22,9 +22,13 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
 #ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
   particlesLambda.create(compute, solverHeap, true);
+  particlesTemp[0].create(compute, solverHeap, true);
+  particlesTemp[1].create(compute, solverHeap, true);
 #else
   particlesDensity.create(compute, solverHeap);
   particlesLambda.create(compute, solverHeap);
+  particlesTemp[0].create(compute, solverHeap);
+  particlesTemp[1].create(compute, solverHeap);
 #endif
 }
 
@@ -106,6 +110,8 @@ void FluidSolver::solve()
   if (gridParticleCellIndex.size() < particleCount)
   {
     UniformGridCollisionSolver::particlesBufferTemp.resize(particleCount, false);
+    particlesTemp[0].resize(particleCount, false);
+    particlesTemp[1].resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
     particlesLambda.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
@@ -221,8 +227,10 @@ void FluidSolver::solve()
   #endif
 
     ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+    ComputeUtil::get(0)->copyBuffer(compute, particleDifferential.device(), particlesTemp[0].device(), 0, 0, sizeof(ParticleDifferential)*particleCount);
+    ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesTemp[1].device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
-    compute->configureSize(workgroupSize, workgroupCount, particleCount, compute->simdSize());
+    compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
     {
       ComputeMemory* buffers[] = {
@@ -255,10 +263,13 @@ void FluidSolver::solve()
 
     {
       ComputeMemory* buffers[] = {
+        particles.device(),
+        particlesTemp[1].device(),
         particlesPredicted.device(),
         particlesDensity.device(),
         particlesLambda.device(),
         particleDifferential.device(),
+        particlesTemp[0].device(),
         gridCompactCellIndices.device(),
         gridCellParticleOffsets.device(),
         gridCellParticleCount.device(),
@@ -282,6 +293,8 @@ void FluidSolver::solve()
     particlesDensity.syncHost();
     particlesLambda.syncHost();
     gridCompactCellCount.syncHost();
+    particleDifferential.syncHost();
+    particlesTemp[0].syncHost();
     compute->sync();
 #endif
   }
