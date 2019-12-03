@@ -171,9 +171,12 @@ Kernel void calculateDensity(
  @param occupiedCellCount Total active grid cells.
  */
 Kernel void calculateForces(
+  Device ParticleStruct*              particlesNew,
+  const Device ParticleStruct*        particlesOld,
   Device ParticleStruct*              particlesPredictedNew,
   const Device float*                 particlesDensity,
   const Device float*                 particlesLambda,
+  Device ParticleDifferential*        particleDiffNew,
   const Device ParticleDifferential*  particleDiff,
   const Device uint*                  gridCompactCellIndices,
   const Device uint*                  gridCellParticleOffsets,
@@ -281,7 +284,10 @@ Kernel void calculateForces(
   delta *= sharedData.invRestDensity;
   selfParticle.position += delta / sharedData.sharedInvMass;
   selfParticle.identity = identity;
-  particlesPredictedNew[particleIndex] = selfParticle;
+
+  particlesPredictedNew[threadIndex()] = selfParticle;
+  particlesNew[threadIndex()] = particlesOld[particleIndex];
+  particleDiffNew[threadIndex()] = particleDiff[particleIndex];
 }
 
 #endif
