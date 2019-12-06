@@ -17,6 +17,7 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 {
   iterations = 1;
   gridSize = 64;
+  gridSizeExp = mCeilExpOf2(gridSize);
 
   solverHeap = new ComputeHeap(compute);
 
@@ -228,6 +229,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&instanceNodeCount, bufferCount);
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSize, bufferCount + 1);
+    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSizeExp, bufferCount + 2);
 
     compute->execute(kernels[GRID_COLLISION_SOLVER_CELL_COUNTS], workgroupSize, workgroupCount);
   }
@@ -318,8 +320,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSize, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 2);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSizeExp, bufferCount + 1);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 2);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
 
     compute->execute(kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
   }

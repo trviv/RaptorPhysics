@@ -21,6 +21,7 @@ protected:
 public:
 
   uint                gridSize;
+  uint                gridSizeExp;
   DeviceArray <uint>  gridCellParticleCount;
 
   /*!

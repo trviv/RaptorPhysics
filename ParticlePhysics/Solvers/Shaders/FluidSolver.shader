@@ -67,6 +67,7 @@ Kernel void calculateDensity(
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
+  constantKernelInput(int,            gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -99,8 +100,8 @@ Kernel void calculateDensity(
 
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
-    (gridCellIndex / gridSize) & (gridSize - 1),
-    gridCellIndex / mul24(gridSize, gridSize)
+    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
+    gridCellIndex >> (gridSizeExp << 1)
   );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
@@ -188,6 +189,7 @@ Kernel void calculateForces(
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
+  constantKernelInput(int,            gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -221,8 +223,8 @@ Kernel void calculateForces(
 
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
-    (gridCellIndex / gridSize) & (gridSize - 1),
-    gridCellIndex / mul24(gridSize, gridSize)
+    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
+    gridCellIndex >> (gridSizeExp << 1)
   );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION

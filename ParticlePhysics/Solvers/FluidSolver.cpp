@@ -16,6 +16,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
 {
   iterations = 1;
   gridSize = 64;
+  gridSizeExp = mCeilExpOf2(gridSize);
 
   create(compute);
 
@@ -179,6 +180,7 @@ void FluidSolver::solve()
       kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&particleCount, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSize, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSizeExp, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_CELL_COUNTS], workgroupSize, workgroupCount);
     }
@@ -249,7 +251,8 @@ void FluidSolver::solve()
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArgs(buffers, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&particleCount, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_DENSITY], workgroupSize, workgroupCount);
     }
@@ -283,7 +286,8 @@ void FluidSolver::solve()
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArgs(buffers, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_FORCES], workgroupSize, workgroupCount);
     }
