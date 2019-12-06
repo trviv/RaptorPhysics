@@ -130,7 +130,8 @@
 inline const uint paddedIndex(const uint n)
 {
   return n;
-//  return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+  //return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));
+  //return n + (n >> LOG_NUM_BANKS) + (n >> (1+LOG_NUM_BANKS));
 }
 
 static float sqr(const float x)

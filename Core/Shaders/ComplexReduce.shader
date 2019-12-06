@@ -13,18 +13,18 @@ void groupReduceId(Shared MemberStructType* localArray, Shared uchar* isValid, c
     const int stride = (1 << i);
 
     // add in strides of 2, 4, 8 ...
-    int localIndex2 = localIndex * (2 << i);
+    int localIndex2 = localIndex << (1 + i);
 
     // if within the bounds
-    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[localIndex2])
+    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[paddedIndex(localIndex2)])
     {
       // index offset 1, 2, 4 ...
-      const int otherIndex = localIndex2 + stride;
+      const int otherIndex = paddedIndex(localIndex2 + stride);
       // if not crossing boundary and has the same identity
-      if (otherIndex < REDUCE_COMPUTE_THREADS && isValid[otherIndex] && identityArray[localIndex2] == identityArray[otherIndex])
+      if (otherIndex < paddedIndex(REDUCE_COMPUTE_THREADS) && isValid[otherIndex] && identityArray[paddedIndex(localIndex2)] == identityArray[otherIndex])
       {
         // add elements
-        ADD_FUNCTION(localArray[localIndex2], localArray[otherIndex]);
+        ADD_FUNCTION(localArray[paddedIndex(localIndex2)], localArray[otherIndex]);
         // reset so that vaild elements are easy to identify
 //        CLEAR_FUNCTION(localArray[otherIndex], NAN);
         isValid[otherIndex] = 0;
@@ -35,20 +35,20 @@ void groupReduceId(Shared MemberStructType* localArray, Shared uchar* isValid, c
     // add the parts potentially untouched by the previous pass which are in strides of 1, 2, 4 ...
     //if (localIndex & stride) //old approach
     localIndex2 += stride;
-    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[localIndex2])
+    if (localIndex2 < REDUCE_COMPUTE_THREADS && isValid[paddedIndex(localIndex2)])
     {
       // cache the identity
-      const uint identity = identityArray[localIndex2];
-      const int leftIndex = localIndex2 - stride;
-      const int rightIndex = localIndex2 + stride;
-      if (leftIndex >= 0 && rightIndex < REDUCE_COMPUTE_THREADS && isValid[rightIndex] &&
+      const uint identity = identityArray[paddedIndex(localIndex2)];
+      const int leftIndex = paddedIndex(localIndex2 - stride);
+      const int rightIndex = paddedIndex(localIndex2 + stride);
+      if (leftIndex >= 0 && rightIndex < paddedIndex(REDUCE_COMPUTE_THREADS) && isValid[rightIndex] &&
         identity != identityArray[leftIndex] && identity == identityArray[rightIndex])
       {
         // add elements
-        ADD_FUNCTION(localArray[rightIndex], localArray[localIndex2]);
+        ADD_FUNCTION(localArray[rightIndex], localArray[paddedIndex(localIndex2)]);
         // reset so that vaild elements are easy to identify
 //        CLEAR_FUNCTION(localArray[localIndex2], NAN);
-        isValid[localIndex2] = 0;
+        isValid[paddedIndex(localIndex2)] = 0;
       }
     }
     localMemBarrier();
@@ -80,18 +80,18 @@ Kernel void sumIrregular2DKernel(
 
   uint identity;
 
-  identityArray[localIndex] = -1;
-  isValid[localIndex] = 0;
+  identityArray[paddedIndex(localIndex)] = -1;
+  isValid[paddedIndex(localIndex)] = 0;
 
   if (index < length)
   {
-    COPY_FUNCTION(localArray[localIndex], source[index]STRUCT_MEMBER);
+    COPY_FUNCTION(localArray[paddedIndex(localIndex)], source[index]STRUCT_MEMBER);
 
 #ifdef DEBUG_COMPLEX_REDUCE
     printf ("Read: %d %f\n", index, *((Shared float*)&localArray[localIndex]));
 #endif
     identity = IDENTITY_FUNCTION(array2DIdentity[index] IDENTITY_STRUCT_MEMBER);
-    identityArray[localIndex] = identity;
+    identityArray[paddedIndex(localIndex)] = identity;
 
     // set shared data
     if (localIndex == 0)
@@ -106,15 +106,15 @@ Kernel void sumIrregular2DKernel(
       // read if within the scope
       if ((index + REDUCE_COMPUTE_THREADS) < length)
       {
-        identityArray[REDUCE_COMPUTE_THREADS] = IDENTITY_FUNCTION(array2DIdentity[index + REDUCE_COMPUTE_THREADS]IDENTITY_STRUCT_MEMBER);
+        identityArray[paddedIndex(REDUCE_COMPUTE_THREADS)] = IDENTITY_FUNCTION(array2DIdentity[index + REDUCE_COMPUTE_THREADS]IDENTITY_STRUCT_MEMBER);
       }
       else
       {
-        identityArray[REDUCE_COMPUTE_THREADS] = -1;
+        identityArray[paddedIndex(REDUCE_COMPUTE_THREADS)] = -1;
       }
     }
 
-    isValid[localIndex] = 1;
+    isValid[paddedIndex(localIndex)] = 1;
   }
 
   localMemBarrier();
@@ -157,7 +157,7 @@ Kernel void sumIrregular2DKernel(
     }
   }
 
-  if (isValid[localIndex])
+  if (isValid[paddedIndex(localIndex)])
   {
     atomicMax(&lastValidIndex, localIndex);
   }
@@ -165,13 +165,13 @@ Kernel void sumIrregular2DKernel(
 
   // in a workgroup add the vaild elements of same identity
   // this is because last identity may have multiple valid elements which may not have been merged
-  if (localIndex != lastValidIndex && isValid[localIndex] && identityArray[lastValidIndex] == identity)
+  if (localIndex != lastValidIndex && isValid[paddedIndex(localIndex)] && identityArray[paddedIndex(lastValidIndex)] == identity)
   {
-    isValid[localIndex] = 0;
+    isValid[paddedIndex(localIndex)] = 0;
 #ifdef DEBUG_COMPLEX_REDUCE
     printf ("Duplicate: %d %d %f\n", threadGroupIndex(), localIndex, *((Shared float*)&localArray[localIndex]));
 #endif
-    ADD_FUNCTION(localArray[lastValidIndex], localArray[localIndex]);
+    ADD_FUNCTION(localArray[paddedIndex(lastValidIndex)], localArray[paddedIndex(localIndex)]);
 //    CLEAR_FUNCTION(localArray[localIndex], NAN);
   }
 
@@ -182,11 +182,11 @@ Kernel void sumIrregular2DKernel(
     printf ("Last: %d %d %f\n", threadGroupIndex(), lastValidIndex, *((Shared float*)&localArray[lastValidIndex]));
 #endif
     // if this identity extends beyond this workgroup
-    if (identityArray[lastValidIndex] == identityArray[REDUCE_COMPUTE_THREADS])
+    if (identityArray[paddedIndex(lastValidIndex)] == identityArray[paddedIndex(REDUCE_COMPUTE_THREADS)])
     {
-      isValid[lastValidIndex] = 0;
+      isValid[paddedIndex(lastValidIndex)] = 0;
       MemberStructType sum;
-      COPY_FUNCTION(sum, localArray[lastValidIndex]);
+      COPY_FUNCTION(sum, localArray[paddedIndex(lastValidIndex)]);
 
 #ifdef DEBUG_COMPLEX_REDUCE
       printf ("Write: %d %f\n", identityArray[lastValidIndex], *((Shared float*)&localArray[localIndex]));
@@ -198,15 +198,15 @@ Kernel void sumIrregular2DKernel(
     }
   }
 
-  if (isValid[localIndex])
+  if (isValid[paddedIndex(localIndex)])
   {
     if (divideFlag)
     {
       float div = partitionArray[identity].count;
-      DIV_FUNCTION(localArray[localIndex], div);
+      DIV_FUNCTION(localArray[paddedIndex(localIndex)], div);
     }
 
-    COPY_FUNCTION(destination[identity]STRUCT_MEMBER, localArray[localIndex]);
+    COPY_FUNCTION(destination[identity]STRUCT_MEMBER, localArray[paddedIndex(localIndex)]);
   }
 }
 

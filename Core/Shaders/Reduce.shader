@@ -145,7 +145,7 @@ Kernel void reduce(
 
   // reduce threadgroup elements
 #ifndef USE_SIMD_COMPUTE
-  localArray[paddedIndex(localIndex)] = reduceSum;
+  localArray[localIndex] = reduceSum;
   groupReduce(localArray, localIndex);
   MemberStructType sum = localArray[localIndex];
 #else
