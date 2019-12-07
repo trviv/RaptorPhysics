@@ -2,6 +2,7 @@
 #define GL_CLASS
 
 #include "ComputeInterface.h"
+#include "CSVReader.h"
 
 const int SIZEOF_INT = sizeof(int);
 const int SIZEOF_FLOAT = sizeof(float);
