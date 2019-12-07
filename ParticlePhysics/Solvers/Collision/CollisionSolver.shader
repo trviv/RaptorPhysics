@@ -115,12 +115,12 @@ inline float3 boundaryCollision(
       ret.z = max.z - particle->position.z;
     }
 
-    if (dot(ret, ret) > 0.f)
+    if (dot(ret, ret) > 0.f && SOLVER_FLUID != getSolverType(particle->identity))
     {
       const float3 friction = calculateFriction(selfParticleDiff->velocity, constructFloat3(0.f), -normalize(ret), length(ret), sharedData);
       if (!stablizationPass)
       {
-        //ret -= friction;
+        ret -= friction;
       }
 
 #ifdef MARK_COLLIDED_PARTICLES
@@ -163,7 +163,7 @@ inline float3 processParticleCollision(
 
     // skip if the base and the batch particle are of the same object
     float3 collisionVector = selfParticle->position - otherParticle->position;
-    float actualDistance = length(collisionVector);
+    float actualDistance = length_squared(collisionVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
     const float allowedDistance = (fabs(collisionData2.radius) + fabs(collisionData->radius));
@@ -172,8 +172,9 @@ inline float3 processParticleCollision(
 #endif
 
     // if overlapping
-    if (actualDistance < allowedDistance)
+    if (actualDistance < (allowedDistance * allowedDistance))
     {
+      actualDistance = sqrt(actualDistance);
       // TODO: Look into SDF
       // displacement magnitude
       const float separationDistance = actualDistance - allowedDistance + COMPUTE_EPSILON;
@@ -197,9 +198,9 @@ inline float3 processParticleCollision(
       const float3 displacementFactor = contactNormal * separationDistance;
 
       float3 displacement1 = -displacementFactor;
-      if (!stablizationPass)
+      if (!stablizationPass && solverType != SOLVER_FLUID)
       {
-        //displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
+        displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
       }
 
 #ifdef MARK_COLLIDED_PARTICLES
