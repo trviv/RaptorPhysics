@@ -10,6 +10,7 @@
 #include "Header/ShaderEntity.h"
 #include "Header/ComputeShared.h"
 #include "Header/ComputeUtils.h"
+#include "Header/CSVReader.h"
 
 #include "Header/GLClass.h"
 #include "Header/GLWindow.h"
