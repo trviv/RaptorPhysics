@@ -27,6 +27,7 @@ static uint deviceCount = 0;
 #endif
 id<MTLCaptureScope> captureScope = nil;
 MTLCaptureManager *captureManager = nil;
+MTLCaptureDescriptor* captureDescriptor = nil;
 static vector<pair<char, id<MTLBuffer>>> tempBuffers;
 volatile id<MTLCommandQueue> commandQueue = nil;
 volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
@@ -750,6 +751,8 @@ void ComputeInterface::create(int deviceIndex)
   commandQueue = queue;
   captureManager = [MTLCaptureManager sharedCaptureManager];
   captureScope = [captureManager newCaptureScopeWithCommandQueue:queue];
+  captureDescriptor = [[MTLCaptureDescriptor alloc] init];
+  captureDescriptor.captureObject = deviceId;
   context = deviceId;
   getComputeEncoder();
 #endif
@@ -1149,7 +1152,13 @@ void ComputeInterface::startCapture()
 #ifdef USE_METAL_COMPUTE
   endEncoders();
   [currentCommandBuffer commit];
-  [captureManager startCaptureWithScope:captureScope];
+
+  NSError *error;
+  if (![captureManager startCaptureWithDescriptor:captureDescriptor error:&error])
+  {
+    NSLog(@"Failed to start capture, error %@", error);
+  }
+
   [captureScope beginScope];
   currentCommandBuffer = [queue commandBuffer];
   getComputeEncoder();
