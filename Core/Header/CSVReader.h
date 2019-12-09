@@ -17,6 +17,8 @@ public:
   string getParamAsString(const string param, const int index = 0)const;
 
   int getParamAsInt(const string param, const int index = 0)const;
+
+  bool getParamAsBool(const string param, const int index = 0)const;
 };
 
 #endif

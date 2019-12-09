@@ -37,35 +37,35 @@ typedef struct IdentityInfo_t IdentityInfo;
 typedef struct IdentityInfo_t PhysicsEntityId;
 
 #ifndef COMPUTE_SHADER_SCOPE
-static void resetIdentity(IdentityInfo& identity)
+inline static void resetIdentity(IdentityInfo& identity)
 {
   identity.identity = -1;
 }
 
-static void setEntityId(IdentityInfo& identity, uint solver, uint entityId)
+inline static void setEntityId(IdentityInfo& identity, uint solver, uint entityId)
 {
   identity.identity = (identity.identity & PHYSICS_INSTANCE_ID_MASK) |
     ((solver << PHYSICS_SOLVER_ID_SHIFT) & PHYSICS_SOLVER_ID_MASK) |
     ((entityId << PHYSICS_ENTITY_ID_SHIFT) & PHYSICS_ENTITY_ID_MASK);
 }
 
-static void setInstanceId(IdentityInfo& identity, uint instanceId)
+inline static void setInstanceId(IdentityInfo& identity, uint instanceId)
 {
   identity.identity = (identity.identity & (-1 ^ PHYSICS_INSTANCE_ID_MASK)) | (instanceId & PHYSICS_INSTANCE_ID_MASK);
 }
 #endif
 
-static uint getInstanceId(const IdentityInfo particleIdentity)
+inline static uint getInstanceId(const IdentityInfo particleIdentity)
 {
   return particleIdentity.identity & PHYSICS_INSTANCE_ID_MASK;
 }
 
-static ushort getEntityId(const IdentityInfo particleIdentity)
+inline static ushort getEntityId(const IdentityInfo particleIdentity)
 {
   return (particleIdentity.identity & PHYSICS_ENTITY_ID_MASK) >> PHYSICS_ENTITY_ID_SHIFT;
 }
 
-static ushort getSolverType(const IdentityInfo particleIdentity)
+inline static ushort getSolverType(const IdentityInfo particleIdentity)
 {
   return (particleIdentity.identity & PHYSICS_SOLVER_ID_MASK) >> PHYSICS_SOLVER_ID_SHIFT;
 }
