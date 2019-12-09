@@ -27,6 +27,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/PrefixScan.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/Reduce.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComplexReduce.shader"
-  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/RadixSort.shader")
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/RadixSort.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/AppConfig.csv")
 
 create_lib_and_exe()

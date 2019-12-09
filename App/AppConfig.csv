@@ -1,0 +1,5 @@
+renderParticlesOption,false
+renderSolidsOption,true
+renderBoundingBoxesOption,false
+renderSystemBoundOption,false
+renderGridHeatmapOption,true

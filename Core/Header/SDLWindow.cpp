@@ -191,7 +191,8 @@ void Window::init(int argc, char** argv, int width, int height,
   cameraSideSpeed = 0.f;
   cameraForwardSpeed = 0.f;
 
-  GL_CHECK(glViewport(0, 0, (GLsizei)width, (GLsizei)height));
+  SDL_GL_GetDrawableSize(sdl_window, &width, &height);
+  reshape(width, height);
 
   clearColor[0] = 0.0f;
   clearColor[1] = 0.0f;

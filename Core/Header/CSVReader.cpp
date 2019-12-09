@@ -51,3 +51,13 @@ int CSVReader::getParamAsInt(const string param, const int index)const
 
   return atoi(csvData.at(param)[index].c_str());
 }
+
+bool CSVReader::getParamAsBool(const string param, const int index)const
+{
+  if (csvData.find(param) == csvData.end())
+  {
+    logComputeError("Paramter %s not found!", param.c_str());
+  }
+
+  return csvData.at(param)[index] == "true";
+}
