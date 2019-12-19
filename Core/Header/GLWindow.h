@@ -32,7 +32,7 @@ struct WindowOption
   }
 };
 
-class Window : public CSVReader
+class Window : public ParameterReader
 {
   int win_width;
   int win_height;

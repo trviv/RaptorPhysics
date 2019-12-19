@@ -1,7 +1,7 @@
-#include "CSVReader.h"
+#include "ParameterReader.h"
 #include <sstream>
 
-void CSVReader::readFile(const char* fileName)
+void ParameterReader::readCSVFile(const char* fileName)
 {
   string fileData = ::readFile(fileName);
   string row, key, word;
@@ -52,7 +52,7 @@ void CSVReader::readFile(const char* fileName)
   }
 }
 
-string CSVReader::getParamAsString(const string param, const int index)const
+string ParameterReader::getParamAsString(const string param, const int index)const
 {
   if (csvData.find(param) == csvData.end())
   {
@@ -62,7 +62,7 @@ string CSVReader::getParamAsString(const string param, const int index)const
   return csvData.at(param)[index];
 }
 
-int CSVReader::getParamAsInt(const string param, const int index)const
+int ParameterReader::getParamAsInt(const string param, const int index)const
 {
   if (csvData.find(param) == csvData.end())
   {
@@ -72,7 +72,7 @@ int CSVReader::getParamAsInt(const string param, const int index)const
   return atoi(csvData.at(param)[index].c_str());
 }
 
-bool CSVReader::getParamAsBool(const string param, const int index)const
+bool ParameterReader::getParamAsBool(const string param, const int index)const
 {
   if (csvData.find(param) == csvData.end())
   {
@@ -82,7 +82,7 @@ bool CSVReader::getParamAsBool(const string param, const int index)const
   return csvData.at(param)[index] == "true";
 }
 
-void CSVReader::setParam(const string param, const int index, void *address, InputParameterType type)
+void ParameterReader::setParam(const string param, const int index, void *address, InputParameterType type)
 {
   switch (type)
   {
@@ -100,7 +100,7 @@ void CSVReader::setParam(const string param, const int index, void *address, Inp
   }
 }
 
-void CSVReader::bindParameter(const string param, const int index, void* address, InputParameterType type)
+void ParameterReader::bindParameter(const string param, const int index, void* address, InputParameterType type)
 {
   pair<string, int> key = {param, index};
   if (csvData.find(param) != csvData.end())
