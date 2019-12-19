@@ -1,3 +1,5 @@
 param1,abc
 param2,123
 param3,1,2,3
+preReadParam,1
+postReadParam,2

@@ -30,6 +30,26 @@ void CSVReader::readFile(const char* fileName)
       index++;
     }
   }
+
+  // if bindings exist, set bound values
+  if (bindings.size() > 0)
+  {
+    // for all csv rows
+    for (const auto& row : csvData)
+    {
+      // for all indices in the row
+      for (int index = 0; index<row.second.size(); index++)
+      {
+        const pair<string, int> key = {row.first, index};
+
+        // if binding found
+        if (bindings.find(key) != bindings.end())
+        {
+          setParam(row.first, index, bindings[key].second, bindings[key].first);
+        }
+      }
+    }
+  }
 }
 
 string CSVReader::getParamAsString(const string param, const int index)const
@@ -60,4 +80,37 @@ bool CSVReader::getParamAsBool(const string param, const int index)const
   }
 
   return csvData.at(param)[index] == "true";
+}
+
+void CSVReader::setParam(const string param, const int index, void *address, InputParameterType type)
+{
+  switch (type)
+  {
+    case ParameterTypeBool:
+      *((bool*)address) = getParamAsBool(param, index);
+      break;
+    case ParameterTypeInt:
+      *((int*)address) = getParamAsInt(param, index);
+      break;
+    case ParameterTypeString:
+      *((string*)address) = getParamAsBool(param, index);
+      break;
+    default:
+      break;
+  }
+}
+
+void CSVReader::bindParameter(const string param, const int index, void* address, InputParameterType type)
+{
+  pair<string, int> key = {param, index};
+  if (csvData.find(param) != csvData.end())
+  {
+    // set parameter value if binding exist
+    setParam(param, index, address, type);
+  }
+  else
+  {
+    // create new binding if not present
+    bindings[key] = pair<InputParameterType, void*>(type, address);
+  }
 }
