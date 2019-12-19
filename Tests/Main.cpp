@@ -72,17 +72,17 @@ cons.solve();
 
 void testCSVReader()
 {
-  CSVReader reader;
-  reader.readFile("TestCSV.csv");
+  ParameterReader reader;
+  reader.readCSVFile("TestCSV.csv");
   assert(string("abc") == reader.getParamAsString("param1"));
   assert(123 == reader.getParamAsInt("param2"));
   assert(2 == reader.getParamAsInt("param3", 1));
 
   int preReadParam = 0;
   int postReadParam = 0;
-  CSVReader reader2;
+  ParameterReader reader2;
   reader2.bindParameter("preReadParam", 0, &preReadParam, ParameterTypeInt);
-  reader2.readFile("TestCSV.csv");
+  reader2.readCSVFile("TestCSV.csv");
   assert(preReadParam == 1);
 
   reader2.bindParameter("postReadParam", 0, &postReadParam, ParameterTypeInt);
