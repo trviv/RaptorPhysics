@@ -402,7 +402,7 @@ void Window::addFrameOption(const WindowOption& option)
   frameOptionIndex[option.name] = (uint)frameOptionList.size() - 1;
 }
 
-const WindowOption& Window::getFrameOption(const string& name)
+WindowOption& Window::getFrameOption(const string& name)
 {
   return frameOptionList[frameOptionIndex[name]];
 }

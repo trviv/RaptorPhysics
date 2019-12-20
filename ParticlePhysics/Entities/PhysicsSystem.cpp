@@ -81,11 +81,17 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, false));
+  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, true));
   addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, true));
-  addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, false));
-  addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, false));
+  addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, true));
+  addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, true));
   addFrameOption(WindowOption(RENDER_GRID_HEATMAP_OPTION, true));
+
+  bindParameter("renderParticlesOption", 0, &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSolidsOption", 0, &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderBoundingBoxesOption", 0, &getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSystemBoundOption", 0, &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderGridHeatmapOption", 0, &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;

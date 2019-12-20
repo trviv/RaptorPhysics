@@ -7,9 +7,10 @@
 enum InputParameterType
 {
   ParameterTypeNone,
+  ParameterTypeBool,
   ParameterTypeInt,
-  ParameterTypeString,
-  ParameterTypeBool
+  ParameterTypeFloat,
+  ParameterTypeString
 };
 
 /*!
@@ -28,9 +29,11 @@ public:
 
   string getParamAsString(const string param, const int index = 0)const;
 
+  bool getParamAsBool(const string param, const int index = 0)const;
+
   int getParamAsInt(const string param, const int index = 0)const;
 
-  bool getParamAsBool(const string param, const int index = 0)const;
+  float getParamAsFloat(const string param, const int index = 0)const;
 
   void bindParameter(const string param, const int index = 0, void* address = NULL, InputParameterType type = ParameterTypeNone);
 };

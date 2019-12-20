@@ -52,6 +52,21 @@ void ParameterReader::readCSVFile(const char* fileName)
   }
 }
 
+bool ParameterReader::getParamAsBool(const string param, const int index)const
+{
+  return getParamAsString(param, index) == "true";
+}
+
+int ParameterReader::getParamAsInt(const string param, const int index)const
+{
+  return atoi(getParamAsString(param, index).c_str());
+}
+
+float ParameterReader::getParamAsFloat(const string param, const int index)const
+{
+  return atof(getParamAsString(param, index).c_str());
+}
+
 string ParameterReader::getParamAsString(const string param, const int index)const
 {
   if (csvData.find(param) == csvData.end())
@@ -60,26 +75,6 @@ string ParameterReader::getParamAsString(const string param, const int index)con
   }
 
   return csvData.at(param)[index];
-}
-
-int ParameterReader::getParamAsInt(const string param, const int index)const
-{
-  if (csvData.find(param) == csvData.end())
-  {
-    logComputeError("Paramter %s not found!", param.c_str());
-  }
-
-  return atoi(csvData.at(param)[index].c_str());
-}
-
-bool ParameterReader::getParamAsBool(const string param, const int index)const
-{
-  if (csvData.find(param) == csvData.end())
-  {
-    logComputeError("Paramter %s not found!", param.c_str());
-  }
-
-  return csvData.at(param)[index] == "true";
 }
 
 void ParameterReader::setParam(const string param, const int index, void *address, InputParameterType type)
@@ -91,6 +86,9 @@ void ParameterReader::setParam(const string param, const int index, void *addres
       break;
     case ParameterTypeInt:
       *((int*)address) = getParamAsInt(param, index);
+      break;
+    case ParameterTypeFloat:
+      *((float*)address) = getParamAsFloat(param, index);
       break;
     case ParameterTypeString:
       *((string*)address) = getParamAsBool(param, index);
