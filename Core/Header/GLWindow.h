@@ -70,7 +70,8 @@ protected:
   float projectionMatrix[16];
 
   void addFrameOption(const WindowOption& option);
-  const WindowOption& getFrameOption(const string& name);
+
+  WindowOption& getFrameOption(const string& name);
 
 public:
 
