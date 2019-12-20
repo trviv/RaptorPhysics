@@ -3,3 +3,6 @@ renderSolidsOption,true
 renderBoundingBoxesOption,false
 renderSystemBoundOption,false
 renderGridHeatmapOption,true
+gravity, 0.f, -9.8f, 0.f
+systemBoundMin, -70.f, 0.f, -70.f
+systemBoundMax, 70.f, 0.f, 70.f
