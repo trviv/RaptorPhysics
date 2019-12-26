@@ -7,8 +7,21 @@
 
 inline float poly6Function(const float r, const float h)
 {
+#ifdef FLUID_USE_LAMBDA
+  const float q = 2.0f * fabs(r) / h;
+  if (q > 2.0f || q < COMPUTE_EPSILON)
+  {
+    return 0.0f;
+  }
+  else
+  {
+    const float a = 0.25f / (M_PI_F * h * h * h);
+    return a * ((q > 1.0f) ? (2.0f - q) * (2.0f - q) * (2.0f - q) : ((3.0f * q - 6.0f) * q * q + 4.0f));
+  }
+#else
   const float x = (h * h - r * r) / (h * h * h);
   return (315.f / (64.f * M_PI_F)) * x * x * x;
+#endif
 }
 
 inline float pressureFunction(const float density, const Thread ParticleSharedData* sharedData)
@@ -18,16 +31,33 @@ inline float pressureFunction(const float density, const Thread ParticleSharedDa
 
 inline float spikyFunction(const float r, const float h)
 {
+#ifdef FLUID_USE_LAMBDA
+  const float q = 2.0f * r / h;
+  if (q > 2.0f)
+  {
+    return 0.0f;
+  }
+  else
+  {
+    const float a = r / (M_PI_F * (q + COMPUTE_EPSILON) * h * h * h * h * h);
+    return a * ((q > 1.0f) ? ((12.0f - 3.0f * q) * q - 12.0f) : ((9.0f * q - 12.0f) * q));
+  }
+#else
   const float x = (h - r) / (h * h);
   return (15.f / M_PI_F) * x * x * x;
+#endif
 }
 
 inline float viscosityFunction(const float r, const float h)
 {
+#ifdef FLUID_USE_LAMBDA
+  return poly6Function(r, h);
+#else
 //  float x = 1.f/h;
 //  x *= x;
 //  return (45.f / M_PI_F) * (h - r) * x * x * x;//(15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
   return (15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
+#endif
 }
 
 inline float scorrFunction(const float r, const float h)
@@ -143,14 +173,21 @@ Kernel void calculateDensity(
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
+  sumGradientVector /= sharedData.sharedInvMass;
+  sumGradientMagnitude /= sharedData.sharedInvMass;
+
   sumGradientMagnitude += dot(sumGradientVector, sumGradientVector);
-  //sumGradientMagnitude *= sharedData.invRestDensity;
 
   density /= sharedData.sharedInvMass;
 
 #ifdef FLUID_USE_LAMBDA
-  density = density * sharedData.invRestDensity - 1.f;
-  particlesDensity[particleIndex] = -density / (sumGradientMagnitude + 10.1f) ;
+  density = density * sharedData.invRestDensity;
+  particlesDensity[particleIndex] = density;
+
+  const float lambda = (density > 1.f) ?
+    -(density - 1.0f) / (sumGradientMagnitude + FLUID_SIM_EPSILON) :
+    0.0f;
+    particlesLambda[particleIndex] = lambda;
 #else
   particlesDensity[particleIndex] = density;
 #endif
@@ -218,8 +255,13 @@ Kernel void calculateForces(
   const IdentityInfo identity = selfParticle.identity;
   const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+#ifdef FLUID_USE_LAMBDA
+  const float lambda = particlesLambda[particleIndex];
+  const float density = particlesLambda[particleIndex];
+#else
   const float lambda = particlesLambda[particleIndex];
   const float density = particlesDensity[particleIndex];
+#endif
 
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
@@ -257,28 +299,27 @@ Kernel void calculateForces(
       }
 
       actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
+#ifdef FLUID_USE_LAMBDA
+      const float lambda = particlesLambda[particleIndex];
+      const float currentParticleDensity = particlesLambda[otherNodeIndex];
+      const float scorr = select(0.f, scorrFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
+      delta += collisionVector * ((density + currentParticleDensity + scorr) *
+        select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
+#else
+      float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
+      float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      const float lambda = particlesLambda[particleIndex];
       const float currentParticleDensity = particlesDensity[otherNodeIndex];
-
-//            delta += sharedData.invRestDensity * collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorrFunction(actualDistance, sharedData.fluidKernelRadius)) *
-//                select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
       const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) / (2.f * currentParticleDensity);
       const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
       float timeStep = 1.f/60.f;
 
-#ifndef FLUID_USE_LAMBDA
       // force due to pressure
       delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
-      float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
-      float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
-
       // force due to viscosity
       delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
-#else
-      const float corr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
-      delta += collisionVector * ((density + currentParticleDensity + corr) *
-        select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
 #endif
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
