@@ -13,6 +13,7 @@ inline int3 positionHashFunction(const float3 position, const int gridSize, cons
 {
   const int3 quantizedPosition = convertInt3(position) + gridSize;
   const int3 multiplier = (quantizedPosition >> gridSizeExp);
+  // TODO: Find a hash function which does not have a possbility of collision
   return mad24(mad24(multiplier.zxy, 3, multiplier.yzx), 5, quantizedPosition) & constructInt3(gridSize - 1);
 }
 
