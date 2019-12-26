@@ -339,9 +339,12 @@ void Window::scroll(float x, float y)
   cameraUpSpeed = dy * 100.f;
 }
 
-void Window::pinch(float d)
+bool Window::pinch(float d)
 {
-  if(abs(d) < 0.001f) d = 0;
+  if(abs(d) < 0.0075f)
+  {
+    return false;
+  }
 
   if (d < 0)
   {
@@ -351,6 +354,7 @@ void Window::pinch(float d)
   {
     this->keyboard(SDLK_w, 0, 0);
   }
+  return true;
 }
 
 void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
@@ -473,6 +477,12 @@ void Window::start()
       if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
         continue;
 
+      // Frame list option can be toggled using keys 1 - frameOptionList.size()
+      if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+frameOptionList.size()))
+      {
+        frameOptionList[event.key.keysym.sym - SDLK_1].boolValue = !frameOptionList[event.key.keysym.sym - SDLK_1].boolValue;
+      }
+
       switch (event.type)
       {
         case SDL_QUIT:
@@ -497,18 +507,26 @@ void Window::start()
           // scroll x, y axis for 2 fingures
           if(event.mgesture.numFingers == 2)
           {
-            pinch(event.mgesture.dDist);
-
-            if (scrolling)
+            if (!pinch(event.mgesture.dDist))
             {
-              scroll(event.mgesture.x, event.mgesture.y);
-            }
-            scrolling = true;
+              if (scrolling)
+              {
+                scroll(event.mgesture.x, event.mgesture.y);
+              }
+              scrolling = true;
 
-            scroll_prev_x = event.mgesture.x;
-            scroll_prev_y = event.mgesture.y;
+              scroll_prev_x = event.mgesture.x;
+              scroll_prev_y = event.mgesture.y;
+            }
           }
           fingerId = -1;
+          mouseDown = false;
+        }
+          break;
+
+        case SDL_MOUSEWHEEL:
+        {
+          pinch(event.wheel.y * 0.0075f);
           mouseDown = false;
         }
           break;
@@ -524,7 +542,23 @@ void Window::start()
         }
           break;
 
+        case SDL_MOUSEBUTTONDOWN:
+        {
+          if (!mouseDown)
+          {
+            mouse(0, 0, event.motion.x, event.motion.y);
+            mouseDown = true;
+          }
+        }
+          break;
+
         case SDL_FINGERUP:
+        {
+          mouseDown = false;
+        }
+          break;
+
+        case SDL_MOUSEBUTTONUP:
         {
           mouseDown = false;
         }
@@ -535,6 +569,15 @@ void Window::start()
           if (mouseDown && !gesture && fingerId == event.tfinger.fingerId)
           {
             mouseDrag(event.tfinger.x*width(), event.tfinger.y*height());
+          }
+        }
+          break;
+
+        case SDL_MOUSEMOTION:
+        {
+          if (mouseDown)
+          {
+            mouseDrag(event.motion.x, event.motion.y);
           }
         }
           break;

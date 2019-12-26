@@ -100,7 +100,7 @@ public:
 
   void scroll(float x, float y);
 
-  void pinch(float d);
+  bool pinch(float d);
 
   void start();
   void display();
