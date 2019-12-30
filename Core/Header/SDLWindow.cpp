@@ -344,22 +344,10 @@ void Window::scroll(float x, float y)
   cameraUpSpeed = dy * 100.f;
 }
 
-bool Window::pinch(float d)
+void Window::pinch(float d)
 {
-  if(abs(d) < 0.001f)
-  {
-    return false;
-  }
-
-  if (d < 0)
-  {
-    this->keyboard(SDLK_s, 0, 0);
-  }
-  else if (d > 0)
-  {
-    this->keyboard(SDLK_w, 0, 0);
-  }
-  return true;
+  cameraForwardSpeed += d;
+  cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
 }
 
 void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
@@ -510,21 +498,30 @@ void Window::start()
 
         case SDL_MULTIGESTURE:
         {
-          // scroll x, y axis for 2 fingures
-          if(event.mgesture.numFingers == 2)
+          switch(event.mgesture.numFingers)
           {
-            if (!pinch(event.mgesture.dDist))
-            {
+            case 2:
+              // scroll x, y axis for 2 fingures
               if (scrolling)
               {
                 scroll(event.mgesture.x, event.mgesture.y);
               }
-              scrolling = true;
-
               scroll_prev_x = event.mgesture.x;
               scroll_prev_y = event.mgesture.y;
-            }
+              break;
+            case 3:
+            case 4:
+              // scroll x axis for 3 and 4 fingures
+              if (scrolling)
+              {
+                pinch((event.mgesture.y - scroll_prev_z) * 10.f);
+              }
+              scroll_prev_z = event.mgesture.y;
+              break;
+            default:
+              break;
           }
+          scrolling = true;
           fingerId = -1;
           mouseDown = false;
         }
@@ -662,8 +659,8 @@ void Window::start()
         cameraFront = Real3(lerp.x, lerp.y, lerp.z);
 
         float distance = mSqrt(cameraFront.z * cameraFront.z + cameraFront.x * cameraFront.x);
-        pitch = atan2(cameraFront.y, distance);
-        yaw = atan2(cameraFront.x, cameraFront.z);
+        yaw = M_PI + atan2(cameraFront.x, cameraFront.z);
+        pitch = asin(cameraFront.y / distance);
 
         lerp = ImLerp(ImVec4(startCameraPosition[0], startCameraPosition[1], startCameraPosition[2], 1.0f),
                       ImVec4(resetCameraPosition[0], resetCameraPosition[1], resetCameraPosition[2], 1.0f), animationTime);

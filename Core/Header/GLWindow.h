@@ -42,6 +42,7 @@ class Window : public ParameterReader
 
   float scroll_prev_x;
   float scroll_prev_y;
+  float scroll_prev_z;
 
   float yaw, pitch;
 
@@ -110,7 +111,7 @@ public:
 
   void scroll(float x, float y);
 
-  bool pinch(float d);
+  void pinch(float d);
 
   void start();
   void display();
