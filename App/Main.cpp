@@ -16,26 +16,20 @@ int main(int argc, char** argv)
   main_window->init(argc, argv, 1280, 1080);
   main_window->readCSVFile("AppConfig.csv");
 
-  uint clothEntities = 8;
+  uint clothEntities = 0;
   uint clothInstances = 1;
 
-  uint rigidEntities = 8;
+  uint rigidEntities = 0;
   uint rigidInstances = 100;
 
-  uint fluidEntities = 0;
+  uint fluidEntities = 1;
   uint fluidInstances = 1;
 
   XAB systemBound;
 
-  systemBound.min = Real3(Real3(physicsSystem->getParamAsFloat("systemBoundMin", 0),
-                                physicsSystem->getParamAsFloat("systemBoundMin", 1),
-                                physicsSystem->getParamAsFloat("systemBoundMin", 2)));
-  systemBound.max = Real3(Real3(physicsSystem->getParamAsFloat("systemBoundMax", 0),
-                                physicsSystem->getParamAsFloat("systemBoundMax", 1),
-                                physicsSystem->getParamAsFloat("systemBoundMax", 2)));
-  physicsSystem->setGravity(Real3(physicsSystem->getParamAsFloat("gravity", 0),
-                                  physicsSystem->getParamAsFloat("gravity", 1),
-                                  physicsSystem->getParamAsFloat("gravity", 2)));
+  systemBound.min = physicsSystem->getParamAsFloat3("systemBoundMin");
+  systemBound.max = physicsSystem->getParamAsFloat3("systemBoundMax");
+  physicsSystem->setGravity(physicsSystem->getParamAsFloat3("gravity"));
 
   physicsSystem->setSystemBoundary(systemBound);
 
@@ -48,7 +42,7 @@ int main(int argc, char** argv)
   real rigidDim[3] = {2.0f, 2.0f, 2.0f};
   real rigidSimSize = 2.f;
 
-  real fluidDim[3] = {1.2f, 22.5f, 1.5f};
+  real fluidDim[3] = {1.2f, 4.5f, 1.5f};
   real fluidSimSize = 2.f;
 
   for (int c = 0; c < clothEntities; c++)

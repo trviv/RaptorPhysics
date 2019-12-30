@@ -87,11 +87,11 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
   addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, true));
   addFrameOption(WindowOption(RENDER_GRID_HEATMAP_OPTION, true));
 
-  bindParameter("renderParticlesOption", 0, &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSolidsOption", 0, &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderBoundingBoxesOption", 0, &getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSystemBoundOption", 0, &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderGridHeatmapOption", 0, &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSolidsOption", &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderBoundingBoxesOption", &getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSystemBoundOption", &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderGridHeatmapOption", &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
