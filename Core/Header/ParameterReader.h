@@ -2,6 +2,7 @@
 #define PARAMETER_READER_H
 
 #include "ComputeInterface.h"
+#include "../Vector/Real3.h"
 #include <unordered_map>
 
 enum InputParameterType
@@ -10,7 +11,9 @@ enum InputParameterType
   ParameterTypeBool,
   ParameterTypeInt,
   ParameterTypeFloat,
-  ParameterTypeString
+  ParameterTypeFloat3,
+  ParameterTypeString,
+  ParameterTypeMax
 };
 
 /*!
@@ -35,7 +38,9 @@ public:
 
   float getParamAsFloat(const string param, const int index = 0)const;
 
-  void bindParameter(const string param, const int index = 0, void* address = NULL, InputParameterType type = ParameterTypeNone);
+  Real3 getParamAsFloat3(const string param)const;
+
+  void bindParameter(const string param, void* address, InputParameterType type, const int index = 0);
 };
 
 #endif

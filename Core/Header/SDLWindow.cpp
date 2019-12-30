@@ -16,8 +16,10 @@ SDL_GLContext gl_context;
 #define WINDOW_MAX_TRANSLATION_RATE 2.f
 #define WINDOW_TRANSLATION_RATE     0.10f
 #define WINDOW_ROTATION_SCALE       0.005f
-#define MOUSE_SENSITIVITY           0.25f
+#define MOUSE_SENSITIVITY           0.50f
 #define MOVE_FRICTION               0.75f
+#define TOGGLE_ANIMATION_SPEED      25.0f
+#define RESET_CAMERA_SPEED          0.75f
 
 #define clamp(x, y, z) x<y?y:(x>z?z:x);
 
@@ -204,8 +206,12 @@ void Window::init(int argc, char** argv, int width, int height,
   cameraFront = Real3(0.0f, 0.0f, -1.0f);
   cameraPosition = Real3(0.0f, 0.0f, 0.0f);
 
-  yaw   = -90.0f;
-  pitch =  0.0f;
+  bindParameter("resetCameraUp", &resetCameraUp, InputParameterType::ParameterTypeFloat3);
+  bindParameter("resetCameraFront", &resetCameraFront, InputParameterType::ParameterTypeFloat3);
+  bindParameter("resetCameraPosition", &resetCameraPosition, InputParameterType::ParameterTypeFloat3);
+
+  yaw   = -M_PI_2;
+  pitch = 0.0f;
 }
 
 Window::~Window()
@@ -300,17 +306,16 @@ void Window::mouseDrag(int x, int y)
   deltaY *= MOUSE_SENSITIVITY;
 
   // update angles
-  yaw   += deltaX;
-  yaw   = yaw>360 ? (yaw-360) : yaw<360 ? (yaw+360) : yaw;
-  pitch += deltaY;
+  yaw   += deltaX * M_2_PI / width();
+  yaw   = yaw>M_2_PI ? (yaw-M_2_PI) : yaw<-M_2_PI ? (yaw+M_2_PI) : yaw;
+  pitch += deltaY * M_2_PI / height();
 
-  if (pitch > 89.0f)  pitch = 89.0f;
-  if (pitch < -89.0f) pitch = -89.0f;
+  pitch = mCrop(pitch, -M_PI_2+M_PI/180.f, M_PI_2-M_PI/180.f);
 
   // update camera look at
-  cameraFront.x = cos(yaw * M_PI / 180.f) * cos(pitch * M_PI / 180.f);
-  cameraFront.y = sin(pitch * M_PI / 180.f);
-  cameraFront.z = sin(yaw * M_PI / 180.f) * cos(pitch * M_PI / 180.f);
+  cameraFront.x = cos(yaw) * cos(pitch);
+  cameraFront.y = sin(pitch);
+  cameraFront.z = sin(yaw) * cos(pitch);
   cameraFront.normalize();
 
 //  printf("Yaw: %f, Pitch: %f\n", yaw, pitch);
@@ -341,7 +346,7 @@ void Window::scroll(float x, float y)
 
 bool Window::pinch(float d)
 {
-  if(abs(d) < 0.0075f)
+  if(abs(d) < 0.001f)
   {
     return false;
   }
@@ -360,41 +365,37 @@ bool Window::pinch(float d)
 void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
 {
   ImVec2 position = ImGui::GetCursorScreenPos();
-  ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-  float radius = width * 0.5f;
-  bool changed = false;
-
+  // toggle value if button clicked
   ImGui::InvisibleButton(buttonIdentifier, ImVec2(width, height));
   if (ImGui::IsItemClicked())
   {
-    changed = true;
     *value = !*value;
   }
 
-  float toggle = *value ? 1.0f : 0.0f;
-
-  ImGuiContext& context = *ImGui::GetCurrentContext();
-  float animationSpeed = 0.08f;
-  if (context.LastActiveId == context.CurrentWindow->GetID(buttonIdentifier))
+  // set slider position based on button's value or if its currently animating
+  float sliderValue = *value ? 1.0f : 0.0f;
+  if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(buttonIdentifier))
   {
-    const float animationTime = ImSaturate(context.LastActiveIdTimer / animationSpeed);
-    toggle = *value ? animationTime : (1.0f - animationTime);
+    const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * TOGGLE_ANIMATION_SPEED);
+    sliderValue = *value ? animationTime : (1.0f - animationTime);
   }
 
+  // set hover color
   ImU32 backgroundColor;
   if (ImGui::IsItemHovered())
   {
-    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.78f, 0.78f, 0.78f, 1.0f), ImVec4(0.64f, 0.83f, 0.34f, 1.0f), toggle));
+    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.78f, 0.78f, 0.78f, 1.0f), ImVec4(0.64f, 0.83f, 0.34f, 1.0f), sliderValue));
   }
   else
   {
-    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), ImVec4(0.56f, 0.83f, 0.26f, 1.0f), toggle));
+    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), ImVec4(0.56f, 0.83f, 0.26f, 1.0f), sliderValue));
   }
 
-  drawList->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, width * 0.15f);
-  position.x += toggle * (width - radius);
-  drawList->AddRectFilled(position, ImVec2(position.x + radius, position.y + height), IM_COL32(255, 255, 255, 255), width * 0.15f);
+  const float buttonWidth = width * 0.5f;
+  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, width * 0.15f);
+  position.x += sliderValue * (width - buttonWidth);
+  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + buttonWidth, position.y + height), IM_COL32(255, 255, 255, 255), width * 0.15f);
 
   ImGui::SameLine();
   ImGui::Text("%s", buttonIdentifier);
@@ -475,7 +476,12 @@ void Window::start()
 
       ImGui_ImplSDL2_ProcessEvent(&event);
       if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
+      {
+        // do not track once in the GUI space
+        fingerId = -1;
+        mouseDown = false;
         continue;
+      }
 
       // Frame list option can be toggled using keys 1 - frameOptionList.size()
       if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+frameOptionList.size()))
@@ -623,6 +629,8 @@ void Window::start()
     ImGui::Begin("Options", NULL, windowFlags);
     ImGui::SetWindowSize({frameOptionSize.x, frameOptionList.size() * 32.f});
     ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - frameOptionSize.x - 24, 16});
+
+    // add toggle options
     for (auto& option : frameOptionList)
     {
       if (option.type == WINDOW_OPTION_BOOL)
@@ -630,6 +638,40 @@ void Window::start()
         ToggleButton(option.name.c_str(), &option.boolValue, 32, 24);
       }
     }
+
+    // add buttons
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 24 * 0.15f);
+    ImGui::Button("Reset Camera", ImVec2(172, 24));
+    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID("Reset Camera"))
+    {
+      const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
+      if (animationTime == 0.f)
+      {
+        startCameraUp = cameraUp;
+        startCameraFront = cameraFront;
+        startCameraPosition = cameraPosition;
+      }
+      if (animationTime < 1.f)
+      {
+        ImVec4 lerp = ImLerp(ImVec4(startCameraUp[0], startCameraUp[1], startCameraUp[2], 1.0f),
+                             ImVec4(resetCameraUp[0], resetCameraUp[1], resetCameraUp[2], 1.0f), animationTime);
+        cameraUp = Real3(lerp.x, lerp.y, lerp.z);
+
+        lerp = ImLerp(ImVec4(startCameraFront[0], startCameraFront[1], startCameraFront[2], 1.0f),
+                      ImVec4(resetCameraFront[0], resetCameraFront[1], resetCameraFront[2], 1.0f), animationTime);
+        cameraFront = Real3(lerp.x, lerp.y, lerp.z);
+
+        float distance = mSqrt(cameraFront.z * cameraFront.z + cameraFront.x * cameraFront.x);
+        pitch = atan2(cameraFront.y, distance);
+        yaw = atan2(cameraFront.x, cameraFront.z);
+
+        lerp = ImLerp(ImVec4(startCameraPosition[0], startCameraPosition[1], startCameraPosition[2], 1.0f),
+                      ImVec4(resetCameraPosition[0], resetCameraPosition[1], resetCameraPosition[2], 1.0f), animationTime);
+        cameraPosition = Real3(lerp.x, lerp.y, lerp.z);
+      }
+    }
+
+    ImGui::PopStyleVar();
     ImGui::End();
 
     ImGui::Render();

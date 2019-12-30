@@ -81,11 +81,11 @@ void testCSVReader()
   int preReadParam = 0;
   int postReadParam = 0;
   ParameterReader reader2;
-  reader2.bindParameter("preReadParam", 0, &preReadParam, ParameterTypeInt);
+  reader2.bindParameter("preReadParam", &preReadParam, ParameterTypeInt);
   reader2.readCSVFile("TestCSV.csv");
   assert(preReadParam == 1);
 
-  reader2.bindParameter("postReadParam", 0, &postReadParam, ParameterTypeInt);
+  reader2.bindParameter("postReadParam", &postReadParam, ParameterTypeInt);
   assert(postReadParam == 2);
 }
 

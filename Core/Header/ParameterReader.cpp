@@ -25,6 +25,7 @@ void ParameterReader::readCSVFile(const char* fileName)
       }
       else
       {
+        word.erase(std::remove_if(word.begin(), word.end(), ::isspace), word.end());
         csvData[key].push_back(word);
       }
       index++;
@@ -67,6 +68,11 @@ float ParameterReader::getParamAsFloat(const string param, const int index)const
   return atof(getParamAsString(param, index).c_str());
 }
 
+Real3 ParameterReader::getParamAsFloat3(const string param)const
+{
+  return Real3(getParamAsFloat(param, 0), getParamAsFloat(param, 1), getParamAsFloat(param, 2));
+}
+
 string ParameterReader::getParamAsString(const string param, const int index)const
 {
   if (csvData.find(param) == csvData.end())
@@ -90,15 +96,18 @@ void ParameterReader::setParam(const string param, const int index, void *addres
     case ParameterTypeFloat:
       *((float*)address) = getParamAsFloat(param, index);
       break;
+    case ParameterTypeFloat3:
+      *((Real3*)address) = getParamAsFloat3(param);
+      break;
     case ParameterTypeString:
-      *((string*)address) = getParamAsBool(param, index);
+      *((string*)address) = getParamAsString(param, index);
       break;
     default:
       break;
   }
 }
 
-void ParameterReader::bindParameter(const string param, const int index, void* address, InputParameterType type)
+void ParameterReader::bindParameter(const string param, void* address, InputParameterType type, const int index)
 {
   pair<string, int> key = {param, index};
   if (csvData.find(param) != csvData.end())

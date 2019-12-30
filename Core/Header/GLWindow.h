@@ -48,6 +48,15 @@ class Window : public ParameterReader
   Real3 cameraUp;
   Real3 cameraFront;
   Real3 cameraPosition;
+
+  Real3 startCameraUp;
+  Real3 startCameraFront;
+  Real3 startCameraPosition;
+
+  Real3 resetCameraUp;
+  Real3 resetCameraFront;
+  Real3 resetCameraPosition;
+
   float cameraUpSpeed;
   float cameraSideSpeed;
   float cameraForwardSpeed;
@@ -56,10 +65,11 @@ protected:
 
   Real3 down;
 
-  // GUI Frame info relates variables
+  // GUI Frame info related variables
   Real3   frameTextSize;
   string  frameText;
 
+  // Dynamic GUI options
   Real3   frameOptionSize;
   vector<WindowOption>  frameOptionList;
   map<string, uint>     frameOptionIndex;
