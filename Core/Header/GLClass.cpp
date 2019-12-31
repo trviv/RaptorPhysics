@@ -155,6 +155,34 @@ GLsizei Face::count()const
   return index_count;
 }
 
+GLint getInternalFormatForTexture(TextureFormat format)
+{
+  switch (format)
+  {
+    case TEXTURE_FORMAT_FLOAT:
+      return GL_RGBA32F;
+    case TEXTURE_FORMAT_INT:
+      return GL_RGBA32I;
+    case TEXTURE_FORMAT_UBYTE:
+      return GL_RGBA8;
+  }
+  return 0;
+}
+
+GLint getFormatForTexture(TextureFormat format)
+{
+  switch (format)
+  {
+    case TEXTURE_FORMAT_FLOAT:
+      return GL_RGBA;
+    case TEXTURE_FORMAT_INT:
+      return GL_RGBA_INTEGER;
+    case TEXTURE_FORMAT_UBYTE:
+      return GL_RGBA;
+  }
+  return 0;
+}
+
 Texture::Texture(TextureFormat format):format(format)
 {
 }
@@ -189,7 +217,7 @@ void Texture::free()
   }
 }
 
-void Texture::gen(float buffer[], int type)
+void Texture::gen(float buffer[], TextureGen type)
 {
   if (index == -1)
   {
@@ -197,43 +225,47 @@ void Texture::gen(float buffer[], int type)
   }
 
   bind();
-  if (type == COLOR_BUFFER)
+  switch (type)
   {
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, format == GL_FLOAT ? GL_RGBA32F : GL_RGBA32I, w, h, 0, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, buffer));
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
+    case COLOR_BUFFER:
+    {
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
+    }
+      break;
+    case COLOR_BUFFER_FLOAT:
+    {
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
+    }
+      break;
+    case DEPTH_BUFFER:
+    {
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, w, h, 0, GL_DEPTH_COMPONENT, format, buffer));
+    }
+      break;
+    case COLOR_BUFFER_UCHAR:
+    {
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
+    }
+      break;
+    default:
+      break;
   }
-  else if (type == 1)
-  {
-    //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR);
-    //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, format == GL_FLOAT ? GL_RGBA32F : GL_RGBA32I, w, h, 0, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, buffer));
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT);
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT);
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
-  }
-  else if (type == DEPTH_BUFFER)
-  {
-    //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR);
-    //      gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, buffer));
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT);
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT);
-    //gl.glTexParameterf(GL.GL_TEXTURE_2D, GL2.GL_GENERATE_MIPMAP, GL.GL_TRUE);
-  }
-
-  //GL.GL_RGBA32F
   unbind();
 }
 
@@ -245,14 +277,14 @@ void Texture::gen()
 void Texture::copy(float image[])const
 {
   bind();
-  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, format == GL_FLOAT ? GL_RGBA32F : GL_RGBA32I, w, h, 0, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, image));
+  GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, image));
   unbind();
 }
 
 void Texture::copy(float image[], GLint x_off, GLint y_off, GLsizei width, GLsizei height)const
 {
   bind();
-  GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, width, height, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, image));
+  GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, width, height, getFormatForTexture(format), format, image));
   unbind();
 }
 
@@ -261,15 +293,15 @@ void Texture::copy(float image[], GLint x_off, GLint y_off, GLsizei length)const
   bind();
   if (length > width())
   {
-    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, this->width(), length / this->width(), format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, image));
+    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, this->width(), length / this->width(), getFormatForTexture(format), format, image));
     if (length & (this->width() - 1))
     {
-      GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, image + 4 * this->width() * (length / this->width()) ));
+      GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, getFormatForTexture(format), format, image + 4 * this->width() * (length / this->width()) ));
     }
   }
   else
   {
-    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, length, 1, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, image));
+    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, length, 1, getFormatForTexture(format), format, image));
   }
   unbind();
 }
@@ -277,7 +309,7 @@ void Texture::copy(float image[], GLint x_off, GLint y_off, GLsizei length)const
 void Texture::copy()const
 {
   bind();
-  GL_CHECK(glCopyTexImage2D(GL_TEXTURE_2D, 0, format == GL_FLOAT ? GL_RGBA32F : GL_RGBA32I, 0, 0, w, h, 0));
+  GL_CHECK(glCopyTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), 0, 0, w, h, 0));
   unbind();
 }
 
@@ -290,7 +322,7 @@ void Texture::get(float target[])const
 {
 #if !TARGET_OS_IPHONE
   bind();
-  GL_CHECK(glGetTexImage(GL_TEXTURE_2D, 0, format == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, format, target));
+  GL_CHECK(glGetTexImage(GL_TEXTURE_2D, 0, getFormatForTexture(format), format, target));
   unbind();
 #endif
 }

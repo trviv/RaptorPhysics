@@ -21,8 +21,6 @@ SDL_GLContext gl_context;
 #define TOGGLE_ANIMATION_SPEED      25.0f
 #define RESET_CAMERA_SPEED          0.75f
 
-#define clamp(x, y, z) x<y?y:(x>z?z:x);
-
 static bool quit = false;
 
 void SDL_CheckError()
@@ -32,15 +30,15 @@ void SDL_CheckError()
   {
     std::cout << "Error: " << sdl_error << std::endl;
     abort();
-    }
+  }
 }
 
-int SDLCALL watch(void *userdata, SDL_Event* event) {
-
-  if (event->type == SDL_APP_WILLENTERBACKGROUND) {
+int SDLCALL watch(void *userdata, SDL_Event* event)
+{
+  if (event->type == SDL_APP_WILLENTERBACKGROUND)
+  {
     quit = true;
   }
-
   return 1;
 }
 
@@ -243,35 +241,30 @@ bool Window::keyboard(unsigned char key, int x, int y)
   {
     case 'w':
       cameraForwardSpeed += WINDOW_TRANSLATION_RATE;
-      cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 's':
       cameraForwardSpeed -= WINDOW_TRANSLATION_RATE;
-      cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
-  }
-
-  switch (key)
-  {
     case 'a':
       cameraSideSpeed -= WINDOW_TRANSLATION_RATE;
-      cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraSideSpeed = mCrop(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 'd':
       cameraSideSpeed += WINDOW_TRANSLATION_RATE;
-      cameraSideSpeed = clamp(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraSideSpeed = mCrop(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
-  }
-
-  switch (key)
-  {
     case 'q':
       cameraUpSpeed += WINDOW_TRANSLATION_RATE;
-      cameraUpSpeed = clamp(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraUpSpeed = mCrop(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
       break;
     case 'e':
       cameraUpSpeed -= WINDOW_TRANSLATION_RATE;
-      cameraUpSpeed = clamp(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      cameraUpSpeed = mCrop(cameraUpSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+      break;
+    case SDLK_ESCAPE:
+      quit = true;
       break;
   }
   return false;
@@ -287,11 +280,8 @@ void Window::reshape(int width, int height)
 
 void Window::mouse(int button, int dir, int x, int y)
 {
-  //if (button == GLUT_LEFT_BUTTON)
-  {
-    intial_mouse_x = x;
-    intial_mouse_y = y;
-  }
+  intial_mouse_x = x;
+  intial_mouse_y = y;
 }
 
 void Window::mouseDrag(int x, int y)
@@ -347,7 +337,7 @@ void Window::scroll(float x, float y)
 void Window::pinch(float d)
 {
   cameraForwardSpeed += d;
-  cameraForwardSpeed = clamp(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+  cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
 }
 
 void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
@@ -587,14 +577,7 @@ void Window::start()
 
         case SDL_KEYDOWN:
         {
-          if (event.key.keysym.sym == SDLK_ESCAPE)
-          {
-            quit = true;
-          }
-          else
-          {
-            this->keyboard(event.key.keysym.sym, 0, 0);
-          }
+          this->keyboard(event.key.keysym.sym, 0, 0);
         }
           break;
 
