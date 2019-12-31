@@ -1,36 +1,8 @@
 #ifndef GL_WINDOW
 #define GL_WINDOW
 
-#include "ImageIO.h"
 #include "../Vector/Matrix.h"
-
-enum WindowOptionType
-{
-  WINDOW_OPTION_BOOL,
-  WINDOW_OPTION_STRING
-};
-
-struct WindowOption
-{
-  WindowOptionType  type;
-  string            name;
-  bool              boolValue;
-  string            stringValue;
-
-  WindowOption(const string& name, const bool value)
-  {
-    type = WINDOW_OPTION_BOOL;
-    this->name = name;
-    boolValue = value;
-  }
-
-  WindowOption(const string& name, const string& value)
-  {
-    type = WINDOW_OPTION_STRING;
-    this->name = name;
-    stringValue = value;
-  }
-};
+#include "UIElements.h"
 
 class Window : public ParameterReader
 {
@@ -72,7 +44,7 @@ protected:
 
   // Dynamic GUI options
   Real3   frameOptionSize;
-  vector<WindowOption>        frameOptionList;
+  vector<UIElement>           frameOptionList;
   unordered_map<string, uint> frameOptionIndex;
 
   float clearColor[4];
@@ -80,9 +52,9 @@ protected:
   float modelMatrix[16];
   float projectionMatrix[16];
 
-  void addFrameOption(const WindowOption& option);
+  void addFrameOption(const UIElement& option);
 
-  WindowOption& getFrameOption(const string& name);
+  UIElement& getFrameOption(const string& name);
 
 public:
 

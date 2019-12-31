@@ -81,11 +81,11 @@ PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  addFrameOption(WindowOption(RENDER_PARTICLES_OPTION, true));
-  addFrameOption(WindowOption(RENDER_SOLIDS_OPTION, true));
-  addFrameOption(WindowOption(RENDER_BOUNDING_BOXES_OPTION, true));
-  addFrameOption(WindowOption(RENDER_SYSTEM_BOUND_OPTION, true));
-  addFrameOption(WindowOption(RENDER_GRID_HEATMAP_OPTION, true));
+  addFrameOption(UIElement(RENDER_PARTICLES_OPTION, true));
+  addFrameOption(UIElement(RENDER_SOLIDS_OPTION, true));
+  addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true));
+  addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true));
+  addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true));
 
   bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderSolidsOption", &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);

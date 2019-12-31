@@ -18,7 +18,6 @@ SDL_GLContext gl_context;
 #define WINDOW_ROTATION_SCALE       0.005f
 #define MOUSE_SENSITIVITY           0.50f
 #define MOVE_FRICTION               0.75f
-#define TOGGLE_ANIMATION_SPEED      25.0f
 #define RESET_CAMERA_SPEED          0.75f
 
 static bool quit = false;
@@ -340,52 +339,13 @@ void Window::pinch(float d)
   cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
 }
 
-void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
-{
-  ImVec2 position = ImGui::GetCursorScreenPos();
-
-  // toggle value if button clicked
-  ImGui::InvisibleButton(buttonIdentifier, ImVec2(width, height));
-  if (ImGui::IsItemClicked())
-  {
-    *value = !*value;
-  }
-
-  // set slider position based on button's value or if its currently animating
-  float sliderValue = *value ? 1.0f : 0.0f;
-  if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(buttonIdentifier))
-  {
-    const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * TOGGLE_ANIMATION_SPEED);
-    sliderValue = *value ? animationTime : (1.0f - animationTime);
-  }
-
-  // set hover color
-  ImU32 backgroundColor;
-  if (ImGui::IsItemHovered())
-  {
-    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.78f, 0.78f, 0.78f, 1.0f), ImVec4(0.64f, 0.83f, 0.34f, 1.0f), sliderValue));
-  }
-  else
-  {
-    backgroundColor = ImGui::GetColorU32(ImLerp(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), ImVec4(0.56f, 0.83f, 0.26f, 1.0f), sliderValue));
-  }
-
-  const float buttonWidth = width * 0.5f;
-  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, width * 0.15f);
-  position.x += sliderValue * (width - buttonWidth);
-  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + buttonWidth, position.y + height), IM_COL32(255, 255, 255, 255), width * 0.15f);
-
-  ImGui::SameLine();
-  ImGui::Text("%s", buttonIdentifier);
-}
-
-void Window::addFrameOption(const WindowOption& option)
+void Window::addFrameOption(const UIElement& option)
 {
   frameOptionList.push_back(option);
   frameOptionIndex[option.name] = (uint)frameOptionList.size() - 1;
 }
 
-WindowOption& Window::getFrameOption(const string& name)
+UIElement& Window::getFrameOption(const string& name)
 {
   return frameOptionList[frameOptionIndex[name]];
 }
@@ -613,10 +573,7 @@ void Window::start()
     // add toggle options
     for (auto& option : frameOptionList)
     {
-      if (option.type == WINDOW_OPTION_BOOL)
-      {
-        ToggleButton(option.name.c_str(), &option.boolValue, 32, 24);
-      }
+      option.render(32, 24);
     }
 
     // add buttons
