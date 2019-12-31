@@ -100,7 +100,7 @@ public:
   virtual void free();
 };
 
-class Frame :public GLObject
+class Frame : public GLObject
 {
   static const GLuint default_frame = 0;
 
@@ -133,17 +133,23 @@ public:
 enum TextureFormat
 {
   TEXTURE_FORMAT_FLOAT = GL_FLOAT,
-  TEXTURE_FORMAT_INT = GL_INT
+  TEXTURE_FORMAT_INT = GL_INT,
+  TEXTURE_FORMAT_UBYTE = GL_UNSIGNED_BYTE
 };
 
-class Texture :public GLObject
+class Texture : public GLObject
 {
   GLsizei w, h;
   TextureFormat format;
 
 public:
-  static const int COLOR_BUFFER = 0;
-  static const int DEPTH_BUFFER = 2;
+  enum TextureGen
+  {
+    COLOR_BUFFER,
+    COLOR_BUFFER_FLOAT,
+    DEPTH_BUFFER,
+    COLOR_BUFFER_UCHAR
+  };
 
 public:
   Texture(TextureFormat format = TEXTURE_FORMAT_FLOAT);
@@ -158,7 +164,7 @@ public:
 
   void free();
 
-  void gen(float buffer[], int type);
+  void gen(float buffer[], TextureGen type);
 
   void gen();
 

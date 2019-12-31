@@ -1,7 +1,7 @@
 #ifndef GL_WINDOW
 #define GL_WINDOW
 
-#include "GLClass.h"
+#include "ImageIO.h"
 #include "../Vector/Matrix.h"
 
 enum WindowOptionType
@@ -72,8 +72,8 @@ protected:
 
   // Dynamic GUI options
   Real3   frameOptionSize;
-  vector<WindowOption>  frameOptionList;
-  map<string, uint>     frameOptionIndex;
+  vector<WindowOption>        frameOptionList;
+  unordered_map<string, uint> frameOptionIndex;
 
   float clearColor[4];
 
