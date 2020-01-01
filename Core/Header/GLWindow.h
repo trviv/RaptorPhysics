@@ -3,6 +3,7 @@
 
 #include "../Vector/Matrix.h"
 #include "UIElements.h"
+#include "Animator.h"
 
 class Window : public ParameterReader
 {
@@ -18,17 +19,9 @@ class Window : public ParameterReader
 
   float yaw, pitch;
 
-  Real3 cameraUp;
-  Real3 cameraFront;
-  Real3 cameraPosition;
-
-  Real3 startCameraUp;
-  Real3 startCameraFront;
-  Real3 startCameraPosition;
-
-  Real3 resetCameraUp;
-  Real3 resetCameraFront;
-  Real3 resetCameraPosition;
+  AnimationElement<Real3> cameraUp;
+  AnimationElement<Real3> cameraFront;
+  AnimationElement<Real3> cameraPosition;
 
   float cameraUpSpeed;
   float cameraSideSpeed;
