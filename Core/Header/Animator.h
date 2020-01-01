@@ -27,7 +27,7 @@ public:
 
   ClassType& interpolate(float timeStep)
   {
-    current = pointA + (pointB - pointA) * timeStep;
+    current = pointA + (pointB - pointA) * mCrop(timeStep, 0.f, 1.f);
     return current;
   }
 
@@ -43,28 +43,28 @@ public:
 
   ClassType& operator = (const ClassType& ref)
   {
-    ((ClassType&)*this) = ref;
-    return *this;
+    current = ref;
+    return current;
   }
 
   ClassType operator + (const ClassType& ref)const
   {
-    return ((ClassType&)*this) + ref;
+    return current + ref;
   }
 
   ClassType operator * (const ClassType& ref)const
   {
-    return ((ClassType&)*this) * ref;
+    return current * ref;
   }
 
-  void operator += (const ClassType& ref)const
+  void operator += (const ClassType& ref)
   {
-    ((ClassType&)*this) * ref;
+    current += ref;
   }
 
   ClassType& operator()()
   {
-    return *this;
+    return current;
   }
 };
 
