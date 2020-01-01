@@ -203,9 +203,9 @@ void Window::init(int argc, char** argv, int width, int height,
   cameraFront = Real3(0.0f, 0.0f, -1.0f);
   cameraPosition = Real3(0.0f, 0.0f, 0.0f);
 
-  bindParameter("resetCameraUp", &resetCameraUp, InputParameterType::ParameterTypeFloat3);
-  bindParameter("resetCameraFront", &resetCameraFront, InputParameterType::ParameterTypeFloat3);
-  bindParameter("resetCameraPosition", &resetCameraPosition, InputParameterType::ParameterTypeFloat3);
+  bindParameter("resetCameraUp", &cameraUp.end(), InputParameterType::ParameterTypeFloat3);
+  bindParameter("resetCameraFront", &cameraFront.end(), InputParameterType::ParameterTypeFloat3);
+  bindParameter("resetCameraPosition", &cameraPosition.end(), InputParameterType::ParameterTypeFloat3);
 
   yaw   = -M_PI_2;
   pitch = 0.0f;
@@ -302,10 +302,10 @@ void Window::mouseDrag(int x, int y)
   pitch = mCrop(pitch, -M_PI_2+M_PI/180.f, M_PI_2-M_PI/180.f);
 
   // update camera look at
-  cameraFront.x = cos(yaw) * cos(pitch);
-  cameraFront.y = sin(pitch);
-  cameraFront.z = sin(yaw) * cos(pitch);
-  cameraFront.normalize();
+  cameraFront().x = cos(yaw) * cos(pitch);
+  cameraFront().y = sin(pitch);
+  cameraFront().z = sin(yaw) * cos(pitch);
+  cameraFront().normalize();
 
 //  printf("Yaw: %f, Pitch: %f\n", yaw, pitch);
 //  printf("Front: %f %f %f\n", cameraFront.x, cameraFront.y, cameraFront.z);
@@ -368,7 +368,7 @@ void Window::start()
     const uint frameStartTime = SDL_GetTicks();
 
     // update camera settings
-    Real3 cross = cameraFront.cross(cameraUp);
+    Real3 cross = cameraFront().cross(cameraUp);
     cross.normalize();
     cameraPosition += cameraFront * cameraForwardSpeed + cross * cameraSideSpeed + cameraUp * cameraUpSpeed;
 
@@ -584,27 +584,20 @@ void Window::start()
       const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
       if (animationTime == 0.f)
       {
-        startCameraUp = cameraUp;
-        startCameraFront = cameraFront;
-        startCameraPosition = cameraPosition;
+        cameraUp.begin() = cameraUp;
+        cameraFront.begin() = cameraFront;
+        cameraPosition.begin() = cameraPosition;
       }
       if (animationTime < 1.f)
       {
-        ImVec4 lerp = ImLerp(ImVec4(startCameraUp[0], startCameraUp[1], startCameraUp[2], 1.0f),
-                             ImVec4(resetCameraUp[0], resetCameraUp[1], resetCameraUp[2], 1.0f), animationTime);
-        cameraUp = Real3(lerp.x, lerp.y, lerp.z);
+        cameraUp.interpolate(animationTime);
+        cameraFront.interpolate(animationTime);
 
-        lerp = ImLerp(ImVec4(startCameraFront[0], startCameraFront[1], startCameraFront[2], 1.0f),
-                      ImVec4(resetCameraFront[0], resetCameraFront[1], resetCameraFront[2], 1.0f), animationTime);
-        cameraFront = Real3(lerp.x, lerp.y, lerp.z);
+        float distance = mSqrt(cameraFront().z * cameraFront().z + cameraFront().x * cameraFront().x);
+        yaw = M_PI + atan2(cameraFront().x, cameraFront().z);
+        pitch = asin(cameraFront().y / distance);
 
-        float distance = mSqrt(cameraFront.z * cameraFront.z + cameraFront.x * cameraFront.x);
-        yaw = M_PI + atan2(cameraFront.x, cameraFront.z);
-        pitch = asin(cameraFront.y / distance);
-
-        lerp = ImLerp(ImVec4(startCameraPosition[0], startCameraPosition[1], startCameraPosition[2], 1.0f),
-                      ImVec4(resetCameraPosition[0], resetCameraPosition[1], resetCameraPosition[2], 1.0f), animationTime);
-        cameraPosition = Real3(lerp.x, lerp.y, lerp.z);
+        cameraPosition.interpolate(animationTime);
       }
     }
 

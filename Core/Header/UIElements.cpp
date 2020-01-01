@@ -53,7 +53,7 @@ void UIElement::render(uint width, uint height)
 {
   if (type == UI_ELEMENT_BOOL)
   {
-    ToggleButton(name.c_str(), &boolValue, 32, 24);
+    ToggleButton(name.c_str(), &boolValue, width, height);
   }
 }
 
