@@ -73,11 +73,11 @@ class PhysicsSystem : protected ShaderEntity, public Window
 public:
 
   /*!
-  @constructor Create a new physics system using a compute interface.
+  @function Initialize physics system using a compute interface and max particles.
   @param compute Compute interface through which the system will operate.
   @param maxParticles Maximum number of particles in the system.
   */
-  PhysicsSystem(ComputeInterface* compute, const uint maxParticles = 1024 * 16);
+  void init(ComputeInterface* compute, const uint maxParticles);
 
   /*!@destructor Dellocate a physics system.*/
   ~PhysicsSystem();

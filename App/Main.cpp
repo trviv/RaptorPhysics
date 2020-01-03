@@ -11,9 +11,10 @@ int main(int argc, char** argv)
   compute = new ComputeInterface();
   compute->create();
 
-  physicsSystem = new PhysicsSystem(compute, 128 * 1024);
+  physicsSystem = new PhysicsSystem();
   main_window = physicsSystem;
   main_window->init(argc, argv, 1280, 1080);
+  physicsSystem->init(compute, 128 * 1024);
   main_window->readCSVFile("AppConfig.csv");
 
   uint clothEntities = 0;
