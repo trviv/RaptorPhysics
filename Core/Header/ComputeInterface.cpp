@@ -758,6 +758,21 @@ void ComputeInterface::create(int deviceIndex)
 #endif
 }
 
+bool checkFileExist(const char* fileName)
+{
+  std::string directory = getCurrentDir();
+#if __APPLE__ && TARGET_OS_OSX
+  return access((directory + "/../Resources/" + fileName).c_str(), F_OK) != -1;
+#else
+  return access((directory + "/" + fileName).c_str(), F_OK) != -1;
+#endif
+}
+
+bool checkImageExist(const char* fileName)
+{
+  return checkFileExist((fileName + string(".png")).c_str());
+}
+
 std::string readFile(const char* fileName)
 {
   std::string directory = getCurrentDir();

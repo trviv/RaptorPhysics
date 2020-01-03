@@ -68,6 +68,8 @@ enum ComputeMemoryFlag
 
 #endif
 
+extern bool checkFileExist(const char* fileName);
+extern bool checkImageExist(const char* fileName);
 extern string readFile(const char* fileName);
 extern const char* getStatusMessage(ComputeStatus status);
 

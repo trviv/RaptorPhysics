@@ -12,23 +12,15 @@ enum UIElementType
 struct UIElement
 {
   UIElementType type;
-  string        name;
-  bool          boolValue;
-  string        stringValue;
+  string  name;
+  bool    boolValue;
+  string  stringValue;
+  Texture texture;
+  void*   font;
 
-  UIElement(const string& name, const bool value)
-  {
-    type = UI_ELEMENT_BOOL;
-    this->name = name;
-    boolValue = value;
-  }
+  UIElement(const string& name, const bool value, const char* font = NULL);
 
-  UIElement(const string& name, const string& value)
-  {
-    type = UI_ELEMENT_STRING;
-    this->name = name;
-    stringValue = value;
-  }
+  UIElement(const string& name, const char* value, const char* font = NULL);
 
   void render(uint width, uint height);
 };

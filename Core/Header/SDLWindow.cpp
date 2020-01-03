@@ -363,6 +363,11 @@ void Window::start()
   SDL_FingerID fingerId;
   Real3 eyeVector(0.f);
 
+  const string fontData = readFile("DefaultFont.ttf");
+  ImFontConfig fontConfig = ImFontConfig();
+  fontConfig.FontDataOwnedByAtlas = false;
+  ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), 13, &fontConfig);
+
   while (!quit)
   {
     const uint frameStartTime = SDL_GetTicks();

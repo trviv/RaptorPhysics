@@ -17,11 +17,12 @@ static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
 static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Bounding Box");
 static const string RENDER_GRID_HEATMAP_OPTION    ("Grid Heatmap");
 
-Clock physicsSystemClock;
+static Clock physicsSystemClock;
 
-PhysicsSystem::PhysicsSystem(ComputeInterface* compute, const uint maxParticles)
-  : compute(compute), displayGridBuffer(TextureFormat::TEXTURE_FORMAT_INT)
+void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
+  this->compute = compute;
+  this->displayGridBuffer = TextureFormat::TEXTURE_FORMAT_INT;
   nodeCount = 0;
   instanceNodeCount = 0;
   availableEntityIds.clear();
