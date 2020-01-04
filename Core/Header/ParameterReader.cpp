@@ -3,7 +3,7 @@
 
 void ParameterReader::readCSVFile(const char* fileName)
 {
-  string fileData = ::readFile(fileName);
+  string fileData = IOInterface::readFile(fileName);
   string row, key, word;
 
   std::istringstream stringStream(fileData);

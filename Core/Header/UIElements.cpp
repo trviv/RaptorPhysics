@@ -5,14 +5,6 @@
 
 #if ENV_APPLE
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_sdl.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include "imgui/imgui_internal.h"
-#include <SDL2/SDL.h>
-
-static unordered_map<string, ImFont*> fontDictionary;
-
 void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
 {
   ImVec2 position = ImGui::GetCursorScreenPos();
@@ -52,41 +44,28 @@ void ToggleButton(const char* buttonIdentifier, bool* value, int width, int heig
   ImGui::Text("%s", buttonIdentifier);
 }
 
-void* readFont(const char* font)
-{
-  if (font == NULL)
-  {
-    return NULL;
-  }
-
-  if (fontDictionary.find(font) != fontDictionary.end())
-  {
-    ImGuiIO& io = ImGui::GetIO();
-    string fontData = readFile((font+string(".ttf")).c_str());
-    fontDictionary[font] = io.Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), 16);
-  }
-  return fontDictionary[font];
-}
-
-UIElement::UIElement(const string& name, const bool value, const char* font)
+UIElement::UIElement(const string& name, const bool value, const char* iconFont, ushort iconId, const char* font)
 {
   type = UI_ELEMENT_BOOL;
   this->name = name;
   boolValue = value;
-  this->font = readFont(font);
+  this->font = IOInterface::getFont(font);
+  this->iconFont = IOInterface::getFont(iconFont);
+  this->iconId = font ? IOInterface::getFontOffset(font) + iconId : iconId;
 }
 
-UIElement::UIElement(const string& name, const char* value, const char* font)
+UIElement::UIElement(const string& name, const char* value, const char* iconFont, ushort iconId, const char* font)
 {
   type = UI_ELEMENT_STRING;
   this->name = name;
   stringValue = value;
-  if (checkImageExist(name.c_str()))
+  if (IOInterface::checkImageExist(name.c_str()))
   {
-    ImageIO image;
-    image.loadFile(name.c_str(), &texture, 32, 32);
+    IOInterface::readImageFile(name.c_str(), &texture, 32, 32);
   }
-  this->font = readFont(font);
+  this->font = IOInterface::getFont(font);
+  this->iconFont = IOInterface::getFont(iconFont);
+  this->iconId = font ? IOInterface::getFontOffset(font) + iconId : iconId;
 }
 
 void UIElement::render(uint width, uint height)
@@ -95,11 +74,20 @@ void UIElement::render(uint width, uint height)
   {
     ToggleButton(name.c_str(), &boolValue, width, height);
   }
-  else if (type == UI_ELEMENT_STRING && texture.get() != -1)
+  else if (type == UI_ELEMENT_STRING)
   {
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, width * BUTTON_ROUNDNESS_FRACTION);
-    ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), width * BUTTON_ROUNDNESS_FRACTION);
-    ImGui::PopStyleVar();
+    if (texture.get() != -1)
+    {
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, width * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), width * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::PopStyleVar();
+    }
+    else
+    {
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, width * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), width * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::PopStyleVar();
+    }
   }
 }
 

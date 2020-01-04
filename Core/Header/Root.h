@@ -147,5 +147,6 @@ typedef uint16_t  half;
 #define DEFAULT_ALIGN ALIGN(16)
 
 static std::ostream &cout = std::cout;
+using namespace std;
 
 #endif

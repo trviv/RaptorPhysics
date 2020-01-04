@@ -2,10 +2,6 @@
 
 #if ENV_APPLE
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_sdl.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include "imgui/imgui_internal.h"
 #include <SDL2/SDL.h>
 
 int Window::del_time = 5;
@@ -363,10 +359,21 @@ void Window::start()
   SDL_FingerID fingerId;
   Real3 eyeVector(0.f);
 
-  const string fontData = readFile("DefaultFont.ttf");
+  float mainFontSize = 14;
+  float iconFontSize = 24;
+
   ImFontConfig fontConfig = ImFontConfig();
   fontConfig.FontDataOwnedByAtlas = false;
-  ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), 13, &fontConfig);
+
+  string fontData = IOInterface::readFile("DefaultFont.ttf");
+  ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), mainFontSize, &fontConfig);
+
+  fontConfig.MergeMode = true;
+  fontConfig.PixelSnapH = true;
+  fontConfig.GlyphOffset.y = (iconFontSize - mainFontSize) * 0.5f;
+  IOInterface::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
+
+  ImGui::GetIO().Fonts->Build();
 
   while (!quit)
   {

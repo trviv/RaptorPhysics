@@ -1,9 +1,9 @@
 #ifndef PARAMETER_READER_H
 #define PARAMETER_READER_H
 
-#include "ComputeInterface.h"
+#include "IOInterface.h"
 #include "../Vector/Real3.h"
-#include <unordered_map>
+#include "ComputeInterface.h"
 
 enum InputParameterType
 {

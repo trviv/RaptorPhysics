@@ -3,6 +3,7 @@
 
 #include "Root.h"
 #include "Math.h"
+#include "IOInterface.h"
 
 #ifdef __APPLE__
 #import <Foundation/Foundation.h>
@@ -24,9 +25,6 @@
 #endif //_WIN32
 #endif
 #endif //__APPLE__
-
-#include <vector>
-using namespace std;
 
 #ifdef USE_METAL_COMPUTE
 
@@ -68,9 +66,6 @@ enum ComputeMemoryFlag
 
 #endif
 
-extern bool checkFileExist(const char* fileName);
-extern bool checkImageExist(const char* fileName);
-extern string readFile(const char* fileName);
 extern const char* getStatusMessage(ComputeStatus status);
 
 extern void logComputeMessage(const char* format, ...);
