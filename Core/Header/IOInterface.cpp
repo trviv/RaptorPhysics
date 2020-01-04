@@ -93,7 +93,7 @@ bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *textu
   int comp;
 
   string fileData = readFile((nameWithoutExtension+string(".png")).c_str());
-  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), fileData.size(), &imageWidth, &imageHeight, &comp, 4);
+  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), (int)fileData.size(), &imageWidth, &imageHeight, &comp, 4);
 
   if (imageData == NULL)
   {
@@ -117,7 +117,7 @@ bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *textu
   int comp;
 
   string fileData = readFile((nameWithoutExtension+string(".png")).c_str());
-  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), fileData.size(), &imageWidth, &imageHeight, &comp, 4);
+  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), (int)fileData.size(), &imageWidth, &imageHeight, &comp, 4);
 
   if (imageData == NULL)
   {
@@ -151,10 +151,10 @@ void* IOInterface::readFontFile(const char* font, float fontSize, void* fontConf
   {
     const ushort offset = 0xf000;
     const string fontData = IOInterface::readFile((font+string(".ttf")).c_str());
-    const ImWchar glyphRanges[] = {static_cast<ImWchar>(offset + fontDictionary.size() * 0x03ff), static_cast<ImWchar>(offset + (fontDictionary.size() + 1) * 0x03ff), 0};
+    const ImWchar glyphRanges[] = {static_cast<ImWchar>(offset + fontDictionary.size() * 0x0400), static_cast<ImWchar>(offset + (fontDictionary.size() + 1) * 0x0400), 0};
 
-    fontDictionary[font] = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), fontSize, (ImFontConfig*)fontConfig, glyphRanges);
-    fontOffset[font] = offset + (fontDictionary.size() - 1) * 0x03ff;
+    fontDictionary[font] = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), (int)fontData.size(), fontSize, (ImFontConfig*)fontConfig, glyphRanges);
+    fontOffset[font] = offset + ((int)fontDictionary.size() - 1) * 0x0400;
   }
   return fontDictionary[font];
 }
@@ -166,5 +166,5 @@ void* IOInterface::getFont(const char* font)
 
 ushort IOInterface::getFontOffset(const char* font)
 {
-  return fontOffset[font];
+  return font ? fontOffset[font] : 0;
 }

@@ -126,7 +126,7 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   32);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-  int windowFlags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL;//|SDL_WINDOW_ALLOW_HIGHDPI;
+  int windowFlags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI;
 #if TARGET_OS_IPHONE
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -205,6 +205,22 @@ void Window::init(int argc, char** argv, int width, int height,
 
   yaw   = -M_PI_2;
   pitch = 0.0f;
+
+  float mainFontSize = 14;
+  float iconFontSize = 18;
+
+  ImFontConfig fontConfig = ImFontConfig();
+  fontConfig.FontDataOwnedByAtlas = false;
+
+  string fontData = IOInterface::readFile("DefaultFont.ttf");
+  ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), (int)fontData.size(), mainFontSize, &fontConfig);
+
+  fontConfig.MergeMode = true;
+  fontConfig.PixelSnapH = true;
+  fontConfig.GlyphOffset.y = (iconFontSize - mainFontSize) * 0.5f;
+  IOInterface::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
+
+  ImGui::GetIO().Fonts->Build();
 }
 
 Window::~Window()
@@ -338,7 +354,7 @@ void Window::pinch(float d)
 void Window::addFrameOption(const UIElement& option)
 {
   frameOptionList.push_back(option);
-  frameOptionIndex[option.name] = (uint)frameOptionList.size() - 1;
+  frameOptionIndex[option.identifier] = (uint)frameOptionList.size() - 1;
 }
 
 UIElement& Window::getFrameOption(const string& name)
@@ -358,22 +374,6 @@ void Window::start()
 
   SDL_FingerID fingerId;
   Real3 eyeVector(0.f);
-
-  float mainFontSize = 14;
-  float iconFontSize = 24;
-
-  ImFontConfig fontConfig = ImFontConfig();
-  fontConfig.FontDataOwnedByAtlas = false;
-
-  string fontData = IOInterface::readFile("DefaultFont.ttf");
-  ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), fontData.size(), mainFontSize, &fontConfig);
-
-  fontConfig.MergeMode = true;
-  fontConfig.PixelSnapH = true;
-  fontConfig.GlyphOffset.y = (iconFontSize - mainFontSize) * 0.5f;
-  IOInterface::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
-
-  ImGui::GetIO().Fonts->Build();
 
   while (!quit)
   {
@@ -589,9 +589,7 @@ void Window::start()
     }
 
     // add buttons
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 24 * 0.15f);
-    ImGui::Button("Reset Camera", ImVec2(172, 24));
-    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID("Reset Camera"))
+    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(getFrameOption("Reset Camera").stringValue.c_str()))
     {
       const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
       if (animationTime == 0.f)
@@ -613,7 +611,6 @@ void Window::start()
       }
     }
 
-    ImGui::PopStyleVar();
     ImGui::End();
 
     ImGui::Render();

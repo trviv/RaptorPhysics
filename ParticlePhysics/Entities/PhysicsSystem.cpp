@@ -87,6 +87,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true));
   addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true));
   addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true));
+  addFrameOption(UIElement("Reset Camera", "Reset Camera", "fa-solid-900", 0xF0E2));
 
   bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderSolidsOption", &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
