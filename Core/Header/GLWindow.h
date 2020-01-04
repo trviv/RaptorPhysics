@@ -4,6 +4,7 @@
 #include "../Vector/Matrix.h"
 #include "UIElements.h"
 #include "Animator.h"
+#include "ParameterReader.h"
 
 class Window : public ParameterReader
 {

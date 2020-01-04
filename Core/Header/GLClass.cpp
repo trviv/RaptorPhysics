@@ -463,7 +463,7 @@ int loadShader(const char* filename, GLchar** shader_source, GLint* len)
 #else
   std::string data = "#version 330\n";
 #endif
-  data += readFile(filename);
+  data += IOInterface::readFile(filename);
 
   *shader_source = new GLchar[data.size()];
   *len = (uint)data.size();

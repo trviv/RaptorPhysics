@@ -1,16 +1,4 @@
 #include "ComputeInterface.h"
-#include <fstream>
-#include <stdio.h>  /* defines FILENAME_MAX */
-// #define WINDOWS  /* uncomment this line to use it for windows.*/ 
-#ifdef _WIN32
-#include <Pathcch.h>
-#else
-#include <limits.h>
-#include <unistd.h>
-#define GetCurrentDir getcwd
-#endif
-#include <stdarg.h>
-#include <algorithm>
 
 #define CREATE_SUB_BUFFER
 //#define ENABLE_CL_PROFILING
@@ -266,34 +254,6 @@ const char* getStatusMessage(ComputeStatus status)
 
 #endif
 }
-
-string getCurrentDir(void)
-{
-  char *currentPath = new char[2048];
-#if   ENV_WIN
-  int len = GetModuleFileName(NULL, currentPath, 2047);
-#elif ENV_APPLE
-  currentPath[0] = NULL;
-  const char *executablePath = [[[[[NSProcessInfo processInfo] arguments] objectAtIndex:0] stringByDeletingLastPathComponent] fileSystemRepresentation];
-  strcpy(currentPath, executablePath);
-  size_t len = strnlen(currentPath, 2047);
-  // add an additional / at the end so that directory name does not get deleted
-  currentPath[len] = '/';
-  currentPath[len + 1] = NULL;
-  len += 1;
-#else
-  ssize_t len = ::readlink("/proc/self/exe", currentPath, 2047);
-#endif
-  if (len != -1)
-  {
-    currentPath[len] = '\0';
-  }
-  logComputeMessage("\nCurrent Execution Path: %s\n", executablePath);
-  std::string ret = std::string(currentPath);
-  delete[] currentPath;
-  return ret.substr(0, ret.find_last_of("\\/"));
-}
-
 
 void logComputeMessage(const char* format, ...)
 {
@@ -758,42 +718,6 @@ void ComputeInterface::create(int deviceIndex)
 #endif
 }
 
-bool checkFileExist(const char* fileName)
-{
-  std::string directory = getCurrentDir();
-#if __APPLE__ && TARGET_OS_OSX
-  return access((directory + "/../Resources/" + fileName).c_str(), F_OK) != -1;
-#else
-  return access((directory + "/" + fileName).c_str(), F_OK) != -1;
-#endif
-}
-
-bool checkImageExist(const char* fileName)
-{
-  return checkFileExist((fileName + string(".png")).c_str());
-}
-
-std::string readFile(const char* fileName)
-{
-  std::string directory = getCurrentDir();
-  std::string data;
-  std::ifstream file;
-#if __APPLE__ && TARGET_OS_OSX
-  file.open(directory + "/../Resources/" + fileName, std::ios::binary);
-#else
-  file.open(directory + "/" + fileName, std::ios::binary);
-#endif
-
-  file.seekg(0, std::ios::end);
-  data.reserve((size_t)file.tellg());
-  file.seekg(0, std::ios::beg);
-  data.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-  file.close();
-
-  return data;
-}
-
 ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t sourceSize)
 {
   ComputeStatus status;
@@ -862,10 +786,10 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
   {
     for (uint i = 0; i < includeFiles->size(); i++)
     {
-      data += readFile((*includeFiles)[i].c_str()) + "\n";
+      data += IOInterface::readFile((*includeFiles)[i].c_str()) + "\n";
     }
   }
-  data += readFile(fileName);
+  data += IOInterface::readFile(fileName);
   data += "\n";
 
   logComputeMessage("Compiling File: %s", fileName);
