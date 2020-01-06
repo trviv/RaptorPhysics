@@ -37,9 +37,9 @@ protected:
   string  frameText;
 
   // Dynamic GUI options
-  Real3   frameOptionSize;
-  vector<UIElement>           frameOptionList;
-  unordered_map<string, uint> frameOptionIndex;
+  Real3                       uiWindowSize;
+  vector<UIElement>           uiElements;
+  unordered_map<string, uint> uiElementMap;
 
   float clearColor[4];
 

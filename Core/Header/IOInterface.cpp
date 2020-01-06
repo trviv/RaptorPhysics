@@ -149,12 +149,13 @@ void* IOInterface::readFontFile(const char* font, float fontSize, void* fontConf
 
   if (fontDictionary.find(font) == fontDictionary.end())
   {
-    const ushort offset = 0xf000;
+    const ushort offset = 0xF000;
     const string fontData = IOInterface::readFile((font+string(".ttf")).c_str());
-    const ImWchar glyphRanges[] = {static_cast<ImWchar>(offset + fontDictionary.size() * 0x0400), static_cast<ImWchar>(offset + (fontDictionary.size() + 1) * 0x0400), 0};
+    const ImWchar start = offset;//static_cast<ImWchar>(offset + fontDictionary.size() * 0x0400);
+    const ImWchar glyphRanges[] = {start, (ImWchar)(start + 0x3FF), 0};
 
     fontDictionary[font] = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), (int)fontData.size(), fontSize, (ImFontConfig*)fontConfig, glyphRanges);
-    fontOffset[font] = offset + ((int)fontDictionary.size() - 1) * 0x0400;
+    fontOffset[font] = start;
   }
   return fontDictionary[font];
 }

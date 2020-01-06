@@ -5,7 +5,30 @@
 
 #if ENV_APPLE
 
-void ToggleButton(const char* buttonIdentifier, bool* value, int width, int height)
+void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, int width, int height)
+{
+  if (!*value)
+  {
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+  }
+  else
+  {
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.f, 0.f, 0.f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25999999f, 0.980000019f, 0.589999974f, 1.f));
+  }
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25999999f, 0.980000019f, 0.589999974f, 0.400000006f));
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0599999987f, 0.980000019f, 0.529999971f, 1.f));
+
+  if (ImGui::Button(text, ImVec2(UIElement::ButtonWidth, UIElement::ButtonHeight)))
+  {
+    *value = !*value;
+  }
+
+  ImGui::PopStyleColor(4);
+}
+
+void ToggleButton2(const char* buttonIdentifier, bool* value, int width, int height)
 {
   ImVec2 position = ImGui::GetCursorScreenPos();
 
@@ -36,13 +59,16 @@ void ToggleButton(const char* buttonIdentifier, bool* value, int width, int heig
   }
 
   const float buttonWidth = width * 0.5f;
-  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, width * BUTTON_ROUNDNESS_FRACTION);
+  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + width, position.y + height), backgroundColor, height * BUTTON_ROUNDNESS_FRACTION);
   position.x += sliderValue * (width - buttonWidth);
-  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + buttonWidth, position.y + height), IM_COL32(255, 255, 255, 255), width * BUTTON_ROUNDNESS_FRACTION);
+  ImGui::GetWindowDrawList()->AddRectFilled(position, ImVec2(position.x + buttonWidth, position.y + height), IM_COL32(255, 255, 255, 255), height * BUTTON_ROUNDNESS_FRACTION);
 
   ImGui::SameLine();
   ImGui::Text("%s", buttonIdentifier);
 }
+
+float UIElement::ButtonWidth = 160;
+float UIElement::ButtonHeight = 32;
 
 UIElement::UIElement(const string& identifier, const bool value, const char* iconFont, ushort iconId, const char* font)
 {
@@ -50,9 +76,10 @@ UIElement::UIElement(const string& identifier, const bool value, const char* ico
   this->identifier = identifier;
   boolValue = value;
   this->font = IOInterface::getFont(font);
+  displayText = getIconAsString(iconFont, iconId) + identifier;
 }
 
-UIElement::UIElement(const string& identifier, const char* value, const char* iconFont, ushort iconId, const char* font)
+UIElement::UIElement(const string& identifier, const string& text, const char* iconFont, ushort iconId, const char* font)
 {
   type = UI_ELEMENT_STRING;
   this->identifier = identifier;
@@ -61,33 +88,42 @@ UIElement::UIElement(const string& identifier, const char* value, const char* ic
     IOInterface::readImageFile(identifier.c_str(), &texture, 32, 32);
   }
   this->font = IOInterface::getFont(font);
+  displayText = getIconAsString(iconFont, iconId) + text;
+}
 
-  iconId = (iconId & 0xFFF) + IOInterface::getFontOffset(iconFont);
-  stringValue.clear();
-  const char iconCode[4] = {'\xEF', (char)(((iconId >> 6) & 0x3F) | 0x80), (char)((iconId & 0x3F) | 0x80), ' '};
-  stringValue.append(iconCode, 4);
-  stringValue.append(value);
+string UIElement::getIconAsString(const char* iconFont, ushort iconId)const
+{
+  string str;
+  if (iconId)
+  {
+    iconId = (iconId & 0xFFF) + IOInterface::getFontOffset(iconFont);
+    const char iconCode[4] = {'\xEF', (char)(((iconId >> 6) & 0x3F) | 0x80), (char)((iconId & 0x3F) | 0x80), ' '};
+    str.append(iconCode, 4);
+  }
+
+  return str;
 }
 
 void UIElement::render(uint width, uint height)
 {
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
   if (type == UI_ELEMENT_BOOL)
   {
-    ToggleButton(identifier.c_str(), &boolValue, width, height);
+    ToggleButton(identifier.c_str(), displayText.c_str(), &boolValue, ButtonWidth, ButtonHeight);
   }
   else if (type == UI_ELEMENT_STRING)
   {
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, width * BUTTON_ROUNDNESS_FRACTION);
     if (texture.get() != -1)
     {
-      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), width * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), height * BUTTON_ROUNDNESS_FRACTION);
     }
     else
     {
-      ImGui::Button(stringValue.c_str(), ImVec2(172, 24));
+      ImGui::Button(displayText.c_str(), ImVec2(ButtonWidth, ButtonHeight));
     }
-    ImGui::PopStyleVar();
   }
+  ImGui::PopStyleVar(2);
 }
 
 #endif

@@ -14,8 +14,9 @@
 static const string RENDER_PARTICLES_OPTION       ("Particles");
 static const string RENDER_SOLIDS_OPTION          ("Solids");
 static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
-static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Bounding Box");
+static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Box");
 static const string RENDER_GRID_HEATMAP_OPTION    ("Grid Heatmap");
+static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 
 static Clock physicsSystemClock;
 
@@ -82,12 +83,12 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  addFrameOption(UIElement(RENDER_PARTICLES_OPTION, true));
-  addFrameOption(UIElement(RENDER_SOLIDS_OPTION, true));
-  addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true));
-  addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true));
-  addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true));
-  addFrameOption(UIElement("Reset Camera", "Reset Camera", "fa-solid-900", 0xF0E2));
+  addFrameOption(UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
+  addFrameOption(UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
+  addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true, "fa-brands-400", 0xF247));
+  addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
+  addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
+  addFrameOption(UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
 
   bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderSolidsOption", &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
