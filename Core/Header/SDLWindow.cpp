@@ -156,11 +156,11 @@ void Window::init(int argc, char** argv, int width, int height,
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
 
-  frameTextSize.x = 192;
+  frameTextSize.x = 176;
   frameTextSize.y = 128;
 
-  frameOptionSize.x = 192;
-  frameOptionSize.y = 128;
+  uiWindowSize.x = 176;
+  uiWindowSize.y = 128;
 
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
@@ -207,7 +207,7 @@ void Window::init(int argc, char** argv, int width, int height,
   pitch = 0.0f;
 
   float mainFontSize = 14;
-  float iconFontSize = 18;
+  float iconFontSize = 28;
 
   ImFontConfig fontConfig = ImFontConfig();
   fontConfig.FontDataOwnedByAtlas = false;
@@ -218,7 +218,9 @@ void Window::init(int argc, char** argv, int width, int height,
   fontConfig.MergeMode = true;
   fontConfig.PixelSnapH = true;
   fontConfig.GlyphOffset.y = (iconFontSize - mainFontSize) * 0.5f;
+  IOInterface::readFontFile("fa-regular-400", iconFontSize, &fontConfig);
   IOInterface::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
+  IOInterface::readFontFile("fa-brands-400", iconFontSize, &fontConfig);
 
   ImGui::GetIO().Fonts->Build();
 }
@@ -353,13 +355,13 @@ void Window::pinch(float d)
 
 void Window::addFrameOption(const UIElement& option)
 {
-  frameOptionList.push_back(option);
-  frameOptionIndex[option.identifier] = (uint)frameOptionList.size() - 1;
+  uiElements.push_back(option);
+  uiElementMap[option.identifier] = (uint)uiElements.size() - 1;
 }
 
 UIElement& Window::getFrameOption(const string& name)
 {
-  return frameOptionList[frameOptionIndex[name]];
+  return uiElements[uiElementMap[name]];
 }
 
 void Window::start()
@@ -434,9 +436,9 @@ void Window::start()
       }
 
       // Frame list option can be toggled using keys 1 - frameOptionList.size()
-      if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+frameOptionList.size()))
+      if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+uiElements.size()))
       {
-        frameOptionList[event.key.keysym.sym - SDLK_1].boolValue = !frameOptionList[event.key.keysym.sym - SDLK_1].boolValue;
+        uiElements[event.key.keysym.sym - SDLK_1].boolValue = !uiElements[event.key.keysym.sym - SDLK_1].boolValue;
       }
 
       switch (event.type)
@@ -574,22 +576,22 @@ void Window::start()
 
     ImGui::Begin("Stats", NULL, windowFlags);
     ImGui::SetWindowSize({frameTextSize.x, frameTextSize.y});
-    ImGui::SetWindowPos({24, 16});
-    ImGui::Text("Frame Rate:  %.1f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
+    ImGui::SetWindowPos({0, 16});
+    ImGui::Text("Frame Rate:  %.f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
     ImGui::End();
 
     ImGui::Begin("Options", NULL, windowFlags);
-    ImGui::SetWindowSize({frameOptionSize.x, frameOptionList.size() * 32.f});
-    ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - frameOptionSize.x - 24, 16});
+    ImGui::SetWindowSize({uiWindowSize.x, uiElements.size() * (UIElement::ButtonHeight + 4)});
+    ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - uiWindowSize.x, 16});
 
     // add toggle options
-    for (auto& option : frameOptionList)
+    for (auto& option : uiElements)
     {
-      option.render(32, 24);
+      option.render();
     }
 
     // add buttons
-    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(getFrameOption("Reset Camera").stringValue.c_str()))
+    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(getFrameOption("Reset Camera").displayText.c_str()))
     {
       const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
       if (animationTime == 0.f)
