@@ -16,6 +16,8 @@ SDL_GLContext gl_context;
 #define MOVE_FRICTION               0.75f
 #define RESET_CAMERA_SPEED          0.75f
 
+#define USE_ON_SCREEN_CONTROLLER
+
 static bool quit = false;
 
 void SDL_CheckError()
@@ -105,6 +107,14 @@ void setLookAtMatrix(float view[], const Real3& position, const Real3& target, R
   view[13] = col[1];
   view[14] = col[2];
   view[15] = 1.f;
+}
+
+// function to process yaw and pitch so they remain in a valid range
+void constrainYawAndPitch(float& yaw, float& pitch)
+{
+  yaw   = (yaw >= M_2_PI) ? (yaw - M_2_PI) : (yaw <= -M_2_PI) ? (yaw + M_2_PI) : yaw;
+  pitch = (pitch >= M_2_PI) ? (pitch - M_2_PI) : (pitch <= -M_2_PI) ? (pitch + M_2_PI) : pitch;
+  pitch = mCrop(pitch, -M_PI_2 + M_PI / 180.f, M_PI_2 - M_PI / 180.f);
 }
 
 void Window::init(int argc, char** argv, int width, int height,
@@ -205,6 +215,9 @@ void Window::init(int argc, char** argv, int width, int height,
 
   yaw   = -M_PI_2;
   pitch = 0.0f;
+
+  initialYaw = yaw;
+  initialPitch = pitch;
 
   float mainFontSize = 14;
   float iconFontSize = 28;
@@ -310,10 +323,9 @@ void Window::mouseDrag(int x, int y)
 
   // update angles
   yaw   += deltaX * M_2_PI / width();
-  yaw   = yaw>M_2_PI ? (yaw-M_2_PI) : yaw<-M_2_PI ? (yaw+M_2_PI) : yaw;
   pitch += deltaY * M_2_PI / height();
 
-  pitch = mCrop(pitch, -M_PI_2+M_PI/180.f, M_PI_2-M_PI/180.f);
+  constrainYawAndPitch(yaw, pitch);
 
   // update camera look at
   cameraFront().x = cos(yaw) * cos(pitch);
@@ -364,6 +376,84 @@ UIElement& Window::getFrameOption(const string& name)
   return uiElements[uiElementMap[name]];
 }
 
+Real3 initialLeft, initialRight;
+SDL_FingerID leftFingerId, rightFingerId;
+
+void Window::processOnScreenController(void* eventData, bool end)
+{
+  const SDL_TouchFingerEvent fingerData = *(SDL_TouchFingerEvent*)eventData;
+
+  // end will be set for finger up event
+  if (end)
+  {
+    // mark left or right finger up
+    if (fingerData.fingerId == leftFingerId)
+    {
+      logComputeMessage("Left Up");
+      leftFingerId = -1;
+    }
+    else
+    if (fingerData.fingerId == rightFingerId)
+    {
+      logComputeMessage("Right Up");
+      rightFingerId = -1;
+
+      initialYaw = yaw;
+      initialPitch = pitch;
+    }
+    return;
+  }
+
+  // if finger not recognized
+  if (fingerData.fingerId != leftFingerId && fingerData.fingerId != rightFingerId)
+  {
+    // mark it as right or left based on location
+    if (fingerData.x <= 0.5f)
+    {
+      logComputeMessage("Left Down");
+      initialLeft = Real3(fingerData.x, fingerData.y, 0.f);
+      leftFingerId = fingerData.fingerId;
+    }
+    else
+    {
+      logComputeMessage("Right Down");
+      initialRight = Real3(fingerData.x, fingerData.y, 0.f);
+      rightFingerId = fingerData.fingerId;
+
+      initialYaw = yaw;
+      initialPitch = pitch;
+    }
+  }
+
+  // process finger if recognized
+  if (fingerData.fingerId == leftFingerId)
+  {
+    logComputeMessage("Left Move");
+    cameraSideSpeed = (fingerData.x - initialLeft.x) * 2.f;
+    cameraSideSpeed = mCrop(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+    cameraForwardSpeed = (initialLeft.y - fingerData.y);
+    cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
+  }
+  else if (fingerData.fingerId == rightFingerId)
+  {
+    logComputeMessage("Right Move");
+    float deltaX = (fingerData.x - initialRight.x) * MOUSE_SENSITIVITY;
+    float deltaY = (initialRight.y - fingerData.y) * MOUSE_SENSITIVITY;
+
+    // update angles
+    yaw   = initialYaw + deltaX * 2.0f * M_2_PI;
+    pitch = initialPitch + deltaY * 2.0f * M_2_PI;
+
+    constrainYawAndPitch(yaw, pitch);
+
+    // update camera look at
+    cameraFront().x = cos(yaw) * cos(pitch);
+    cameraFront().y = sin(pitch);
+    cameraFront().z = sin(yaw) * cos(pitch);
+    cameraFront().normalize();
+  }
+}
+
 void Window::start()
 {
   SDL_CheckError();
@@ -376,6 +466,9 @@ void Window::start()
 
   SDL_FingerID fingerId;
   Real3 eyeVector(0.f);
+
+  leftFingerId = -1;
+  rightFingerId = -1;
 
   while (!quit)
   {
@@ -392,12 +485,14 @@ void Window::start()
     cameraSideSpeed *= MOVE_FRICTION;
     cameraForwardSpeed *= MOVE_FRICTION;
 
+#ifndef USE_ON_SCREEN_CONTROLLER
     gesture = SDL_HasEvent(SDL_MULTIGESTURE);
 
     if (!gesture)
     {
       scrolling = false;
     }
+#endif
 
     Real3 downVector(0.f, 0.f, 0.f);
 
@@ -460,12 +555,13 @@ void Window::start()
         }
           break;
 
+#ifndef USE_ON_SCREEN_CONTROLLER
         case SDL_MULTIGESTURE:
         {
           switch(event.mgesture.numFingers)
           {
             case 2:
-              // scroll x, y axis for 2 fingures
+              // scroll x, y axis for 2 fingers
               if (scrolling)
               {
                 scroll(event.mgesture.x, event.mgesture.y);
@@ -475,7 +571,7 @@ void Window::start()
               break;
             case 3:
             case 4:
-              // scroll x axis for 3 and 4 fingures
+              // scroll x axis for 3 and 4 fingers
               if (scrolling)
               {
                 pinch((event.mgesture.y - scroll_prev_z) * 10.f);
@@ -490,6 +586,7 @@ void Window::start()
           mouseDown = false;
         }
           break;
+#endif
 
         case SDL_MOUSEWHEEL:
         {
@@ -500,15 +597,20 @@ void Window::start()
 
         case SDL_FINGERDOWN:
         {
+#ifdef USE_ON_SCREEN_CONTROLLER
+          processOnScreenController(&event.tfinger, false);
+#else
           if (!mouseDown)
           {
             fingerId = event.tfinger.fingerId;
             mouse(0, 0, event.tfinger.x*width(), event.tfinger.y*height());
             mouseDown = true;
           }
+#endif
         }
           break;
 
+#ifndef USE_ON_SCREEN_CONTROLLER
         case SDL_MOUSEBUTTONDOWN:
         {
           if (!mouseDown)
@@ -518,10 +620,15 @@ void Window::start()
           }
         }
           break;
+#endif
 
         case SDL_FINGERUP:
         {
+#ifdef USE_ON_SCREEN_CONTROLLER
+          processOnScreenController(&event.tfinger, true);
+#else
           mouseDown = false;
+#endif
         }
           break;
 
@@ -533,13 +640,18 @@ void Window::start()
 
         case SDL_FINGERMOTION:
         {
+#ifdef USE_ON_SCREEN_CONTROLLER
+          processOnScreenController(&event.tfinger, false);
+#else
           if (mouseDown && !gesture && fingerId == event.tfinger.fingerId)
           {
             mouseDrag(event.tfinger.x*width(), event.tfinger.y*height());
           }
+#endif
         }
           break;
 
+#ifndef USE_ON_SCREEN_CONTROLLER
         case SDL_MOUSEMOTION:
         {
           if (mouseDown)
@@ -548,6 +660,7 @@ void Window::start()
           }
         }
           break;
+#endif
 
         case SDL_KEYDOWN:
         {
@@ -590,6 +703,12 @@ void Window::start()
       option.render();
     }
 
+    // remove right finger data when this window in focus
+    if (ImGui::IsWindowFocused())
+    {
+      rightFingerId = -1;
+    }
+
     // add buttons
     if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(getFrameOption("Reset Camera").displayText.c_str()))
     {
@@ -599,17 +718,30 @@ void Window::start()
         cameraUp.begin() = cameraUp;
         cameraFront.begin() = cameraFront;
         cameraPosition.begin() = cameraPosition;
+
+        cameraUp().normalize();
+        cameraFront().normalize();
       }
       if (animationTime < 1.f)
       {
         cameraUp.interpolate(animationTime);
         cameraFront.interpolate(animationTime);
 
+        cameraUp().normalize();
+        cameraFront().normalize();
+
         float distance = mSqrt(cameraFront().z * cameraFront().z + cameraFront().x * cameraFront().x);
         yaw = M_PI + atan2(cameraFront().x, cameraFront().z);
         pitch = asin(cameraFront().y / distance);
 
+        // TODO: Check why this offsetting is needed
+        pitch += M_PI/18.f;
+        constrainYawAndPitch(yaw, pitch);
+
         cameraPosition.interpolate(animationTime);
+
+        initialYaw = yaw;
+        initialPitch = pitch;
       }
     }
 
