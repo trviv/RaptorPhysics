@@ -18,6 +18,7 @@ class Window : public ParameterReader
   float scroll_prev_y;
   float scroll_prev_z;
 
+  float initialYaw, initialPitch;
   float yaw, pitch;
 
   AnimationElement<Real3> cameraUp;
@@ -49,6 +50,8 @@ protected:
   void addFrameOption(const UIElement& option);
 
   UIElement& getFrameOption(const string& name);
+
+  void processOnScreenController(void* eventData, bool end);
 
 public:
 
