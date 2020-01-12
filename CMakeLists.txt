@@ -129,7 +129,8 @@ macro(CREATE_LIB_AND_EXE)
       set_target_properties(${PROJECT_STRING} PROPERTIES
         XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/Shared/plist.in"
-        RESOURCE "${APPLE_RESOURCES}")
+        RESOURCE "${APPLE_RESOURCES}"
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon")
       if (CREATE_IOS_PROJECT)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign ${SIGNING_IDENTITY} --timestamp=none $<TARGET_FILE_DIR:${PROJECT_STRING}>)
@@ -187,7 +188,7 @@ if (APPLE)
     set(SOURCES_FRAMEWORK "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/SDL2.framework")
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/MacOS/SDL2.framework/Headers/")
   endif (CREATE_IOS_PROJECT)
-  set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Default-568h@2x.png")
+  set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Default-568h@2x.png" "${CMAKE_SOURCE_DIR}/Shared/Resources/AppIcon.xcassets")
 endif (APPLE)
 
 find_package(Vulkan)
