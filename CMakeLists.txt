@@ -188,7 +188,7 @@ if (APPLE)
     set(SOURCES_FRAMEWORK "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/SDL2.framework")
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/MacOS/SDL2.framework/Headers/")
   endif (CREATE_IOS_PROJECT)
-  set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Default-568h@2x.png" "${CMAKE_SOURCE_DIR}/Shared/Resources/AppIcon.xcassets")
+  set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Resources/LaunchScreen.png" "${CMAKE_SOURCE_DIR}/Shared/Resources/AppIcon.xcassets")
 endif (APPLE)
 
 find_package(Vulkan)
