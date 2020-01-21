@@ -73,7 +73,6 @@ inline float scorrFunction(const float r, const float h)
  @kernel Resolve particle collisions.
  @param gridCompactCellIndices Map to the cell index to be processed.
  @param gridCellParticleOffsets Starting offset for each grid cell.
- @param gridCellIndexCount Particle count for each grid cell.
  @param gridCellParticleIndices Output array for particle indices.
  @param particlesPredictedNew Updated particle positions post collision processing.
  @param particlesPredictedOld Integrated particle position.
@@ -89,7 +88,6 @@ Kernel void calculateDensity(
   Device float*                       particlesLambda,
   const Device uint*                  gridCompactCellIndices,
   const Device uint*                  gridCellParticleOffsets,
-  const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredictedOld,
@@ -139,17 +137,15 @@ Kernel void calculateDensity(
 #endif
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    int indexBufferCount = gridCellIndexCount[gridCellIndex];
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (indexBufferCount == 0)
+    if (indexRange.x == indexRange.y)
     {
       continue;
     }
 
-    const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
-
     // batchwise iterate over indices in the cell
-    for (int otherParticlePointerIndex = indexBufferEnd - indexBufferCount; otherParticlePointerIndex < indexBufferEnd; otherParticlePointerIndex++)
+    for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
     {
       // iterate over each particle in the loaded batch
       const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
@@ -197,7 +193,6 @@ Kernel void calculateDensity(
  @kernel Resolve particle collisions.
  @param gridCompactCellIndices Map to the cell index to be processed.
  @param gridCellParticleOffsets Starting offset for each grid cell.
- @param gridCellIndexCount Particle count for each grid cell.
  @param gridCellParticleIndices Output array for particle indices.
  @param particlesPredictedNew Updated particle positions post collision processing.
  @param particlesPredictedOld Integrated particle position.
@@ -218,7 +213,6 @@ Kernel void calculateForces(
   const Device ParticleDifferential*  particleDiff,
   const Device uint*                  gridCompactCellIndices,
   const Device uint*                  gridCellParticleOffsets,
-  const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredictedOld,
@@ -274,17 +268,15 @@ Kernel void calculateForces(
 #endif
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    int indexBufferCount = gridCellIndexCount[gridCellIndex];
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (indexBufferCount == 0)
+    if (indexRange.x == indexRange.y)
     {
       continue;
     }
 
-    const int indexBufferEnd = gridCellParticleOffsets[gridCellIndex];
-
     // batchwise iterate over indices in the cell
-    for (int otherParticlePointerIndex = indexBufferEnd - indexBufferCount; otherParticlePointerIndex < indexBufferEnd; otherParticlePointerIndex++)
+    for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
     {
       // iterate over each particle in the loaded batch
       const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];

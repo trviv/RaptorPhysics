@@ -13,7 +13,7 @@ protected:
   DeviceArray <uint>  gridCompactCellCount;
   DeviceArray <uint>  gridCompactCellIndices;
   DeviceArray <uint>  gridParticleCellIndex;
-  DeviceArray <uint>  gridCellParticleOffsets;
+  DeviceArray <uint> &gridCellParticleOffsets;
   DeviceArray <uint>  gridCellParticleIndices;
 
   void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer);

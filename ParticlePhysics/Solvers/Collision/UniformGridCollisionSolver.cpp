@@ -13,7 +13,7 @@ static uint gridComputeUtilId;
 static uint gridGetSystemRadiusUtilId;
 
 UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute, SharedAllocator* allocator) :
-  Solver(compute, allocator), CollisionSolver(compute, allocator)
+  Solver(compute, allocator), CollisionSolver(compute, allocator), gridCellParticleOffsets(gridCellParticleCount)
 {
   iterations = 1;
   gridSize = 64;
@@ -30,13 +30,11 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 #ifdef DEBUG_GRID_SOLVER
   gridCompactCellIndices.create(compute, solverHeap, true);
   gridParticleCellIndex.create(compute, solverHeap, true);
-  gridCellParticleOffsets.create(compute, solverHeap, true);
   gridCellParticleIndices.create(compute, solverHeap, true);
   particlesBufferTemp.create(compute, solverHeap, true);
 #else
   gridCompactCellIndices.create(compute, solverHeap);
   gridParticleCellIndex.create(compute, solverHeap);
-  gridCellParticleOffsets.create(compute, solverHeap);
   gridCellParticleIndices.create(compute, solverHeap);
   particlesBufferTemp.create(compute, solverHeap);
 #endif
@@ -132,7 +130,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
   {
     gridCompactCellIndices.resize(gridElements, false);
     gridCellParticleCount.resize(gridElements, false);
-    gridCellParticleOffsets.resize(gridElements, false);
   }
 
   // TODO: Make a flag so that this is only done when needed
@@ -240,18 +237,18 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
   compute->sync();
 #endif
 
+  ComputeUtil::get(gridComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
+
+#ifdef DEBUG_GRID_SOLVER
+  gridCompactCellIndices.syncHost();
+  compute->sync();
+#endif
+
   // get prefix sum for each
   ComputeUtil::get(gridComputeUtilId)->prefixScan1D(compute, gridCellParticleOffsets.device(), gridCellParticleCount.device(), gridElements);
 
 #ifdef DEBUG_GRID_SOLVER
   gridCellParticleOffsets.syncHost();
-  compute->sync();
-#endif
-
-  ComputeUtil::get(gridComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
-
-#ifdef DEBUG_GRID_SOLVER
-  gridCompactCellIndices.syncHost();
   compute->sync();
 #endif
 
@@ -304,7 +301,6 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     ComputeMemory* buffers[] = {
       gridCellParticleOffsets.device(),
-      gridCellParticleCount.device(),
       gridCellParticleIndices.device(),
       gridParticleCellIndex.device(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),

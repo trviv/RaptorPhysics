@@ -123,7 +123,6 @@ void FluidSolver::solve()
   {
     gridCompactCellIndices.resize(gridElements, false);
     gridCellParticleCount.resize(gridElements, false);
-    gridCellParticleOffsets.resize(gridElements, false);
   }
 
   for (int i=0; i<iterations; i++)
@@ -191,18 +190,18 @@ void FluidSolver::solve()
     compute->sync();
 #endif
 
+    ComputeUtil::get(gridComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
+
+#ifdef DEBUG_FLUID_SOLVER
+    gridCompactCellIndices.syncHost();
+    compute->sync();
+#endif
+
     // get prefix sum for each
     ComputeUtil::get(gridComputeUtilId)->prefixScan1D(compute, gridCellParticleOffsets.device(), gridCellParticleCount.device(), gridElements);
 
 #ifdef DEBUG_FLUID_SOLVER
     gridCellParticleOffsets.syncHost();
-    compute->sync();
-#endif
-
-    ComputeUtil::get(gridComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
-
-#ifdef DEBUG_FLUID_SOLVER
-    gridCompactCellIndices.syncHost();
     compute->sync();
 #endif
 
@@ -240,7 +239,6 @@ void FluidSolver::solve()
         particlesLambda.device(),
         gridCompactCellIndices.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleCount.device(),
         gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
         UniformGridCollisionSolver::particlesBufferTemp.device(),
@@ -275,7 +273,6 @@ void FluidSolver::solve()
         particlesTemp[0].device(),
         gridCompactCellIndices.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleCount.device(),
         gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
         UniformGridCollisionSolver::particlesBufferTemp.device(),
