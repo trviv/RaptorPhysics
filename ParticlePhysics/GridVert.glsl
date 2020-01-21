@@ -14,6 +14,16 @@ out vec4 col;
 void main()
 {
   ivec4 count = texelFetch(gridCellParticleCount, ivec2((gl_InstanceID >> 2) & 0x7F, (gl_InstanceID >> 2) >> 7), 0);
+  ivec4 countPrev;
+  if (gl_InstanceID > 0)
+  {
+    countPrev = texelFetch(gridCellParticleCount, ivec2(((gl_InstanceID-1) >> 2) & 0x7F, ((gl_InstanceID-1) >> 2) >> 7), 0);
+  }
+  else
+  {
+    countPrev = ivec4(0, 0, 0, 0);
+  }
+  count -= ivec4(countPrev.w, count.xyz);
 
   vec3 index = vec3(ivec3(gl_InstanceID, gl_InstanceID / gridSize, gl_InstanceID / (gridSize * gridSize)) & (gridSize - 1));
   vec3 vertexPos = ((position + 1.f) * 0.5f + index) * maxRadius;

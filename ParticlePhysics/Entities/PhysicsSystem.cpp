@@ -479,6 +479,8 @@ void PhysicsSystem::render()
   GL_CHECK(glEnable(GL_DEPTH_TEST));
   GL_CHECK(glDepthFunc(GL_LESS));
   GL_CHECK(glDisable(GL_BLEND));
+  GL_CHECK(glFrontFace(GL_CW));
+  GL_CHECK(glCullFace(GL_BACK));
 
   displayParticleShader.bind();
   displayParticleShader.set("modelViewMatrix", this->modelMatrix);
@@ -524,6 +526,7 @@ void PhysicsSystem::render()
 
       if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
       {
+        GL_CHECK(glEnable(GL_CULL_FACE));
         // copy particle position and collision data for display
         displayPositionBuffer.copy((float*)particles, 0, 0, elements);
         displayCollisionBuffer.copy(collisionData, 0, 0, elements);
@@ -546,6 +549,7 @@ void PhysicsSystem::render()
         GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
         displayLineVertex.unbind();
         displayLineShader.unbind();
+        GL_CHECK(glDisable(GL_CULL_FACE));
       }
 
       if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue && solver != SOLVER_FLUID)

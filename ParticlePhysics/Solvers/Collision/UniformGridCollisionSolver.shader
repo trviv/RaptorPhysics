@@ -156,10 +156,20 @@ inline short3 decodeCellVector(uchar encodedOffset)
     } \
   }
 
+// function to get previous and current offset, previous will be the starting and current will be the end index
+uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, const uint gridCellIndex)
+{
+  if (gridCellIndex > 0)
+  {
+    return *((const Device uint2*)(gridCellParticleOffsets + gridCellIndex - 1));
+  }
+
+  return constructUint2(0, gridCellParticleOffsets[gridCellIndex]);
+}
+
 /*
 @kernel Resolve particle collisions.
 @param gridCellParticleOffsets Starting offset for each grid cell.
-@param gridCellIndexCount Particle count for each grid cell.
 @param gridCellParticleIndices Output array for particle indices.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredictedNew Updated particle positions post collision processing.
@@ -176,7 +186,6 @@ inline short3 decodeCellVector(uchar encodedOffset)
 */
 Kernel void applyCollisions(
   const Device uint*                  gridCellParticleOffsets,
-  const Device uint*                  gridCellIndexCount,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
   Device ParticleStruct*              particlesPredictedNew,
@@ -245,17 +254,15 @@ Kernel void applyCollisions(
 
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    int count = gridCellIndexCount[gridCellIndex];
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (count == 0)
+    if (indexRange.x == indexRange.y)
     {
       continue;
     }
 
-    const int end = gridCellParticleOffsets[gridCellIndex];
-
     // batchwise iterate over indices in the cell
-    for (int otherIndex = end - count; otherIndex < end; otherIndex++)
+    for (int otherIndex = indexRange.x; otherIndex < indexRange.y; otherIndex++)
     {
       // iterate over each particle in the loaded batch
       const int otherNodeIndex = gridCellParticleIndices[otherIndex];
@@ -276,9 +283,9 @@ Kernel void applyCollisions(
   uchar validNeighbourCount = 0;
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    int count = gridCellIndexCount[gridCellIndex];
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (count == 0)
+    if (indexRange.x == indexRange.y)
     {
       continue;
     }
@@ -294,12 +301,10 @@ Kernel void applyCollisions(
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructShort3(1)), gridSize, gridSizeExp);
     const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
 #endif
-    int count = gridCellIndexCount[gridCellIndex];
-
-    const int end = gridCellParticleOffsets[gridCellIndex];
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
     // batchwise iterate over indices in the cell
-    for (int otherIndex = end - count; otherIndex < end; otherIndex++)
+    for (int otherIndex = indexRange.x; otherIndex < indexRange.y; otherIndex++)
     {
       // iterate over each particle in the loaded batch
       const int otherNodeIndex = gridCellParticleIndices[otherIndex];

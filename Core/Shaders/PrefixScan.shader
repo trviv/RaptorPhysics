@@ -7,34 +7,35 @@
 
 const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
+  const ushort paddedLocalIndex = paddedIndex(localIndex);
   if (subGroupLocalIndex >= 1)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 1]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 1)]);
   }
   if (subGroupLocalIndex >= 2)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 2]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 2)]);
   }
   if (subGroupLocalIndex >= 4)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 4]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 4)]);
   }
   if (subGroupLocalIndex >= 8)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 8]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 8)]);
   }
   if (subGroupLocalIndex >= 16)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 16]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 16)]);
   }
 #if ComputeSimdWidth > 32
   if (subGroupLocalIndex >= 32)
   {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex - 32]);
+    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 32)]);
   }
 #endif
 
-  return localArray[localIndex];
+  return localArray[paddedLocalIndex];
 }
 
 MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const ushort localIndex, const ushort elements)
@@ -48,21 +49,21 @@ MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const usho
   // copy last element from each sub group to first sub group's local space
   if (subGroupLocalIndex == (ComputeSimdWidth - 1))
   {
-    localArray[subGroupIndex] = subGroupSum;
+    localArray[paddedIndex(subGroupIndex)] = subGroupSum;
   }
   localMemBarrier();
 
   // prefix scan first sub group
   if (localIndex < (elements >> ComputeSimdWidthExp))
   {
-    const MemberStructType prev = localArray[localIndex];
+    const MemberStructType prev = localArray[paddedIndex(localIndex)];
     subGroupPrefixScan(localArray, localIndex, localIndex);
-    localArray[localIndex] -= prev;
+    localArray[paddedIndex(localIndex)] -= prev;
   }
   localMemBarrier();
 
   // add scanned values to each return value
-  return subGroupSum + localArray[subGroupIndex];
+  return subGroupSum + localArray[paddedIndex(subGroupIndex)];
 }
 
 #else
@@ -142,7 +143,7 @@ Kernel void prefixGroupScanKernel(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
+  Shared MemberStructType localArray1D[paddedIndex(PREFIX_SCAN_COMPUTE_THREADS)];
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -151,7 +152,7 @@ Kernel void prefixGroupScanKernel(
   const MemberStructType reduceSum = localReduce(originalValues);
 
 #ifndef USE_SIMD_COMPUTE
-  localArray1D[localIndex] = reduceSum;
+  localArray1D[paddedIndex(localIndex)] = reduceSum;
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
   localMemBarrier();
@@ -168,12 +169,12 @@ Kernel void prefixGroupScanKernel(
     // save current value as partial sum, or final sum for the first threadgroup
     if (threadGroupIndex())
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2], lastSum);
+      writeAndWait(&sumBuffer[threadGroupIndex() << 1], lastSum);
       atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_PARTIAL);
     }
     else
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], lastSum);
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], lastSum);
       atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
     }
 
@@ -185,13 +186,13 @@ Kernel void prefixGroupScanKernel(
       const uint status = atomicLoad(&statusBuffer[prevGroupIndex]);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
       {
-        ADD_FUNCTION(previousSum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
+        ADD_FUNCTION(previousSum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex << 1]));
         prevGroupIndex--;
         RESET_POLL();
       }
       else if (status == PREFIX_SCAN_STATUS_FINAL)
       {
-        ADD_FUNCTION(previousSum, ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]));
+        ADD_FUNCTION(previousSum, ATOMIC_LOAD_FUNCTION(&sumBuffer[(prevGroupIndex << 1) + 1]));
         break;
       }
     }
@@ -200,7 +201,7 @@ Kernel void prefixGroupScanKernel(
     if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
       ADD_FUNCTION(lastSum, previousSum);
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], lastSum);
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], lastSum);
       atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
     }
 
@@ -233,7 +234,7 @@ Kernel void compactSparseArray(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
+  Shared MemberStructType localArray1D[paddedIndex(PREFIX_SCAN_COMPUTE_THREADS)];
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -267,12 +268,12 @@ Kernel void compactSparseArray(
     // save current value as partial sum, or final sum for the first threadgroup
     if (threadGroupIndex())
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2], prefixSum);
+      writeAndWait(&sumBuffer[threadGroupIndex() << 1], prefixSum);
       atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_PARTIAL);
     }
     else
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], prefixSum);
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], prefixSum);
       atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
     }
 
@@ -284,13 +285,13 @@ Kernel void compactSparseArray(
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
       {
-        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2]));
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex << 1]));
         prevGroupIndex--;
         RESET_POLL();
       }
       else if (status == PREFIX_SCAN_STATUS_FINAL)
       {
-        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex * 2 + 1]));
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[(prevGroupIndex << 1) + 1]));
         break;
       }
     }
@@ -298,7 +299,7 @@ Kernel void compactSparseArray(
     // save final sum for this threadgroup, if not first or very last
     if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() * 2 + 1], localArray1D[0] + prefixSum);
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], localArray1D[0] + prefixSum);
       atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
     }
 

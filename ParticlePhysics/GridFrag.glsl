@@ -1,5 +1,5 @@
-in highp vec4 col;
-out highp vec4 outputColor;
+in lowp vec4 col;
+out lowp vec4 outputColor;
 
 void main()
 {
