@@ -155,6 +155,20 @@ inline int3 decodeDirection(const int encodedDirection)
 #define PARTICLE_SHARED_DATA_RADIUS_MASK    0x2
 #define PARTICLE_SHARED_DATA_COLLISION_MASK 0x4
 
+/*!
+@struct Data required by the collision solver.
+*/
+struct DEFAULT_ALIGN CollisionSolverData
+{
+  /*!@member Velocity damping.*/
+  float velocityDamping;
+  /*!@member Velocity damping.*/
+  float collisionDamping;
+  /*!@member Kinetic friction coefficient.*/
+  float kineticFrictionCoef;
+  /*!@member Static friction coefficient.*/
+  float staticFrictionCoef;
+};
 
 /*!
 @struct Data shared by all the particles of an entity.
@@ -171,14 +185,6 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float stiffness;
   /*!@member Viscosity for fluid constraint.*/
   float viscosity;
-  /*!@member Velocity damping.*/
-  float velocityDamping;
-  /*!@member Velocity damping.*/
-  float collisionDamping;
-  /*!@member Kinetic friction coefficient.*/
-  float kineticFrictionCoef;
-  /*!@member Static friction coefficient.*/
-  float staticFrictionCoef;
   /*!@member Kernel radius for fluid constraint.*/
   float fluidKernelRadius;
   /*!@member Initial density for fluid constraint.*/
@@ -186,8 +192,7 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   /*!@member Gas constant for fluid constraint.*/
   float gasConstantK;
 
-  /*!@member Shared collision data.*/
-  ParticleCollisionData sharedCollisionData;
+  CollisionSolverData collisionSolverData;
 };
 
 typedef struct ParticleSharedData_t ParticleSharedData;
@@ -305,15 +310,6 @@ float getInvMassUsingThreadAux(const Thread ParticleSharedData* particleSharedDa
     return particleSharedData->sharedInvMass;
   }
   return particleAuxData->invMass;
-}
-
-ParticleCollisionData getSDFUsingDeviceCollision(const Thread ParticleSharedData* particleSharedData, const Device ParticleCollisionData* particleCollisionData, const uint index)
-{
-  if (getCollisionDataIsShared(particleSharedData))
-  {
-    return particleSharedData->sharedCollisionData;
-  }
-  return particleCollisionData[index];
 }
 
 float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)

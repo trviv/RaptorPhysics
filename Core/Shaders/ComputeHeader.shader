@@ -36,6 +36,7 @@
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
 #define asFloat(x)          as_float(x)
+#define asUint(x)           as_uint(x)
 #define simdAll(x)          assert
 #define simdFirst(x)        assert
 #define simdIsFirst()       assert
@@ -50,6 +51,8 @@
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
 #define atomicAdd(location, value)    atomic_add (location, value)
 #define atomicMax(location, value)    atomic_max (location, value)
+#define atomicCmpXchg(location, existingValue, desiredValue) \
+  ((existingValue == atomic_cmpxchg((Device uint*)location, asUint(existingValue), asUint(desiredValue)) || (existingValue = atomicLoad(location) | true))
 
 #define KERNEL_GLOBAL_ARGUMENTS
 #define KERNEL_THREAD_ARGUMENTS
@@ -92,6 +95,7 @@
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
 #define asFloat(x)          as_type<float>(x)
+#define asUint(x)           as_type<uint>(x)
 #define simdAll(x)          simd_all(x)
 #define simdFirst(x)        simd_broadcast_first(x)
 #define simdIsFirst()       simd_is_first()
@@ -106,6 +110,8 @@
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
 #define atomicAdd(location, value)    atomic_fetch_add_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
 #define atomicMax(location, value)    atomic_fetch_max_explicit((Shared atomic_uint*)location, value, memory_order_relaxed)
+#define atomicCmpXchg(location, existingValue, desiredValue) \
+  atomic_compare_exchange_weak_explicit((Device atomic_uint*)location, ((Thread uint*)&existingValue), asUint(desiredValue), memory_order_relaxed, memory_order_relaxed)
 
 #define KERNEL_GLOBAL_ARGUMENTS \
   , uint3 thread_position_in_grid [[ thread_position_in_grid ]]
