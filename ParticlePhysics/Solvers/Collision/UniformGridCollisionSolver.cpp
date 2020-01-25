@@ -2,11 +2,14 @@
 
 //#define DEBUG_GRID_SOLVER
 
+//#define GRID_COLLISION_SOLVE_PAIR_ONCE
+
 #define GRID_COLLISION_SOLVER_GET_MAX_RADIUS      0
 #define GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX 1
 #define GRID_COLLISION_SOLVER_CELL_COUNTS         2
 #define GRID_COLLISION_SOLVER_CELL_ARRAYS         3
 #define GRID_COLLISION_SOLVER_APPLY_COLLISIONS    4
+#define GRID_COLLISION_SOLVER_APPLY_DELTA         5
 
 static uint gridXABComputeUtilId;
 static uint gridComputeUtilId;
@@ -55,8 +58,13 @@ UniformGridCollisionSolver::~UniformGridCollisionSolver()
 
 void UniformGridCollisionSolver::init()
 {
-  const vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
-  const vector<string> newType = {""};
+  vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
+  vector<string> newType = {""};
+
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+  oldType.push_back("GRID_COLLISION_SOLVE_PAIR_ONCE");
+  newType.push_back("");
+#endif
 
   registerShader(compute, "UniformGridCollisionSolver.shader", &oldType, &newType);
 
@@ -65,6 +73,7 @@ void UniformGridCollisionSolver::init()
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
   kernels.push_back(programs[0].createKernel("createGridCellArrays"));
   kernels.push_back(programs[0].createKernel("applyCollisions"));
+  kernels.push_back(programs[0].createKernel("applyDeltas"));
 
   // create utility classes
   const vector<string> utilInclude = {"ParticleStruct.h"};
@@ -285,6 +294,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     build(instanceNodeCount, systemSettings, particleBuffer);
 
+#ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
     if (stablizationPass)
     {
       ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
@@ -293,6 +303,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     {
       ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
     }
+#else
+    ComputeUtil::get(0)->clearBuffer(compute, particlesBufferTemp.device(), instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint), 0);
+#endif
 
     size_t workgroupSize[3] = {1, 1, 1};
     size_t workgroupCount[3];
@@ -303,10 +316,18 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
       gridCellParticleOffsets.device(),
       gridCellParticleIndices.device(),
       gridParticleCellIndex.device(),
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+      particlesBufferTemp.device(),
+#else
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+#endif
       allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+#else
       particlesBufferTemp.device(),
+#endif
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       systemSettings,
@@ -321,5 +342,22 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
 
     compute->execute(kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
+
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+    {
+      compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, 1024);
+      ComputeMemory* buffers[] = {
+        allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
+        allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(),
+        particlesBufferTemp.device()
+      };
+      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArgs(buffers, bufferCount);
+      kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArg<uint>(&stablizationPass, bufferCount);
+      kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArg<uint>(&instanceNodeCount, bufferCount + 1);
+
+      compute->execute(kernels[GRID_COLLISION_SOLVER_APPLY_DELTA], workgroupSize, workgroupCount);
+    }
+#endif
   }
 }

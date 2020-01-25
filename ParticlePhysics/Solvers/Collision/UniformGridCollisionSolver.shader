@@ -237,7 +237,7 @@ Kernel void applyCollisions(
   nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
   nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const CollisionSolverData collisionSolverData = particleSharedData[nodeIdentity.entityId].collisionSolverData;
   const ParticleCollisionData collisionData = particleCollisionData[particleIndex];
 
   sdfMagnitude = collisionData.gradientMagnitude;
@@ -269,8 +269,8 @@ Kernel void applyCollisions(
 
       const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
-      positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+      positionDiff += collisionSolverData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -311,8 +311,8 @@ Kernel void applyCollisions(
 
       const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
-      positionDiff += sharedData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        &collisionData, &sharedData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass,
+      positionDiff += collisionSolverData.collisionDamping * processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -324,12 +324,13 @@ Kernel void applyCollisions(
 #endif
 
   // apply boundary
-  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
+  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
     &particleCollisionData[particleIndex],
 #endif
-    &sharedData);
+    &collisionSolverData);
 
+#ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
   if (collisionCount)
   {
     positionDiff /= collisionCount;
@@ -344,11 +345,53 @@ Kernel void applyCollisions(
     particlesNew[particleIndex].position += positionDiff;
     particlesNew[particleIndex].identity = identity;
   }
+#else
+  atomicAddFloat3(&particlesPredictedNew[particleIndex].position, positionDiff);
+  atomicAdd(&particlesPredictedNew[particleIndex].identity.identity, collisionCount);
+#endif
 
 #ifdef MARK_COLLIDED_PARTICLES
   particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
 #endif
 }
 
+/*
+@kernel Apply particle position delta.
+@param particlesPredicted Updated particle positions post collision processing.
+@param particles Integrated particle position.
+@param particlesDelta Particle position delta.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void applyDeltas(
+  Device ParticleStruct*        particlesPredicted,
+  Device ParticleStruct*        particles,
+  const Device ParticleStruct*  particlesDelta,
+  constantKernelInput(uint,     stablizationPass),
+  constantKernelInput(uint,     nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint particleIndex = threadIndex();
 
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  ParticleStruct particleDelta = particlesDelta[particleIndex];
+
+  if (particleDelta.identity.identity != 0)
+  {
+    particleDelta.position /= particleDelta.identity.identity;
+  }
+
+  const IdentityInfo identity = particlesPredicted[particleIndex].identity;
+  particlesPredicted[particleIndex].position += particleDelta.position;
+  particlesPredicted[particleIndex].identity = identity;
+
+  if (stablizationPass)
+  {
+    particles[particleIndex].position += particleDelta.position;
+    particles[particleIndex].identity = identity;
+  }
+}
 #endif

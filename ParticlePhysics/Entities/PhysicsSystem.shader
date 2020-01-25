@@ -54,7 +54,7 @@ Kernel void integrateDifferentiateStep(
       particles[index] = particle;
 
       velocity += systemSettings->gravity * timeStep;
-      velocity *= sharedData.velocityDamping;
+      velocity *= sharedData.collisionSolverData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
       particleDiff[index].velocity = velocity;
@@ -111,7 +111,7 @@ Kernel void startStep(
 #ifdef PHYSICS_SYSTEM_EULER
       velocity = particleDiff[index].velocity;
       velocity += systemSettings->gravity * timeStep;
-      velocity *= sharedData.velocityDamping;
+      velocity *= sharedData.collisionSolverData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity) < constructFloat3(0.01f));
 
       particleDiff[index].velocity = velocity;

@@ -43,6 +43,21 @@ inline uint get32BitMortonCode(const int3 quantizedPosition)
   return arrange32Bits(x) | (arrange32Bits(y) << 1) | (arrange32Bits(z) << 2);
 }
 
+inline void atomicAddFloat3(Device float3 *destination, const float3 value)
+{
+  Device uint *uintDestination = (Device uint*)destination;
+
+  for (short i=0; i<3; i++, uintDestination++)
+  {
+    uint existingValue = atomicLoad(uintDestination);
+    float desiredValue = value[i] + asFloat(existingValue);
+    while (!atomicCmpXchg(uintDestination, existingValue, desiredValue))
+    {
+      desiredValue = value[i] + asFloat(existingValue);
+    }
+  }
+}
+
 //#define MARK_COLLIDED_PARTICLES
 
 inline float3 calculateFriction(
@@ -50,14 +65,14 @@ inline float3 calculateFriction(
   const float3 otherParticleVelocity,
   const float3 contactNormal,
   const float separationDistance,
-  const Thread ParticleSharedData* sharedData)
+  const Thread CollisionSolverData* collisionSolverData)
 {
   float3 tangent = selfParticleVelocity - otherParticleVelocity;
   tangent = tangent - dot(tangent, contactNormal) * contactNormal;
 
   const float tangentLength = length(tangent);
-  const float staticFactor = sharedData->staticFrictionCoef * separationDistance;
-  const float kineticFactor = sharedData->kineticFrictionCoef * separationDistance;
+  const float staticFactor = collisionSolverData->staticFrictionCoef * separationDistance;
+  const float kineticFactor = collisionSolverData->kineticFrictionCoef * separationDistance;
 
   return tangent * select(0.f, select(min(kineticFactor / tangentLength, 1.f), 1.f, tangentLength < staticFactor), tangentLength > COMPUTE_EPSILON);
 }
@@ -73,10 +88,11 @@ inline float3 boundaryCollision(
   const Thread ParticleCollisionData* collisionData,
   Const PhySystemSettings*            systemSettings,
   const uint                          stablizationPass,
+  Thread short*                       collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #endif
-  const Thread ParticleSharedData*    sharedData)
+  const Thread CollisionSolverData*   collisionSolverData)
 {
   float3 ret = constructFloat3(0.f);
 #ifdef MARK_COLLIDED_PARTICLES
@@ -93,31 +109,36 @@ inline float3 boundaryCollision(
     if (particle->position.y < min.y)
     {
       ret.y = min.y - particle->position.y;
+      *collisionCount++;
     }
 
     if (particle->position.x < min.x)
     {
       ret.x = min.x - particle->position.x;
+      *collisionCount++;
     }
 
     if (particle->position.x > max.x)
     {
       ret.x = max.x - particle->position.x;
+      *collisionCount++;
     }
 
     if (particle->position.z < min.z)
     {
       ret.z = min.z - particle->position.z;
+      *collisionCount++;
     }
 
     if (particle->position.z > max.z)
     {
       ret.z = max.z - particle->position.z;
+      *collisionCount++;
     }
 
     if (dot(ret, ret) > 0.f && SOLVER_FLUID != getSolverType(particle->identity))
     {
-      const float3 friction = calculateFriction(selfParticleDiff->velocity, constructFloat3(0.f), -normalize(ret), length(ret), sharedData);
+      const float3 friction = calculateFriction(selfParticleDiff->velocity, constructFloat3(0.f), -normalize(ret), length(ret), collisionSolverData);
       if (!stablizationPass)
       {
         ret -= friction;
@@ -141,12 +162,13 @@ inline float3 processParticleCollision(
   const Thread ParticleStruct* otherParticle,
   const Thread ParticleDifferential* otherParticleDiff,
   const Thread ParticleCollisionData* collisionData,
-  const Thread ParticleSharedData* sharedData,
+  const Thread CollisionSolverData* collisionSolverData,
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
   Thread short* collisionCount,
   const uint stablizationPass,
+  Device ParticleStruct* particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData* particleCollisionData,
   Thread bool* collided)
@@ -155,8 +177,13 @@ inline float3 processParticleCollision(
 #endif
 {
   const ushort solverType = getSolverType(otherParticle->identity);
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+  if (otherParticle->identity.identity != selfParticle->identity.identity ||
+    ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex < index))
+#else
   if (otherParticle->identity.identity != selfParticle->identity.identity ||
     ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex != index))
+#endif
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
     const float sdfMagnitude2 = collisionData2.gradientMagnitude;
@@ -200,13 +227,18 @@ inline float3 processParticleCollision(
       float3 displacement1 = -displacementFactor;
       if (!stablizationPass && solverType != SOLVER_FLUID)
       {
-        displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, sharedData);
+        displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, collisionSolverData);
       }
 
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;
       particleCollisionData[index].transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(contactNormal));
       particleCollisionData[index].invMass = invMass;
+#endif
+
+#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
+      atomicAddFloat3(&particlesDelta[currentNodeIndex].position, -displacement1 * collisionData2.invMass * massScale);
+      atomicAdd(&particlesDelta[currentNodeIndex].identity.identity, 1);
 #endif
 
       return displacement1 * collisionData->invMass * massScale;
