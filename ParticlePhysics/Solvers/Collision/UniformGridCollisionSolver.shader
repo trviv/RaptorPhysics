@@ -2,7 +2,6 @@
 #define GRID_SOLVER_SHADER
 
 //#define GRID_SOLVER_SEPARATE_LOOPS
-#define GRID_SOLVER_HASH_FUNCTION
 
 inline uint gridIndexInt3Int(const int3 relativeIndex, const int gridSizeExp)
 {
@@ -262,6 +261,8 @@ Kernel void applyCollisions(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const ushort solverType = getSolverType(identity);
+
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
@@ -281,9 +282,9 @@ Kernel void applyCollisions(
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
       positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-        &collisionData, &localCollisionSolverData[localIndex], otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
+        &collisionData, &localCollisionSolverData[localIndex], otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
 #else
-        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
 #endif
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
@@ -327,9 +328,9 @@ Kernel void applyCollisions(
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
       positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-        &collisionData, &localCollisionSolverData[localIndex], otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
+        &collisionData, &localCollisionSolverData[localIndex], otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
 #else
-        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, particlesPredictedNew,
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
 #endif
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);

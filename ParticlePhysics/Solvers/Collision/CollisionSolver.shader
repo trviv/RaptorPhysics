@@ -180,6 +180,7 @@ inline float3 processParticleCollision(
   const float sdfMagnitude,
   Thread short* collisionCount,
   const uint stablizationPass,
+  const short solverType,
   Device ParticleStruct* particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData* particleCollisionData,
@@ -188,7 +189,6 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-  const ushort solverType = getSolverType(otherParticle->identity);
 #ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
   if (otherParticle->identity.identity != selfParticle->identity.identity ||
     ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex < index))
