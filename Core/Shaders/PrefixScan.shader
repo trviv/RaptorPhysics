@@ -143,7 +143,7 @@ Kernel void prefixGroupScanKernel(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[paddedIndex(PREFIX_SCAN_COMPUTE_THREADS)];
+  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -234,7 +234,7 @@ Kernel void compactSparseArray(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[paddedIndex(PREFIX_SCAN_COMPUTE_THREADS)];
+  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
 
   // read the values
   MemberStructType originalValues[BatchSize];

@@ -5,6 +5,7 @@
 
 #define constantKernelInput(type, variableName) const type variableName
 #define atomicKernelInput(type, variableName) Device type *variableName
+#define sharedMemKernelInput(type, variableName, index) Shared type *variableName
 
 #define threadIndex()       get_global_id(0)
 #define threadLocalIndex()  get_local_id(0)
@@ -52,7 +53,7 @@
 #define atomicAdd(location, value)    atomic_add (location, value)
 #define atomicMax(location, value)    atomic_max (location, value)
 #define atomicCmpXchg(location, existingValue, desiredValue) \
-  ((existingValue == atomic_cmpxchg((Device uint*)location, asUint(existingValue), asUint(desiredValue)) || (existingValue = atomicLoad(location) | true))
+  ((existingValue == atomic_cmpxchg((Device uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoad(location) | true))
 
 #define KERNEL_GLOBAL_ARGUMENTS
 #define KERNEL_THREAD_ARGUMENTS
@@ -64,6 +65,7 @@
 
 #define constantKernelInput(type, variableName) Const type& variableName
 #define atomicKernelInput(type, variableName) Device atomic_##type *variableName
+#define sharedMemKernelInput(type, variableName, index) Shared type *variableName[[ threadgroup(index) ]]
 
 #define threadIndex()       thread_position_in_grid[0]
 #define threadLocalIndex()  thread_index_in_threadgroup

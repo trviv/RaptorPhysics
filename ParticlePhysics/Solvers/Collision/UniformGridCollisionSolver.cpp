@@ -4,6 +4,8 @@
 
 //#define GRID_COLLISION_SOLVE_PAIR_ONCE
 
+#define GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+
 #define GRID_COLLISION_SOLVER_GET_MAX_RADIUS      0
 #define GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX 1
 #define GRID_COLLISION_SOLVER_CELL_COUNTS         2
@@ -63,6 +65,11 @@ void UniformGridCollisionSolver::init()
 
 #ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
   oldType.push_back("GRID_COLLISION_SOLVE_PAIR_ONCE");
+  newType.push_back("");
+#endif
+
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+  oldType.push_back("GRID_COLLISION_SOLVER_USE_SHARED_MEMORY");
   newType.push_back("");
 #endif
 
@@ -309,8 +316,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     size_t workgroupSize[3] = {1, 1, 1};
     size_t workgroupCount[3];
+    const uint maxWorkgroupSize = compute->simdSize();
 
-    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, compute->simdSize());
+    compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, maxWorkgroupSize);
 
     ComputeMemory* buffers[] = {
       gridCellParticleOffsets.device(),
@@ -340,6 +348,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSizeExp, bufferCount + 1);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 2);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(CollisionSolverData)*maxWorkgroupSize, bufferCount + 4);
+#endif
 
     compute->execute(kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
 

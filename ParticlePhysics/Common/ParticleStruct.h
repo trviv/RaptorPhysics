@@ -155,10 +155,11 @@ inline int3 decodeDirection(const int encodedDirection)
 #define PARTICLE_SHARED_DATA_RADIUS_MASK    0x2
 #define PARTICLE_SHARED_DATA_COLLISION_MASK 0x4
 
+
 /*!
 @struct Data required by the collision solver.
 */
-struct DEFAULT_ALIGN CollisionSolverData
+struct DEFAULT_ALIGN CollisionSolverData_t
 {
   /*!@member Velocity damping.*/
   float velocityDamping;
@@ -169,6 +170,9 @@ struct DEFAULT_ALIGN CollisionSolverData
   /*!@member Static friction coefficient.*/
   float staticFrictionCoef;
 };
+
+typedef struct CollisionSolverData_t CollisionSolverData;
+
 
 /*!
 @struct Data shared by all the particles of an entity.

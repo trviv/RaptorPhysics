@@ -148,6 +148,8 @@ public:
 
   void setArgs(ComputeMemory* buffers[], const uint count, uint* indices = NULL);
 
+  void setSharedMemArg(const size_t valueSize, uint index);
+
   operator const ComputeKernelIdentifier()const
   {
     return ref;
