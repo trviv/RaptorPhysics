@@ -481,6 +481,16 @@ void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* in
   }
 }
 
+void ComputeKernel::setSharedMemArg(const size_t valueSize, uint index)
+{
+#ifdef USE_OPENCL_COMPUTE
+  ComputeStatus status = clSetKernelArg(ref, index, valueSize, NULL);
+  computeCheckError(status, 0);
+#else
+  [getComputeEncoder() setThreadgroupMemoryLength:valueSize atIndex:index];
+#endif
+}
+
 
 ComputeProgram::ComputeProgram()
 {

@@ -65,7 +65,11 @@ inline float3 calculateFriction(
   const float3 otherParticleVelocity,
   const float3 contactNormal,
   const float separationDistance,
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+  const Shared CollisionSolverData* collisionSolverData)
+#else
   const Thread CollisionSolverData* collisionSolverData)
+#endif
 {
   float3 tangent = selfParticleVelocity - otherParticleVelocity;
   tangent = tangent - dot(tangent, contactNormal) * contactNormal;
@@ -92,7 +96,11 @@ inline float3 boundaryCollision(
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #endif
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+  const Shared CollisionSolverData*   collisionSolverData)
+#else
   const Thread CollisionSolverData*   collisionSolverData)
+#endif
 {
   float3 ret = constructFloat3(0.f);
 #ifdef MARK_COLLIDED_PARTICLES
@@ -162,7 +170,11 @@ inline float3 processParticleCollision(
   const Thread ParticleStruct* otherParticle,
   const Thread ParticleDifferential* otherParticleDiff,
   const Thread ParticleCollisionData* collisionData,
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+  const Shared CollisionSolverData* collisionSolverData,
+#else
   const Thread CollisionSolverData* collisionSolverData,
+#endif
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
