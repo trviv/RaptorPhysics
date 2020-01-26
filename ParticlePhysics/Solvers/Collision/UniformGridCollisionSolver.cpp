@@ -1,10 +1,9 @@
 #include "UniformGridCollisionSolver.h"
 
 //#define DEBUG_GRID_SOLVER
-
 //#define GRID_COLLISION_SOLVE_PAIR_ONCE
-
-#define GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+//#define GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+#define GRID_SOLVER_HASH_FUNCTION
 
 #define GRID_COLLISION_SOLVER_GET_MAX_RADIUS      0
 #define GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX 1
@@ -70,6 +69,11 @@ void UniformGridCollisionSolver::init()
 
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
   oldType.push_back("GRID_COLLISION_SOLVER_USE_SHARED_MEMORY");
+  newType.push_back("");
+#endif
+
+#ifdef GRID_SOLVER_HASH_FUNCTION
+  oldType.push_back("GRID_SOLVER_HASH_FUNCTION");
   newType.push_back("");
 #endif
 

@@ -299,12 +299,14 @@ inline float3 stacklessTraverseBinaryTree(
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
   const uint                          stablizationPass,
+  const short                         solverType,
+  Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
   const Device ParticleCollisionData* particleCollisionData,
 #endif
-  const Thread ParticleSharedData*    sharedData,
+  const Thread CollisionSolverData*   collisionSolverData,
   const int                           index)
 {
 #ifdef MARK_COLLIDED_PARTICLES
@@ -318,7 +320,7 @@ inline float3 stacklessTraverseBinaryTree(
   particleBoundingBox.min = currentParticle->position - constructFloat3(collisionData->radius);
   particleBoundingBox.max = currentParticle->position + constructFloat3(collisionData->radius);
 
-  const float sdfMagnitude = length(collisionData->transformedSdfGradient);
+  const float sdfMagnitude = collisionData->gradientMagnitude;
 
   // mark index of the root node internal
   uint currentNodeIndex = setInternalNodeMarker(0, 0);
@@ -467,8 +469,8 @@ inline float3 stacklessTraverseBinaryTree(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass,
+      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -507,12 +509,14 @@ inline float3 stackTraverseBinaryTree(
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
   const uint                          stablizationPass,
+  const short                         solverType,
+  Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
   const Device ParticleCollisionData* particleCollisionData,
 #endif
-  const Thread ParticleSharedData*    sharedData,
+  const Thread CollisionSolverData*   collisionSolverData,
   const int                           index)
 {
   uchar stackTop = 0;
@@ -529,7 +533,7 @@ inline float3 stackTraverseBinaryTree(
   particleBoundingBox.min = currentParticle->position - constructFloat3(collisionData->radius);
   particleBoundingBox.max = currentParticle->position + constructFloat3(collisionData->radius);
 
-  const float sdfMagnitude = length(collisionData->transformedSdfGradient);
+  const float sdfMagnitude = collisionData->gradientMagnitude;
 
   // mark index of the root node internal
   uint currentNodeIndex = setInternalNodeMarker(0, 0);
@@ -588,8 +592,8 @@ inline float3 stackTraverseBinaryTree(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += sharedData->collisionDamping * processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
-        collisionData, sharedData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass,
+      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+        collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
 #else
@@ -711,10 +715,12 @@ Kernel void applyCollisions(
       nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
       nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
 
-      ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+      //ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+      CollisionSolverData collisionSolverData = particleSharedData[nodeIdentity.entityId].collisionSolverData;
       ParticleCollisionData collisionData = particleCollisionData[index];
 
       const ParticleDifferential selfParticleDiff = particlesDiff[index];
+      const ushort solverType = getSolverType(identity);
 
       // find position change due to collision
       float3 delta = stackTraverseBinaryTree(
@@ -728,16 +734,21 @@ Kernel void applyCollisions(
         treeInternalNodeBoundingBoxes,
         &collisionData,
         stablizationPass,
+        solverType,
+        particlesPredictedNew,
         particleCollisionData,
-        &sharedData,
+        &collisionSolverData,
         index);
 
+      delta *= collisionSolverData.collisionDamping;
+
+      short collisionCount = 0;
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass,
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
         &particleCollisionData[index],
 #endif
-        &sharedData);
+        &collisionSolverData);
 
       // update position
       particlesPredictedNew[index].position += delta;
