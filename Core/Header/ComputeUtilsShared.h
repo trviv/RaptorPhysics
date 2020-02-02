@@ -101,62 +101,6 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
 #define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
 
-#ifdef USE_METAL_COMPUTE
-
-struct dummy_int8
-{
-  int4 a, b;
-  dummy_int8(int x):a(x), b(x)
-  {}
-};
-
-struct dummy_uint8
-{
-  uint4 a, b;
-  dummy_uint8(uint x):a(x), b(x)
-  {}
-};
-
-struct dummy_float8
-{
-  float4 a, b;
-  dummy_float8(float x):a(x), b()
-  {}
-};
-
-struct dummy_int16
-{
-  dummy_int8 a, b;
-  dummy_int16(int x):a(x), b(x)
-  {}
-};
-
-struct dummy_uint16
-{
-  dummy_uint8 a, b;
-  dummy_uint16(int x):a(x), b(x)
-  {}
-};
-
-struct dummy_float16
-{
-  dummy_float8 a, b;
-  dummy_float16(float x):a(x), b(x)
-  {}
-};
-
-#else
-
-#define dummy_int8    int8
-#define dummy_uint8   uint8
-#define dummy_float8  float8
-
-#define dummy_int16   int16
-#define dummy_uint16  uint16
-#define dummy_float16 float16
-
-#endif
-
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU
 inline static void writeAndWait(volatile Device MemberStructType* location, const MemberStructType value)
