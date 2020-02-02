@@ -211,8 +211,8 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     {
       newType.push_back("asFloat(atomicLoad((x)))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
-      newType.push_back("dummy_float16");
-      newType.push_back("dummy_float8");
+      newType.push_back("commonFloat16");
+      newType.push_back("commonFloat8");
       newType.push_back("float4");
       newType.push_back("float2");
     }
@@ -220,8 +220,8 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     {
       newType.push_back("atomicLoad((x))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
-      newType.push_back("dummy_int16");
-      newType.push_back("dummy_int8");
+      newType.push_back("commonInt16");
+      newType.push_back("commonInt8");
       newType.push_back("int4");
       newType.push_back("int2");
     }
@@ -229,8 +229,8 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     {
       newType.push_back("atomicLoad((x))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
-      newType.push_back("dummy_uint16");
-      newType.push_back("dummy_uint8");
+      newType.push_back("commonUint16");
+      newType.push_back("commonUint8");
       newType.push_back("uint4");
       newType.push_back("uint2");
     }

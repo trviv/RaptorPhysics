@@ -61,6 +61,14 @@
 
 #define ALIGN(n)            __attribute__((aligned(n))) __attribute__((packed))
 
+#define commonInt8    int8
+#define commonUint8   uint8
+#define commonFloat8  float8
+
+#define commonInt16   int16
+#define commonUint16  uint16
+#define commonFloat16 float16
+
 #else
 
 #define constantKernelInput(type, variableName) Const type& variableName
@@ -125,6 +133,48 @@
   , ushort3 threadgroups_per_grid [[ threadgroups_per_grid ]]
 
 #define ALIGN(n)            __attribute__((packed)) alignas(n)
+
+struct commonInt8
+{
+  int4 a, b;
+  commonInt8(int x):a(x), b(x)
+  {}
+};
+
+struct commonUint8
+{
+  uint4 a, b;
+  commonUint8(uint x):a(x), b(x)
+  {}
+};
+
+struct commonFloat8
+{
+  float4 a, b;
+  commonFloat8(float x):a(x), b()
+  {}
+};
+
+struct commonInt16
+{
+  commonInt8 a, b;
+  commonInt16(int x):a(x), b(x)
+  {}
+};
+
+struct commonUint16
+{
+  commonUint8 a, b;
+  commonUint16(int x):a(x), b(x)
+  {}
+};
+
+struct commonFloat16
+{
+  commonFloat8 a, b;
+  commonFloat16(float x):a(x), b(x)
+  {}
+};
 
 #endif
 

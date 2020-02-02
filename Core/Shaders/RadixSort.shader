@@ -193,17 +193,9 @@ inline void fetchNodes(SortNode32 localSortNodes[], const Device SortNode32* sou
 #if RadixPrefixScanPackingExp == 1
     *((Thread uint4*)localSortNodes) = *((const Device uint4*)(source + index));
 #elif RadixPrefixScanPackingExp == 2
-#ifndef USE_METAL_COMPUTE
-    *((Thread uint8*)localSortNodes) = *((const Device uint8*)(source + index));
-#else
-    *((Thread dummy_uint8*)localSortNodes) = *((const Device dummy_uint8*)(source + index));
-#endif
+    *((Thread commonUint8*)localSortNodes) = *((const Device commonUint8*)(source + index));
 #elif RadixPrefixScanPackingExp == 3
-#ifndef USE_METAL_COMPUTE
-    *((Thread uint16*)localSortNodes) = *((const Device uint16*)(source + index));
-#else
-    *((Thread dummy_uint16*)localSortNodes) = *((const Device dummy_uint16*)(source + index));
-#endif
+    *((Thread commonUint16*)localSortNodes) = *((const Device commonUint16*)(source + index));
 #endif
   }
   else

@@ -151,30 +151,16 @@ Kernel void clearIntegerBuffer(
 
   if (writeSize >= BatchSize)
   {
-#ifndef USE_METAL_COMPUTE
 #if BatchSize == 4
     ((Device uint4*)destination)[threadIndex()] = value;
 #elif BatchSize == 8
-    ((Device uint8*)destination)[threadIndex()] = value;
+    ((Device commonUint8*)destination)[threadIndex()] = value;
 #elif BatchSize == 16
-    ((Device uint16*)destination)[threadIndex()] = value;
+    ((Device commonUint16*)destination)[threadIndex()] = value;
 #elif BatchSize == 1
     destination[threadIndex()] = value;
 #else
     assert;
-#endif
-#else
-#if BatchSize == 4
-    ((Device uint4*)destination)[threadIndex()] = value;
-#elif BatchSize == 8
-    ((Device dummy_uint8*)destination)[threadIndex()] = value;
-#elif BatchSize == 16
-    ((Device dummy_uint16*)destination)[threadIndex()] = value;
-#elif BatchSize == 1
-    destination[threadIndex()] = value;
-#else
-    assert;
-#endif
 #endif
   }
   else
@@ -199,30 +185,16 @@ Kernel void copyBuffer(
 
   if (writeSize >= BatchSize)
   {
-#ifndef USE_METAL_COMPUTE
 #if BatchSize == 4
     ((Device uint4*)(destination + destinationOffset))[threadIndex()] = ((Device uint4*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 8
-    ((Device uint8*)(destination + destinationOffset))[threadIndex()] = ((Device uint8*)(source + sourceOffset))[threadIndex()];
+    ((Device commonUint8*)(destination + destinationOffset))[threadIndex()] = ((Device commonUint8*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 16
-    ((Device uint16*)(destination + destinationOffset))[threadIndex()] = ((Device uint16*)(source + sourceOffset))[threadIndex()];
+    ((Device commonUint16*)(destination + destinationOffset))[threadIndex()] = ((Device commonUint16*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 1
     (destination + destinationOffset)[threadIndex()] = (source + sourceOffset)[threadIndex()];
 #else
     assert;
-#endif
-#else
-#if BatchSize == 4
-    ((Device uint4*)(destination + destinationOffset))[threadIndex()] = ((Device uint4*)(source + sourceOffset))[threadIndex()];
-#elif BatchSize == 8
-    ((Device dummy_uint8*)(destination + destinationOffset))[threadIndex()] = ((Device dummy_uint8*)(source + sourceOffset))[threadIndex()];
-#elif BatchSize == 16
-    ((Device dummy_uint16*)(destination + destinationOffset))[threadIndex()] = ((Device dummy_uint16*)(source + sourceOffset))[threadIndex()];
-#elif BatchSize == 1
-    (destination + destinationOffset)[threadIndex()] = (source + sourceOffset)[threadIndex()];
-#else
-    assert;
-#endif
 #endif
   }
   else
