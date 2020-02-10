@@ -169,6 +169,7 @@ inline float3 processParticleCollision(
   const Thread ParticleDifferential* selfParticleDiff,
   const Thread ParticleStruct* otherParticle,
   const Thread ParticleDifferential* otherParticleDiff,
+  const bool updateOtherParticle,
   const Thread ParticleCollisionData* collisionData,
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
   const Shared CollisionSolverData* collisionSolverData,
@@ -189,12 +190,10 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-#ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
-  if (otherParticle->identity.identity != selfParticle->identity.identity ||
-    ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex < index))
+#if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
+  if (currentNodeIndex < index && (otherParticle->identity.identity != selfParticle->identity.identity || solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH))
 #else
-  if (otherParticle->identity.identity != selfParticle->identity.identity ||
-    ((solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH) && currentNodeIndex != index))
+  if (currentNodeIndex != index && (otherParticle->identity.identity != selfParticle->identity.identity || solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH))
 #endif
   {
     const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
@@ -236,12 +235,13 @@ inline float3 processParticleCollision(
       const float massScale = 1.f / (collisionData->invMass + collisionData2.invMass);
       const float3 displacementFactor = contactNormal * separationDistance;
 
-      float3 displacement1 = -displacementFactor;
+      float3 displacement = -displacementFactor;
       if (!stablizationPass && solverType != SOLVER_FLUID)
       {
-        displacement1 += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, collisionSolverData);
+        displacement += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, collisionSolverData);
       }
 
+      displacement *= massScale;
 #ifdef MARK_COLLIDED_PARTICLES
       float invMass = particleCollisionData[index].invMass;
       particleCollisionData[index].transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(contactNormal));
@@ -249,11 +249,14 @@ inline float3 processParticleCollision(
 #endif
 
 #ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
-      atomicAddFloat3(&particlesDelta[currentNodeIndex].position, -displacement1 * collisionData2.invMass * massScale);
-      atomicAdd(&particlesDelta[currentNodeIndex].identity.identity, 1);
+      if (updateOtherParticle)
+      {
+        atomicAddFloat3(&particlesDelta[currentNodeIndex].position, -displacement * collisionData2.invMass * collisionSolverData->collisionDamping);
+        atomicAdd(&particlesDelta[currentNodeIndex].identity.identity, 1);
+      }
 #endif
 
-      return displacement1 * collisionData->invMass * massScale;
+      return displacement * collisionData->invMass;
     }
   }
 

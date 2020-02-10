@@ -102,12 +102,6 @@ void FluidSolver::solve()
     particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
   }
 
-  // 4 byte aligned for indirect dispatch
-  if (gridCompactCellCount.size() == 0)
-  {
-    gridCompactCellCount.resize(4, false);
-  }
-
   if (gridParticleCellIndex.size() < particleCount)
   {
     UniformGridCollisionSolver::particlesBufferTemp.resize(particleCount, false);
@@ -119,9 +113,8 @@ void FluidSolver::solve()
     gridCellParticleIndices.resize(particleCount, false);
   }
 
-  if (gridCompactCellIndices.size() < gridElements)
+  if (gridCellParticleCount.size() < gridElements)
   {
-    gridCompactCellIndices.resize(gridElements, false);
     gridCellParticleCount.resize(gridElements, false);
   }
 
@@ -172,6 +165,13 @@ void FluidSolver::solve()
         gridCellParticleCount.device(),
         gridParticleCellIndex.device(),
         particlesPredicted.device(),
+#ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
+        entitySharedData.device(),
+        particleAuxData.device(),
+        partitions.device(),
+        entityLocations.device(),
+        systemSettings,
+#endif
         systemBoundingBox.device(),
         invMaxRadius.device()
       };
@@ -187,13 +187,6 @@ void FluidSolver::solve()
 #ifdef DEBUG_FLUID_SOLVER
     gridCellParticleCount.syncHost();
     gridParticleCellIndex.syncHost();
-    compute->sync();
-#endif
-
-    ComputeUtil::get(gridComputeUtilId)->compactSparseArray(compute, gridCompactCellCount.device(), gridCompactCellIndices.device(), gridCellParticleCount.device(), gridElements);
-
-#ifdef DEBUG_FLUID_SOLVER
-    gridCompactCellIndices.syncHost();
     compute->sync();
 #endif
 
@@ -218,7 +211,7 @@ void FluidSolver::solve()
       kernels[FLUID_COLLISION_SOLVER_CELL_ARRAYS].setArgs(buffers, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CELL_ARRAYS].setArg<uint>(&particleCount, bufferCount);
 
-      compute->execute(kernels[FLUID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, gridCompactCellCount.device(), 0);
+      compute->execute(kernels[FLUID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, workgroupCount);
     }
 
 #ifdef DEBUG_FLUID_SOLVER
@@ -237,7 +230,6 @@ void FluidSolver::solve()
       ComputeMemory* buffers[] = {
         particlesDensity.device(),
         particlesLambda.device(),
-        gridCompactCellIndices.device(),
         gridCellParticleOffsets.device(),
         gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
@@ -258,7 +250,6 @@ void FluidSolver::solve()
 #ifdef DEBUG_FLUID_SOLVER
     particlesDensity.syncHost();
     particlesLambda.syncHost();
-    gridCompactCellCount.syncHost();
     compute->sync();
 #endif
 
@@ -271,7 +262,6 @@ void FluidSolver::solve()
         particlesLambda.device(),
         particleDifferential.device(),
         particlesTemp[0].device(),
-        gridCompactCellIndices.device(),
         gridCellParticleOffsets.device(),
         gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
@@ -293,7 +283,6 @@ void FluidSolver::solve()
     particlesPredicted.syncHost();
     particlesDensity.syncHost();
     particlesLambda.syncHost();
-    gridCompactCellCount.syncHost();
     particleDifferential.syncHost();
     particlesTemp[0].syncHost();
     compute->sync();

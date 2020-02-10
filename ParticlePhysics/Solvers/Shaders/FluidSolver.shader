@@ -71,7 +71,6 @@ inline float scorrFunction(const float r, const float h)
 
 /*
  @kernel Resolve particle collisions.
- @param gridCompactCellIndices Map to the cell index to be processed.
  @param gridCellParticleOffsets Starting offset for each grid cell.
  @param gridCellParticleIndices Output array for particle indices.
  @param particlesPredictedNew Updated particle positions post collision processing.
@@ -86,7 +85,6 @@ inline float scorrFunction(const float r, const float h)
 Kernel void calculateDensity(
   Device float*                       particlesDensity,
   Device float*                       particlesLambda,
-  const Device uint*                  gridCompactCellIndices,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
@@ -191,7 +189,6 @@ Kernel void calculateDensity(
 
 /*
  @kernel Resolve particle collisions.
- @param gridCompactCellIndices Map to the cell index to be processed.
  @param gridCellParticleOffsets Starting offset for each grid cell.
  @param gridCellParticleIndices Output array for particle indices.
  @param particlesPredictedNew Updated particle positions post collision processing.
@@ -211,7 +208,6 @@ Kernel void calculateForces(
   const Device float*                 particlesLambda,
   Device ParticleDifferential*        particleDiffNew,
   const Device ParticleDifferential*  particleDiff,
-  const Device uint*                  gridCompactCellIndices,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
