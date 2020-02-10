@@ -10,8 +10,6 @@ class UniformGridCollisionSolver : public CollisionSolver
 {
 protected:
 
-  DeviceArray <uint>  gridCompactCellCount;
-  DeviceArray <uint>  gridCompactCellIndices;
   DeviceArray <uint>  gridParticleCellIndex;
   DeviceArray <uint> &gridCellParticleOffsets;
   DeviceArray <uint>  gridCellParticleIndices;
