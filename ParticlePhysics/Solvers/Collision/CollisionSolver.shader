@@ -201,7 +201,7 @@ inline float3 processParticleCollision(
 
     // skip if the base and the batch particle are of the same object
     float3 collisionVector = selfParticle->position - otherParticle->position;
-    float actualDistance = length_squared(collisionVector);
+    float actualDistance = lengthSq(collisionVector);
 
 #ifdef MARK_COLLIDED_PARTICLES
     const float allowedDistance = (fabs(collisionData2.radius) + fabs(collisionData->radius));

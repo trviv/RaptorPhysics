@@ -47,6 +47,7 @@
 #define simdMax(x)          assert
 #define selectInput2(x)     (uint2)x
 #define selectInput3(x)     (uint3)(x)
+#define lengthSq(x)         dot(x, x)
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -115,6 +116,7 @@
 #define simdMax(x)          simd_max(x)
 #define selectInput2(x)     bool2(x)
 #define selectInput3(x)     bool3(x)
+#define lengthSq(x)         length_squared(x)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
