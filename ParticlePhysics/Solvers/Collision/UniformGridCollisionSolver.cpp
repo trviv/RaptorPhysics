@@ -30,9 +30,9 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
 
   // allocate for 3*grid size (for grid indices) + 2*number of max particles(for particle indices) + 2*max particles particle structure (for temp buffers)
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
-  solverHeap->create((gridSize * gridSize * gridSize + 2 * 8 * maxParticles + (2 + 2) * 4 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
+  solverHeap->create((gridSize * gridSize * gridSize + 2 * 8 * maxParticles + 4 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
 #else
-  solverHeap->create((gridSize * gridSize * gridSize + 2 * maxParticles + (2 + 2) * 4 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
+  solverHeap->create((gridSize * gridSize * gridSize + 2 * maxParticles + 4 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
 #endif
 
 #ifdef DEBUG_GRID_SOLVER
