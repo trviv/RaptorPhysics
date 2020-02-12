@@ -11,7 +11,7 @@ inline uint gridIndexInt3Int(const int3 relativeIndex, const int gridSizeExp)
 
 inline int3 positionHashFunction(const float3 position, const int gridSize, const int gridSizeExp)
 {
-  const int3 quantizedPosition = convertInt3(position) + gridSize;
+  const int3 quantizedPosition = convertInt3(position) + gridSize - 1;
   const int3 multiplier = (quantizedPosition >> gridSizeExp);
   // TODO: Find a hash function which does not have a possbility of collision
   return mad24(mad24(multiplier.zxy, 3, multiplier.yzx), 5, quantizedPosition) & constructInt3(gridSize - 1);
@@ -283,12 +283,8 @@ inline short3 decodeCellVector(uchar encodedOffset)
 // function to get previous and current offset, previous will be the starting and current will be the end index
 uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, const uint gridCellIndex)
 {
-  if (gridCellIndex > 0)
-  {
-    return *((const Device uint2*)(gridCellParticleOffsets + gridCellIndex - 1));
-  }
-
-  return constructUint2(0, gridCellParticleOffsets[gridCellIndex]);
+  const uint2 ret = *((const Device uint2*)(gridCellParticleOffsets + gridCellIndex + select(0, -1, gridCellIndex)));
+  return select(constructUint2(0, ret.x), ret, gridCellIndex);
 }
 
 /*
@@ -401,11 +397,6 @@ Kernel void applyCollisions(
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (indexRange.x == indexRange.y)
-    {
-      continue;
-    }
-
     // batchwise iterate over indices in the cell
     for (int otherIndex = indexRange.x; otherIndex < indexRange.y; otherIndex++)
     {
@@ -433,11 +424,6 @@ Kernel void applyCollisions(
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
-
-    if (indexRange.x == indexRange.y)
-    {
-      continue;
-    }
 
     validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(i, j, k);
   GRID_SOLVER_NEIGHBOUR_LOOP_END

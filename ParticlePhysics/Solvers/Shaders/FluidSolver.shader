@@ -137,11 +137,6 @@ Kernel void calculateDensity(
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    if (indexRange.x == indexRange.y)
-    {
-      continue;
-    }
-
     // batchwise iterate over indices in the cell
     for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
     {
@@ -265,11 +260,6 @@ Kernel void calculateForces(
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
-
-    if (indexRange.x == indexRange.y)
-    {
-      continue;
-    }
 
     // batchwise iterate over indices in the cell
     for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)

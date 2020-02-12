@@ -469,7 +469,7 @@ inline float3 stacklessTraverseBinaryTree(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
         collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
@@ -592,7 +592,7 @@ inline float3 stackTraverseBinaryTree(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
       const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff,
+      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
         collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
         particleCollisionData, &collided);
