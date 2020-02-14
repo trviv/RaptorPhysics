@@ -371,6 +371,11 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(CollisionSolverData)*maxWorkgroupSize, bufferCount + 4);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleCollisionData)*maxWorkgroupSize, bufferCount + 5);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleStruct)*maxWorkgroupSize, bufferCount + 6);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleStruct)*maxWorkgroupSize, bufferCount + 7);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(float)*4*maxWorkgroupSize, bufferCount + 8);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleDifferential)*maxWorkgroupSize, bufferCount + 9);
 #endif
 
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES

@@ -16,6 +16,7 @@ static const string RENDER_SOLIDS_OPTION          ("Solids");
 static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
 static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Box");
 static const string RENDER_GRID_HEATMAP_OPTION    ("Grid Heatmap");
+static const string PAUSE_SIM_OPTION              ("Pause Sim");
 static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 
 static Clock physicsSystemClock;
@@ -88,6 +89,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true, "fa-brands-400", 0xF247));
   addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
   addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
+  addFrameOption(UIElement(PAUSE_SIM_OPTION, false, "fa-solid-900", 0xF04C));
   addFrameOption(UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
 
   bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
@@ -859,6 +861,12 @@ void PhysicsSystem::step(float timeStep)
     down.normalize();
     down *= 9.8f;
     setGravity(down);
+  }
+
+  // skip the below steps if simulation paused
+  if (getFrameOption(PAUSE_SIM_OPTION).boolValue)
+  {
+    return;
   }
 
 #ifdef PHYSICS_SYSTEM_SINGLE_UPDATE

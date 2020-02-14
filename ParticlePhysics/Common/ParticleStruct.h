@@ -357,8 +357,6 @@ struct ALIGN(4) ParticleNodeLocator_t
 {
   /*!@member Offset to first node of the entity instance, in the physics system.*/
   uint absoluteNodeOffset;
-  /*!@member Index to this node's property in the entity instance ,in the physics system.*/
-  uint absoluteNodeIndex;
   /*!@member Index to this node's shader property in the entity, in the physics system.*/
   uint commonNodeIndex;
 };
@@ -369,10 +367,8 @@ inline ParticleNodeLocator getNodeLocator(const uint nodeIndex, const uint parti
 {
   ParticleNodeLocator locator;
 
-  uint relativeNodeIndex;
   locator.absoluteNodeOffset = partitionInstanceOffset;
-  relativeNodeIndex = (nodeIndex - partitionInstanceOffset) % nodeEntityLocation.count;
-  locator.absoluteNodeIndex = partitionInstanceOffset + relativeNodeIndex;
+  const uint relativeNodeIndex = (nodeIndex - partitionInstanceOffset) % nodeEntityLocation.count;
   locator.commonNodeIndex = nodeEntityLocation.offset + relativeNodeIndex;
 
   return locator;

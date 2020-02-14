@@ -60,16 +60,18 @@ inline void atomicAddFloat3(Device float3 *destination, const float3 value)
 
 //#define MARK_COLLIDED_PARTICLES
 
+#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
+#define Scope Shared
+#else
+#define Scope Thread
+#endif
+
 inline float3 calculateFriction(
   const float3 selfParticleVelocity,
   const float3 otherParticleVelocity,
   const float3 contactNormal,
   const float separationDistance,
-#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-  const Shared CollisionSolverData* collisionSolverData)
-#else
-  const Thread CollisionSolverData* collisionSolverData)
-#endif
+  const Scope CollisionSolverData* collisionSolverData)
 {
   float3 tangent = selfParticleVelocity - otherParticleVelocity;
   tangent = tangent - dot(tangent, contactNormal) * contactNormal;
@@ -87,20 +89,16 @@ inline float3 calculateFriction(
 @param collisionData Particle SDF mass and radius data.
 */
 inline float3 boundaryCollision(
-  Thread ParticleStruct*              particle,
-  const Thread ParticleDifferential*  selfParticleDiff,
-  const Thread ParticleCollisionData* collisionData,
+  Scope ParticleStruct*               particle,
+  const Scope ParticleDifferential*   selfParticleDiff,
+  const Scope ParticleCollisionData*  collisionData,
   Const PhySystemSettings*            systemSettings,
   const uint                          stablizationPass,
   Thread short*                       collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #endif
-#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-  const Shared CollisionSolverData*   collisionSolverData)
-#else
-  const Thread CollisionSolverData*   collisionSolverData)
-#endif
+  const Scope CollisionSolverData*  collisionSolverData)
 {
   float3 ret = constructFloat3(0.f);
 #ifdef MARK_COLLIDED_PARTICLES
@@ -163,19 +161,25 @@ inline float3 boundaryCollision(
   return ret;
 }
 
+// function to check if objects are eligible for collision
+inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const ParticleStruct selfParticle, const ParticleStruct otherParticle)
+{
+#if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
+  return otherParticleIndex < selfParticleIndex & (otherParticle.identity.identity != selfParticle.identity.identity | solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH);
+#else
+  return otherParticleIndex != selfParticleIndex & (otherParticle.identity.identity != selfParticle.identity.identity | solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH);
+#endif
+}
+
 // function to process particle collision
 inline float3 processParticleCollision(
-  const Thread ParticleStruct* selfParticle,
-  const Thread ParticleDifferential* selfParticleDiff,
-  const Thread ParticleStruct* otherParticle,
+  const Scope ParticleStruct* selfParticle,
+  const Scope ParticleDifferential* selfParticleDiff,
+  const Scope ParticleStruct* otherParticle,
   const Thread ParticleDifferential* otherParticleDiff,
   const bool updateOtherParticle,
-  const Thread ParticleCollisionData* collisionData,
-#ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-  const Shared CollisionSolverData* collisionSolverData,
-#else
-  const Thread CollisionSolverData* collisionSolverData,
-#endif
+  const Scope ParticleCollisionData* collisionData,
+  const Scope CollisionSolverData* collisionSolverData,
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
@@ -190,74 +194,67 @@ inline float3 processParticleCollision(
   const Device ParticleCollisionData* particleCollisionData)
 #endif
 {
-#if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
-  if (currentNodeIndex < index && (otherParticle->identity.identity != selfParticle->identity.identity || solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH))
+  const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
+  const float sdfMagnitude2 = collisionData2.gradientMagnitude;
+
+  // skip if the base and the batch particle are of the same object
+  float3 collisionVector = selfParticle->position - otherParticle->position;
+  float actualDistance = lengthSq(collisionVector);
+
+#ifdef MARK_COLLIDED_PARTICLES
+  const float allowedDistance = (fabs(collisionData2.radius) + fabs(collisionData->radius));
 #else
-  if (currentNodeIndex != index && (otherParticle->identity.identity != selfParticle->identity.identity || solverType == SOLVER_FLUID || solverType == SOLVER_CLOTH))
+  const float allowedDistance = (collisionData2.radius + collisionData->radius);
 #endif
+
+  // if overlapping
+  if (actualDistance < (allowedDistance * allowedDistance))
   {
-    const ParticleCollisionData collisionData2 = particleCollisionData[currentNodeIndex];
-    const float sdfMagnitude2 = collisionData2.gradientMagnitude;
+    actualDistance = sqrt(actualDistance);
+    // TODO: Look into SDF
+    // displacement magnitude
+    const float separationDistance = actualDistance - allowedDistance + COMPUTE_EPSILON;
 
-    // skip if the base and the batch particle are of the same object
-    float3 collisionVector = selfParticle->position - otherParticle->position;
-    float actualDistance = lengthSq(collisionVector);
+    // get normal according to minimum translation distance
+    //float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
+
+    // sample signed distance field and modify normal
+    //const float collDot = dot(sdfGradient, collisionVector);
+    //float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
+    //contactNormal = normalize(contactNormal);
+
+    float3 contactNormal = collisionVector / max(COMPUTE_EPSILON, actualDistance);
 
 #ifdef MARK_COLLIDED_PARTICLES
-    const float allowedDistance = (fabs(collisionData2.radius) + fabs(collisionData->radius));
-#else
-    const float allowedDistance = (collisionData2.radius + collisionData->radius);
+    *collided = true;
 #endif
+    (*collisionCount)++;
 
-    // if overlapping
-    if (actualDistance < (allowedDistance * allowedDistance))
+    const float massScale = 1.f / (collisionData->invMass + collisionData2.invMass);
+    const float3 displacementFactor = contactNormal * separationDistance;
+
+    float3 displacement = -displacementFactor;
+    if (!stablizationPass && solverType != SOLVER_FLUID)
     {
-      actualDistance = sqrt(actualDistance);
-      // TODO: Look into SDF
-      // displacement magnitude
-      const float separationDistance = actualDistance - allowedDistance + COMPUTE_EPSILON;
+      displacement += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, collisionSolverData);
+    }
 
-      // get normal according to minimum translation distance
-      //float3 sdfGradient = select(-collisionData2.transformedSdfGradient, collisionData->transformedSdfGradient, selectInput3(sdfMagnitude < sdfMagnitude2));
-
-      // sample signed distance field and modify normal
-      //const float collDot = dot(sdfGradient, collisionVector);
-      //float3 contactNormal = select(collisionVector, collisionVector - (2.f * collDot) * sdfGradient, selectInput3(collDot < 0.f));
-      //contactNormal = normalize(contactNormal);
-
-      float3 contactNormal = collisionVector / max(COMPUTE_EPSILON, actualDistance);
-
+    displacement *= massScale;
 #ifdef MARK_COLLIDED_PARTICLES
-      *collided = true;
-#endif
-      (*collisionCount)++;
-
-      const float massScale = 1.f / (collisionData->invMass + collisionData2.invMass);
-      const float3 displacementFactor = contactNormal * separationDistance;
-
-      float3 displacement = -displacementFactor;
-      if (!stablizationPass && solverType != SOLVER_FLUID)
-      {
-        displacement += calculateFriction(selfParticleDiff->velocity, otherParticleDiff->velocity, contactNormal, separationDistance, collisionSolverData);
-      }
-
-      displacement *= massScale;
-#ifdef MARK_COLLIDED_PARTICLES
-      float invMass = particleCollisionData[index].invMass;
-      particleCollisionData[index].transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(contactNormal));
-      particleCollisionData[index].invMass = invMass;
+    float invMass = particleCollisionData[index].invMass;
+    particleCollisionData[index].transformedSdfGradient = encodeDirection(2.f * fabs(collisionData->radius) * normalize(contactNormal));
+    particleCollisionData[index].invMass = invMass;
 #endif
 
 #ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
-      if (updateOtherParticle)
-      {
-        atomicAddFloat3(&particlesDelta[currentNodeIndex].position, -displacement * collisionData2.invMass * collisionSolverData->collisionDamping);
-        atomicAdd(&particlesDelta[currentNodeIndex].identity.identity, 1);
-      }
+    if (updateOtherParticle)
+    {
+      atomicAddFloat3(&particlesDelta[currentNodeIndex].position, -displacement * collisionData2.invMass * collisionSolverData->collisionDamping);
+      atomicAdd(&particlesDelta[currentNodeIndex].identity.identity, 1);
+    }
 #endif
 
-      return displacement * collisionData->invMass;
-    }
+    return displacement * collisionData->invMass;
   }
 
   return constructFloat3(0.f);
