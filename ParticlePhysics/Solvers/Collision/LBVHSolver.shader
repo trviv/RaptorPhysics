@@ -468,14 +468,17 @@ inline float3 stacklessTraverseBinaryTree(
     if (index != currentNodeIndex)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
-        collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, *currentParticle, otherParticle))
+      {
+        const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
+        output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
+          collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
-        particleCollisionData, &collided);
+          particleCollisionData, &collided);
 #else
-        particleCollisionData);
+          particleCollisionData);
 #endif
+      }
     }
 
     if (nextCurrentNodeIndex == LBVH_ROOT_NODE_MARKER)
@@ -591,14 +594,17 @@ inline float3 stackTraverseBinaryTree(
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
-      output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
-        collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, *currentParticle, otherParticle))
+      {
+        const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
+        output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
+          collisionData, collisionSolverData, currentNodeIndex, index, sdfMagnitude, &collisionCount, stablizationPass, solverType, particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
-        particleCollisionData, &collided);
+          particleCollisionData, &collided);
 #else
-        particleCollisionData);
+          particleCollisionData);
 #endif
+      }
     }
 
     // exit if nothing to fetch
