@@ -56,6 +56,12 @@
 #define atomicCmpXchg(location, existingValue, desiredValue) \
   ((existingValue == atomic_cmpxchg((Device uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoad(location) | true))
 
+#define atomicLoadShared(location)        atomic_or((Shared uint*)location, 0)
+#define atomicAddShared(location, value)  atomic_add((Shared uint*)location, value)
+#define atomicAddSignedShared(location, value)  atomic_add((Shared int*)location, value)
+#define atomicCmpXchgShared(location, existingValue, desiredValue) \
+  ((existingValue == atomic_cmpxchg((Shared uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoad(location) | true))
+
 #define KERNEL_GLOBAL_ARGUMENTS
 #define KERNEL_THREAD_ARGUMENTS
 #define KERNEL_THREADGROUP_ARGUMENTS
@@ -124,6 +130,12 @@
 #define atomicMax(location, value)    atomic_fetch_max_explicit((Shared atomic_uint*)location, value, memory_order_relaxed)
 #define atomicCmpXchg(location, existingValue, desiredValue) \
   atomic_compare_exchange_weak_explicit((Device atomic_uint*)location, ((Thread uint*)&existingValue), asUint(desiredValue), memory_order_relaxed, memory_order_relaxed)
+
+#define atomicLoadShared(location)        atomic_fetch_or_explicit((volatile Shared atomic_uint*)location, 0, memory_order_relaxed)
+#define atomicAddShared(location, value)  atomic_fetch_add_explicit((volatile Shared atomic_uint*)location, value, memory_order_relaxed)
+#define atomicAddSignedShared(location, value)  atomic_fetch_add_explicit((volatile Shared atomic_int*)location, value, memory_order_relaxed)
+#define atomicCmpXchgShared(location, existingValue, desiredValue) \
+  atomic_compare_exchange_weak_explicit((volatile Shared atomic_uint*)location, ((Thread uint*)&existingValue), asUint(desiredValue), memory_order_relaxed, memory_order_relaxed)
 
 #define KERNEL_GLOBAL_ARGUMENTS \
   , uint3 thread_position_in_grid [[ thread_position_in_grid ]]
