@@ -56,7 +56,10 @@ inline float viscosityFunction(const float r, const float h)
 //  float x = 1.f/h;
 //  x *= x;
 //  return (45.f / M_PI_F) * (h - r) * x * x * x;//(15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
-  return (15.f / (2.f* M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
+  //return (15.f / (2.f * M_PI_F * h * h * h)) * (-(r * r * r)/(2 * h * h * h)  + (r * r)/(h * h) + h/(2 * r) - 1);
+  const float t1 = (h * h * h);
+  const float t2 = (r * r);
+  return ((15.f / (2.f * M_PI_F)) / t1) * (-(r * t2)/(2.f * t1) + t2/(h * h) + h/(2.f * r) - 1);
 #endif
 }
 
@@ -66,7 +69,9 @@ inline float scorrFunction(const float r, const float h)
   const float corrDelQ = 0.1f;
   const int corrN = 4;
   const float x = poly6Function(r, h) / poly6Function(corrDelQ * h, h);
-  return -corrK * pow(x, corrN);
+  //return -corrK * pow(x, corrN);
+  const float t = x * x;
+  return -corrK * t * t;
 }
 
 /*
@@ -150,14 +155,12 @@ Kernel void calculateDensity(
       density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
       if (otherNodeIndex == particleIndex)
-      {
         continue;
-      }
 
       actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
       float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
-      sumGradientMagnitude += dot(gradient, gradient);
+      sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
@@ -165,7 +168,7 @@ Kernel void calculateDensity(
   sumGradientVector /= sharedData.sharedInvMass;
   sumGradientMagnitude /= sharedData.sharedInvMass;
 
-  sumGradientMagnitude += dot(sumGradientVector, sumGradientVector);
+  sumGradientMagnitude += lengthSq(sumGradientVector);
 
   density /= sharedData.sharedInvMass;
 
