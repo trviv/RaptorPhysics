@@ -58,6 +58,21 @@ inline void atomicAddFloat3(Device float3 *destination, const float3 value)
   }
 }
 
+inline void atomicAddFloat3Shared(Shared float3 *destination, const float3 value)
+{
+  Shared uint *uintDestination = (Shared uint*)destination;
+
+  for (short i=0; i<3; i++, uintDestination++)
+  {
+    uint existingValue = atomicLoadShared(uintDestination);
+    float desiredValue = value[i] + asFloat(existingValue);
+    while (!atomicCmpXchgShared(uintDestination, existingValue, desiredValue))
+    {
+      desiredValue = value[i] + asFloat(existingValue);
+    }
+  }
+}
+
 //#define MARK_COLLIDED_PARTICLES
 
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
@@ -94,7 +109,7 @@ inline float3 boundaryCollision(
   const Scope ParticleCollisionData*  collisionData,
   Const PhySystemSettings*            systemSettings,
   const uint                          stablizationPass,
-  Thread short*                       collisionCount,
+  Scope uint*                         collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #endif
@@ -162,12 +177,12 @@ inline float3 boundaryCollision(
 }
 
 // function to check if objects are eligible for collision
-inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const ParticleStruct selfParticle, const ParticleStruct otherParticle)
+inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Scope ParticleStruct* selfParticle, const Scope ParticleStruct* otherParticle)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
-  return otherParticleIndex < selfParticleIndex & (otherParticle.identity.identity != selfParticle.identity.identity | solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH);
+  return otherParticleIndex < selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
 #else
-  return otherParticleIndex != selfParticleIndex & (otherParticle.identity.identity != selfParticle.identity.identity | solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH);
+  return otherParticleIndex != selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
 #endif
 }
 
@@ -178,12 +193,12 @@ inline float3 processParticleCollision(
   const Scope ParticleStruct* otherParticle,
   const Thread ParticleDifferential* otherParticleDiff,
   const bool updateOtherParticle,
-  const Scope ParticleCollisionData* collisionData,
+  const Thread ParticleCollisionData* collisionData,
   const Scope CollisionSolverData* collisionSolverData,
   const uint currentNodeIndex,
   const uint index,
   const float sdfMagnitude,
-  Thread short* collisionCount,
+  Thread uint* collisionCount,
   const uint stablizationPass,
   const short solverType,
   Device ParticleStruct* particlesDelta,

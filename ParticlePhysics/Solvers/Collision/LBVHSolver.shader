@@ -314,7 +314,7 @@ inline float3 stacklessTraverseBinaryTree(
 #endif
 
   float3 output = constructFloat3(0.f);
-  short collisionCount = 0;
+  uint collisionCount = 0;
 
   XAB particleBoundingBox;
   particleBoundingBox.min = currentParticle->position - constructFloat3(collisionData->radius);
@@ -468,7 +468,7 @@ inline float3 stacklessTraverseBinaryTree(
     if (index != currentNodeIndex)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      if (shouldCheckForCollision(solverType, index, currentNodeIndex, *currentParticle, otherParticle))
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle))
       {
         const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
         output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
@@ -530,7 +530,7 @@ inline float3 stackTraverseBinaryTree(
 #endif
 
   float3 output = constructFloat3(0.f);
-  short collisionCount = 0;
+  uint collisionCount = 0;
 
   XAB particleBoundingBox;
   particleBoundingBox.min = currentParticle->position - constructFloat3(collisionData->radius);
@@ -594,7 +594,7 @@ inline float3 stackTraverseBinaryTree(
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      if (shouldCheckForCollision(solverType, index, currentNodeIndex, *currentParticle, otherParticle))
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle))
       {
         const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
         output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
@@ -748,7 +748,7 @@ Kernel void applyCollisions(
 
       delta *= collisionSolverData.collisionDamping;
 
-      short collisionCount = 0;
+      uint collisionCount = 0;
       // apply boundary
       delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
