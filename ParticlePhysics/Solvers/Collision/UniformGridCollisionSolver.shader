@@ -364,10 +364,6 @@ Kernel void applyCollisions(
   ParticleStruct selfParticle = particlesBufferOld[particleIndex];
   const IdentityInfo identity = selfParticle.identity;
 
-#ifdef MARK_COLLIDED_PARTICLES
-  bool collided = false;
-#endif
-
   ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
@@ -455,12 +451,7 @@ Kernel void applyCollisions(
 
         const ParticleCollisionData otherCollisionData = localCollisionData[localTestData.z];
 
-        const float3 diff = processParticleCollision(&localSelfParticle[localTestData.z], &localSelfParticleDiff[localTestData.z], &localOtherParticle[localTestData.z], &otherParticleDiff, true, &otherCollisionData, &localCollisionSolverData[localTestData.z], localTestData.y, localTestData.x, otherCollisionData.gradientMagnitude, &collisions, stablizationPass, localSolverType[localTestData.z], particlesPredictedNew,
-#ifdef MARK_COLLIDED_PARTICLES
-          particleCollisionData, &collided);
-#else
-          particleCollisionData);
-#endif
+        const float3 diff = processParticleCollision(&localSelfParticle[localTestData.z], &localSelfParticleDiff[localTestData.z], &localOtherParticle[localTestData.z], &otherParticleDiff, true, &otherCollisionData, &localCollisionSolverData[localTestData.z], localTestData.y, localTestData.x, otherCollisionData.gradientMagnitude, &collisions, stablizationPass, localSolverType[localTestData.z], particlesPredictedNew, particleCollisionData);
 
         atomicAddFloat3Shared(&localPositionDiff[localTestData.z], diff);
         atomicAddShared(&localCollisionCount[localTestData.z], collisions);
@@ -516,12 +507,7 @@ Kernel void applyCollisions(
 
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
       positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
-        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
-#ifdef MARK_COLLIDED_PARTICLES
-        particleCollisionData, &collided);
-#else
-        particleCollisionData);
-#endif
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew, particleCollisionData);
     }
 #endif
   GRID_SOLVER_NEIGHBOUR_LOOP_END
@@ -557,24 +543,19 @@ Kernel void applyCollisions(
 
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
       positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
-        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
-#ifdef MARK_COLLIDED_PARTICLES
-        particleCollisionData, &collided);
-#else
-        particleCollisionData);
-#endif
+        &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew, particleCollisionData);
     }
   }
 
 #endif
   positionDiff *= collisionSolverData.collisionDamping;
 
-  // apply boundary
-  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
-    &particleCollisionData[particleIndex], &collisionSolverData);
+  particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collisionCount ? -1.f : 1.f);
 #endif
-    &collisionSolverData);
+
+  // apply boundary
+  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount, &particleCollisionData[particleIndex], &collisionSolverData);
 
 #ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
   if (collisionCount)
@@ -596,10 +577,6 @@ Kernel void applyCollisions(
   atomicAdd(&particlesPredictedNew[particleIndex].identity.identity, collisionCount);
 #endif
 
-#ifdef MARK_COLLIDED_PARTICLES
-  particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
-#endif
-
 #else
 
   ushort particleSubIndex;
@@ -618,10 +595,6 @@ Kernel void applyCollisions(
   ParticleStruct selfParticle = particlesBufferOld[particleIndex];
   const IdentityInfo identity = selfParticle.identity;
   const ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
-
-#ifdef MARK_COLLIDED_PARTICLES
-  bool collided = false;
-#endif
 
   ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
@@ -658,17 +631,13 @@ Kernel void applyCollisions(
       continue;
 
     const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];
-    positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, otherNodeSubIndex != 0,
+    positionDiff += processParticleCollision(&selfParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, otherNodeSubIndex != 0, &collisionData,
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-      &collisionData, &localCollisionSolverData[localIndex], otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
+      &localCollisionSolverData[localIndex],
 #else
-      &collisionData, &collisionSolverData, otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew,
+      &collisionSolverData,
 #endif
-#ifdef MARK_COLLIDED_PARTICLES
-      particleCollisionData, &collided);
-#else
-      particleCollisionData);
-#endif
+      otherNodeIndex, particleIndex, collisionData.gradientMagnitude, &collisionCount, stablizationPass, solverType, particlesPredictedNew, particleCollisionData);
   }
 
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
@@ -677,11 +646,12 @@ Kernel void applyCollisions(
   positionDiff *= collisionSolverData.collisionDamping;
 #endif
 
-  // apply boundary
-  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
-    &particleCollisionData[particleIndex],
+  particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collisionCount ? -1.f : 1.f);
 #endif
+
+  // apply boundary
+  positionDiff += boundaryCollision(&selfParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount, &particleCollisionData[particleIndex],
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
     &localCollisionSolverData[localIndex]);
 #else
@@ -690,10 +660,6 @@ Kernel void applyCollisions(
 
   atomicAddFloat3(&particlesPredictedNew[particleIndex].position, positionDiff);
   atomicAdd(&particlesPredictedNew[particleIndex].identity.identity, collisionCount);
-
-#ifdef MARK_COLLIDED_PARTICLES
-  particleCollisionData[particleIndex].radius = fabs(collisionData.radius) * (collided ? -1.f : 1.f);
-#endif
 
 #endif
 }

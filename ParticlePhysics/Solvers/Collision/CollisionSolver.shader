@@ -112,8 +112,10 @@ inline float3 boundaryCollision(
   Scope uint*                         collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
+#else
+  const Device ParticleCollisionData* particleCollisionData,
 #endif
-  const Scope CollisionSolverData*  collisionSolverData)
+  const Scope CollisionSolverData*    collisionSolverData)
 {
   float3 ret = constructFloat3(0.f);
 #ifdef MARK_COLLIDED_PARTICLES
@@ -203,8 +205,7 @@ inline float3 processParticleCollision(
   const short solverType,
   Device ParticleStruct* particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
-  Device ParticleCollisionData* particleCollisionData,
-  Thread bool* collided)
+  Device ParticleCollisionData* particleCollisionData)
 #else
   const Device ParticleCollisionData* particleCollisionData)
 #endif
@@ -240,9 +241,6 @@ inline float3 processParticleCollision(
 
     float3 contactNormal = collisionVector / max(COMPUTE_EPSILON, actualDistance);
 
-#ifdef MARK_COLLIDED_PARTICLES
-    *collided = true;
-#endif
     (*collisionCount)++;
 
     const float massScale = 1.f / (collisionData->invMass + collisionData2.invMass);
