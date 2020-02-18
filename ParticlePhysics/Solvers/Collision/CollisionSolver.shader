@@ -73,6 +73,18 @@ inline void atomicAddFloat3Shared(Shared float3 *destination, const float3 value
   }
 }
 
+inline void atomicAddFloatShared(Shared float *destination, const float value)
+{
+  Shared uint *uintDestination = (Shared uint*)destination;
+
+  uint existingValue = atomicLoadShared(uintDestination);
+  float desiredValue = value + asFloat(existingValue);
+  while (!atomicCmpXchgShared(uintDestination, existingValue, desiredValue))
+  {
+    desiredValue = value + asFloat(existingValue);
+  }
+}
+
 //#define MARK_COLLIDED_PARTICLES
 
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
@@ -86,7 +98,7 @@ inline float3 calculateFriction(
   const float3 otherParticleVelocity,
   const float3 contactNormal,
   const float separationDistance,
-  const Scope CollisionSolverData* collisionSolverData)
+  const Thread CollisionSolverData* collisionSolverData)
 {
   float3 tangent = selfParticleVelocity - otherParticleVelocity;
   tangent = tangent - dot(tangent, contactNormal) * contactNormal;
@@ -104,18 +116,18 @@ inline float3 calculateFriction(
 @param collisionData Particle SDF mass and radius data.
 */
 inline float3 boundaryCollision(
-  Scope ParticleStruct*               particle,
-  const Scope ParticleDifferential*   selfParticleDiff,
-  const Scope ParticleCollisionData*  collisionData,
+  Thread ParticleStruct*              particle,
+  const Thread ParticleDifferential*  selfParticleDiff,
+  const Thread ParticleCollisionData* collisionData,
   Const PhySystemSettings*            systemSettings,
   const uint                          stablizationPass,
-  Scope uint*                         collisionCount,
+  Thread uint*                        collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
 #else
   const Device ParticleCollisionData* particleCollisionData,
 #endif
-  const Scope CollisionSolverData*    collisionSolverData)
+  const Thread CollisionSolverData*   collisionSolverData)
 {
   float3 ret = constructFloat3(0.f);
 #ifdef MARK_COLLIDED_PARTICLES
@@ -179,7 +191,7 @@ inline float3 boundaryCollision(
 }
 
 // function to check if objects are eligible for collision
-inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Scope ParticleStruct* selfParticle, const Scope ParticleStruct* otherParticle)
+inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
   return otherParticleIndex < selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
@@ -190,22 +202,22 @@ inline bool shouldCheckForCollision(const short solverType, const uint selfParti
 
 // function to process particle collision
 inline float3 processParticleCollision(
-  const Scope ParticleStruct* selfParticle,
-  const Scope ParticleDifferential* selfParticleDiff,
-  const Scope ParticleStruct* otherParticle,
-  const Thread ParticleDifferential* otherParticleDiff,
-  const bool updateOtherParticle,
+  const Thread ParticleStruct*        selfParticle,
+  const Thread ParticleDifferential*  selfParticleDiff,
+  const Scope ParticleStruct*         otherParticle,
+  const Thread ParticleDifferential*  otherParticleDiff,
+  const bool                          updateOtherParticle,
   const Thread ParticleCollisionData* collisionData,
-  const Scope CollisionSolverData* collisionSolverData,
-  const uint currentNodeIndex,
-  const uint index,
-  const float sdfMagnitude,
-  Thread uint* collisionCount,
-  const uint stablizationPass,
-  const short solverType,
-  Device ParticleStruct* particlesDelta,
+  const Thread CollisionSolverData*   collisionSolverData,
+  const uint                          currentNodeIndex,
+  const uint                          index,
+  const float                         sdfMagnitude,
+  Thread uint*                        collisionCount,
+  const uint                          stablizationPass,
+  const short                         solverType,
+  Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
-  Device ParticleCollisionData* particleCollisionData)
+  Device ParticleCollisionData*       particleCollisionData)
 #else
   const Device ParticleCollisionData* particleCollisionData)
 #endif

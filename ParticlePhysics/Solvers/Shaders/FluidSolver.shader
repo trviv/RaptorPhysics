@@ -154,23 +154,24 @@ Kernel void calculateDensity(
 
       density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
-      if (otherNodeIndex == particleIndex)
+      if (otherNodeIndex == particleIndex || actualDistance >= sharedData.fluidKernelRadius)
         continue;
 
       actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
 
-      float3 gradient = collisionVector * select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance;
+      const float3 gradient = collisionVector * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance;
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  sumGradientVector /= sharedData.sharedInvMass;
-  sumGradientMagnitude /= sharedData.sharedInvMass;
+  const float mass = 1.f/sharedData.sharedInvMass;
+  sumGradientVector *= mass;
+  sumGradientMagnitude *= mass;
 
   sumGradientMagnitude += lengthSq(sumGradientVector);
 
-  density /= sharedData.sharedInvMass;
+  density *= mass;
 
 #ifdef FLUID_USE_LAMBDA
   density = density * sharedData.invRestDensity;
@@ -240,6 +241,7 @@ Kernel void calculateForces(
 
   // current particle data
   ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+  const float3 selfParticleDiff = particleDiff[particleIndex].velocity;
   const IdentityInfo identity = selfParticle.identity;
   const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
@@ -274,7 +276,7 @@ Kernel void calculateForces(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       float actualDistance = length(collisionVector);
 
-      if (otherNodeIndex == particleIndex)
+      if (otherNodeIndex == particleIndex || actualDistance >= sharedData.fluidKernelRadius)
       {
         continue;
       }
@@ -283,24 +285,24 @@ Kernel void calculateForces(
 #ifdef FLUID_USE_LAMBDA
       const float lambda = particlesLambda[particleIndex];
       const float currentParticleDensity = particlesLambda[otherNodeIndex];
-      const float scorr = select(0.f, scorrFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      const float scorr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
 
-      delta += collisionVector * ((density + currentParticleDensity + scorr) *
-        select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius) / actualDistance);
+      delta += collisionVector * ((density + currentParticleDensity + scorr) * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance);
 #else
-      float3 velocityVector = particleDiff[otherNodeIndex].velocity - particleDiff[particleIndex].velocity;
-      float viscosityTerm = sharedData.viscosity * select(0.f, viscosityFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      const float3 velocityVector = particleDiff[otherNodeIndex].velocity - selfParticleDiff;
+      float viscosityTerm = sharedData.viscosity * viscosityFunction(actualDistance, sharedData.fluidKernelRadius);
       const float lambda = particlesLambda[particleIndex];
       const float currentParticleDensity = particlesDensity[otherNodeIndex];
-      const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) / (2.f * currentParticleDensity);
-      const float distanceFunction = select(0.f, spikyFunction(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      const float currentParticleDensityInv = 1.f/currentParticleDensity;
+      const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) * currentParticleDensityInv * 0.5f;
+      const float distanceFunction = spikyFunction(actualDistance, sharedData.fluidKernelRadius);
       float timeStep = 1.f/60.f;
 
       // force due to pressure
       delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
       // force due to viscosity
-      delta += velocityVector * (timeStep * viscosityTerm / currentParticleDensity);
+      delta += velocityVector * (timeStep * viscosityTerm * currentParticleDensityInv);
 #endif
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
