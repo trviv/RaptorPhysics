@@ -448,6 +448,32 @@ struct ALIGN(4) PhySystemSettings_t
 
 typedef struct PhySystemSettings_t PhySystemSettings;
 
+
+struct CollisionSharedData_t
+{
+  CollisionSolverData sharedCollisionSolverData;
+  ParticleCollisionData sharedCollisionData;
+  ParticleStruct sharedSelfParticle;
+  ParticleDifferential sharedSelfParticleDiff;
+  uint sharedParticleIndex;
+  uint sharedSolverType;
+  float3 sharedPositionDiff;
+  uint sharedCollisionCount;
+};
+
+typedef CollisionSharedData_t CollisionSharedData;
+
+
+struct FluidDensitySharedData_t
+{
+  float3 sharedCollisionVector;
+  float sharedActualDistance;
+  float sharedKernelRadius;
+  uint sharedLocalIndex;
+};
+
+typedef FluidDensitySharedData_t FluidDensitySharedData;
+
 #pragma pack(pop)
 
 #endif

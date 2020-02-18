@@ -370,15 +370,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 2);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(CollisionSolverData)*maxWorkgroupSize, bufferCount + 4);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleCollisionData)*maxWorkgroupSize, bufferCount + 5);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleStruct)*maxWorkgroupSize, bufferCount + 6);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleStruct)*maxWorkgroupSize, bufferCount + 7);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(float)*4*maxWorkgroupSize, bufferCount + 8);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleDifferential)*maxWorkgroupSize, bufferCount + 9);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(uint)*4*maxWorkgroupSize*2, bufferCount + 10);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(uint)*maxWorkgroupSize, bufferCount + 11);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(uint)*maxWorkgroupSize, bufferCount + 12);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(CollisionSharedData)*maxWorkgroupSize, bufferCount + 4);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(ParticleStruct)*maxWorkgroupSize*2, bufferCount + 5);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(uint)*2*maxWorkgroupSize*2, bufferCount + 6);
 #endif
 
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
