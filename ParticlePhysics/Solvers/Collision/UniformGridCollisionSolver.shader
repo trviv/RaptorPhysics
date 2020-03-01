@@ -238,47 +238,43 @@ inline short3 decodeCellVector(uchar encodedOffset)
 #ifdef GRID_SOLVER_HASH_FUNCTION
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
-  for (short k=-1; k<2; k++) \
+  short x = -2; \
+  short y = -1; \
+  short z = -1; \
+  for (short n=0; n<27; n++) \
   { \
-    for (short j=-1; j<2; j++) \
-    { \
-      for (short i=-1; i<2; i++) \
-      { \
-        const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(i, j, k), gridSize, gridSizeExp); \
-        const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+    x++; \
+    if (x == 2) \
+    { y++; x = -1;} \
+    if (y == 2) \
+    { z++; y = -1;} \
+    const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
+    const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
 
 #else
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
-  for (short k=-1; k<2; k++) \
+  short x = particleGridCellIndex.x - 2; \
+  short y = particleGridCellIndex.y - 1; \
+  short z = particleGridCellIndex.z - 1; \
+  const short maxX = particleGridCellIndex.x + 2; \
+  const short maxY = particleGridCellIndex.y + 2; \
+  for (short n=0; n<27; n++) \
   { \
-    const short z = particleGridCellIndex.z + k; \
-    if (z < 0 || z >= gridSize) \
+    x++; \
+    if (x == maxX) \
+    { y++; x -= 3;} \
+    if (y == maxY) \
+    { z++; y -= 3;} \
+    if ((x < 0 | x >= gridSize) | (y < 0 | y >= gridSize) | (z < 0 | z >= gridSize))  \
     { \
       continue; \
     } \
-    for (short j=-1; j<2; j++) \
-    { \
-      const short y = particleGridCellIndex.y + j; \
-      if (y < 0 || y >= gridSize) \
-      { \
-        continue; \
-      } \
-      for (short i=-1; i<2; i++) \
-      { \
-        const short x = particleGridCellIndex.x + i; \
-        if (x < 0 || x >= gridSize) \
-        { \
-          continue; \
-        } \
-        const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSizeExp);
+    const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSizeExp);
 
 #endif
 
-#define GRID_SOLVER_NEIGHBOUR_LOOP_END \
-      } \
-    } \
-  }
+#define GRID_SOLVER_NEIGHBOUR_LOOP_END }
 
 // function to get previous and current offset, previous will be the starting and current will be the end index
 uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, const uint gridCellIndex)
