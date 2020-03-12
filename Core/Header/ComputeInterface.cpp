@@ -873,6 +873,26 @@ void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* de
 #endif
 }
 
+void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t sourceSlice, size_t sourceLevel, size_t sourceSize[3], size_t destinationOffset, size_t destinationBytesPerRow, size_t destinationBytesPerImage)
+{
+#ifdef USE_OPENCL_COMPUTE
+  logComputeError("Function copyTextureToBuffer not implemented for OpenCL");
+#else
+  [getBlitEncoder() copyFromTexture:*source
+                        sourceSlice:sourceSlice
+                        sourceLevel:sourceLevel
+                       sourceOrigin:MTLOriginMake(0, 0, 0)
+                         sourceSize:MTLSizeMake(sourceSize[0], sourceSize[1], sourceSize[2])
+                           toBuffer:*destination
+                  destinationOffset:(destinationOffset + destination->getOffset())
+             destinationBytesPerRow:destinationBytesPerRow
+           destinationBytesPerImage:destinationBytesPerImage];
+  #ifdef ALWAYS_END_ENCODERS
+    endEncoders();
+  #endif
+#endif
+}
+
 void ComputeInterface::setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
 {
 #ifdef USE_OPENCL_COMPUTE
@@ -1124,6 +1144,11 @@ void ComputeInterface::endCapture()
 #else
   logComputeError("End captured only defined for Metal");
 #endif
+}
+
+ComputeDeviceId ComputeInterface::getDevice()
+{
+  return deviceId;
 }
 
 #ifdef ENABLE_RENDERING

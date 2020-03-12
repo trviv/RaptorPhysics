@@ -250,11 +250,6 @@ if (APPLE)
 
   else (NOT CREATE_IOS_PROJECT)
     add_framework(AudioToolbox Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(AVFoundation Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(CoreAudio Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(CoreGraphics Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(CoreMotion Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(CoreBluetooth Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
     add_framework(GameController Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
     add_framework(OpenGLES Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
     add_framework(QuartzCore Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
@@ -262,6 +257,12 @@ if (APPLE)
     target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/SDL/iOS/SDL2/libSDL2.a")
 
   endif (NOT CREATE_IOS_PROJECT)
+
+  add_framework(AVFoundation Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+  add_framework(CoreVideo Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+  add_framework(CoreMedia Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+  add_framework(CoreGraphics Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+  add_framework(CoreMotion Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
 
 endif (APPLE)
 

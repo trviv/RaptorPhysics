@@ -24,7 +24,7 @@ static Clock physicsSystemClock;
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
   this->compute = compute;
-  this->displayGridBuffer = TextureFormat::TEXTURE_FORMAT_INT;
+  displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
   nodeCount = 0;
   instanceNodeCount = 0;
   availableEntityIds.clear();
@@ -32,6 +32,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   updates.clear();
   elapsedSimTime = 0.f;
   frameCount = 0;
+  displayBackgroundBuffer = Texture(TEXTURE_FORMAT_UBYTE);
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -478,12 +479,6 @@ void PhysicsSystem::createUnitCircle()
 
 void PhysicsSystem::render()
 {
-  GL_CHECK(glEnable(GL_DEPTH_TEST));
-  GL_CHECK(glDepthFunc(GL_LESS));
-  GL_CHECK(glDisable(GL_BLEND));
-  GL_CHECK(glFrontFace(GL_CW));
-  GL_CHECK(glCullFace(GL_BACK));
-
   displayParticleShader.bind();
   displayParticleShader.set("modelViewMatrix", this->modelMatrix);
   displayParticleShader.set("projectionMatrix", this->projectionMatrix);
@@ -513,6 +508,26 @@ void PhysicsSystem::render()
   displayGridShader.set("modelViewMatrix", this->modelMatrix);
   displayGridShader.set("projectionMatrix", this->projectionMatrix);
   displayGridShader.unbind();
+
+  if (cameraInterface && cameraInterface->isActive())
+  {
+    GL_CHECK(glDisable(GL_DEPTH_TEST));
+    GL_CHECK(glDisable(GL_BLEND));
+    GL_CHECK(glDisable(GL_CULL_FACE));
+
+    displayBackgroundShader.bind();
+    displayBackgroundBuffer.copy((float*)((ComputeMemoryIdentifier)(*cameraInterface->getCurrentFrame())).contents);
+    displayBackgroundVertex.bind();
+    displayBackgroundShader.activateTexture("backgroundTexture", 0, displayBackgroundBuffer);
+    GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 6));
+    displayBackgroundVertex.unbind();
+    displayBackgroundShader.unbind();
+  }
+
+  GL_CHECK(glEnable(GL_DEPTH_TEST));
+  GL_CHECK(glDepthFunc(GL_LESS));
+  GL_CHECK(glFrontFace(GL_CW));
+  GL_CHECK(glCullFace(GL_BACK));
 
   for (uint solver = 0; solver < SOLVER_MAX; solver++)
   {
@@ -786,6 +801,7 @@ void PhysicsSystem::step(float timeStep)
     displayBoxVertex.gen();
     displayFlatVertex.gen();
     displayLineVertex.gen();
+    displayBackgroundVertex.gen();
 
     displayParticleElements.gen();
     displayBoxElements.gen();
@@ -808,6 +824,12 @@ void PhysicsSystem::step(float timeStep)
       displayGridBuffer.gen();
     }
 
+    if (cameraInterface)
+    {
+      displayBackgroundBuffer.init(cameraInterface->width(), cameraInterface->height());
+      displayBackgroundBuffer.gen();
+    }
+
     clearColor[0] = 0.7f;
     clearColor[1] = 0.7f;
     clearColor[2] = 0.7f;
@@ -819,6 +841,7 @@ void PhysicsSystem::step(float timeStep)
     displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
     displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
     displayGridShader.init("GridVert.glsl", "GridFrag.glsl");
+    displayBackgroundShader.init("BGVert.glsl", "BGFrag.glsl");
 
     createSphere(1.f);
     displayParticleVertex.bind();
@@ -844,12 +867,29 @@ void PhysicsSystem::step(float timeStep)
     float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
     displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
 
+    float quad[] = {
+      -1.f, -1.f, 0.f, 1.f, 0.f, 0.f,
+      -1.f,  1.f, 0.f, 1.f, 0.f, 1.f,
+       1.f, -1.f, 0.f, 1.f, 1.f, 0.f,
+       1.f, -1.f, 0.f, 1.f, 1.f, 0.f,
+      -1.f,  1.f, 0.f, 1.f, 0.f, 1.f,
+       1.f,  1.f, 0.f, 1.f, 1.f, 1.f,
+    };
+    displayBackgroundVertex.copyData(quad, 6, 0, 6 * sizeof(float));
+    displayBackgroundVertex.bind();
+    displayBackgroundShader.bindLocation(0, "pos");
+    displayBackgroundShader.bindLocation(1, "inTexCoord");
+    GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
+    GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
+    displayBackgroundVertex.unbind();
+
     displayParticleShader.linkPrograms();
     displaySolidShader.linkPrograms();
     displayFlatShader.linkPrograms();
     displayBoxShader.linkPrograms();
     displayLineShader.linkPrograms();
     displayGridShader.linkPrograms();
+    displayBackgroundShader.linkPrograms();
 #endif
 
     indexMap.resize(instanceNodeCount, false);
@@ -905,4 +945,9 @@ void PhysicsSystem::setSystemBoundary(const XAB& bound)
 {
   systemSettings.host()->at(0).systemBound = bound;
   systemSettings.syncDevice();
+}
+
+void PhysicsSystem::setCameraInterface(CameraInterface *cameraInterface)
+{
+  this->cameraInterface = cameraInterface;
 }

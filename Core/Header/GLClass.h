@@ -22,8 +22,6 @@ static void CheckOpenGLError(const char* stmt, const char* fname, int line)
   CheckOpenGLError(" ", __FILE__, __LINE__); \
 } while (0)
 
-class Texture;
-
 class Shader
 {
 

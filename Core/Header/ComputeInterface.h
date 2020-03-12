@@ -37,6 +37,7 @@ typedef id<MTLLibrary>              ComputeProgramIdentifier;
 typedef id<MTLCommandQueue>         ComputeQueue;
 typedef id<MTLBuffer>               ComputeMemoryIdentifier;
 typedef uint                        ComputeStatus;
+typedef id<MTLTexture>              ComputeTexture;
 
 enum ComputeMemoryFlag
 {
@@ -211,6 +212,8 @@ public:
 
   void copyBuffer(const ComputeMemory* source, ComputeMemory* destination, size_t sourceOffset, size_t destinationOffset, size_t sizeInBytes);
 
+  void copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t sourceSlice, size_t sourceLevel, size_t sourceSize[3], size_t destinationOffset, size_t destinationBytesPerRow, size_t destinationBytesPerImage);
+
   void setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
 
   void copyToHost(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish);
@@ -237,6 +240,8 @@ public:
   void startCapture();
 
   void endCapture();
+
+  ComputeDeviceId getDevice();
 
 #ifdef ENABLE_RENDERING
 

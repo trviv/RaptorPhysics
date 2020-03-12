@@ -87,5 +87,9 @@
 			</dict>
 		</dict>
 	</array>
+  <key>NSCameraUsageDescription</key>
+	<string>App uses the camera to take photos and video.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>App uses the microphone to record sound during live photos and movies.</string>
 </dict>
 </plist>
