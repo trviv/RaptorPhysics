@@ -1,9 +1,0 @@
-float desiredFrameRate = 30.f;
-//  float desiredFrameRate = mCrop(ImGui::GetIO().Framerate, 10.f, 60.f);
-  float iters = (1000.f / desiredFrameRate) / simTime;
-  for (float i=0.f; i<iters; i++)
-  {
-//    std::cout << simTime << " " << iters << " " << (1000.f / desiredFrameRate) << "\n";
-//    std::cout << (1000.f / desiredFrameRate * iters) << "\n";
-    step(1.f / (1000.f / desiredFrameRate * iters));
-  }

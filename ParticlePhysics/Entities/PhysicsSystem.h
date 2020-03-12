@@ -46,6 +46,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@member uint solvers in the system.*/
   EntitySolver<uint, real, Real3>*    solversUint[SOLVER_MAX];
 
+  /*!@member Camera Interface.*/
+  CameraInterface*                cameraInterface;
+
   float elapsedSimTime;
   int   frameCount;
 
@@ -104,12 +107,14 @@ public:
   Texture displayCollisionBuffer;
   Texture displayBoxBuffer;
   Texture displayGridBuffer;
+  Texture displayBackgroundBuffer;
 
   Vertex  displayParticleVertex;
   Vertex  displaySolidVertex;
   Vertex  displayFlatVertex;
   Vertex  displayBoxVertex;
   Vertex  displayLineVertex;
+  Vertex  displayBackgroundVertex;
 
   Shader  displayParticleShader;
   Shader  displaySolidShader;
@@ -117,6 +122,7 @@ public:
   Shader  displayBoxShader;
   Shader  displayGridShader;
   Shader  displayLineShader;
+  Shader  displayBackgroundShader;
 
   Face    displayParticleElements;
   Face    displayBoxElements;
@@ -140,6 +146,9 @@ public:
 
   /*!@function Set system bounding box of the system.*/
   void setSystemBoundary(const XAB& bound);
+
+  /*!@function Set camera interface for  the system.*/
+  void setCameraInterface(CameraInterface* cameraInterface);
 };
 
 #endif

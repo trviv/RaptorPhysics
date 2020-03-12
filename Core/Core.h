@@ -18,4 +18,6 @@
 #include "Vector/Real3.h"
 #include "Vector/Matrix.h"
 
+#include "Device/CameraInterface.h"
+
 #endif

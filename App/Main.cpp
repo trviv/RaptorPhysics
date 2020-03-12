@@ -5,6 +5,7 @@
 
 static ComputeInterface* compute;
 static PhysicsSystem* physicsSystem;
+static CameraInterface* cameraInterface;
 
 int main(int argc, char** argv)
 {
@@ -33,6 +34,11 @@ int main(int argc, char** argv)
   physicsSystem->setGravity(physicsSystem->getParamAsFloat3("gravity"));
 
   physicsSystem->setSystemBoundary(systemBound);
+
+  cameraInterface = new CameraInterface(compute);
+  cameraInterface->startSession();
+
+  physicsSystem->setCameraInterface(cameraInterface);
 
   vector<Matrix4> matrixTransforms;
 
@@ -84,8 +90,8 @@ int main(int argc, char** argv)
     {
       Matrix4 matrix;
       float randx = r * 1.5 - rigidEntities * 0.5f;
-      float randy = 1 + 1.2 * i;
-      float randz = -5;
+      float randy = 4 + 1.2 * i;
+      float randz = 2;
 
       matrix.set(Matrix3::getIdentity(), Real3(randx * rigidSimSize, randy * rigidSimSize, randz * rigidSimSize));
 //      Matrix mat;
@@ -104,7 +110,7 @@ int main(int argc, char** argv)
 
     matrixTransforms.clear();
 
-    fluid->initFluid(fluidDim, .04, 1, 0.12f);
+    fluid->initFluid(fluidDim, .04, 1, 0.22f);
 
     for (int i = 0; i < fluidInstances; i++)
     {
@@ -128,6 +134,7 @@ int main(int argc, char** argv)
 
   delete physicsSystem;
   delete compute;
+  delete cameraInterface;
 
   return 0;
 }
