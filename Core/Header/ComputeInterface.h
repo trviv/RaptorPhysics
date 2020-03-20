@@ -37,7 +37,7 @@ typedef id<MTLLibrary>              ComputeProgramIdentifier;
 typedef id<MTLCommandQueue>         ComputeQueue;
 typedef id<MTLBuffer>               ComputeMemoryIdentifier;
 typedef uint                        ComputeStatus;
-typedef id<MTLTexture>              ComputeTexture;
+typedef id<MTLTexture>              ComputeTextureIdentifier;
 
 enum ComputeMemoryFlag
 {
@@ -96,6 +96,29 @@ public:
   size_t getSize()const;
 
   operator const ComputeMemoryIdentifier()const
+  {
+    return ref;
+  }
+};
+
+
+class ComputeTexture
+{
+  ComputeTextureIdentifier ref;
+  uint size[2];
+  uint bytesPerPixel;
+
+public:
+
+  ComputeTexture();
+
+  ComputeTexture(ComputeTextureIdentifier ref, uint size[2], uint bytesPerPixel);
+
+  uint getBytesPerPixel()const;
+
+  const uint* getSize()const;
+
+  operator const ComputeTextureIdentifier()const
   {
     return ref;
   }
@@ -212,7 +235,11 @@ public:
 
   void copyBuffer(const ComputeMemory* source, ComputeMemory* destination, size_t sourceOffset, size_t destinationOffset, size_t sizeInBytes);
 
-  void copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t sourceSlice, size_t sourceLevel, size_t sourceSize[3], size_t destinationOffset, size_t destinationBytesPerRow, size_t destinationBytesPerImage);
+  void copyTexture(const ComputeTexture* source, ComputeTexture* destination);
+
+  void copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t destinationOffset = 0, size_t sourceSlice = 0, size_t sourceLevel = 0);
+
+  void copyBufferToTexture(const ComputeMemory* source, ComputeTexture* destination, size_t sourceOffset = 0, size_t destinationSlice = 0, size_t destinationLevel = 0);
 
   void setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
 
@@ -229,7 +256,7 @@ public:
 
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
 
-  void sync();
+  void sync(bool waitOnFinish = true);
 
   uint simdSize()const;
 

@@ -6,6 +6,7 @@
 #include "Header/Clock.h"
 #include "Header/Profiler.h"
 #include "Header/ComputeInterface.h"
+#include "Header/ComputeGraphicsSharedTexture.h"
 #include "Header/DeviceArray.h"
 #include "Header/ShaderEntity.h"
 #include "Header/ComputeShared.h"

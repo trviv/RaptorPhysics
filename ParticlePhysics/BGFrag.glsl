@@ -5,5 +5,5 @@ uniform sampler2D backgroundTexture;
 
 void main()
 {
-  col = texture(backgroundTexture, texCoord).zyxw;
+  col = texture(backgroundTexture, texCoord);
 }

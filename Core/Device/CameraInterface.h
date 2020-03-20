@@ -24,7 +24,7 @@ public:
 
   uint bytesPerPixel()const;
 
-  const ComputeMemory* getCurrentFrame()const;
+  const ComputeTexture* getCurrentFrame()const;
 };
 
 #endif

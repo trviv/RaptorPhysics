@@ -24,7 +24,6 @@ static void CheckOpenGLError(const char* stmt, const char* fname, int line)
 
 class Shader
 {
-
   GLuint program;
   GLuint vertex_shader;
   GLuint fragment_shader;
@@ -67,8 +66,9 @@ public:
 
 class GLObject
 {
-
 protected:
+  GLenum bindType;
+
   GLuint index;
 
   void bindTex(GLuint tex)const;
@@ -95,6 +95,10 @@ public:
   virtual void gen() = 0;
 
   virtual void free();
+
+  void set(GLuint index);
+
+  void setBindType(GLenum bindType);
 };
 
 class Frame : public GLObject
@@ -129,6 +133,7 @@ public:
 
 enum TextureFormat
 {
+  TEXTURE_FORMAT_HALF = GL_HALF_FLOAT,
   TEXTURE_FORMAT_FLOAT = GL_FLOAT,
   TEXTURE_FORMAT_INT = GL_INT,
   TEXTURE_FORMAT_UBYTE = GL_UNSIGNED_BYTE
@@ -144,6 +149,7 @@ public:
   {
     COLOR_BUFFER,
     COLOR_BUFFER_FLOAT,
+    COLOR_BUFFER_HALF,
     DEPTH_BUFFER,
     COLOR_BUFFER_UCHAR
   };
