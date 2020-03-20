@@ -32,7 +32,6 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   updates.clear();
   elapsedSimTime = 0.f;
   frameCount = 0;
-  displayBackgroundBuffer = Texture(TEXTURE_FORMAT_UBYTE);
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -305,7 +304,7 @@ void PhysicsSystem::step()
   }
 #endif
 
-  compute->sync();
+  compute->sync(false);
 
   elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
   elapsedRenderTime += renderTime;
@@ -511,17 +510,25 @@ void PhysicsSystem::render()
 
   if (cameraInterface && cameraInterface->isActive())
   {
-    GL_CHECK(glDisable(GL_DEPTH_TEST));
-    GL_CHECK(glDisable(GL_BLEND));
-    GL_CHECK(glDisable(GL_CULL_FACE));
+    if (displayBackgroundBuffer.getComputeTexture() == NULL)
+    {
+      displayBackgroundBuffer = createSharedTexture(compute, (uint[2]){cameraInterface->width(), cameraInterface->height()}, SHARED_TEXTURE_FORMAT_UINT8x4);
+    }
 
-    displayBackgroundShader.bind();
-    displayBackgroundBuffer.copy((float*)((ComputeMemoryIdentifier)(*cameraInterface->getCurrentFrame())).contents);
-    displayBackgroundVertex.bind();
-    displayBackgroundShader.activateTexture("backgroundTexture", 0, displayBackgroundBuffer);
-    GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 6));
-    displayBackgroundVertex.unbind();
-    displayBackgroundShader.unbind();
+    if (cameraInterface->getCurrentFrame())
+    {
+      GL_CHECK(glDisable(GL_DEPTH_TEST));
+      GL_CHECK(glDisable(GL_BLEND));
+      GL_CHECK(glDisable(GL_CULL_FACE));
+
+      displayBackgroundShader.bind();
+      compute->copyTexture(cameraInterface->getCurrentFrame(), &displayBackgroundBuffer.getComputeTexture());
+      displayBackgroundVertex.bind();
+      displayBackgroundShader.activateTexture("backgroundTexture", 0, displayBackgroundBuffer.getGraphicsTexture());
+      GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 6));
+      displayBackgroundVertex.unbind();
+      displayBackgroundShader.unbind();
+    }
   }
 
   GL_CHECK(glEnable(GL_DEPTH_TEST));
@@ -822,12 +829,6 @@ void PhysicsSystem::step(float timeStep)
 
       displayGridBuffer.init(textureWidth, textureHeight);
       displayGridBuffer.gen();
-    }
-
-    if (cameraInterface)
-    {
-      displayBackgroundBuffer.init(cameraInterface->width(), cameraInterface->height());
-      displayBackgroundBuffer.gen();
     }
 
     clearColor[0] = 0.7f;

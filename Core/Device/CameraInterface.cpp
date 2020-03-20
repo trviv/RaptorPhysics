@@ -26,8 +26,8 @@ uint staticHeight         = 0;
 uint staticBytesPerPixel  = 0;
 
 #define MAX_INFLIGHT_COMMAND_BUFFERS 3
-ComputeTexture staticMetalTextures[MAX_INFLIGHT_COMMAND_BUFFERS];
-ComputeMemory* staticMetalBuffer      = NULL;
+ComputeTextureIdentifier staticMetalTextures[MAX_INFLIGHT_COMMAND_BUFFERS];
+ComputeTexture staticMetalTexture;
 uint staticMetalTextureIndex;
 
 CameraInterface::CameraInterface(ComputeInterface* compute)
@@ -60,14 +60,13 @@ CameraInterface::~CameraInterface()
   staticMetalTextureIndex = (staticMetalTextureIndex + 1) % MAX_INFLIGHT_COMMAND_BUFFERS;
 
   CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+
+  CVPixelBufferLockBaseAddress(pixelBuffer, 0);
   staticWidth = (uint)CVPixelBufferGetWidth(pixelBuffer);
   staticHeight = (uint)CVPixelBufferGetHeight(pixelBuffer);
 
-  if (staticMetalBuffer == NULL) {
-    staticMetalBuffer = staticCompute->heap.alloc(staticWidth * staticHeight * staticBytesPerPixel);
-  }
-
   CVMetalTextureRef textureRef;
+
   CVReturn error = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, staticMetalTextureCache, pixelBuffer, NULL, MTLPixelFormatRGBA8Uint, staticWidth, staticHeight, 0, &textureRef);
 
   if (error)
@@ -82,6 +81,7 @@ CameraInterface::~CameraInterface()
   }
 
   CVBufferRelease(textureRef);
+  CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 }
 
 @end
@@ -227,6 +227,13 @@ void CameraInterface::startSession()
   {
     [staticSession addOutput:staticVideoDataOutput];
     [staticVideoDataOutput setAlwaysDiscardsLateVideoFrames:YES];
+
+    logComputeMessage("Supported camera video formats:");
+    for (const NSNumber* format : [staticVideoDataOutput availableVideoCVPixelFormatTypes])
+    {
+      logComputeMessage("%c%c%c%c %d", (format.intValue>>24)&255, (format.intValue>>16)&255, (format.intValue>>8)&255, format.intValue&255, format.intValue);
+    }
+
     [staticVideoDataOutput setVideoSettings:[NSDictionary dictionaryWithObjects:@[[NSNumber numberWithInt:kCVPixelFormatType_32BGRA], @YES]
                                                                         forKeys:@[(id)kCVPixelBufferPixelFormatTypeKey, (id)kCVPixelBufferMetalCompatibilityKey]]];
     [staticVideoDataOutput setSampleBufferDelegate:[[SampleBufferDeligate alloc] init] queue:staticSessionQueue];
@@ -246,7 +253,7 @@ void CameraInterface::startSession()
 
 bool CameraInterface::isActive()const
 {
-  return staticCameraSetupResult == AVCamSetupResultSuccess && staticMetalBuffer != NULL;
+  return staticCameraSetupResult == AVCamSetupResultSuccess && staticWidth != 0;
 }
 
 uint CameraInterface::width()const
@@ -264,17 +271,13 @@ uint CameraInterface::bytesPerPixel()const
   return staticBytesPerPixel;
 }
 
-const ComputeMemory* CameraInterface::getCurrentFrame()const
+const ComputeTexture* CameraInterface::getCurrentFrame()const
 {
   if (!isActive())
     return NULL;
 
-  size_t textureSize[3] = {staticWidth, staticHeight, 1};
-  size_t sizePerFrame = staticWidth * staticHeight * staticBytesPerPixel;
-
-  staticCompute->copyTextureToBuffer(&staticMetalTextures[staticMetalTextureIndex], staticMetalBuffer, 0, 0, textureSize, 0, staticWidth * 4, sizePerFrame);
-
-  return staticMetalBuffer;
+  staticMetalTexture = ComputeTexture(staticMetalTextures[staticMetalTextureIndex], (uint[2]){staticWidth, staticHeight}, staticBytesPerPixel);
+  return &staticMetalTexture;
 }
 
 #endif

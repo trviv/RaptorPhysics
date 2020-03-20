@@ -5,6 +5,7 @@
 #include "UIElements.h"
 #include "Animator.h"
 #include "ParameterReader.h"
+#include "ComputeGraphicsSharedTexture.h"
 
 class Window : public ParameterReader
 {
@@ -87,6 +88,8 @@ public:
 
   virtual void render() {};
   virtual void step() {};
+
+  ComputeGraphicsSharedTexture createSharedTexture(ComputeInterface* compute, uint textureSize[2], SharedTextureFormat textureFormat);
 };
 
 extern Window *main_window;

@@ -107,7 +107,7 @@ public:
   Texture displayCollisionBuffer;
   Texture displayBoxBuffer;
   Texture displayGridBuffer;
-  Texture displayBackgroundBuffer;
+  ComputeGraphicsSharedTexture displayBackgroundBuffer;
 
   Vertex  displayParticleVertex;
   Vertex  displaySolidVertex;

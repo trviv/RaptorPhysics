@@ -17,7 +17,7 @@ void GLObject::free()
 
 void GLObject::bindTex(GLuint tex)const
 {
-  GL_CHECK(glBindTexture(GL_TEXTURE_2D, tex));
+  GL_CHECK(glBindTexture(bindType, tex));
 }
 
 void GLObject::bindFBO(GLuint fbo)const
@@ -43,6 +43,16 @@ void GLObject::bindElemBuf(GLuint buf)const
 GLuint GLObject::get()const
 {
   return index;
+}
+
+void GLObject::set(GLuint index)
+{
+  this->index = index;
+}
+
+void GLObject::setBindType(GLenum bindType)
+{
+  this->bindType = bindType;
 }
 
 Vertex::Vertex()
@@ -165,6 +175,8 @@ GLint getInternalFormatForTexture(TextureFormat format)
       return GL_RGBA32I;
     case TEXTURE_FORMAT_UBYTE:
       return GL_RGBA8;
+    case TEXTURE_FORMAT_HALF:
+      return GL_RGBA16F;
   }
   return 0;
 }
@@ -179,17 +191,21 @@ GLint getFormatForTexture(TextureFormat format)
       return GL_RGBA_INTEGER;
     case TEXTURE_FORMAT_UBYTE:
       return GL_RGBA;
+    case TEXTURE_FORMAT_HALF:
+      return GL_RGBA;
   }
   return 0;
 }
 
 Texture::Texture(TextureFormat format):format(format)
 {
+  bindType = GL_TEXTURE_2D;
 }
 
 Texture::Texture(int w, int h)
 {
   init(w, h);
+  bindType = GL_TEXTURE_2D;
 }
 
 void Texture::init(int w, int h)
@@ -229,19 +245,28 @@ void Texture::gen(float buffer[], TextureGen type)
   {
     case COLOR_BUFFER:
     {
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
+    }
+      break;
+    case COLOR_BUFFER_HALF:
+    {
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameterf(bindType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameterf(bindType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
       GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
     }
       break;
     case COLOR_BUFFER_FLOAT:
     {
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-      GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-      GL_CHECK(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameteri(bindType, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+      GL_CHECK(glTexParameterf(bindType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CHECK(glTexParameterf(bindType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
       GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, getInternalFormatForTexture(format), w, h, 0, getFormatForTexture(format), format, buffer));
     }
       break;
@@ -293,15 +318,15 @@ void Texture::copy(float image[], GLint x_off, GLint y_off, GLsizei length)const
   bind();
   if (length > width())
   {
-    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, this->width(), length / this->width(), getFormatForTexture(format), format, image));
+    GL_CHECK(glTexSubImage2D(bindType, 0, x_off, y_off, this->width(), length / this->width(), getFormatForTexture(format), format, image));
     if (length & (this->width() - 1))
     {
-      GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, getFormatForTexture(format), format, image + 4 * this->width() * (length / this->width()) ));
+      GL_CHECK(glTexSubImage2D(bindType, 0, x_off, y_off + length / this->width(), length & (this->width() - 1), 1, getFormatForTexture(format), format, image + 4 * this->width() * (length / this->width()) ));
     }
   }
   else
   {
-    GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, length, 1, getFormatForTexture(format), format, image));
+    GL_CHECK(glTexSubImage2D(bindType, 0, x_off, y_off, length, 1, getFormatForTexture(format), format, image));
   }
   unbind();
 }

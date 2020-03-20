@@ -324,6 +324,31 @@ size_t ComputeMemory::getSize()const
   return size;
 }
 
+ComputeTexture::ComputeTexture()
+{
+  ref = NULL;
+  bytesPerPixel = 0;
+  size[0] = 0;
+  size[1] = 0;
+}
+
+ComputeTexture::ComputeTexture(ComputeTextureIdentifier ref, uint size[2], uint bytesPerPixel)
+{
+  this->ref = ref;
+  this->bytesPerPixel = bytesPerPixel;
+  this->size[0] = size[0];
+  this->size[1] = size[1];
+}
+
+uint ComputeTexture::getBytesPerPixel()const
+{
+  return bytesPerPixel;
+}
+
+const uint* ComputeTexture::getSize()const
+{
+  return size;
+}
 
 ComputeHeap::ComputeHeap(ComputeInterface* compute, bool bypass)
   : bypass(bypass), heap(NULL), compute(compute)
@@ -873,7 +898,7 @@ void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* de
 #endif
 }
 
-void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t sourceSlice, size_t sourceLevel, size_t sourceSize[3], size_t destinationOffset, size_t destinationBytesPerRow, size_t destinationBytesPerImage)
+void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, ComputeMemory* destination, size_t destinationOffset, size_t sourceSlice, size_t sourceLevel)
 {
 #ifdef USE_OPENCL_COMPUTE
   logComputeError("Function copyTextureToBuffer not implemented for OpenCL");
@@ -882,14 +907,46 @@ void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, Compute
                         sourceSlice:sourceSlice
                         sourceLevel:sourceLevel
                        sourceOrigin:MTLOriginMake(0, 0, 0)
-                         sourceSize:MTLSizeMake(sourceSize[0], sourceSize[1], sourceSize[2])
+                         sourceSize:MTLSizeMake(source->getSize()[0], source->getSize()[1], 1)
                            toBuffer:*destination
                   destinationOffset:(destinationOffset + destination->getOffset())
-             destinationBytesPerRow:destinationBytesPerRow
-           destinationBytesPerImage:destinationBytesPerImage];
-  #ifdef ALWAYS_END_ENCODERS
-    endEncoders();
-  #endif
+             destinationBytesPerRow:source->getSize()[0] * source->getBytesPerPixel()
+           destinationBytesPerImage:source->getSize()[0] * source->getSize()[1] * source->getBytesPerPixel()];
+#ifdef ALWAYS_END_ENCODERS
+  endEncoders();
+#endif
+#endif
+}
+
+void ComputeInterface::copyBufferToTexture(const ComputeMemory* source, ComputeTexture* destination, size_t sourceOffset, size_t destinationSlice, size_t destinationLevel)
+{
+#ifdef USE_OPENCL_COMPUTE
+  logComputeError("Function copyTextureToBuffer not implemented for OpenCL");
+#else
+  [getBlitEncoder() copyFromBuffer:*source
+                      sourceOffset:sourceOffset
+                 sourceBytesPerRow:destination->getSize()[0] * destination->getBytesPerPixel()
+               sourceBytesPerImage:destination->getSize()[0] * destination->getSize()[1] * destination->getBytesPerPixel()
+                        sourceSize:MTLSizeMake(destination->getSize()[0], destination->getSize()[1], 1)
+                         toTexture:*destination
+                  destinationSlice:destinationSlice
+                  destinationLevel:destinationLevel
+                 destinationOrigin:MTLOriginMake(0, 0, 0)];
+#ifdef ALWAYS_END_ENCODERS
+  endEncoders();
+#endif
+#endif
+}
+
+void ComputeInterface::copyTexture(const ComputeTexture* source, ComputeTexture* destination)
+{
+#ifdef USE_OPENCL_COMPUTE
+  logComputeError("Function copyTexture not implemented for OpenCL");
+#else
+  [getBlitEncoder() copyFromTexture:*source toTexture:*destination];
+#ifdef ALWAYS_END_ENCODERS
+  endEncoders();
+#endif
 #endif
 }
 
@@ -1073,17 +1130,27 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
 #endif
 }
 
-void ComputeInterface::sync()
+void ComputeInterface::sync(bool waitOnFinish)
 {
 #ifdef USE_OPENCL_COMPUTE
-  ComputeStatus status = clFinish(queue);
+  if (waitOnFinish)
+  {
+    ComputeStatus status = clFinish(queue);
+  }
+  else
+  {
+    ComputeStatus status = clFlush(queue);
+  }
   computeCheckError(status, 0);
 #else
   endEncoders();
   if (currentCommandBuffer)
   {
     [currentCommandBuffer commit];
-    [currentCommandBuffer waitUntilCompleted];
+    if (waitOnFinish)
+    {
+      [currentCommandBuffer waitUntilCompleted];
+    }
     currentCommandBuffer = nil;
   }
 #endif
