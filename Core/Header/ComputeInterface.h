@@ -57,6 +57,7 @@ typedef cl_program        ComputeProgramIdentifier;
 typedef cl_command_queue  ComputeQueue;
 typedef cl_mem            ComputeMemoryIdentifier;
 typedef cl_int            ComputeStatus;
+typedef cl_mem            ComputeTextureIdentifier;
 
 enum ComputeMemoryFlag
 {
