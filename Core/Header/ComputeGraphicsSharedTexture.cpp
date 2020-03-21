@@ -46,7 +46,7 @@ TextureFormat getGraphicsTextureFormat(SharedTextureFormat pixelFormat)
   return TEXTURE_FORMAT_UBYTE;
 }
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(USE_METAL_COMPUTE)
 
 // Table of equivalent formats across CoreVideo, Metal and OpenGL
 static const MetalOpenGLTextureFormatInfo AppleTextureFormatTable[] =
@@ -193,8 +193,6 @@ ComputeGraphicsSharedTexture::ComputeGraphicsSharedTexture(ComputeInterface* com
   computeRef = ComputeTexture(textureIdentifier, (uint[2]){size[0], size[1]}, getBytesPerPixel(textureFormat));
 }
 
-#endif
-
 ComputeTexture& ComputeGraphicsSharedTexture::getComputeTexture()
 {
   return computeRef;
@@ -204,3 +202,25 @@ Texture& ComputeGraphicsSharedTexture::getGraphicsTexture()
 {
   return graphicsRef;
 }
+
+#else
+
+ComputeGraphicsSharedTexture::ComputeGraphicsSharedTexture():compute(NULL)
+{}
+
+ComputeGraphicsSharedTexture::ComputeGraphicsSharedTexture(ComputeInterface* compute, GLContext* glContext, SharedTextureFormat textureFormat, uint size[2])
+{}
+
+ComputeTexture& ComputeGraphicsSharedTexture::getComputeTexture()
+{
+  logComputeError("ComputeGraphicsSharedTexture is not supported with OpenCL");
+  return computeRef;
+}
+
+Texture& ComputeGraphicsSharedTexture::getGraphicsTexture()
+{
+  logComputeError("ComputeGraphicsSharedTexture is not supported with OpenCL");
+  return graphicsRef;
+}
+
+#endif

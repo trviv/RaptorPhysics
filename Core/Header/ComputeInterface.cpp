@@ -1133,13 +1133,14 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
 void ComputeInterface::sync(bool waitOnFinish)
 {
 #ifdef USE_OPENCL_COMPUTE
+  ComputeStatus status;
   if (waitOnFinish)
   {
-    ComputeStatus status = clFinish(queue);
+    status = clFinish(queue);
   }
   else
   {
-    ComputeStatus status = clFlush(queue);
+    status = clFlush(queue);
   }
   computeCheckError(status, 0);
 #else

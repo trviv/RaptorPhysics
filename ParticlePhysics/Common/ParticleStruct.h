@@ -461,7 +461,7 @@ struct CollisionSharedData_t
   uint sharedCollisionCount;
 };
 
-typedef CollisionSharedData_t CollisionSharedData;
+typedef struct CollisionSharedData_t CollisionSharedData;
 
 
 struct FluidDensitySharedData_t
@@ -472,7 +472,7 @@ struct FluidDensitySharedData_t
   uint sharedLocalIndex;
 };
 
-typedef FluidDensitySharedData_t FluidDensitySharedData;
+typedef struct FluidDensitySharedData_t FluidDensitySharedData;
 
 #pragma pack(pop)
 

@@ -1,6 +1,11 @@
 #include "CameraInterface.h"
 
-#ifdef __APPLE__
+// camera output config realted static objects
+uint staticWidth          = 0;
+uint staticHeight         = 0;
+uint staticBytesPerPixel  = 0;
+
+#if defined(__APPLE__) && defined(USE_METAL_COMPUTE)
 
 #import <AVKit/AVKit.h>
 
@@ -19,11 +24,6 @@ AVCaptureDeviceInput        *staticDeviceInput        = NULL;
 CVMetalTextureCacheRef      staticMetalTextureCache   = NULL;
 dispatch_queue_t            staticSessionQueue;
 ComputeInterface*           staticCompute = NULL;
-
-// camera output config realted static objects
-uint staticWidth          = 0;
-uint staticHeight         = 0;
-uint staticBytesPerPixel  = 0;
 
 #define MAX_INFLIGHT_COMMAND_BUFFERS 3
 ComputeTextureIdentifier staticMetalTextures[MAX_INFLIGHT_COMMAND_BUFFERS];
@@ -256,6 +256,41 @@ bool CameraInterface::isActive()const
   return staticCameraSetupResult == AVCamSetupResultSuccess && staticWidth != 0;
 }
 
+const ComputeTexture* CameraInterface::getCurrentFrame()const
+{
+  if (!isActive())
+    return NULL;
+
+  staticMetalTexture = ComputeTexture(staticMetalTextures[staticMetalTextureIndex], (uint[2]){staticWidth, staticHeight}, staticBytesPerPixel);
+  return &staticMetalTexture;
+}
+
+#else
+
+CameraInterface::CameraInterface(ComputeInterface* compute)
+{
+  logComputeError("CameraInterface is not supported with OpenCL");
+}
+
+CameraInterface::~CameraInterface()
+{}
+
+// Call this on the session queue.
+void CameraInterface::startSession()
+{}
+
+const ComputeTexture* CameraInterface::getCurrentFrame()const
+{
+  return NULL;
+}
+
+bool CameraInterface::isActive()const
+{
+  return false;
+}
+
+#endif
+
 uint CameraInterface::width()const
 {
   return staticWidth;
@@ -270,14 +305,3 @@ uint CameraInterface::bytesPerPixel()const
 {
   return staticBytesPerPixel;
 }
-
-const ComputeTexture* CameraInterface::getCurrentFrame()const
-{
-  if (!isActive())
-    return NULL;
-
-  staticMetalTexture = ComputeTexture(staticMetalTextures[staticMetalTextureIndex], (uint[2]){staticWidth, staticHeight}, staticBytesPerPixel);
-  return &staticMetalTexture;
-}
-
-#endif
