@@ -102,10 +102,9 @@ public:
 
 #ifdef ENABLE_RENDERING
 
-  Texture displayPositionBuffer;
-  Texture displayColorBuffer;
-  Texture displayCollisionBuffer;
-  Texture displayBoxBuffer;
+  Buffer  displayPositionBuffer;
+  Buffer  displayCollisionBuffer;
+  Buffer  displayBoxBuffer;
   Texture displayGridBuffer;
   ComputeGraphicsSharedTexture displayBackgroundBuffer;
 

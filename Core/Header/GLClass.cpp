@@ -88,7 +88,7 @@ void Vertex::make(float w, float h)
     -w, -h, 0, 0, 0, -w, h, 0, 0, 1, w, h, 0, 1, 1
   };
 
-  copyData(vertex, 6, 0, 5 * SIZEOF_FLOAT);
+  copyData(vertex, 6, 0, 5 * sizeof(float));
 }
 
 void Vertex::copyData(float vertex[], GLsizei vertex_count, int vertex_width, int vertex_stride)
@@ -122,7 +122,46 @@ int Vertex::count()const
 
 void Vertex::attrib(int var_location)
 {
-  //gl.glVertexAttribPointer(var_location, vertex_width, GL.GL_FLOAT, false, 0, 0L);
+}
+
+Buffer::Buffer()
+{}
+
+void Buffer::bind()const
+{
+  GL_CHECK(bindBuf(index));
+}
+
+void Buffer::unbind()const
+{
+  GL_CHECK(bindBuf(0));
+}
+
+void Buffer::free()
+{
+  if (index != -1)
+  {
+    GL_CHECK(glDeleteBuffers(1, &index));
+    index = -1;
+  }
+}
+
+void Buffer::copyData(float data[], GLsizei size)
+{
+  this->size = size;
+  bind();
+  GL_CHECK(glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW));
+  unbind();
+}
+
+void Buffer::gen()
+{
+  GL_CHECK(glGenBuffers(1, &index));
+}
+
+int Buffer::sizeInBytes()const
+{
+  return size;
 }
 
 Face::Face()
@@ -408,21 +447,20 @@ void Frame::free()
 
 Renderer::Renderer()
 {
-  /*
-  GL_CHECK(glEnable(GL_DEPTH_TEST));
-  GL_CHECK(glEnable(GL_LIGHTING));
-  GL_CHECK(glEnable(GL_TEXTURE_2D));
-  GL_CHECK(glDisable(GL_CULL_FACE));
-  GL_CHECK(glEnable(GL_BLEND));
-  GL_CHECK(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-  */
 }
 
-void Renderer::bind()const
+void Renderer::bind(float clearColor[4])const
 {
   fbo.bind();
   GL_CHECK(glViewport(0, 0, w, h));
-  GL_CHECK(glClearColor(0, 0, 0, 0));
+  if (!clearColor)
+  {
+    GL_CHECK(glClearColor(0, 0, 0, 0));
+  }
+  else
+  {
+    GL_CHECK(glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]));
+  }
   GL_CHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 }
 
@@ -435,8 +473,8 @@ void Renderer::init(GLsizei w, GLsizei h)
 {
   this->w = w;
   this->h = h;
-  tex.init(w, h);
-  tex.gen();
+  color.init(w, h);
+  color.gen();
   //depth.init(w,h);
   //depth.gen(NULL,Texture::DEPTH_BUFFER);
   fbo.gen();
@@ -449,7 +487,7 @@ void Renderer::init(GLsizei w, GLsizei h)
   rbo.unbind();
 
   fbo.bind();
-  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.get(), 0));
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color.get(), 0));
   //GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth.get(), 0));
   GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo.get()));
   //check for completeness
@@ -460,12 +498,91 @@ void Renderer::init(GLsizei w, GLsizei h)
 
 void Renderer::free()
 {
-  tex.free();
+  color.free();
   fbo.free();
   rbo.free();
 }
 
 Renderer::~Renderer()
+{
+  free();
+}
+
+DeferredRenderer::DeferredRenderer()
+{
+}
+
+void DeferredRenderer::bind(float clearColor[4])const
+{
+  fbo.bind();
+  GL_CHECK(glViewport(0, 0, w, h));
+  if (!clearColor)
+  {
+    GL_CHECK(glClearColor(0, 0, 0, 0));
+  }
+  else
+  {
+    GL_CHECK(glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]));
+  }
+  GL_CHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+}
+
+void DeferredRenderer::unbind()const
+{
+  fbo.unbind();
+}
+
+void DeferredRenderer::init(GLsizei w, GLsizei h)
+{
+  this->w = w;
+  this->h = h;
+  position.init(w, h);
+  normal.init(w, h);
+  diffuse.init(w, h);
+  specular.init(w, h);
+  depth.init(w, h);
+
+  fbo.gen();
+  rbo.gen();
+
+  position.gen(NULL, Texture::COLOR_BUFFER_FLOAT);
+  normal.gen(NULL, Texture::COLOR_BUFFER_FLOAT);
+  diffuse.gen(NULL, Texture::COLOR_BUFFER_HALF);
+  specular.gen(NULL, Texture::COLOR_BUFFER_HALF);
+  depth.gen(NULL, Texture::DEPTH_BUFFER);
+
+  //then create a render buffer
+  rbo.bind();
+
+  //ask for a depth buffer and sets the size
+//  GL_CHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, w, h));
+  rbo.unbind();
+
+  fbo.bind();
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, position.get(), 0));
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal.get(), 0));
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, diffuse.get(), 0));
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, specular.get(), 0));
+  GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth.get(), 0));
+//  GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo.get()));
+
+  //check for completeness
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    std::cerr << "Init FBO: rendering to texture could not be initialised." << std::endl;
+  fbo.unbind();
+}
+
+void DeferredRenderer::free()
+{
+  position.free();
+  normal.free();
+  diffuse.free();
+  specular.free();
+  fbo.free();
+  rbo.free();
+}
+
+DeferredRenderer::~DeferredRenderer()
 {
   free();
 }
@@ -494,7 +611,7 @@ int loadShader(const char* filename, GLchar** shader_source, GLint* len)
   *len = (uint)data.size();
   memcpy(*shader_source, data.c_str(), *len);
 
-  return 0; // No Error
+  return 0;
 }
 
 void unloadShader(GLchar** ShaderSource)

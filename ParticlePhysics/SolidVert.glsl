@@ -1,5 +1,5 @@
-in vec3 position;
-in vec4 particleData;
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec4 particleData;
 
 uniform float fillShader;
 

@@ -1,22 +1,19 @@
+layout (location = 0) in vec4 particlePos;
+layout (location = 1) in vec4 particleCollData;
+
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 
-uniform sampler2D particlePos;
-uniform sampler2D particleCollData;
-
 out vec4 col;
-
-#define texureWidth     128
-#define texureWidthExp  7
 
 void main()
 {
-  vec4 pos = texelFetch(particlePos, ivec2(gl_InstanceID & (texureWidth - 1), gl_InstanceID >> texureWidthExp), 0);
+  vec4 pos = particlePos;
   col = vec4(1.f, 0.f, 0.f, 1.f);
 
   if (gl_VertexID>0)
   {
-    vec4 particleData = texelFetch(particleCollData, ivec2(gl_InstanceID & (texureWidth - 1), gl_InstanceID >> texureWidthExp), 0);
+    vec4 particleData = particleCollData;
     int encodedTransformedGradient = floatBitsToInt(particleData.x);
     ivec3 magnitude = ivec3(encodedTransformedGradient, encodedTransformedGradient >> 10, encodedTransformedGradient >> 20) & 0x3FF;
     magnitude.x |= (magnitude.x & 0x200) > 0 ? 0xFFFFFC00 : 0;

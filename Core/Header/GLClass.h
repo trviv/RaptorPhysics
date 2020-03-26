@@ -3,10 +3,6 @@
 
 #include "IOInterface.h"
 
-const int SIZEOF_INT = sizeof(int);
-const int SIZEOF_FLOAT = sizeof(float);
-const int SIZEOF_BYTE = sizeof(unsigned char);
-
 static void CheckOpenGLError(const char* stmt, const char* fname, int line)
 {
   GLenum err = glGetError();
@@ -195,16 +191,16 @@ class Renderer
   GLsizei w, h;
 
 public:
-  Texture tex;
+  Texture color;
+  Texture depth;
   Frame   fbo;
   Render  rbo;
-  Texture depth;
 
   Renderer();
 
   ~Renderer();
 
-  void bind()const;
+  void bind(float clearColor[4] = NULL)const;
 
   void unbind()const;
 
@@ -213,7 +209,33 @@ public:
   void free();
 };
 
-class Vertex :public GLObject
+class DeferredRenderer : Renderer
+{
+  GLsizei w, h;
+
+public:
+  Texture position;
+  Texture normal;
+  Texture& diffuse = color;
+  Texture specular;
+  Texture depth;
+  Frame   fbo;
+  Render  rbo;
+
+  DeferredRenderer();
+
+  ~DeferredRenderer();
+
+  void bind(float clearColor[4] = NULL)const;
+
+  void unbind()const;
+
+  void init(GLsizei w, GLsizei h);
+
+  void free();
+};
+
+class Vertex : public GLObject
 {
   GLuint vertex_index;
   GLsizei vertex_stride;
@@ -242,7 +264,27 @@ public:
   int count()const;
 };
 
-class Face :public GLObject
+class Buffer : public GLObject
+{
+  GLsizei size;
+
+public:
+  Buffer();
+
+  void bind()const;
+
+  void unbind()const;
+
+  void copyData(float data[], GLsizei size);
+
+  void gen();
+
+  void free();
+
+  int sizeInBytes()const;
+};
+
+class Face : public GLObject
 {
   GLsizei index_count;
 
