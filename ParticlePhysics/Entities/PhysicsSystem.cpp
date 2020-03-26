@@ -420,6 +420,19 @@ void PhysicsSystem::createSphere(float radius)
   }
   displayParticleVertex.copyData(&sphereVertices[0], rings * sectors, 0, 3 * sizeof(float));
   displayParticleElements.copyData(&sphereIndices[0], (uint)sphereIndices.size());
+
+  displayParticleVertex.bind();
+  GL_CHECK(glEnableVertexAttribArray(0));
+  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+  displayPositionBuffer.bind();
+  GL_CHECK(glEnableVertexAttribArray(1));
+  GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+  GL_CHECK(glVertexAttribDivisor(1, 1));
+  displayCollisionBuffer.bind();
+  GL_CHECK(glEnableVertexAttribArray(2));
+  GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+  GL_CHECK(glVertexAttribDivisor(2, 1));
+  displayParticleVertex.unbind();
 }
 
 void PhysicsSystem::createUnitBox()
@@ -443,7 +456,7 @@ void PhysicsSystem::createUnitBox()
   displayBoxElements.copyData(boxIndices, 24);
 
   displayBoxVertex.bind();
-  displayBoxShader.bindLocation(0, "position");
+  GL_CHECK(glEnableVertexAttribArray(0));
   GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
   displayBoxVertex.unbind();
 
@@ -474,6 +487,19 @@ void PhysicsSystem::createUnitCircle()
   }
 
   displayFlatVertex.copyData(&circleVertex[0], 2 + triangles, 0, 3 * sizeof(float));
+
+  displayFlatVertex.bind();
+  GL_CHECK(glEnableVertexAttribArray(0));
+  GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
+  displayPositionBuffer.bind();
+  GL_CHECK(glEnableVertexAttribArray(1));
+  GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+  GL_CHECK(glVertexAttribDivisor(1, 1));
+  displayCollisionBuffer.bind();
+  GL_CHECK(glEnableVertexAttribArray(2));
+  GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+  GL_CHECK(glVertexAttribDivisor(2, 1));
+  displayFlatVertex.unbind();
 }
 
 void PhysicsSystem::render()
@@ -552,12 +578,10 @@ void PhysicsSystem::render()
       {
         GL_CHECK(glEnable(GL_CULL_FACE));
         // copy particle position and collision data for display
-        displayPositionBuffer.copy((float*)particles, 0, 0, elements);
-        displayCollisionBuffer.copy(collisionData, 0, 0, elements);
+        displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
+        displayCollisionBuffer.copyData((float*)collisionData, elements * sizeof(ParticleCollisionData));
 
         displayParticleShader.bind();
-        displayParticleShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayParticleShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
         displayParticleVertex.bind();
         displayParticleElements.bind();
         GL_CHECK(glDrawElementsInstanced(GL_TRIANGLES, displayParticleElements.count(), GL_UNSIGNED_INT, NULL, elements));
@@ -567,8 +591,6 @@ void PhysicsSystem::render()
 
         //TODO: Debug why line is not working with cloth rendering on when z vector is 0
         displayLineShader.bind();
-        displayLineShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayLineShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
         displayLineVertex.bind();
         GL_CHECK(glDrawArraysInstanced(GL_LINES, 0, 2, elements));
         displayLineVertex.unbind();
@@ -613,11 +635,9 @@ void PhysicsSystem::render()
         displayFlatShader.bind();
 
         // copy particle position and collision data for display
-        displayPositionBuffer.copy((float*)particles, 0, 0, elements);
-        displayCollisionBuffer.copy(collisionData, 0, 0, elements);
+        displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
+        displayCollisionBuffer.copyData((float*)collisionData, elements * sizeof(ParticleCollisionData));
 
-        displayFlatShader.activateTexture("particlePos", 0, displayPositionBuffer);
-        displayFlatShader.activateTexture("particleCollData", 1, displayCollisionBuffer);
         displayFlatShader.set("fillShader", 1.f);
 
         GL_CHECK(glEnable(GL_BLEND));
@@ -643,10 +663,15 @@ void PhysicsSystem::render()
   if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->particleGroupBoundingBoxes;
+    displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
 
-    displayBoxBuffer.copy((float*)&((*collisionBoundingBoxes->host())[0]), 0, 0, (uint)collisionBoundingBoxes->host()->size() * 2);
-    displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
-
+    displayBoxBuffer.bind();
+    GL_CHECK(glEnableVertexAttribArray(1));
+    GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 0));
+    GL_CHECK(glVertexAttribDivisor(1, 1));
+    GL_CHECK(glEnableVertexAttribArray(2));
+    GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (const GLvoid*)(sizeof(GLfloat) * 4)));
+    GL_CHECK(glVertexAttribDivisor(2, 1));
     GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, (uint)collisionBoundingBoxes->host()->size()));
   }
 
@@ -654,10 +679,15 @@ void PhysicsSystem::render()
   if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->systemBoundingBox;
+    displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
 
-    displayBoxBuffer.copy((float*)&((*collisionBoundingBoxes->host())[0]), 0, 0, (uint)collisionBoundingBoxes->host()->size() * 2);
-    displayBoxShader.activateTexture("boundingBoxes", 0, displayBoxBuffer);
-
+    displayBoxBuffer.bind();
+    GL_CHECK(glEnableVertexAttribArray(1));
+    GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 0));
+    GL_CHECK(glVertexAttribDivisor(1, 1));
+    GL_CHECK(glEnableVertexAttribArray(2));
+    GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (const GLvoid*)(sizeof(GLfloat) * 4)));
+    GL_CHECK(glVertexAttribDivisor(2, 1));
     GL_CHECK(glDrawElementsInstanced(GL_LINES, displayBoxElements.count(), GL_UNSIGNED_INT, NULL, (uint)collisionBoundingBoxes->host()->size()));
   }
   displayBoxElements.unbind();
@@ -802,7 +832,7 @@ void PhysicsSystem::step(float timeStep)
 
 #ifdef ENABLE_RENDERING
     const uint textureWidth = 128;
-    const uint textureHeight = (instanceNodeCount + textureWidth - 1) / textureWidth;
+
     displayParticleVertex.gen();
     displaySolidVertex.gen();
     displayBoxVertex.gen();
@@ -814,13 +844,8 @@ void PhysicsSystem::step(float timeStep)
     displayBoxElements.gen();
     displayGridElements.gen();
 
-    displayPositionBuffer.init(textureWidth, textureHeight);
     displayPositionBuffer.gen();
-    displayColorBuffer.init(textureWidth, textureHeight);
-    displayColorBuffer.gen();
-    displayCollisionBuffer.init(textureWidth, textureHeight);
     displayCollisionBuffer.gen();
-    displayBoxBuffer.init(textureWidth, textureHeight * 2);
     displayBoxBuffer.gen();
 
     {
@@ -844,29 +869,36 @@ void PhysicsSystem::step(float timeStep)
     displayGridShader.init("GridVert.glsl", "GridFrag.glsl");
     displayBackgroundShader.init("BGVert.glsl", "BGFrag.glsl");
 
+    displayParticleShader.linkPrograms();
+    displaySolidShader.linkPrograms();
+    displayFlatShader.linkPrograms();
+    displayBoxShader.linkPrograms();
+    displayLineShader.linkPrograms();
+    displayGridShader.linkPrograms();
+    displayBackgroundShader.linkPrograms();
+
     createSphere(1.f);
-    displayParticleVertex.bind();
-    displayParticleShader.bindLocation(0, "position");
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
-    displayGridShader.bindLocation(0, "position");
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
-    displayParticleVertex.unbind();
 
     displaySolidVertex.bind();
-    displaySolidShader.bindLocation(0, "position");
-    displaySolidShader.bindLocation(1, "particleData");
+    GL_CHECK(glEnableVertexAttribArray(0));
     displaySolidVertex.unbind();
 
     createUnitCircle();
-    displayFlatVertex.bind();
-    displayFlatShader.bindLocation(0, "position");
-    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0));
-    displayFlatVertex.unbind();
 
     createUnitBox();
 
     float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
     displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
+    displayLineVertex.bind();
+    displayPositionBuffer.bind();
+    GL_CHECK(glEnableVertexAttribArray(0));
+    GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+    GL_CHECK(glVertexAttribDivisor(0, 1));
+    displayCollisionBuffer.bind();
+    GL_CHECK(glEnableVertexAttribArray(1));
+    GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
+    GL_CHECK(glVertexAttribDivisor(1, 1));
+    displayLineVertex.unbind();
 
     float quad[] = {
       -1.f, -1.f, 0.f, 1.f, 0.f, 0.f,
@@ -878,19 +910,11 @@ void PhysicsSystem::step(float timeStep)
     };
     displayBackgroundVertex.copyData(quad, 6, 0, 6 * sizeof(float));
     displayBackgroundVertex.bind();
-    displayBackgroundShader.bindLocation(0, "pos");
-    displayBackgroundShader.bindLocation(1, "inTexCoord");
+    GL_CHECK(glEnableVertexAttribArray(0));
     GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
+    GL_CHECK(glEnableVertexAttribArray(1));
     GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
     displayBackgroundVertex.unbind();
-
-    displayParticleShader.linkPrograms();
-    displaySolidShader.linkPrograms();
-    displayFlatShader.linkPrograms();
-    displayBoxShader.linkPrograms();
-    displayLineShader.linkPrograms();
-    displayGridShader.linkPrograms();
-    displayBackgroundShader.linkPrograms();
 #endif
 
     indexMap.resize(instanceNodeCount, false);
