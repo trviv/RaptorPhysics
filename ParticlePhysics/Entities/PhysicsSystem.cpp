@@ -539,6 +539,11 @@ void PhysicsSystem::render()
     if (displayBackgroundBuffer.getComputeTexture() == NULL)
     {
       displayBackgroundBuffer = createSharedTexture(compute, (uint[2]){cameraInterface->width(), cameraInterface->height()}, SHARED_TEXTURE_FORMAT_UINT8x4);
+      displayBackgroundShader.bind();
+      displayBackgroundShader.set("frameDimensions", (float)width(), (float)height(),
+                                  (float)displayBackgroundBuffer.getGraphicsTexture().width(),
+                                  (float)displayBackgroundBuffer.getGraphicsTexture().height());
+      displayBackgroundShader.unbind();
     }
 
     if (cameraInterface->getCurrentFrame())
@@ -876,6 +881,10 @@ void PhysicsSystem::step(float timeStep)
     displayLineShader.linkPrograms();
     displayGridShader.linkPrograms();
     displayBackgroundShader.linkPrograms();
+    displayBackgroundShader.bind();
+    displayBackgroundShader.set("flipY", (int)1);
+    displayBackgroundShader.set("fillScreen", (int)0);
+    displayBackgroundShader.unbind();
 
     createSphere(1.f);
 
