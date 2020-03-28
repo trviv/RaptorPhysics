@@ -226,6 +226,7 @@ void CameraInterface::startSession()
   if ([staticSession canAddOutput:staticVideoDataOutput])
   {
     [staticSession addOutput:staticVideoDataOutput];
+    [staticSession setSessionPreset:AVCaptureSessionPreset352x288];
     [staticVideoDataOutput setAlwaysDiscardsLateVideoFrames:YES];
 
     logComputeMessage("Supported camera video formats:");

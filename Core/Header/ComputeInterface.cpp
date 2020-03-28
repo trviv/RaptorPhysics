@@ -16,7 +16,8 @@ static uint deviceCount = 0;
 id<MTLCaptureScope> captureScope = nil;
 MTLCaptureManager *captureManager = nil;
 MTLCaptureDescriptor* captureDescriptor = nil;
-static vector<pair<char, id<MTLBuffer>>> tempBuffers;
+#define TEMP_BUFFER_OCCUPIED_FLAG 0x8000
+static vector<pair<ushort, id<MTLBuffer>>> tempBuffers;
 volatile id<MTLCommandQueue> commandQueue = nil;
 volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
 volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
@@ -46,13 +47,21 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
   for (int i=0; i<tempBuffers.size(); i++)
   {
     // if not occupied
-    if (tempBuffers[i].first == 1)
+    if (tempBuffers[i].first & TEMP_BUFFER_OCCUPIED_FLAG)
       continue;
 
     const int sizeDiff  = abs((int)tempBuffers[i].second.length - (int)minimumSize);
 
     if (sizeDiff > maxAllowedDifference)
+    {
+      tempBuffers[i].first++;
+      if (tempBuffers[i].first == 0x3ff)
+      {
+        tempBuffers.erase(tempBuffers.begin() + i);
+        i--;
+      }
       continue;
+    }
 
     if (tempBuffers[i].second.length >= minimumSize && sizeDiff < biggerSizeDifference)
     {
@@ -60,7 +69,7 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
       biggerSizeDifference = (int)tempBuffers[i].second.length - minimumSize;
       if (biggerSizeDifference == 0)
       {
-        break;
+        //break;
       }
     }
     if (tempBuffers[i].second.length < minimumSize && sizeDiff < smallerSizeDifference)
@@ -76,29 +85,29 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
     // expand smaller if its closer in size
     if (smallerSizeDifference < biggerSizeDifference)
     {
-      tempBuffers[smallerBufferIndex] = pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
+      tempBuffers[smallerBufferIndex] = pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
       return tempBuffers[smallerBufferIndex].second;
     }
     // if bigger is closer in size return it
     else
     {
-      tempBuffers[biggerBufferIndex].first = 1;
+      tempBuffers[biggerBufferIndex].first = TEMP_BUFFER_OCCUPIED_FLAG;
       return tempBuffers[biggerBufferIndex].second;
     }
   }
   else if (biggerSizeDifference != -1)
   {
-    tempBuffers[biggerBufferIndex].first = 1;
+    tempBuffers[biggerBufferIndex].first = TEMP_BUFFER_OCCUPIED_FLAG;
     return tempBuffers[biggerBufferIndex].second;
   }
   else if (smallerSizeDifference != -1)
   {
-    tempBuffers[smallerBufferIndex] = pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
+    tempBuffers[smallerBufferIndex] = pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
     return tempBuffers[smallerBufferIndex].second;
   }
   else
   {
-    tempBuffers.insert(tempBuffers.begin(), pair<char, id<MTLBuffer>>(1, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
+    tempBuffers.insert(tempBuffers.begin(), pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
     return tempBuffers.front().second;
   }
   return nil;
