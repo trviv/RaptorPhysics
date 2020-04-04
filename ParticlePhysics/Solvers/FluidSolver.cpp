@@ -26,12 +26,10 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
 
 #ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
-  particlesLambda.create(compute, solverHeap, true);
   particlesTemp[0].create(compute, solverHeap, true);
   particlesTemp[1].create(compute, solverHeap, true);
 #else
   particlesDensity.create(compute, solverHeap);
-  particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);
 #endif
@@ -97,7 +95,6 @@ void FluidSolver::solve(float timeStep)
     particlesTemp[0].resize(particleCount, false);
     particlesTemp[1].resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
-    particlesLambda.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
     gridCellParticleIndices.resize(particleCount, false);
   }
@@ -218,7 +215,6 @@ void FluidSolver::solve(float timeStep)
     {
       ComputeMemory* buffers[] = {
         particlesDensity.device(),
-        particlesLambda.device(),
         gridCellParticleOffsets.device(),
         gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
@@ -238,7 +234,6 @@ void FluidSolver::solve(float timeStep)
 
 #ifdef DEBUG_FLUID_SOLVER
     particlesDensity.syncHost();
-    particlesLambda.syncHost();
     compute->sync();
 #endif
 
@@ -248,7 +243,6 @@ void FluidSolver::solve(float timeStep)
         particlesTemp[1].device(),
         particlesPredicted.device(),
         particlesDensity.device(),
-        particlesLambda.device(),
         particleDifferential.device(),
         particlesTemp[0].device(),
         gridCellParticleOffsets.device(),
@@ -264,6 +258,7 @@ void FluidSolver::solve(float timeStep)
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
+      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<float>(&timeStep, bufferCount + 3);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_CALC_FORCES], workgroupSize, workgroupCount);
     }
@@ -271,7 +266,6 @@ void FluidSolver::solve(float timeStep)
 #ifdef DEBUG_FLUID_SOLVER
     particlesPredicted.syncHost();
     particlesDensity.syncHost();
-    particlesLambda.syncHost();
     particleDifferential.syncHost();
     particlesTemp[0].syncHost();
     compute->sync();

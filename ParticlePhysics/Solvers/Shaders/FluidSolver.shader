@@ -1,10 +1,6 @@
 #ifndef FLUID_SOLVER_SHADER
 #define FLUID_SOLVER_SHADER
 
-#define successiveOverRealaxation 1.5f
-#define FLUID_SIM_EPSILON         1.f
-//#define FLUID_USE_LAMBDA
-
 inline float poly6Function(const float r, const float h)
 {
 #ifdef FLUID_USE_LAMBDA
@@ -89,7 +85,6 @@ inline float scorrFunction(const float r, const float h)
  */
 Kernel void calculateDensity(
   Device float*                       particlesDensity,
-  Device float*                       particlesLambda,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
@@ -165,25 +160,12 @@ Kernel void calculateDensity(
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  const float mass = 1.f/sharedData.sharedInvMass;
-  sumGradientVector *= mass;
-  sumGradientMagnitude *= mass;
-
   sumGradientMagnitude += lengthSq(sumGradientVector);
+  sumGradientMagnitude /= sharedData.sharedInvMass;
 
-  density *= mass;
+  density /= sharedData.sharedInvMass;
 
-#ifdef FLUID_USE_LAMBDA
-  density = density * sharedData.invRestDensity;
   particlesDensity[particleIndex] = density;
-
-  const float lambda = (density > 1.f) ?
-    -(density - 1.0f) / (sumGradientMagnitude + FLUID_SIM_EPSILON) :
-    0.0f;
-    particlesLambda[particleIndex] = lambda;
-#else
-  particlesDensity[particleIndex] = density;
-#endif
 }
 
 /*
@@ -204,7 +186,6 @@ Kernel void calculateForces(
   const Device ParticleStruct*        particlesOld,
   Device ParticleStruct*              particlesPredictedNew,
   const Device float*                 particlesDensity,
-  const Device float*                 particlesLambda,
   Device ParticleDifferential*        particleDiffNew,
   const Device ParticleDifferential*  particleDiff,
   const Device uint*                  gridCellParticleOffsets,
@@ -216,7 +197,8 @@ Kernel void calculateForces(
   Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
   constantKernelInput(int,            gridSizeExp),
-  constantKernelInput(uint,           nodeCount)
+  constantKernelInput(uint,           nodeCount),
+  constantKernelInput(float,          timeStep)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
@@ -245,13 +227,7 @@ Kernel void calculateForces(
   const IdentityInfo identity = selfParticle.identity;
   const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-#ifdef FLUID_USE_LAMBDA
-  const float lambda = particlesLambda[particleIndex];
-  const float density = particlesLambda[particleIndex];
-#else
-  const float lambda = particlesLambda[particleIndex];
   const float density = particlesDensity[particleIndex];
-#endif
 
   const short3 particleGridCellIndex = constructShort3(
     gridCellIndex & (gridSize - 1),
@@ -282,33 +258,24 @@ Kernel void calculateForces(
       }
 
       actualDistance = select(actualDistance, COMPUTE_EPSILON, actualDistance <= COMPUTE_EPSILON);
-#ifdef FLUID_USE_LAMBDA
-      const float lambda = particlesLambda[particleIndex];
-      const float currentParticleDensity = particlesLambda[otherNodeIndex];
-      const float scorr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
 
-      delta += collisionVector * ((density + currentParticleDensity + scorr) * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance);
-#else
       const float3 velocityVector = particleDiff[otherNodeIndex].velocity - selfParticleDiff;
       float viscosityTerm = sharedData.viscosity * viscosityFunction(actualDistance, sharedData.fluidKernelRadius);
-      const float lambda = particlesLambda[particleIndex];
       const float currentParticleDensity = particlesDensity[otherNodeIndex];
       const float currentParticleDensityInv = 1.f/currentParticleDensity;
       const float pressureTerm = (pressureFunction(density, &sharedData) + pressureFunction(currentParticleDensity, &sharedData)) * currentParticleDensityInv * 0.5f;
       const float distanceFunction = spikyFunction(actualDistance, sharedData.fluidKernelRadius);
-      float timeStep = 1.f/60.f;
 
       // force due to pressure
       delta -= collisionVector * (sqr(timeStep) * pressureTerm * distanceFunction / actualDistance);
 
       // force due to viscosity
       delta += velocityVector * (timeStep * viscosityTerm * currentParticleDensityInv);
-#endif
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   delta *= sharedData.invRestDensity;
-  selfParticle.position += delta / sharedData.sharedInvMass;
+  selfParticle.position += delta * sharedData.sharedInvMass;
   selfParticle.identity = identity;
 
   particlesPredictedNew[threadIndex()] = selfParticle;
