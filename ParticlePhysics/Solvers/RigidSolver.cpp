@@ -64,7 +64,7 @@ void RigidSolver::create(ComputeInterface* compute)
   }
 }
 
-void RigidSolver::solve()
+void RigidSolver::solve(float timeStep)
 {
   uint count = lastPartition().end();
 

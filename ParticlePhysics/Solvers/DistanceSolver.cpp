@@ -28,7 +28,7 @@ void DistanceSolver::create(ComputeInterface* compute)
   }
 }
 
-void DistanceSolver::solve()
+void DistanceSolver::solve(float timeStep)
 {
   uint count = lastPartition().end();
 

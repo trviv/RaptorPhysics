@@ -10,11 +10,16 @@ class UniformGridCollisionSolver : public CollisionSolver
 {
 protected:
 
+  static uint gridXABComputeUtilId;
+  static uint gridComputeUtilId;
+
   DeviceArray <uint>  gridParticleCellIndex;
   DeviceArray <uint> &gridCellParticleOffsets;
   DeviceArray <uint>  gridCellParticleIndices;
 
   void build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer);
+
+  void createUtilities();
 
 public:
 
