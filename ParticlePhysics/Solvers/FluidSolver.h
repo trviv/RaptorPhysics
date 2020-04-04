@@ -17,13 +17,17 @@ protected:
 
   void update();
 
+  void updateRadius();
+
+  FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate);
+
 public:
 
   FluidSolver(ComputeInterface* compute, SharedAllocator* allocator);
 
   void create(ComputeInterface* compute);
 
-  void solve();
+  void solve(float timeStep);
 };
 
 #endif

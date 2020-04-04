@@ -13,9 +13,10 @@
 #define GRID_COLLISION_SOLVER_APPLY_COLLISIONS    4
 #define GRID_COLLISION_SOLVER_APPLY_DELTA         5
 
-static uint gridXABComputeUtilId;
-static uint gridComputeUtilId;
 static uint gridGetSystemRadiusUtilId;
+
+uint UniformGridCollisionSolver::gridXABComputeUtilId = -1;
+uint UniformGridCollisionSolver::gridComputeUtilId = -1;
 
 UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   Solver(compute, allocator), CollisionSolver(compute, allocator), gridCellParticleOffsets(gridCellParticleCount)
@@ -59,6 +60,40 @@ UniformGridCollisionSolver::~UniformGridCollisionSolver()
 {
 }
 
+void UniformGridCollisionSolver::createUtilities()
+{
+  // create utility classes
+  const vector<string> utilInclude = {"ParticleStruct.h"};
+
+  map<ComputeUtilKey, string> lbvhXABSetting;
+  lbvhXABSetting[ComputeUtilBatchSize] = "1";
+  lbvhXABSetting[ComputeUtilStructType] = "XAB";
+  lbvhXABSetting[ComputeUtilStructSize] = "32";
+  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
+  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
+  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
+  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
+  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
+  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
+  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
+  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
+
+  map<ComputeUtilKey, string> utilSetting;
+  utilSetting[ComputeUtilStructType] = "uint";
+  utilSetting[ComputeUtilStructTypeIntegral] = "1";
+
+  gridComputeUtilId = ComputeUtil::create(compute, utilSetting);
+
+  utilSetting.clear();
+  utilSetting[ComputeUtilOnlyReduce] = "1";
+  utilSetting[ComputeUtilStructType] = "float";
+  utilSetting[ComputeUtilCustomAddFunction] = "mergeFloat";
+  utilSetting[ComputeUtilCustomReduceFunction] = "reduceFloat";
+  utilSetting[ComputeUtilSkipParallelPrimitives] = "1";
+
+  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &utilInclude);
+}
+
 void UniformGridCollisionSolver::init()
 {
   vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
@@ -93,36 +128,7 @@ void UniformGridCollisionSolver::init()
   kernels.push_back(programs[0].createKernel("applyCollisions"));
   kernels.push_back(programs[0].createKernel("applyDeltas"));
 
-  // create utility classes
-  const vector<string> utilInclude = {"ParticleStruct.h"};
-
-  map<ComputeUtilKey, string> lbvhXABSetting;
-  lbvhXABSetting[ComputeUtilBatchSize] = "1";
-  lbvhXABSetting[ComputeUtilStructType] = "XAB";
-  lbvhXABSetting[ComputeUtilStructSize] = "32";
-  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
-  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
-  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
-  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
-  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
-  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
-  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
-
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
-
-  gridComputeUtilId = ComputeUtil::create(compute, utilSetting);
-
-  utilSetting.clear();
-  utilSetting[ComputeUtilOnlyReduce] = "1";
-  utilSetting[ComputeUtilStructType] = "float";
-  utilSetting[ComputeUtilCustomAddFunction] = "mergeFloat";
-  utilSetting[ComputeUtilCustomReduceFunction] = "reduceFloat";
-  utilSetting[ComputeUtilSkipParallelPrimitives] = "1";
-
-  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &utilInclude);
+  createUtilities();
 }
 
 void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer)

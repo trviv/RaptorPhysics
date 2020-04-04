@@ -62,7 +62,7 @@ public:
   virtual void create(ComputeInterface* compute) = 0;
 
   /*!@function Solve the entity constrains.*/
-  virtual void solve() = 0;
+  virtual void solve(float timeStep) = 0;
 
   /*!@function Get an available unique entity id.*/
   uint newEntityId();

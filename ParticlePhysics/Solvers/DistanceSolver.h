@@ -23,7 +23,7 @@ public:
 
   void create(ComputeInterface* compute);
 
-  void solve();
+  void solve(float timeStep);
 };
 
 #endif

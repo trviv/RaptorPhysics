@@ -8,17 +8,21 @@
 #define FLUID_COLLISION_SOLVER_CALC_DENSITY         3
 #define FLUID_COLLISION_SOLVER_CALC_FORCES          4
 
-static uint gridXABComputeUtilId;
-static uint gridComputeUtilId;
-
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
+  : FluidSolver(compute, allocator, false)
+{}
+
+FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate)
   : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator)
 {
   iterations = 1;
   gridSize = 64;
   gridSizeExp = mCeilExpOf2(gridSize);
 
-  create(compute);
+  if (!noCreate)
+  {
+    create(compute);
+  }
 
 #ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
@@ -47,35 +51,11 @@ void FluidSolver::create(ComputeInterface* compute)
 
   invMaxRadius.host()->push_back(-1.f);
 
-  // create utility classes
-  const vector<string> utilInclude = {"ParticleStruct.h"};
-
-  map<ComputeUtilKey, string> lbvhXABSetting;
-  lbvhXABSetting[ComputeUtilBatchSize] = "1";
-  lbvhXABSetting[ComputeUtilStructType] = "XAB";
-  lbvhXABSetting[ComputeUtilStructSize] = "32";
-  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
-  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
-  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
-  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
-  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
-  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
-  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
-
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
-
-  gridComputeUtilId = ComputeUtil::create(compute, utilSetting);
+  createUtilities();
 }
 
-void FluidSolver::solve()
+void FluidSolver::updateRadius()
 {
-  uint particleCount = lastPartition().end();
-
-  if (!particleCount) return;
-
   // update kernel radius
   float kernelRadius = 0.f;
   for (auto& esd : *entitySharedData.host())
@@ -88,6 +68,15 @@ void FluidSolver::solve()
     (*invMaxRadius.host())[0] = 1.f/kernelRadius;
     invMaxRadius.syncDevice();
   }
+}
+
+void FluidSolver::solve(float timeStep)
+{
+  uint particleCount = lastPartition().end();
+
+  if (!particleCount) return;
+
+  updateRadius();
 
   uint nodeBatchSize = 8;
   uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);

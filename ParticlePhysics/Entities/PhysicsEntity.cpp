@@ -17,11 +17,11 @@ PhysicsEntity::PhysicsEntity()
   sharedData.sharedInvMass = 0.f;
   setRadiusIsShared(sharedData, true);
   sharedData.sharedRadius = 0.f;
-  sharedData.viscosity = 0.01f;
+  sharedData.viscosity = 0.0001f;
   sharedData.collisionSolverData.kineticFrictionCoef = 0.9f;
   sharedData.collisionSolverData.staticFrictionCoef = 0.9f;
   sharedData.fluidKernelRadius = 1.f;
-  sharedData.invRestDensity = 0.001f;
+  sharedData.invRestDensity = 1.f/997.f;
   sharedData.gasConstantK = 0.001f;
   setCollisionDataIsShared(sharedData, true);
   entitySharedData.host()->reserve(1);
