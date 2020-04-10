@@ -14,6 +14,7 @@ protected:
 
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
+  DeviceArray <float>&particlesColor = particlesLambda;
 
   void update();
 

@@ -26,10 +26,12 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
 
 #ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
+  particlesColor.create(compute, solverHeap, true);
   particlesTemp[0].create(compute, solverHeap, true);
   particlesTemp[1].create(compute, solverHeap, true);
 #else
   particlesDensity.create(compute, solverHeap);
+  particlesColor.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);
 #endif
@@ -95,6 +97,7 @@ void FluidSolver::solve(float timeStep)
     particlesTemp[0].resize(particleCount, false);
     particlesTemp[1].resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
+    particlesColor.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
     gridCellParticleIndices.resize(particleCount, false);
   }
@@ -151,13 +154,6 @@ void FluidSolver::solve(float timeStep)
         gridCellParticleCount.device(),
         gridParticleCellIndex.device(),
         particlesPredicted.device(),
-#ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
-        entitySharedData.device(),
-        particleAuxData.device(),
-        partitions.device(),
-        entityLocations.device(),
-        systemSettings,
-#endif
         systemBoundingBox.device(),
         invMaxRadius.device()
       };
@@ -266,7 +262,6 @@ void FluidSolver::solve(float timeStep)
 #ifdef DEBUG_FLUID_SOLVER
     particlesPredicted.syncHost();
     particlesDensity.syncHost();
-    particleDifferential.syncHost();
     particlesTemp[0].syncHost();
     compute->sync();
 #endif

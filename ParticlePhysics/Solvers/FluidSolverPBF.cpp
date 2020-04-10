@@ -18,6 +18,12 @@ FluidSolverPBF::FluidSolverPBF(ComputeInterface* compute, SharedAllocator* alloc
   iterations = 1;
   gridSize = 64;
   gridSizeExp = mCeilExpOf2(gridSize);
+
+#ifdef DEBUG_FLUID_SOLVER
+  particlesLambda.create(compute, solverHeap, true);
+#else
+  particlesLambda.create(compute, solverHeap);
+#endif
 }
 
 void FluidSolverPBF::create(ComputeInterface* compute)
@@ -118,13 +124,6 @@ void FluidSolverPBF::solve(float timeStep)
       gridCellParticleCount.device(),
       gridParticleCellIndex.device(),
       particlesPredicted.device(),
-#ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
-      entitySharedData.device(),
-      particleAuxData.device(),
-      partitions.device(),
-      entityLocations.device(),
-      systemSettings,
-#endif
       systemBoundingBox.device(),
       invMaxRadius.device()
     };
