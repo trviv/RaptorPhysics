@@ -13,6 +13,12 @@ inline float spikyFunction(const float r, const float h)
   return (15.f / M_PI_F) * x * x * x;
 }
 
+inline float spikyFunctionGradient(const float r, const float h)
+{
+  const float x = (h - r) / (h * h * h);
+  return -(45.f / M_PI_F) * x * x;
+}
+
 inline float scorrFunction(const float r, const float h)
 {
   const float corrK = 0.01f;
@@ -106,7 +112,7 @@ Kernel void calculateLambda(
         continue;
       }
 
-      const float3 gradient = collisionVector * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance;
+      const float3 gradient = collisionVector * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
@@ -206,7 +212,7 @@ Kernel void calculateForces(
       }
 
       const float scorr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
-      delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance);
+      delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius));
   }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
@@ -296,7 +302,7 @@ Kernel void vorticityOmega(
       }
 
       const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      sumOmega += cross(velocityDiff, collisionVector * (spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance));
+      sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius)));
   }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
@@ -391,7 +397,7 @@ Kernel void vorticityConfinementXSPHViscosity(
 
       const float3 velocityDiff = particlesDiffOld[otherNodeIndex].velocity - selfParticleDiff.velocity;
       delta += velocityDiff * poly6Function(actualDistance, sharedData.fluidKernelRadius);
-      omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunction(actualDistance, sharedData.fluidKernelRadius) / actualDistance);
+      omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius));
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 

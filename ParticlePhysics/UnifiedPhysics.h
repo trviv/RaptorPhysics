@@ -8,6 +8,8 @@
 #include "Solvers/DistanceSolver.h"
 #include "Solvers/RigidSolver.h"
 #include "Solvers/FluidSolver.h"
+#include "Solvers/FluidSolverPBF.h"
+#include "Solvers/FluidSolverPCISPH.h"
 #include "Solvers/SharedAllocator.h"
 
 #include "Solvers/Collision/CollisionSolver.h"

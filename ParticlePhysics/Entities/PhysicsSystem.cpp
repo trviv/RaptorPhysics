@@ -5,6 +5,7 @@
 #include "../Solvers/RigidSolver.h"
 #include "../Solvers/FluidSolver.h"
 #include "../Solvers/FluidSolverPBF.h"
+#include "../Solvers/FluidSolverPCISPH.h"
 
 #include "../Solvers/Collision/UniformGridCollisionSolver.h"
 #include "../Solvers/Collision/LBVHSolver.h"
@@ -142,7 +143,9 @@ void* PhysicsSystem::getSolver(SolverType type)
     }
     case SOLVER_FLUID:
     {
-      solversUint[index] = new FluidSolverPBF(compute, allocators[0]);
+      solversUint[index] = new FluidSolver(compute, allocators[0]);
+//      solversUint[index] = new FluidSolverPBF(compute, allocators[0]);
+//      solversUint[index] = new FluidSolverPCISPH(compute, allocators[0]);
       break;
     }
     default:
