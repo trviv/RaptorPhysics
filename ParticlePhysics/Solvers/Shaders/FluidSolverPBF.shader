@@ -1,30 +1,12 @@
 #ifndef FLUID_SOLVER_PBF_SHADER
 #define FLUID_SOLVER_PBF_SHADER
 
-inline float poly6Function(const float r, const float h)
-{
-  const float x = (h * h - r * r) / (h * h * h);
-  return (315.f / (64.f * M_PI_F)) * x * x * x;
-}
-
-inline float spikyFunction(const float r, const float h)
-{
-  const float x = (h - r) / (h * h);
-  return (15.f / M_PI_F) * x * x * x;
-}
-
-inline float spikyFunctionGradient(const float r, const float h)
-{
-  const float x = (h - r) / (h * h * h);
-  return -(45.f / M_PI_F) * x * x;
-}
-
 inline float scorrFunction(const float r, const float h)
 {
-  const float corrK = 0.01f;
+  const float corrK = 0.1f;
   const float corrDelQ = 0.1f;
   //const int corrN = 4;
-  const float x = poly6Function(r, h) / poly6Function(corrDelQ * h, h);
+  const float x = poly6FunctionVariable(r, h) / poly6FunctionVariable(corrDelQ * h, h);
   //return -corrK * pow(x, corrN);
   const float t = x * x;
   return -corrK * t * t;
@@ -105,21 +87,23 @@ Kernel void calculateLambda(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistance = length(collisionVector);
 
-      density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
       if (actualDistance >= sharedData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
-      const float3 gradient = collisionVector * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius);
+      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   sumGradientMagnitude += lengthSq(sumGradientVector);
-  density /= sharedData.sharedInvMass;
+  sumGradientMagnitude *= (sharedData.fluidKernelFunctionConstant[1] * sharedData.fluidKernelFunctionConstant[1]);
+
+  density *= sharedData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
 
   particlesDensity[particleIndex] = density;
 
@@ -212,11 +196,11 @@ Kernel void calculateForces(
       }
 
       const float scorr = scorrFunction(actualDistance, sharedData.fluidKernelRadius);
-      delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius));
+      delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius));
   }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  selfParticle.position += delta * sharedData.invRestDensity;
+  selfParticle.position += delta * sharedData.invRestDensity * sharedData.fluidKernelFunctionConstant[1];
   selfParticle.identity = identity;
 
   particlesPredictedOld[particleIndex] = selfParticle;
@@ -302,11 +286,11 @@ Kernel void vorticityOmega(
       }
 
       const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius)));
+      sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius)));
   }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  particlesOmega[particleIndex] = sumOmega;
+  particlesOmega[particleIndex] = sumOmega * sharedData.fluidKernelFunctionConstant[1];
 }
 
 /*
@@ -396,12 +380,13 @@ Kernel void vorticityConfinementXSPHViscosity(
       }
 
       const float3 velocityDiff = particlesDiffOld[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      delta += velocityDiff * poly6Function(actualDistance, sharedData.fluidKernelRadius);
-      omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius));
+      delta += velocityDiff * poly6FunctionVariable(actualDistance, sharedData.fluidKernelRadius);
+      omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius));
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  delta *= timeStep * sharedData.viscosity;
+  delta *= timeStep * sharedData.viscosity * sharedData.fluidKernelFunctionConstant[0];
+  omegaDelta *= sharedData.fluidKernelFunctionConstant[1];
 
   const float omegaDeltaLength = length(omegaDelta);
   if (omegaDeltaLength > COMPUTE_EPSILON)

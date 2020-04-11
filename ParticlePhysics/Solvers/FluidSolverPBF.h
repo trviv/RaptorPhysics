@@ -8,6 +8,10 @@
 */
 class FluidSolverPBF : public FluidSolver
 {
+protected:
+
+  void update();
+
 public:
 
   FluidSolverPBF(ComputeInterface* compute, SharedAllocator* allocator);

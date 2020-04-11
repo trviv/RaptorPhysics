@@ -1,57 +1,9 @@
 #ifndef FLUID_SOLVER_SHADER
 #define FLUID_SOLVER_SHADER
 
-inline float poly6Function(const float r, const float h)
-{
-  const float x = (h * h - r * r) / (h * h * h);
-  return (315.f / (64.f * M_PI_F)) * x * x * x;
-}
-
-inline float poly6FunctionGradient(const float r, const float h)
-{
-  const float invH = 1.f/h;
-  const float x = (h * h - r * r) * sqr(sqr(invH * invH));
-  return (-945.f / (32.f * M_PI_F)) * x * x * invH;
-}
-
-inline float poly6FunctionLaplacian(const float r, const float h)
-{
-  const float x = (h * h - r * r) * (-7 * r * r + 3 * h * h) / (h * sqr(sqr(h * h)));
-  return (945.f / (32.f * M_PI_F));
-}
-
 inline float pressureFunction(const float density, const Thread ParticleSharedData* sharedData)
 {
   return sharedData->gasConstantK * (density - 1.f/sharedData->invRestDensity);
-}
-
-inline float spikyFunction(const float r, const float h)
-{
-  const float x = (h - r) / (h * h);
-  return (15.f / M_PI_F) * x * x * x;
-}
-
-inline float spikyFunctionGradient(const float r, const float h)
-{
-  const float x = (h - r) / (h * h * h);
-  return -(45.f / M_PI_F) * x * x;
-}
-
-inline float viscosityFunctionLaplacian(const float r, const float h)
-{
-  const float x = (h - r) / sqr(h * h * h);
-  return (45.f / M_PI_F) * x;
-}
-
-inline float scorrFunction(const float r, const float h)
-{
-  const float corrK = 0.1f;
-  const float corrDelQ = 0.1f;
-  //const int corrN = 4;
-  const float x = poly6Function(r, h) / poly6Function(corrDelQ * h, h);
-  //return -corrK * pow(x, corrN);
-  const float t = x * x;
-  return -corrK * t * t;
 }
 
 /*
@@ -127,23 +79,23 @@ Kernel void calculateDensity(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       float actualDistance = length(collisionVector);
 
-      density += select(0.f, poly6Function(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
 
       if (actualDistance <= COMPUTE_EPSILON || actualDistance >= sharedData.fluidKernelRadius || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
-      const float3 gradient = collisionVector * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius);
+      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   sumGradientMagnitude += lengthSq(sumGradientVector);
-  sumGradientMagnitude /= sharedData.sharedInvMass;
+  sumGradientMagnitude *= (sharedData.fluidKernelFunctionConstant[1] * sharedData.fluidKernelFunctionConstant[1]) / sharedData.sharedInvMass;
 
-  density /= sharedData.sharedInvMass;
+  density *= sharedData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
 
   particlesDensity[particleIndex] = density;
 }
@@ -242,21 +194,24 @@ Kernel void calculateForces(
 
       // force due to viscosity
       const float3 velocityVector = particleDiff[otherNodeIndex].velocity - selfParticleDiff;
-      float viscosityTerm = sharedData.viscosity * viscosityFunctionLaplacian(actualDistance, sharedData.fluidKernelRadius);
+      float viscosityTerm = sharedData.viscosity * viscosityFunctionLaplacianVariable(actualDistance, sharedData.fluidKernelRadius);
 
-      //delta += velocityVector * (timeStep * viscosityTerm * currentParticleDensityInv);
       viscosityForce += velocityVector * (viscosityTerm * currentParticleDensityInv);
 
       // force due to pressure
       const float pressureTerm = (selfPressureTerm + pressureFunction(currentParticleDensity, &sharedData)) * currentParticleDensityInv * 0.5f;
 
-      //delta -= collisionVector * (sqr(timeStep) * pressureTerm * spikyFunction(actualDistance, sharedData.fluidKernelRadius));
-      pressureForce -= collisionVector * (pressureTerm * spikyFunctionGradient(actualDistance, sharedData.fluidKernelRadius));
+      pressureForce -= collisionVector * (pressureTerm * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius));
 
-      colorGradient += collisionVector * poly6FunctionGradient(actualDistance, sharedData.fluidKernelRadius) * currentParticleDensityInv;
-      colorLaplacian += collisionVector * poly6FunctionLaplacian(actualDistance, sharedData.fluidKernelRadius) * currentParticleDensityInv;
+      colorGradient += collisionVector * poly6FunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius) * currentParticleDensityInv;
+      colorLaplacian += collisionVector * poly6FunctionLaplacianVariable(actualDistance, sharedData.fluidKernelRadius) * currentParticleDensityInv;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+  colorGradient *= sharedData.fluidKernelFunctionConstant[0];
+  colorLaplacian *= sharedData.fluidKernelFunctionConstant[0];
+  pressureForce *= sharedData.fluidKernelFunctionConstant[1];
+  viscosityForce *= sharedData.fluidKernelFunctionConstant[2];
 
   float3 color = colorLaplacian;
   float colorLength = length(colorGradient);
