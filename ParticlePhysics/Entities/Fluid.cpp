@@ -59,7 +59,7 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
   setRadiusIsShared((*entitySharedData.host())[0], true);
   (*entitySharedData.host())[0].sharedRadius = particleRadius;
   setCollisionDataIsShared((*entitySharedData.host())[0], false);
-  (*entitySharedData.host())[0].fluidKernelRadius = kernelRadius;
+  (*entitySharedData.host())[0].fluidSolverData.fluidKernelRadius = kernelRadius;
 
   for (int z = 0; z < signedSubdivision[2]; z++)
   {

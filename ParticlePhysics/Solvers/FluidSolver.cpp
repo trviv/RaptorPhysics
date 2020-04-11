@@ -5,8 +5,9 @@
 #define FLUID_COLLISION_SOLVER_CREATE_BOUNDING_BOX  0
 #define FLUID_COLLISION_SOLVER_CELL_COUNTS          1
 #define FLUID_COLLISION_SOLVER_CELL_ARRAYS          2
-#define FLUID_COLLISION_SOLVER_CALC_DENSITY         3
-#define FLUID_COLLISION_SOLVER_CALC_FORCES          4
+#define FLUID_COLLISION_SOLVER_REORDER              3
+#define FLUID_COLLISION_SOLVER_CALC_DENSITY         4
+#define FLUID_COLLISION_SOLVER_CALC_FORCES          5
 
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : FluidSolver(compute, allocator, false)
@@ -47,6 +48,7 @@ void FluidSolver::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
   kernels.push_back(programs[0].createKernel("createGridCellArrays"));
+  kernels.push_back(programs[0].createKernel("reorderFluidParticles"));
   kernels.push_back(programs[0].createKernel("calculateDensity"));
   kernels.push_back(programs[0].createKernel("calculateForces"));
 
@@ -61,7 +63,7 @@ void FluidSolver::updateRadius()
   float kernelRadius = 0.f;
   for (auto& esd : *entitySharedData.host())
   {
-    kernelRadius = max(esd.fluidKernelRadius, kernelRadius);
+    kernelRadius = max(esd.fluidSolverData.fluidKernelRadius, kernelRadius);
   }
 
   if (1.f/kernelRadius != invMaxRadius.host()->at(0))
@@ -69,6 +71,35 @@ void FluidSolver::updateRadius()
     (*invMaxRadius.host())[0] = 1.f/kernelRadius;
     invMaxRadius.syncDevice();
   }
+}
+
+void FluidSolver::rearrangeParticles(uint particleCount)
+{
+  size_t workgroupSize[3], workgroupCount[3];
+
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, 4));
+
+  ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+  ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+  ComputeUtil::get(0)->copyBuffer(compute, particleDifferential.device(), particleDifferentialCopy.device(), 0, 0, sizeof(ParticleDifferential)*particleCount);
+  ComputeUtil::get(0)->copyBuffer(compute, gridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*particleCount);
+
+  ComputeMemory* buffers[] = {
+    particles.device(),
+    particlesCopy.device(),
+    particleDifferential.device(),
+    particleDifferentialCopy.device(),
+    particlesPredicted.device(),
+    particlesPredictedCopy.device(),
+    gridParticleCellIndex.device(),
+    particlesLambda.device(),
+    gridCellParticleIndices.device(),
+  };
+  uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+  kernels[FLUID_COLLISION_SOLVER_REORDER].setArgs(buffers, bufferCount);
+  kernels[FLUID_COLLISION_SOLVER_REORDER].setArg<uint>(&particleCount, bufferCount);
+
+  compute->execute(kernels[FLUID_COLLISION_SOLVER_REORDER], workgroupSize, workgroupCount);
 }
 
 void FluidSolver::solve(float timeStep)
@@ -94,9 +125,9 @@ void FluidSolver::solve(float timeStep)
 
   if (gridParticleCellIndex.size() < particleCount)
   {
-    UniformGridCollisionSolver::particlesBufferTemp.resize(particleCount, false);
-    particlesTemp[0].resize(particleCount, false);
-    particlesTemp[1].resize(particleCount, false);
+    particlesCopy.resize(particleCount, false);
+    particlesPredictedCopy.resize(particleCount, false);
+    particleDifferentialCopy.resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
     particlesColor.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
@@ -203,19 +234,18 @@ void FluidSolver::solve(float timeStep)
     compute->sync();
   #endif
 
-    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), UniformGridCollisionSolver::particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-    ComputeUtil::get(0)->copyBuffer(compute, particleDifferential.device(), particlesTemp[0].device(), 0, 0, sizeof(ParticleDifferential)*particleCount);
-    ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesTemp[1].device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-
     compute->configureSize(workgroupSize, workgroupCount, particleCount);
+
+    rearrangeParticles(particleCount);
+
+    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
     {
       ComputeMemory* buffers[] = {
         particlesDensity.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
-        UniformGridCollisionSolver::particlesBufferTemp.device(),
+        particlesPredicted.device(),
         entitySharedData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
@@ -236,16 +266,12 @@ void FluidSolver::solve(float timeStep)
 
     {
       ComputeMemory* buffers[] = {
-        particles.device(),
-        particlesTemp[1].device(),
         particlesPredicted.device(),
         particlesDensity.device(),
         particleDifferential.device(),
-        particlesTemp[0].device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
-        UniformGridCollisionSolver::particlesBufferTemp.device(),
+        particlesPredictedCopy.device(),
         entitySharedData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
@@ -262,8 +288,6 @@ void FluidSolver::solve(float timeStep)
 
 #ifdef DEBUG_FLUID_SOLVER
     particlesPredicted.syncHost();
-    particlesDensity.syncHost();
-    particlesTemp[0].syncHost();
     compute->sync();
 #endif
   }
@@ -277,9 +301,9 @@ void FluidSolver::update()
 
   for (auto& esd : *entitySharedData.host())
   {
-    esd.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidKernelRadius);
-    esd.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidKernelRadius);
-    esd.fluidKernelFunctionConstant[2] = viscosityFunctionConstant(esd.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidSolverData.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidSolverData.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[2] = viscosityFunctionConstant(esd.fluidSolverData.fluidKernelRadius);
   }
 
   entitySharedData.syncDevice();

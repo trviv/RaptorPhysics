@@ -5,11 +5,12 @@
 #define FLUID_COLLISION_SOLVER_PCISPH_CREATE_BOUNDING_BOX 0
 #define FLUID_COLLISION_SOLVER_PCISPH_CELL_COUNTS         1
 #define FLUID_COLLISION_SOLVER_PCISPH_CELL_ARRAYS         2
-#define FLUID_COLLISION_SOLVER_PCISPH_PREDICT             3
-#define FLUID_COLLISION_SOLVER_PCISPH_CALC_DENSITTY       4
-#define FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE       5
-#define FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES         6
-#define FLUID_COLLISION_SOLVER_PCISPH_UPDATE_POSITION     7
+#define FLUID_COLLISION_SOLVER_REORDER                    3
+#define FLUID_COLLISION_SOLVER_PCISPH_PREDICT             4
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_DENSITTY       5
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE       6
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES         7
+#define FLUID_COLLISION_SOLVER_PCISPH_UPDATE_POSITION     8
 
 FluidSolverPCISPH::FluidSolverPCISPH(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator), FluidSolver(compute, allocator, true), beta(0)
@@ -37,6 +38,7 @@ void FluidSolverPCISPH::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
   kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
   kernels.push_back(programs[0].createKernel("createGridCellArrays"));
+  kernels.push_back(programs[0].createKernel("reorderFluidParticles"));
   kernels.push_back(programs[0].createKernel("predictionStep"));
   kernels.push_back(programs[0].createKernel("calculateDensity"));
   kernels.push_back(programs[0].createKernel("calculatePressure"));
@@ -188,8 +190,12 @@ void FluidSolverPCISPH::solve(float timeStep)
   size_t workgroupSize[3], workgroupCount[3];
   compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
+  rearrangeParticles(particleCount);
+
   for (int i=0; i<iterations; i++)
   {
+    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+
     {
       ComputeMemory* buffers[] = {
         particlesNextPosition.device(),
@@ -217,7 +223,6 @@ void FluidSolverPCISPH::solve(float timeStep)
       ComputeMemory* buffers[] = {
         particlesDensity.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
         particlesPredicted.device(),
         entitySharedData.device(),
@@ -244,7 +249,6 @@ void FluidSolverPCISPH::solve(float timeStep)
       ComputeMemory* buffers[] = {
         particlesPressure.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
         particlesNextPosition.device(),
         entitySharedData.device(),
@@ -273,7 +277,6 @@ void FluidSolverPCISPH::solve(float timeStep)
         particlesDensity.device(),
         particlesPressure.device(),
         gridCellParticleOffsets.device(),
-        gridCellParticleIndices.device(),
         gridParticleCellIndex.device(),
         particlesNextPosition.device(),
         entitySharedData.device(),
@@ -313,6 +316,7 @@ void FluidSolverPCISPH::solve(float timeStep)
   }
 
 #ifdef DEBUG_FLUID_PCISPH_SOLVER
+  particlesPredicted.syncHost();
   compute->sync();
 #endif
 }
@@ -323,8 +327,8 @@ void FluidSolverPCISPH::update()
 
   for (auto& esd : *entitySharedData.host())
   {
-    esd.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidKernelRadius);
-    esd.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidSolverData.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidSolverData.fluidKernelRadius);
   }
 
   entitySharedData.syncDevice();
