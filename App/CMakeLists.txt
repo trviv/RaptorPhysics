@@ -7,6 +7,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/LinearSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/DistanceSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/RigidSolver.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/FluidSolverCommon.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/FluidSolver.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/FluidSolverPBF.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../ParticlePhysics/Solvers/Shaders/FluidSolverPCISPH.shader"

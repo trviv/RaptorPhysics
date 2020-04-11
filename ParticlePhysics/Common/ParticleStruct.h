@@ -191,10 +191,13 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float viscosity;
   /*!@member Kernel radius for fluid constraint.*/
   float fluidKernelRadius;
+  /*!@member The constant part of fluid kernel function 1.*/
+  float fluidKernelFunctionConstant[3];
   /*!@member Initial density for fluid constraint.*/
   float invRestDensity;
   /*!@member Gas constant for fluid constraint.*/
   float gasConstantK;
+  float padding;
 
   CollisionSolverData collisionSolverData;
 };

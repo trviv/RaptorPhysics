@@ -2,6 +2,7 @@
 #define FLUID_SOLVER_H
 
 #include "LinearSolver.h"
+#include "FluidSolverCommon.h"
 #include "../Common/ParticleStruct.h"
 #include "Collision/UniformGridCollisionSolver.h"
 

@@ -40,6 +40,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
 void FluidSolver::create(ComputeInterface* compute)
 {
   includeFiles.push_back("UniformGridCollisionSolver.shader");
+  includeFiles.push_back("FluidSolverCommon.h");
 
   registerShader(compute, "FluidSolver.shader", NULL, NULL);
 
@@ -273,4 +274,13 @@ void FluidSolver::update()
   if (!updates.size()) return;
 
   EntitySolver::update();
+
+  for (auto& esd : *entitySharedData.host())
+  {
+    esd.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidKernelRadius);
+    esd.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidKernelRadius);
+    esd.fluidKernelFunctionConstant[2] = viscosityFunctionConstant(esd.fluidKernelRadius);
+  }
+
+  entitySharedData.syncDevice();
 }

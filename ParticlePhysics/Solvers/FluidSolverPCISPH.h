@@ -17,6 +17,8 @@ protected:
   DeviceArray <ParticleStruct> &particlesNextPosition   = particlesTemp[1];
   DeviceArray <ParticleStruct> &particlesNextVelocity   = particlesBufferTemp;
 
+  void update();
+
 public:
 
   FluidSolverPCISPH(ComputeInterface* compute, SharedAllocator* allocator);

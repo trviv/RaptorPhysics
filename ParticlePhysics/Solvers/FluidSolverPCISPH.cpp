@@ -30,6 +30,7 @@ FluidSolverPCISPH::FluidSolverPCISPH(ComputeInterface* compute, SharedAllocator*
 void FluidSolverPCISPH::create(ComputeInterface* compute)
 {
   includeFiles.push_back("UniformGridCollisionSolver.shader");
+  includeFiles.push_back("FluidSolverCommon.h");
 
   registerShader(compute, "FluidSolverPCISPH.shader", NULL, NULL);
 
@@ -314,4 +315,17 @@ void FluidSolverPCISPH::solve(float timeStep)
 #ifdef DEBUG_FLUID_PCISPH_SOLVER
   compute->sync();
 #endif
+}
+
+void FluidSolverPCISPH::update()
+{
+  FluidSolver::update();
+
+  for (auto& esd : *entitySharedData.host())
+  {
+    esd.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidKernelRadius);
+    esd.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidKernelRadius);
+  }
+
+  entitySharedData.syncDevice();
 }
