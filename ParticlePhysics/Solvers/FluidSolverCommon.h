@@ -59,6 +59,111 @@ inline float viscosityFunctionLaplacianVariable(const float r, const float h)
   return x;
 }
 
+/*
+@kernel Kernel to reorder particles in buffers based on gird index.
+@param gridCellParticleIndices Output array for particle indices.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void reorderFluidParticles(
+  Device ParticleStruct*              particlesNew,
+  const Device ParticleStruct*        particlesOld,
+  Device ParticleDifferential*        particleDiffNew,
+  const Device ParticleDifferential*  particleDiffOld,
+  Device ParticleStruct*              particlesPredictedNew,
+  const Device ParticleStruct*        particlesPredictedOld,
+  Device uint*                        gridParticleCellIndexNew,
+  const Device uint*                  gridParticleCellIndexOld,
+  const Device uint*                  gridCellParticleIndices,
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  uint particleOffset = threadIndex() * 4;
+
+  if (particleOffset >= nodeCount)
+  {
+    return;
+  }
+
+  uint particleCount = min(nodeCount, particleOffset+4) - particleOffset;
+
+  uint particleIndices[4];
+  *((Thread uint4*)particleIndices) = ((const Device uint4*)gridCellParticleIndices)[threadIndex()];
+
+  uint gridParticleCellIndexTemp[4];
+
+  for (int i=0; i<particleCount; i++)
+  {
+    gridParticleCellIndexTemp[i] = gridParticleCellIndexOld[particleIndices[i]];
+  }
+
+  if (particleCount == 4)
+  {
+    ((Device uint4*)gridParticleCellIndexNew)[threadIndex()] = *((Thread uint4*)gridParticleCellIndexTemp);
+  }
+  else
+  {
+    for (int i=0; i<particleCount; i++)
+    {
+      gridParticleCellIndexNew[particleOffset + i] = gridParticleCellIndexTemp[i];
+    }
+  }
+
+  ParticleStruct particlesTemp[4];
+
+  for (int i=0; i<particleCount; i++)
+  {
+    particlesTemp[i] = particlesOld[particleIndices[i]];
+  }
+
+  if (particleCount == 4)
+  {
+    ((Device commonUint16*)particlesNew)[threadIndex()] = *((Thread commonUint16*)particlesTemp);
+  }
+  else
+  {
+    for (int i=0; i<particleCount; i++)
+    {
+      particlesNew[particleOffset + i] = particlesTemp[i];
+    }
+  }
+
+  for (int i=0; i<particleCount; i++)
+  {
+    particlesTemp[i] = particlesPredictedOld[particleIndices[i]];
+  }
+
+  if (particleCount == 4)
+  {
+    ((Device commonUint16*)particlesPredictedNew)[threadIndex()] = *((Thread commonUint16*)particlesTemp);
+  }
+  else
+  {
+    for (int i=0; i<particleCount; i++)
+    {
+      particlesPredictedNew[particleOffset + i] = particlesTemp[i];
+    }
+  }
+
+  ParticleDifferential particlesDiffTemp[4];
+
+  for (int i=0; i<particleCount; i++)
+  {
+    particlesDiffTemp[i] = particleDiffOld[particleIndices[i]];
+  }
+
+  if (particleCount == 4)
+  {
+    ((Device commonUint16*)particleDiffNew)[threadIndex()] = *((Thread commonUint16*)particlesDiffTemp);
+  }
+  else
+  {
+    for (int i=0; i<particleCount; i++)
+    {
+      particleDiffNew[particleOffset + i] = particlesDiffTemp[i];
+    }
+  }
+}
+
 /*inline float poly6Function(const float r, const float h)
 {
   const float x = (h * h - r * r) / (h * h * h);

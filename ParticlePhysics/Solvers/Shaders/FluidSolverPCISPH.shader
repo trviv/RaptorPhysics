@@ -17,9 +17,7 @@ Kernel void predictionStep(
   const Device ParticleSharedData*    particleSharedData,
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint particleIndex = threadIndex();
 
@@ -46,7 +44,6 @@ Kernel void predictionStep(
 @kernel Get particle densities.
 @param particlesDensity Particle densities output.
 @param gridCellParticleOffsets Starting offset for each grid cell.
-@param gridCellParticleIndices Output array for particle indices.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredictedOld Integrated particle position.
 @param particleSharedData Particle entity shared data.
@@ -59,7 +56,6 @@ Kernel void predictionStep(
 Kernel void calculateDensity(
   Device float*                     particlesDensity,
   const Device uint*                gridCellParticleOffsets,
-  const Device uint*                gridCellParticleIndices,
   const Device uint*                gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
   const Device ParticleSharedData*  particleSharedData,
@@ -69,18 +65,14 @@ Kernel void calculateDensity(
   constantKernelInput(int,          gridSizeExp),
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(float,        timeStep)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint particleIndex = threadIndex();
+  const uint particleIndex = threadIndex();
 
   if (particleIndex >= nodeCount)
   {
     return;
   }
-
-  particleIndex = gridCellParticleIndices[particleIndex];
 
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
 
@@ -106,27 +98,25 @@ Kernel void calculateDensity(
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
     // batchwise iterate over indices in the cell
-    for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
     {
       // iterate over each particle in the loaded batch
-      const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
       const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
 
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       float actualDistance = length(collisionVector);
 
-      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius), actualDistance < sharedData.fluidSolverData.fluidKernelRadius);
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  particlesDensity[particleIndex] = (density * sharedData.fluidKernelFunctionConstant[0]) / sharedData.sharedInvMass;
+  particlesDensity[particleIndex] = (density * sharedData.fluidSolverData.fluidKernelFunctionConstant[0]) / sharedData.sharedInvMass;
 }
 
 /*
 @kernel Get particle pressures.
 @param particlesPressure Particle pressures output.
 @param gridCellParticleOffsets Starting offset for each grid cell.
-@param gridCellParticleIndices Output array for particle indices.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredictedOld Integrated particle position.
 @param particleSharedData Particle entity shared data.
@@ -139,7 +129,6 @@ Kernel void calculateDensity(
 Kernel void calculatePressure(
   Device float*                     particlesPressure,
   const Device uint*                gridCellParticleOffsets,
-  const Device uint*                gridCellParticleIndices,
   const Device uint*                gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
   const Device ParticleSharedData*  particleSharedData,
@@ -150,19 +139,15 @@ Kernel void calculatePressure(
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(float,        timeStep),
   constantKernelInput(float,        beta)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
 
-  uint particleIndex = threadIndex();
+  const uint particleIndex = threadIndex();
 
   if (particleIndex >= nodeCount)
   {
     return;
   }
-
-  particleIndex = gridCellParticleIndices[particleIndex];
 
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
 
@@ -190,29 +175,28 @@ Kernel void calculatePressure(
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
     // batchwise iterate over indices in the cell
-    for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
     {
       // iterate over each particle in the loaded batch
-      const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
       const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
 
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       float actualDistance = length(collisionVector);
 
-      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidKernelRadius), actualDistance < sharedData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius), actualDistance < sharedData.fluidSolverData.fluidKernelRadius);
 
-      if (actualDistance >= sharedData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
         continue;
 
-      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius);
+      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  density *= sharedData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
-  sumGradientVector *= sharedData.fluidKernelFunctionConstant[1];
-  sumGradientMagnitude *= (sharedData.fluidKernelFunctionConstant[1] * sharedData.fluidKernelFunctionConstant[1]);
+  density *= sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
+  sumGradientVector *= sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
+  sumGradientMagnitude *= (sharedData.fluidSolverData.fluidKernelFunctionConstant[1] * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]);
 
   const float deltaDenom = (beta * (-dot(sumGradientVector, sumGradientVector) - sumGradientMagnitude));
 
@@ -228,7 +212,6 @@ Kernel void calculatePressure(
 @param particlesDensity Particle densities output.
 @param particlesPressure Particle pressures output.
 @param gridCellParticleOffsets Starting offset for each grid cell.
-@param gridCellParticleIndices Output array for particle indices.
 @param particlesPosition Integrated particle position.
 @param particleSharedData Particle entity shared data.
 @param partitions Instance partition data.
@@ -242,7 +225,6 @@ Kernel void calculateForces(
   const Device float*                 particlesDensity,
   const Device float*                 particlesPressure,
   const Device uint*                  gridCellParticleOffsets,
-  const Device uint*                  gridCellParticleIndices,
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPosition,
   const Device ParticleSharedData*    particleSharedData,
@@ -252,18 +234,14 @@ Kernel void calculateForces(
   constantKernelInput(int,            gridSizeExp),
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint particleIndex = threadIndex();
+  const uint particleIndex = threadIndex();
 
   if (particleIndex >= nodeCount)
   {
     return;
   }
-
-  particleIndex = gridCellParticleIndices[particleIndex];
 
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
 
@@ -294,26 +272,25 @@ Kernel void calculateForces(
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
     // batchwise iterate over indices in the cell
-    for (int otherParticlePointerIndex = indexRange.x; otherParticlePointerIndex < indexRange.y; otherParticlePointerIndex++)
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
     {
       // iterate over each particle in the loaded batch
-      const int otherNodeIndex = gridCellParticleIndices[otherParticlePointerIndex];
       const ParticleStruct otherParticle = particlesPosition[otherNodeIndex];
 
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       float actualDistance = length(collisionVector);
 
-      if (actualDistance >= sharedData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
       const float density = selfPressureByDensity + particlesPressure[otherNodeIndex]/sqr(particlesDensity[otherNodeIndex]);
-      force += collisionVector * (density * spikyFunctionGradientVariable(actualDistance, sharedData.fluidKernelRadius));
+      force += collisionVector * (density * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  particlesPressureForce[particleIndex].xyz = -(force * sharedData.fluidKernelFunctionConstant[1]) / sqr(sharedData.sharedInvMass);
+  particlesPressureForce[particleIndex].xyz = -(force * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]) / sqr(sharedData.sharedInvMass);
 }
 
 /*
@@ -332,9 +309,7 @@ Kernel void updatePositions(
   const Device ParticleSharedData*    particleSharedData,
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
-  KERNEL_GLOBAL_ARGUMENTS
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint particleIndex = threadIndex();
 

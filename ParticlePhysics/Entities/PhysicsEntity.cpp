@@ -20,7 +20,7 @@ PhysicsEntity::PhysicsEntity()
   sharedData.viscosity = 0.0001f;
   sharedData.collisionSolverData.kineticFrictionCoef = 0.9f;
   sharedData.collisionSolverData.staticFrictionCoef = 0.9f;
-  sharedData.fluidKernelRadius = 1.f;
+  sharedData.fluidSolverData.fluidKernelRadius = 1.f;
   sharedData.invRestDensity = 1.f/997.f;
   sharedData.gasConstantK = 0.001f;
   setCollisionDataIsShared(sharedData, true);

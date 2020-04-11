@@ -10,6 +10,8 @@ class FluidSolverPBF : public FluidSolver
 {
 protected:
 
+  DeviceArray <ParticleStruct> &particlesOmega  = particlesTemp[1];
+
   void update();
 
 public:

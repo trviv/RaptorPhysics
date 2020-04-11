@@ -17,6 +17,12 @@ protected:
   DeviceArray <float> particlesLambda;
   DeviceArray <float>&particlesColor = particlesLambda;
 
+  DeviceArray <ParticleStruct>&particlesCopy = particlesTemp[1];
+  DeviceArray <ParticleStruct>&particlesPredictedCopy = UniformGridCollisionSolver::particlesBufferTemp;
+  DeviceArray <ParticleStruct>&particleDifferentialCopy = particlesTemp[0];
+
+  void rearrangeParticles(uint particleCount);
+
   void update();
 
   void updateRadius();

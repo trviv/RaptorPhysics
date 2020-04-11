@@ -175,6 +175,20 @@ typedef struct CollisionSolverData_t CollisionSolverData;
 
 
 /*!
+@struct Data required by fluid solver.
+*/
+struct DEFAULT_ALIGN FluidSolverData_t
+{
+  /*!@member Kernel radius for fluid constraint.*/
+  float fluidKernelRadius;
+  /*!@member The constant part of fluid kernel function 1.*/
+  float fluidKernelFunctionConstant[3];
+};
+
+typedef struct FluidSolverData_t FluidSolverData;
+
+
+/*!
 @struct Data shared by all the particles of an entity.
 */
 struct DEFAULT_ALIGN ParticleSharedData_t
@@ -189,15 +203,13 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float stiffness;
   /*!@member Viscosity for fluid constraint.*/
   float viscosity;
-  /*!@member Kernel radius for fluid constraint.*/
-  float fluidKernelRadius;
-  /*!@member The constant part of fluid kernel function 1.*/
-  float fluidKernelFunctionConstant[3];
   /*!@member Initial density for fluid constraint.*/
   float invRestDensity;
   /*!@member Gas constant for fluid constraint.*/
   float gasConstantK;
   float padding;
+
+  FluidSolverData fluidSolverData;
 
   CollisionSolverData collisionSolverData;
 };
