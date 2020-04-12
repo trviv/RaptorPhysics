@@ -29,15 +29,33 @@ inline float poly6FunctionVariable(const float r, const float h)
   return x * x * x;
 }
 
+inline float poly6FunctionVariableSquares(const float rSquared, const float hSquared)
+{
+  const float x = (hSquared - rSquared);
+  return x * x * x;
+}
+
 inline float poly6FunctionGradientVariable(const float r, const float h)
 {
   const float x = (h * h - r * r);
   return -6.f * x * x;
 }
 
+inline float poly6FunctionGradientVariableSquares(const float rSquared, const float hSquared)
+{
+  const float x = (hSquared - rSquared);
+  return -6.f * x * x;
+}
+
 inline float poly6FunctionLaplacianVariable(const float r, const float h)
 {
   const float x = (h * h - r * r) * (3 * h * h - 7 * r * r);
+  return -6.f * x;
+}
+
+inline float poly6FunctionLaplacianVariableSquares(const float rSquared, const float hSquared)
+{
+  const float x = (hSquared - rSquared) * (3 * hSquared - 7 * rSquared);
   return -6.f * x;
 }
 

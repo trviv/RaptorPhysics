@@ -3,7 +3,7 @@
 
 inline float scorrFunction(const float r, const float h)
 {
-  const float corrK = 0.1f;
+  const float corrK = 0.01f;
   const float corrDelQ = 0.1f;
   //const int corrN = 4;
   const float x = poly6FunctionVariable(r, h) / poly6FunctionVariable(corrDelQ * h, h);
@@ -69,6 +69,8 @@ Kernel void calculateLambda(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   // loop through neighboring cells
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
@@ -78,15 +80,16 @@ Kernel void calculateLambda(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius), actualDistance < sharedData.fluidSolverData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
 
-      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
@@ -165,6 +168,8 @@ Kernel void calculateForces(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -173,13 +178,14 @@ Kernel void calculateForces(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float scorr = scorrFunction(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
       delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
     }
@@ -247,6 +253,8 @@ Kernel void vorticityOmega(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -255,13 +263,14 @@ Kernel void vorticityOmega(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
       sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius)));
     }
@@ -332,6 +341,8 @@ Kernel void vorticityConfinementXSPHViscosity(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -340,15 +351,16 @@ Kernel void vorticityConfinementXSPHViscosity(
     {
       const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (otherNodeIndex == particleIndex || actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      delta += velocityDiff * poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
+      delta += velocityDiff * poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq);
       omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END

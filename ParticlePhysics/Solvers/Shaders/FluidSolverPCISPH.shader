@@ -94,6 +94,8 @@ Kernel void calculateDensity(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -102,11 +104,10 @@ Kernel void calculateDensity(
     {
       // iterate over each particle in the loaded batch
       const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
-
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius), actualDistance < sharedData.fluidSolverData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
@@ -171,6 +172,8 @@ Kernel void calculatePressure(
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -179,15 +182,17 @@ Kernel void calculatePressure(
     {
       // iterate over each particle in the loaded batch
       const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
-
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      density += select(0.f, poly6FunctionVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius), actualDistance < sharedData.fluidSolverData.fluidKernelRadius);
+      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
 
-      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      {
         continue;
+      }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
       sumGradientMagnitude += lengthSq(gradient);
       sumGradientVector += gradient;
@@ -200,7 +205,7 @@ Kernel void calculatePressure(
 
   const float deltaDenom = (beta * (-dot(sumGradientVector, sumGradientVector) - sumGradientMagnitude));
 
-  if (fabs(deltaDenom) > COMPUTE_EPSILON * COMPUTE_EPSILON)
+  if (fabs(deltaDenom) > COMPUTE_EPSILON_SQ)
   {
     particlesPressure[particleIndex] += -(density - 1.f/sharedData.invRestDensity) / deltaDenom;
   }
@@ -267,6 +272,7 @@ Kernel void calculateForces(
 #endif
 
   const float selfPressureByDensity = selfPressure/sqr(selfDensity);
+  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
@@ -276,15 +282,15 @@ Kernel void calculateForces(
     {
       // iterate over each particle in the loaded batch
       const ParticleStruct otherParticle = particlesPosition[otherNodeIndex];
-
       const float3 collisionVector = selfParticle.position - otherParticle.position;
-      float actualDistance = length(collisionVector);
+      const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistance >= sharedData.fluidSolverData.fluidKernelRadius || actualDistance <= COMPUTE_EPSILON || otherNodeIndex == particleIndex)
+      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
 
+      const float actualDistance = sqrt(actualDistanceSq);
       const float density = selfPressureByDensity + particlesPressure[otherNodeIndex]/sqr(particlesDensity[otherNodeIndex]);
       force += collisionVector * (density * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
     }
