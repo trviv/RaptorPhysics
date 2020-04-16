@@ -237,6 +237,8 @@ inline short3 decodeCellVector(uchar encodedOffset)
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
 
+#ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
+
 #define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
   short x = -2; \
   short y = -1; \
@@ -250,6 +252,24 @@ inline short3 decodeCellVector(uchar encodedOffset)
     { z++; y = -1;} \
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
     const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+
+#else
+
+#define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
+  short x = -2; \
+  short y = -1; \
+  short z = -1; \
+  for (short n=0; n<14; n++) \
+  { \
+    x++; \
+    if (x == 2) \
+    { y++; x = z;} \
+    if (y == 2) \
+    { z++; y = z; x = z; if (z == 1) {x = 1; y = -1; z = 0;}} \
+    const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
+    const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+
+#endif
 
 #else
 
@@ -419,8 +439,8 @@ Kernel void applyCollisions(
 
 #ifndef GRID_SOLVER_SEPARATE_LOOPS
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
+    const bool differentCell = (n != 9);
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
-    //localMemBarrier();
     if (localIndex == 0)
     {
       doneTestCount = 0;
@@ -478,7 +498,7 @@ Kernel void applyCollisions(
         }
 
         // basic check to determine if collision can happen between the particles
-        if (shouldCheckForCollision(getSolverType(selfParticle.identity), particleIndex, otherNodeIndex, &selfParticle, &otherParticle))
+        if (shouldCheckForCollision(getSolverType(selfParticle.identity), particleIndex, otherNodeIndex, &selfParticle, &otherParticle, differentCell))
         {
           // add to test list at an available offset
           const ushort testQueueIndex = atomicAddSignedShared(&pendingTestCount, 1);
@@ -499,7 +519,7 @@ Kernel void applyCollisions(
       const int otherNodeIndex = gridCellParticleIndices[otherIndex];
 
       const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
-      if (!shouldCheckForCollision(solverType, particleIndex, otherNodeIndex, &selfParticle, &otherParticle))
+      if (!shouldCheckForCollision(solverType, particleIndex, otherNodeIndex, &selfParticle, &otherParticle, differentCell))
         continue;
 
       const ParticleDifferential otherParticleDiff = particlesDiff[otherNodeIndex];

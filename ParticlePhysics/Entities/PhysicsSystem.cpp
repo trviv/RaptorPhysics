@@ -22,6 +22,7 @@ static const string PAUSE_SIM_OPTION              ("Pause Sim");
 static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 
 static Clock physicsSystemClock;
+static int simulationIterations = 1;
 
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
@@ -99,6 +100,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   bindParameter("renderBoundingBoxesOption", &getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderSystemBoundOption", &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderGridHeatmapOption", &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("simulationIterations", &simulationIterations, InputParameterType::ParameterTypeInt);
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
@@ -274,7 +276,10 @@ void PhysicsSystem::step()
   const float renderTime = physicsSystemClock.getTimeMilliseconds();
   physicsSystemClock.reset();
 
-  step(1.f / 60.f);
+  for (int i=0; i<simulationIterations; i++)
+  {
+    step(1.f / (simulationIterations * 60));
+  }
 
 #ifdef ENABLE_RENDERING
   // sync all output buffers
@@ -647,8 +652,6 @@ void PhysicsSystem::render()
         displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
         displayCollisionBuffer.copyData((float*)collisionData, elements * sizeof(ParticleCollisionData));
 
-        displayFlatShader.set("fillShader", 1.f);
-
         GL_CHECK(glEnable(GL_BLEND));
         displayFlatVertex.bind();
         for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
@@ -889,6 +892,10 @@ void PhysicsSystem::step(float timeStep)
     displayBackgroundShader.set("flipY", (int)1);
     displayBackgroundShader.set("fillScreen", (int)0);
     displayBackgroundShader.unbind();
+    displayFlatShader.bind();
+    displayFlatShader.set("screenAligned", (int)1);
+    displayFlatShader.set("fillShader", 1.f);
+    displayFlatShader.unbind();
 
     createSphere(1.f);
 

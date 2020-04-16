@@ -53,9 +53,9 @@ struct ParticleAllocator
 
   void create(uint initialParticles)
   {
-    partitions.create(initialParticles/64 * sizeof(ParticleSharedData));
+    partitions.create(initialParticles/256 * sizeof(ParticleSharedData));
     particlePredicted.create(initialParticles * sizeof(ParticleStruct));
-    particleSharedHeap.create(initialParticles/64 * sizeof(ParticleSharedData));
+    particleSharedHeap.create(initialParticles/256 * sizeof(ParticleSharedData));
     particleHeap.create(initialParticles * sizeof(ParticleStruct));
     particleDifferentialHeap.create(initialParticles * sizeof(ParticleDifferential));
     particleRigidData.create(initialParticles/64 * sizeof(ParticleRigidData));
