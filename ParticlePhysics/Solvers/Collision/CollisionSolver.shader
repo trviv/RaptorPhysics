@@ -191,10 +191,10 @@ inline float3 boundaryCollision(
 }
 
 // function to check if objects are eligible for collision
-inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle)
+inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle, const bool differentCell = true)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
-  return otherParticleIndex < selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
+  return (differentCell | otherParticleIndex < selfParticleIndex) & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
 #else
   return otherParticleIndex != selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
 #endif

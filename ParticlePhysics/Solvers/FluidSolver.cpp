@@ -273,6 +273,7 @@ void FluidSolver::solve(float timeStep)
         gridParticleCellIndex.device(),
         particlesPredictedCopy.device(),
         entitySharedData.device(),
+        particleCollisionData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
       };

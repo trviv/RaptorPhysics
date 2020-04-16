@@ -1,6 +1,8 @@
 #ifndef FLUID_SOLVER_SHADER
 #define FLUID_SOLVER_SHADER
 
+#define FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD 0.1f
+
 /*
 @kernel Resolve particle collisions.
 @param particlesDensity Particles density.
@@ -71,7 +73,7 @@ Kernel void calculateDensity(
 
       density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
 
-      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
@@ -112,6 +114,7 @@ Kernel void calculateForces(
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleSharedData*    particleSharedData,
+  Device ParticleCollisionData*       particleCollisionData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
   constantKernelInput(int,            gridSize),
@@ -169,7 +172,7 @@ Kernel void calculateForces(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistanceSq <= COMPUTE_EPSILON_SQ || actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
       {
         continue;
       }
@@ -199,11 +202,15 @@ Kernel void calculateForces(
   viscosityForce *= sharedData.viscosity * sharedData.fluidSolverData.fluidKernelFunctionConstant[2];
 
   float3 color = colorLaplacian;
-  const float colorLength = length(colorGradient);
-  if (colorLength >= COMPUTE_EPSILON)
+  const float colorGradientLength = length(colorGradient);
+  colorGradient /= colorGradientLength;
+  if (colorGradientLength >= FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD)
   {
-    color *= -0.1f * colorGradient / colorLength;
+    color *= -0.1f * colorGradient;
   }
+
+  particleCollisionData[particleIndex].gradientMagnitude = colorGradientLength * timeStep;
+  particleCollisionData[particleIndex].transformedSdfGradient = encodeDirection(select(-colorGradient, constructFloat3(0.f), colorGradientLength <= FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD));
 
   selfParticle.position += (pressureForce + viscosityForce + color) * sqr(timeStep);
   selfParticle.identity = identity;
