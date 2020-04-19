@@ -1,7 +1,7 @@
 #ifndef COLLISION_SOLVER_SHADER
 #define COLLISION_SOLVER_SHADER
 
-inline uint arrange32Bits(uint x)
+inline uint encode32Bits(uint x)
 {
   //........ ........ ......12 3456789A  //x
   //....1..2 ..3..4.. 5..6..7. .8..9..A  //x after interleaving bits
@@ -40,7 +40,23 @@ inline uint get32BitMortonCode(const int3 quantizedPosition)
   const uint y = quantizedPosition.y & COLLISION_COMPONENT_MORTON_CODE_MASK;
   const uint z = quantizedPosition.z & COLLISION_COMPONENT_MORTON_CODE_MASK;
 
-  return arrange32Bits(x) | (arrange32Bits(y) << 1) | (arrange32Bits(z) << 2);
+  return encode32Bits(x) | (encode32Bits(y) << 1) | (encode32Bits(z) << 2);
+}
+
+inline uint decode32Bits(uint x)
+{
+  x &= 0x09249249;                  // x = ---- 9--8 --7- -6-- 5--4 --3- -2-- 1--0
+  x = (x ^ (x >>  2)) & 0x030c30c3; // x = ---- --98 ---- 76-- --54 ---- 32-- --10
+  x = (x ^ (x >>  4)) & 0x0300f00f; // x = ---- --98 ---- ---- 7654 ---- ---- 3210
+  x = (x ^ (x >>  8)) & 0xff0000ff; // x = ---- --98 ---- ---- ---- ---- 7654 3210
+  x = (x ^ (x >> 16)) & 0x000003ff; // x = ---- ---- ---- ---- ---- --98 7654 3210
+
+  return x;
+}
+
+inline int3 decode32BitMortonCode(const uint mortonCode)
+{
+  return constructInt3(decode32Bits(mortonCode), decode32Bits(mortonCode >> 1), decode32Bits(mortonCode >> 2));
 }
 
 inline void atomicAddFloat3(Device float3 *destination, const float3 value)
@@ -70,6 +86,18 @@ inline void atomicAddFloat3Shared(Shared float3 *destination, const float3 value
     {
       desiredValue = value[i] + asFloat(existingValue);
     }
+  }
+}
+
+inline void atomicAddFloat(Device float *destination, const float value)
+{
+  Device uint *uintDestination = (Device uint*)destination;
+
+  uint existingValue = atomicLoad(uintDestination);
+  float desiredValue = value + asFloat(existingValue);
+  while (!atomicCmpXchg(uintDestination, existingValue, desiredValue))
+  {
+    desiredValue = value + asFloat(existingValue);
   }
 }
 

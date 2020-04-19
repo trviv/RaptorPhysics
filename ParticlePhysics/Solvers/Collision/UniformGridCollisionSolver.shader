@@ -4,9 +4,27 @@
 //#define GRID_SOLVER_SEPARATE_LOOPS
 //#define DEBUG_GRID_SOLVER_SCATTER
 
-inline uint gridIndexInt3Int(const int3 relativeIndex, const int gridSizeExp)
+inline uint encodeGridIndexInt3(const int3 relativeIndex, const int gridSizeExp)
 {
+#ifdef GRID_SOLVER_USE_Z_ORDER
+  return get32BitMortonCode(relativeIndex);
+#else
   return ((((relativeIndex.z << gridSizeExp) + relativeIndex.y) << gridSizeExp) + relativeIndex.x);
+#endif
+}
+
+inline short3 decodeGridIndexShort3(const uint gridIndex, const int gridSize, const int gridSizeExp)
+{
+#ifdef GRID_SOLVER_USE_Z_ORDER
+  const int3 ret = decode32BitMortonCode(gridIndex);
+  return constructShort3(ret.x, ret.y, ret.z);
+#else
+  return constructShort3(
+    gridIndex & (gridSize - 1),
+    (gridIndex >> gridSizeExp) & (gridSize - 1),
+    gridIndex >> (gridSizeExp << 1)
+  );
+#endif
 }
 
 inline int3 positionHashFunction(const float3 position, const int gridSize, const int gridSizeExp)
@@ -77,7 +95,7 @@ Kernel void createGridCellHistogram(
 #else
     const int3 quantizedPosition = positionHashFunction((particles[index].position - systemBoundingBox->min) * invRadius[0], gridSize, gridSizeExp);
 #endif
-    const uint gridCountOffset = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+    const uint gridCountOffset = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
 
     gridParticleCellIndex[index] = gridCountOffset;
 
@@ -142,7 +160,7 @@ Kernel void createGridCellHistogram(
 #else
       const int3 quantizedPosition = positionHashFunction((center + radius * centerDeltas[i]) * invRadius[0], gridSize, gridSizeExp);
 #endif
-      gridCellIndices[i] = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+      gridCellIndices[i] = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
     }
 
     for (short i=0; i<9; i++)
@@ -235,6 +253,11 @@ inline short3 decodeCellVector(uchar encodedOffset)
   return constructShort3(encodedOffset, (encodedOffset >> 2), (encodedOffset >> 4)) & constructShort3(3);
 }
 
+#define DECLARE_SELF_PARTICLE(particlesBuffer, identity, nodeIdentity) \
+  ParticleStruct selfParticle = particlesBuffer[particleIndex]; \
+  const IdentityInfo identity = selfParticle.identity; \
+  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+
 #ifdef GRID_SOLVER_HASH_FUNCTION
 
 #ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
@@ -251,7 +274,7 @@ inline short3 decodeCellVector(uchar encodedOffset)
     if (y == 2) \
     { z++; y = -1;} \
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
-    const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+    const int gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
 
 #else
 
@@ -267,13 +290,14 @@ inline short3 decodeCellVector(uchar encodedOffset)
     if (y == 2) \
     { z++; y = z; x = z; if (z == 1) {x = 1; y = -1; z = 0;}} \
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
-    const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+    const int gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
 
 #endif
 
 #else
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
+  const short3 particleGridCellIndex = decodeGridIndexShort3(gridCellIndex, gridSize, gridSizeExp); \
   short x = particleGridCellIndex.x - 2; \
   short y = particleGridCellIndex.y - 1; \
   short z = particleGridCellIndex.z - 1; \
@@ -290,7 +314,7 @@ inline short3 decodeCellVector(uchar encodedOffset)
     { \
       continue; \
     } \
-    const int gridCellIndex = gridIndexInt3Int(constructInt3(x, y, z), gridSizeExp);
+    const int gridCellIndex = encodeGridIndexInt3(constructInt3(x, y, z), gridSizeExp);
 
 #endif
 
@@ -427,12 +451,6 @@ Kernel void applyCollisions(
   const ushort solverType = getSolverType(identity);
 #endif
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
-
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
@@ -548,7 +566,7 @@ Kernel void applyCollisions(
     const int gridCellIndex = decodeCellIndex(validNeighbourIndex[i], particleGridCellIndex, gridSizeExp);
 #else
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(decodeCellVector(validNeighbourIndex[i]) - constructShort3(1)), gridSize, gridSizeExp);
-    const int gridCellIndex = gridIndexInt3Int(quantizedPosition, gridSizeExp);
+    const int gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
 #endif
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
@@ -613,11 +631,10 @@ Kernel void applyCollisions(
 
   // current particle data
   float3 positionDiff = constructFloat3(0.f);
-  ParticleStruct selfParticle = particlesBufferOld[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
 
-  ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  DECLARE_SELF_PARTICLE(particlesBufferOld, identity, nodeIdentity)
+
+  const ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
   const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
 
   nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;

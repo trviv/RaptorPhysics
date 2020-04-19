@@ -27,9 +27,8 @@ Kernel void predictionStep(
   }
 
   // current particle data
-  ParticleStruct selfParticle = particlesPosition[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  DECLARE_SELF_PARTICLE(particlesPosition, identity, nodeIdentity)
+
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
   float3 velocity = particlesDiff[particleIndex].velocity + particlesPressureForce[particleIndex].xyz * timeStep * sharedData.sharedInvMass;
@@ -79,16 +78,9 @@ Kernel void calculateDensity(
   // current particle data
   float density = 0.f;
 
-  const ParticleStruct selfParticle = particlesPredicted[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -157,16 +149,9 @@ Kernel void calculatePressure(
   float sumGradientMagnitude = 0.f;
   float3 sumGradientVector = constructFloat3(0.f);
 
-  const ParticleStruct selfParticle = particlesPredicted[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -253,19 +238,11 @@ Kernel void calculateForces(
   float3 force = constructFloat3(0.f);
 
   // current particle data
-  ParticleStruct selfParticle = particlesPosition[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPosition, identity, nodeIdentity)
 
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
   const float selfDensity = particlesDensity[particleIndex];
   const float selfPressure = particlesPressure[particleIndex];
-
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -327,9 +304,8 @@ Kernel void updatePositions(
   const float3 force = particlesPressureForce[particleIndex].xyz;
 
   // current particle data
-  ParticleStruct selfParticle = particlesPosition[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  DECLARE_SELF_PARTICLE(particlesPosition, identity, nodeIdentity)
+
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
   selfParticle.position += force * sqr(timeStep) * sharedData.sharedInvMass;

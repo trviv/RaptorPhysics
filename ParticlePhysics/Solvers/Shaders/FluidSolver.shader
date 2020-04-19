@@ -39,25 +39,17 @@ Kernel void calculateDensity(
 
   // current particle data
   float density = 0.f;
-  float sumGradientMagnitude = 0.f;
-  float3 sumGradientVector = constructFloat3(0.f);
 
-  const ParticleStruct selfParticle = particlesPredicted[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
+  const FluidSolverData fluidSolverData = particleSharedData[nodeIdentity.entityId].fluidSolverData;
+  const float invMass = particleSharedData[nodeIdentity.entityId].sharedInvMass;
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 #endif
 
-  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
+  const float fluidKernelRadiusSq = sqr(fluidSolverData.fluidKernelRadius);
 
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
@@ -72,23 +64,10 @@ Kernel void calculateDensity(
       const float actualDistanceSq = lengthSq(collisionVector);
 
       density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
-      sumGradientMagnitude += lengthSq(gradient);
-      sumGradientVector += gradient;
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  sumGradientMagnitude += lengthSq(sumGradientVector);
-  sumGradientMagnitude *= (sharedData.fluidSolverData.fluidKernelFunctionConstant[1] * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]) / sharedData.sharedInvMass;
-
-  density *= sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
+  density *= fluidSolverData.fluidKernelFunctionConstant[0] / invMass;
 
   particlesDensity[particleIndex] = density;
 }
@@ -138,19 +117,11 @@ Kernel void calculateForces(
   float3 colorLaplacian = constructFloat3(0.f);
 
   // current particle data
-  ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
+
   const float3 selfParticleDiff = particleDiff[particleIndex].velocity;
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
   const float density = particlesDensity[particleIndex];
-
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
-
   const float restDensity = 1.f/sharedData.invRestDensity;
   const float selfPressureTerm = sharedData.gasConstantK * (density - restDensity);
 
