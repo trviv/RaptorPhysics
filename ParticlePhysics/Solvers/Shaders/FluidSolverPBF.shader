@@ -54,16 +54,9 @@ Kernel void calculateLambda(
   float sumGradientMagnitude = 0.f;
   float3 sumGradientVector = constructFloat3(0.f);
 
-  const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -151,18 +144,10 @@ Kernel void calculateForces(
   float3 delta = constructFloat3(0.f);
 
   // current particle data
-  ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
+  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
+
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-
   const float lambda = particlesLambda[particleIndex];
-
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -237,17 +222,10 @@ Kernel void vorticityOmega(
   float3 sumOmega = constructFloat3(0.f);
 
   // current particle data
-  const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-  ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
 
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
+  ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
@@ -324,18 +302,11 @@ Kernel void vorticityConfinementXSPHViscosity(
   float3 omegaDelta = constructFloat3(0.f);
 
   // current particle data
-  ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
+
   ParticleDifferential selfParticleDiff = particlesDiff[particleIndex];
-  const IdentityInfo identity = selfParticle.identity;
-  const ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(identity);
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
   const float3 selfOmega = particlesOmega[particleIndex];
-
-  const short3 particleGridCellIndex = constructShort3(
-    gridCellIndex & (gridSize - 1),
-    (gridCellIndex >> gridSizeExp) & (gridSize - 1),
-    gridCellIndex >> (gridSizeExp << 1)
-  );
 
 #ifdef GRID_SOLVER_HASH_FUNCTION
   const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
