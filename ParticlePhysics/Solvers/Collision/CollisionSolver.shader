@@ -74,6 +74,13 @@ inline void atomicAddFloat3(Device float3 *destination, const float3 value)
   }
 }
 
+inline float3 atomicLoadFloat3(const Device float3 *source)
+{
+  const Device uint *uintSource = (const Device uint*)source;
+
+  return constructFloat3(asFloat(atomicLoad(&uintSource[0])), asFloat(atomicLoad(&uintSource[1])), asFloat(atomicLoad(&uintSource[2])));
+}
+
 inline void atomicAddFloat3Shared(Shared float3 *destination, const float3 value)
 {
   Shared uint *uintDestination = (Shared uint*)destination;

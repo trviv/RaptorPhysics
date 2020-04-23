@@ -27,12 +27,12 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
 
 #ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
-  particlesColor.create(compute, solverHeap, true);
+  particlesLambda.create(compute, solverHeap, true);
   particlesTemp[0].create(compute, solverHeap, true);
   particlesTemp[1].create(compute, solverHeap, true);
 #else
   particlesDensity.create(compute, solverHeap);
-  particlesColor.create(compute, solverHeap);
+  particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);
 #endif
@@ -129,7 +129,7 @@ void FluidSolver::solve(float timeStep)
     particlesPredictedCopy.resize(particleCount, false);
     particleDifferentialCopy.resize(particleCount, false);
     particlesDensity.resize(particleCount, false);
-    particlesColor.resize(particleCount, false);
+    particlesLambda.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
     gridCellParticleIndices.resize(particleCount, false);
   }
