@@ -77,7 +77,7 @@ void FluidSolver::rearrangeParticles(uint particleCount)
 {
   size_t workgroupSize[3], workgroupCount[3];
 
-  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, 4));
+  compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
   ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
   ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
