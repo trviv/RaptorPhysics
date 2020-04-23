@@ -95,91 +95,19 @@ Kernel void reorderFluidParticles(
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint particleOffset = threadIndex() * 4;
+  uint particleIndex = threadIndex();
 
-  if (particleOffset >= nodeCount)
+  if (particleIndex >= nodeCount)
   {
     return;
   }
 
-  uint particleCount = min(nodeCount, particleOffset+4) - particleOffset;
+  particleIndex = gridCellParticleIndices[threadIndex()];
 
-  uint particleIndices[4];
-  *((Thread uint4*)particleIndices) = ((const Device uint4*)gridCellParticleIndices)[threadIndex()];
-
-  uint gridParticleCellIndexTemp[4];
-
-  for (int i=0; i<particleCount; i++)
-  {
-    gridParticleCellIndexTemp[i] = gridParticleCellIndexOld[particleIndices[i]];
-  }
-
-  if (particleCount == 4)
-  {
-    ((Device uint4*)gridParticleCellIndexNew)[threadIndex()] = *((Thread uint4*)gridParticleCellIndexTemp);
-  }
-  else
-  {
-    for (int i=0; i<particleCount; i++)
-    {
-      gridParticleCellIndexNew[particleOffset + i] = gridParticleCellIndexTemp[i];
-    }
-  }
-
-  ParticleStruct particlesTemp[4];
-
-  for (int i=0; i<particleCount; i++)
-  {
-    particlesTemp[i] = particlesOld[particleIndices[i]];
-  }
-
-  if (particleCount == 4)
-  {
-    ((Device commonUint16*)particlesNew)[threadIndex()] = *((Thread commonUint16*)particlesTemp);
-  }
-  else
-  {
-    for (int i=0; i<particleCount; i++)
-    {
-      particlesNew[particleOffset + i] = particlesTemp[i];
-    }
-  }
-
-  for (int i=0; i<particleCount; i++)
-  {
-    particlesTemp[i] = particlesPredictedOld[particleIndices[i]];
-  }
-
-  if (particleCount == 4)
-  {
-    ((Device commonUint16*)particlesPredictedNew)[threadIndex()] = *((Thread commonUint16*)particlesTemp);
-  }
-  else
-  {
-    for (int i=0; i<particleCount; i++)
-    {
-      particlesPredictedNew[particleOffset + i] = particlesTemp[i];
-    }
-  }
-
-  ParticleDifferential particlesDiffTemp[4];
-
-  for (int i=0; i<particleCount; i++)
-  {
-    particlesDiffTemp[i] = particleDiffOld[particleIndices[i]];
-  }
-
-  if (particleCount == 4)
-  {
-    ((Device commonUint16*)particleDiffNew)[threadIndex()] = *((Thread commonUint16*)particlesDiffTemp);
-  }
-  else
-  {
-    for (int i=0; i<particleCount; i++)
-    {
-      particleDiffNew[particleOffset + i] = particlesDiffTemp[i];
-    }
-  }
+  gridParticleCellIndexNew[threadIndex()] = gridParticleCellIndexOld[particleIndex];
+  particlesNew[threadIndex()] = particlesOld[particleIndex];
+  particlesPredictedNew[threadIndex()] = particlesPredictedOld[particleIndex];
+  particleDiffNew[threadIndex()] = particleDiffOld[particleIndex];
 }
 
 /*inline float poly6Function(const float r, const float h)
