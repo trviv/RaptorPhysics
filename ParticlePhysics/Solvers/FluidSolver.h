@@ -15,7 +15,6 @@ protected:
 
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
-  DeviceArray <float>&particlesColor = particlesLambda;
 
   DeviceArray <ParticleStruct>&particlesCopy = particlesTemp[1];
   DeviceArray <ParticleStruct>&particlesPredictedCopy = UniformGridCollisionSolver::particlesBufferTemp;

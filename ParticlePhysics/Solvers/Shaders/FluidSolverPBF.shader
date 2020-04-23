@@ -77,7 +77,7 @@ Kernel void calculateLambda(
 
       density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
 
-      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq)
       {
         continue;
       }
@@ -165,7 +165,7 @@ Kernel void calculateForces(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq)
       {
         continue;
       }
@@ -243,7 +243,7 @@ Kernel void vorticityOmega(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq)
       {
         continue;
       }
@@ -324,7 +324,7 @@ Kernel void vorticityConfinementXSPHViscosity(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
 
-      if (actualDistanceSq >= fluidKernelRadiusSq || otherNodeIndex == particleIndex)
+      if (actualDistanceSq >= fluidKernelRadiusSq)
       {
         continue;
       }
