@@ -13,6 +13,8 @@ class FluidSolver : public EntitySolver<uint, real, Real3>, protected UniformGri
 {
 protected:
 
+  friend class PhysicsSystem;
+
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
 

@@ -50,7 +50,7 @@ class PhysicsSystem : protected ShaderEntity, public Window
   CameraInterface*                cameraInterface;
 
   float elapsedSimTime;
-  int   frameCount;
+  uint  frameCount;
 
   void createSphere(float radius);
 
@@ -105,6 +105,7 @@ public:
   Buffer  displayPositionBuffer;
   Buffer  displayCollisionBuffer;
   Buffer  displayBoxBuffer;
+  Buffer  displayDensityBuffer;
   Texture displayGridBuffer;
   ComputeGraphicsSharedTexture displayBackgroundBuffer;
 

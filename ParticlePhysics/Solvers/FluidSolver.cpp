@@ -25,13 +25,12 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
     create(compute);
   }
 
-#ifdef DEBUG_FLUID_SOLVER
   particlesDensity.create(compute, solverHeap, true);
+#ifdef DEBUG_FLUID_SOLVER
   particlesLambda.create(compute, solverHeap, true);
   particlesTemp[0].create(compute, solverHeap, true);
   particlesTemp[1].create(compute, solverHeap, true);
 #else
-  particlesDensity.create(compute, solverHeap);
   particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);

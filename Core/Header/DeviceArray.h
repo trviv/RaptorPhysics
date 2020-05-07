@@ -152,7 +152,7 @@ public:
     allocated = 0;
   }
 
-  void syncHost(size_t offset = 0, size_t elements = 0)
+  void syncHost(size_t hostOffset = 0, size_t elements = 0, size_t deviceOffset = 0)
   {
     if (!hostBuffer)
     {
@@ -162,15 +162,16 @@ public:
     {
       elements = this->elements;
     }
-    if ((offset + elements) == 0)
+    if ((deviceOffset + elements) == 0)
     {
       logComputeError("Device array is empty!");
     }
-    //if ((offset + size) != elements)
+
+    if (hostBuffer->size() < (hostOffset + elements))
     {
-      hostBuffer->resize(offset + elements);
+      hostBuffer->resize(hostOffset + elements);
     }
-    compute->copyToHost(deviceBuffer, offset * sizeof(ClassType), elements * sizeof(ClassType), &((*hostBuffer)[offset]), false);
+    compute->copyToHost(deviceBuffer, deviceOffset * sizeof(ClassType), elements * sizeof(ClassType), &((*hostBuffer)[hostOffset]), false);
   }
 
   void syncDevice(size_t offset = 0, size_t size = 0)
