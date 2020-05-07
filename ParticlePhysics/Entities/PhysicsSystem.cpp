@@ -24,6 +24,8 @@ static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 static Clock physicsSystemClock;
 static int simulationIterations = 1;
 
+#define FRAME_BUFFERING_SIZE 3
+
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
   this->compute = compute;
@@ -291,8 +293,14 @@ void PhysicsSystem::step()
 
       if (!elements) continue;
 
-      solversUint[solver]->particles.syncHost(0, elements);
-      solversUint[solver]->particleCollisionData.syncHost(0, elements);
+      const uint hostOffset = ((frameCount + FRAME_BUFFERING_SIZE - 1) % FRAME_BUFFERING_SIZE) * elements;
+      solversUint[solver]->particles.syncHost(hostOffset, elements);
+      solversUint[solver]->particleCollisionData.syncHost(hostOffset, elements);
+
+      if (solver == SOLVER_FLUID)
+      {
+        ((FluidSolver*)solversUint[solver])->particlesDensity.syncHost(hostOffset, elements);
+      }
     }
   }
 
@@ -362,7 +370,6 @@ void PhysicsSystem::step()
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
   }
-  frameCount++;
 #endif
 
   physicsSystemClock.reset();
@@ -508,6 +515,10 @@ void PhysicsSystem::createUnitCircle()
   GL_CHECK(glEnableVertexAttribArray(2));
   GL_CHECK(glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
   GL_CHECK(glVertexAttribDivisor(2, 1));
+  displayDensityBuffer.bind();
+  GL_CHECK(glEnableVertexAttribArray(3));
+  GL_CHECK(glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), 0));
+  GL_CHECK(glVertexAttribDivisor(3, 1));
   displayFlatVertex.unbind();
 }
 
@@ -585,8 +596,9 @@ void PhysicsSystem::render()
       if (!elements) continue;
 
       // copy particle position and collision data for display
-      float* collisionData = (float*)&((*solversUint[solver]->particleCollisionData.host())[0]);
-      ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[0];
+      const uint hostOffset = (frameCount % FRAME_BUFFERING_SIZE) * elements;
+      ParticleCollisionData* collisionData = &(*(solversUint[solver]->particleCollisionData.host()))[hostOffset];
+      ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[hostOffset];
 
       if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
       {
@@ -647,13 +659,17 @@ void PhysicsSystem::render()
       if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue && solver == SOLVER_FLUID)
       {
         displayFlatShader.bind();
+        float* density = &(*(((FluidSolver*)solversUint[solver])->particlesDensity.host()))[hostOffset];
 
         // copy particle position and collision data for display
         displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
         displayCollisionBuffer.copyData((float*)collisionData, elements * sizeof(ParticleCollisionData));
+        displayDensityBuffer.copyData(density, elements * sizeof(float));
 
         GL_CHECK(glEnable(GL_BLEND));
         displayFlatVertex.bind();
+        float invRestDensity = ((FluidSolver*)solversUint[solver])->entitySharedData.host()->at(0).invRestDensity;
+        displayFlatShader.set("invRestDensity", invRestDensity);
         for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
         {
           GL_CHECK(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, displayFlatVertex.count(), partition.count));
@@ -730,6 +746,7 @@ void PhysicsSystem::render()
   }
 
   GL_CHECK(glDisable(GL_BLEND));
+  frameCount++;
 }
 
 #endif
@@ -859,6 +876,7 @@ void PhysicsSystem::step(float timeStep)
     displayPositionBuffer.gen();
     displayCollisionBuffer.gen();
     displayBoxBuffer.gen();
+    displayDensityBuffer.gen();
 
     {
       const uint gridElements = (((UniformGridCollisionSolver*)collisionSolver)->gridSize * mSqr(((UniformGridCollisionSolver*)collisionSolver)->gridSize)) / 4;
