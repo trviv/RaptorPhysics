@@ -894,9 +894,9 @@ void PhysicsSystem::step(float timeStep)
     displayParticleShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
     displaySolidShader.init("SolidVert.glsl", "SolidFrag.glsl");
     displayFlatShader.init("FlatVert.glsl", "SolidFrag.glsl");
-    displayBoxShader.init("BoxVert.glsl", "BoxFrag.glsl");
-    displayLineShader.init("LineVert.glsl", "LineFrag.glsl");
-    displayGridShader.init("GridVert.glsl", "GridFrag.glsl");
+    displayBoxShader.init("BoxVert.glsl", "PassthruFrag.glsl");
+    displayLineShader.init("LineVert.glsl", "PassthruFrag.glsl");
+    displayGridShader.init("GridVert.glsl", "PassthruFrag.glsl");
     displayBackgroundShader.init("BGVert.glsl", "BGFrag.glsl");
 
     displayParticleShader.linkPrograms();
