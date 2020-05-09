@@ -91,7 +91,7 @@ UIElement::UIElement(const string& identifier, const string& text, const char* i
   displayText = getIconAsString(iconFont, iconId) + text;
 }
 
-string UIElement::getIconAsString(const char* iconFont, ushort iconId)const
+string UIElement::getIconAsString(const char* iconFont, ushort iconId)
 {
   string str;
   if (iconId)
