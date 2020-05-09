@@ -18,11 +18,11 @@ class UIElement
   Texture texture;
   void*   font;
 
-  string getIconAsString(const char* iconFont = NULL, ushort iconId = 0)const;
-
 public:
   static float ButtonWidth;
   static float ButtonHeight;
+
+  static string getIconAsString(const char* iconFont = NULL, ushort iconId = 0);
 
   string  identifier;
   bool    boolValue;

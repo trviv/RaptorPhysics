@@ -32,6 +32,7 @@ class Window : public ParameterReader
 
 protected:
 
+  bool shrinkStats, shrinkOptions;
   Real3 down;
 
   // GUI Frame info related variables

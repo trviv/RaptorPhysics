@@ -236,6 +236,9 @@ void Window::init(int argc, char** argv, int width, int height,
   IOInterface::readFontFile("fa-brands-400", iconFontSize, &fontConfig);
 
   ImGui::GetIO().Fonts->Build();
+
+  shrinkStats = false;
+  shrinkOptions = false;
 }
 
 Window::~Window()
@@ -389,13 +392,13 @@ void Window::processOnScreenController(void* eventData, bool end)
     // mark left or right finger up
     if (fingerData.fingerId == leftFingerId)
     {
-      logComputeMessage("Left Up");
+//      logComputeMessage("Left Up");
       leftFingerId = -1;
     }
     else
     if (fingerData.fingerId == rightFingerId)
     {
-      logComputeMessage("Right Up");
+//      logComputeMessage("Right Up");
       rightFingerId = -1;
 
       initialYaw = yaw;
@@ -410,13 +413,13 @@ void Window::processOnScreenController(void* eventData, bool end)
     // mark it as right or left based on location
     if (fingerData.x <= 0.5f)
     {
-      logComputeMessage("Left Down");
+//      logComputeMessage("Left Down");
       initialLeft = Real3(fingerData.x, fingerData.y, 0.f);
       leftFingerId = fingerData.fingerId;
     }
     else
     {
-      logComputeMessage("Right Down");
+//      logComputeMessage("Right Down");
       initialRight = Real3(fingerData.x, fingerData.y, 0.f);
       rightFingerId = fingerData.fingerId;
 
@@ -428,7 +431,7 @@ void Window::processOnScreenController(void* eventData, bool end)
   // process finger if recognized
   if (fingerData.fingerId == leftFingerId)
   {
-    logComputeMessage("Left Move");
+//    logComputeMessage("Left Move");
     cameraSideSpeed = (fingerData.x - initialLeft.x) * 2.f;
     cameraSideSpeed = mCrop(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
     cameraForwardSpeed = (initialLeft.y - fingerData.y);
@@ -436,7 +439,7 @@ void Window::processOnScreenController(void* eventData, bool end)
   }
   else if (fingerData.fingerId == rightFingerId)
   {
-    logComputeMessage("Right Move");
+//    logComputeMessage("Right Move");
     float deltaX = (fingerData.x - initialRight.x) * MOUSE_SENSITIVITY;
     float deltaY = (initialRight.y - fingerData.y) * MOUSE_SENSITIVITY;
 
@@ -690,17 +693,42 @@ void Window::start()
     ImGui::Begin("Stats", NULL, windowFlags);
     ImGui::SetWindowSize({frameTextSize.x, frameTextSize.y});
     ImGui::SetWindowPos({0, 16});
-    ImGui::Text("Frame Rate:  %.f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
+    if (ImGui::IsWindowFocused())
+    {
+      shrinkStats = !shrinkStats;
+    }
+    if (shrinkStats)
+    {
+      ImGui::Text("%.f %s", ImGui::GetIO().Framerate, UIElement::getIconAsString("fa-solid-900", 0xF105).c_str());
+    }
+    else
+    {
+      ImGui::Text("Frame Rate:  %.f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
+    }
     ImGui::End();
 
     ImGui::Begin("Options", NULL, windowFlags);
-    ImGui::SetWindowSize({uiWindowSize.x, uiElements.size() * (UIElement::ButtonHeight + 4)});
-    ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - uiWindowSize.x, 16});
-
-    // add toggle options
-    for (auto& option : uiElements)
+    if (ImGui::IsWindowFocused())
     {
-      option.render();
+      shrinkOptions = !shrinkOptions;
+    }
+    if (shrinkOptions)
+    {
+      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - 32, 16});
+      ImGui::Text("%s", UIElement::getIconAsString("fa-solid-900", 0xF104).c_str());
+    }
+    else
+    {
+      ImGui::SetWindowSize({uiWindowSize.x, uiElements.size() * (UIElement::ButtonHeight + 4)});
+      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - uiWindowSize.x, 16});
+      ImGui::SetCursorPosX(uiElements[0].ButtonWidth/2.f);
+      ImGui::Text("%s", UIElement::getIconAsString("fa-solid-900", 0xF106).c_str());
+
+      // add toggle options
+      for (auto& option : uiElements)
+      {
+        option.render();
+      }
     }
 
     // remove right finger data when this window in focus
@@ -747,6 +775,7 @@ void Window::start()
 
     ImGui::End();
 
+    ImGui::FocusWindow(NULL);
     ImGui::Render();
 
     // main work
