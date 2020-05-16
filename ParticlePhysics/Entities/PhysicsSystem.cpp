@@ -962,7 +962,7 @@ void PhysicsSystem::step(float timeStep)
   if (down.length() > 0.f)
   {
     down.normalize();
-    down *= 9.8f;
+    down *= this->getParamAsFloat3("gravity").length();
     setGravity(down);
   }
 

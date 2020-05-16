@@ -11,8 +11,8 @@ PhysicsEntity::PhysicsEntity()
   solver = SOLVER_NULL;
 
   ParticleSharedData sharedData;
-  sharedData.collisionSolverData.velocityDamping = .995f;
-  sharedData.collisionSolverData.collisionDamping = .98f;
+  sharedData.collisionSolverData.velocityDamping = 0.995f;
+  sharedData.collisionSolverData.collisionDamping = 0.995f;
   setInvMassIsShared(sharedData, true);
   sharedData.sharedInvMass = 0.f;
   setRadiusIsShared(sharedData, true);
@@ -22,7 +22,7 @@ PhysicsEntity::PhysicsEntity()
   sharedData.collisionSolverData.staticFrictionCoef = 0.9f;
   sharedData.fluidSolverData.fluidKernelRadius = 1.f;
   sharedData.invRestDensity = 1.f/997.f;
-  sharedData.gasConstantK = 0.001f;
+  sharedData.gasConstantK = 0.01f;
   setCollisionDataIsShared(sharedData, true);
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);
