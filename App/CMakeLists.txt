@@ -35,6 +35,8 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/Shared/Resources/DefaultFont.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-solid-900.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-regular-400.ttf"
-  "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-brands-400.ttf")
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-brands-400.ttf"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControl.png"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControlBack.png")
 
 create_lib_and_exe()

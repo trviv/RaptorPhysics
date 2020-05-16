@@ -239,6 +239,12 @@ void Window::init(int argc, char** argv, int width, int height,
 
   shrinkStats = false;
   shrinkOptions = false;
+  collapsedIcon = UIElement::getIconAsString("fa-solid-900", 0xF0C9);
+  controlWindowHeight = 128.0f;
+  controlWindowSidePos = 96.0f;
+  controlWindowBottomPos = 192.0f;
+  IOInterface::readImageFile("MoveControl", &moveControlImage, 96, 96);
+  IOInterface::readImageFile("MoveControlBack", &moveControlImageBack, 96, 96);
 }
 
 Window::~Window()
@@ -699,7 +705,7 @@ void Window::start()
     }
     if (shrinkStats)
     {
-      ImGui::Text("%.f %s", ImGui::GetIO().Framerate, UIElement::getIconAsString("fa-solid-900", 0xF105).c_str());
+      ImGui::Text("%.f %s", ImGui::GetIO().Framerate, collapsedIcon.c_str());
     }
     else
     {
@@ -714,14 +720,14 @@ void Window::start()
     }
     if (shrinkOptions)
     {
-      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - 32, 16});
-      ImGui::Text("%s", UIElement::getIconAsString("fa-solid-900", 0xF104).c_str());
+      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - ImGui::CalcTextSize(collapsedIcon.c_str()).x * 1.5f, 16});
+      ImGui::Text("%s", collapsedIcon.c_str());
     }
     else
     {
       ImGui::SetWindowSize({uiWindowSize.x, uiElements.size() * (UIElement::ButtonHeight + 4)});
       ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - uiWindowSize.x, 16});
-      ImGui::SetCursorPosX(uiElements[0].ButtonWidth/2.f);
+      ImGui::SetCursorPosX(uiElements[0].ButtonWidth * 0.5f);
       ImGui::Text("%s", UIElement::getIconAsString("fa-solid-900", 0xF106).c_str());
 
       // add toggle options
@@ -774,6 +780,28 @@ void Window::start()
     }
 
     ImGui::End();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
+    ImGui::Begin("Control", NULL, ((windowFlags ^ ImGuiWindowFlags_AlwaysAutoResize) |
+                                   ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs));
+
+    ImGui::SetWindowSize({ImGui::GetIO().DisplaySize.x, controlWindowBottomPos});
+    ImGui::SetWindowPos({0.0f, ImGui::GetIO().DisplaySize.y - controlWindowBottomPos});
+
+    ImVec2 moveControlPositionBack = {controlWindowSidePos, (controlWindowBottomPos - controlWindowHeight) * 0.5f};
+
+    ImGui::SetCursorPos(moveControlPositionBack);
+    ImGui::Image((void*)(intptr_t)moveControlImageBack.get(), {(float)moveControlImageBack.width(), (float)moveControlImageBack.height()});
+
+    ImVec2 moveControlPosition = moveControlPositionBack;
+    moveControlPosition.x += moveControlImageBack.width() * (0.25f + cameraSideSpeed/WINDOW_MAX_TRANSLATION_RATE);
+    moveControlPosition.y += moveControlImageBack.height() * (0.25f - cameraForwardSpeed/WINDOW_MAX_TRANSLATION_RATE);
+
+    ImGui::SetCursorPos(moveControlPosition);
+    ImGui::Image((void*)(intptr_t)moveControlImage.get(), {moveControlImage.width() * 0.5f, moveControlImage.height() * 0.5f});
+
+    ImGui::End();
+    ImGui::PopStyleVar(ImGuiStyleVar_WindowPadding);
 
     ImGui::FocusWindow(NULL);
     ImGui::Render();

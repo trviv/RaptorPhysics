@@ -32,7 +32,10 @@ class Window : public ParameterReader
 
 protected:
 
+  string collapsedIcon;
   bool shrinkStats, shrinkOptions;
+  float controlWindowHeight, controlWindowSidePos, controlWindowBottomPos;
+  Texture moveControlImageBack, moveControlImage;
   Real3 down;
 
   // GUI Frame info related variables
