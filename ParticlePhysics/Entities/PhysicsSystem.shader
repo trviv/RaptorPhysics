@@ -10,6 +10,7 @@ Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
   Device ParticleStruct*              particlesPredicted,
   Device ParticleDifferential*        particleDiff,
+  Device ParticleForce*               particleForce,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
@@ -53,7 +54,7 @@ Kernel void integrateDifferentiateStep(
       particle.identity = identity;
       particles[index] = particle;
 
-      velocity += systemSettings->gravity * timeStep;
+      velocity += (systemSettings->gravity + particleForce[index].force * invMass) * timeStep;
       velocity *= sharedData.collisionSolverData.velocityDamping;
       velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
 
@@ -153,6 +154,7 @@ Kernel void endStep(
   Device ParticleStruct*              particles,
   const Device ParticleStruct*        particlesPredicted,
   Device ParticleDifferential*        particleDiff,
+  Device ParticleForce*               particleForce,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleAuxData*       particleAuxData,
   const Device PartitionInfo*         partitions,
@@ -195,6 +197,8 @@ Kernel void endStep(
 #ifdef PHYSICS_SYSTEM_VERLET
       velocity = (2.f * particlePositionPredicted - particle.position);
 #endif
+
+      velocity += particleForce[index].force * invMass * timeStep;
 
       particle.position = particlePositionPredicted;
       particle.identity = identity;

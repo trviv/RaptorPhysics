@@ -35,6 +35,7 @@ struct ParticleAllocator
   ComputeHeap particleSharedHeap;
   ComputeHeap particleHeap;
   ComputeHeap particleDifferentialHeap;
+  ComputeHeap particleForceHeap;
 
   ComputeHeap particleRigidData;
   ComputeHeap particleCollisionData;
@@ -46,6 +47,7 @@ struct ParticleAllocator
     particleSharedHeap(compute),
     particleHeap(compute),
     particleDifferentialHeap(compute),
+    particleForceHeap(compute),
     particleRigidData(compute),
     particleCollisionData(compute),
     particleAuxData(compute)
@@ -58,6 +60,7 @@ struct ParticleAllocator
     particleSharedHeap.create(initialParticles/256 * sizeof(ParticleSharedData));
     particleHeap.create(initialParticles * sizeof(ParticleStruct));
     particleDifferentialHeap.create(initialParticles * sizeof(ParticleDifferential));
+    particleForceHeap.create(initialParticles * sizeof(ParticleForce));
     particleRigidData.create(initialParticles/64 * sizeof(ParticleRigidData));
     particleCollisionData.create(initialParticles * sizeof(ParticleCollisionData));
     particleAuxData.create(initialParticles * sizeof(ParticleAuxData));
@@ -77,6 +80,7 @@ enum SharedComputeHeapEnum
   COMPUTE_HEAP_PARTICLE_PREDICTED,
   COMPUTE_HEAP_PARTICLE_SHARED,
   COMPUTE_HEAP_PARTICLE_DIFF,
+  COMPUTE_HEAP_PARTICLE_FORCE,
   COMPUTE_HEAP_PARTICLE_RIGID,
   COMPUTE_HEAP_PARTICLE_COLLISION,
   COMPUTE_HEAP_PARTICLE_AUX
@@ -117,6 +121,8 @@ public:
       return &particleAllocator.particleSharedHeap;
     case COMPUTE_HEAP_PARTICLE_DIFF:
       return &particleAllocator.particleDifferentialHeap;
+    case COMPUTE_HEAP_PARTICLE_FORCE:
+      return &particleAllocator.particleForceHeap;
     case COMPUTE_HEAP_PARTICLE_RIGID:
       return &particleAllocator.particleRigidData;
     case COMPUTE_HEAP_PARTICLE_COLLISION:

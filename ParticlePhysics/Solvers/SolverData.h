@@ -34,6 +34,7 @@ protected:
   DeviceArray<ParticleStruct>       particles;
   DeviceArray<ParticleStruct>       particlesPredicted;
   DeviceArray<ParticleDifferential> particleDifferential;
+  DeviceArray<ParticleForce>        particleForce;
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];
   DeviceArray<ParticleCollisionData>particleCollisionData;

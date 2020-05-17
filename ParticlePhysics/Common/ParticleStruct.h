@@ -311,6 +311,16 @@ struct DEFAULT_ALIGN ParticleDifferential_t
 
 typedef struct ParticleDifferential_t ParticleDifferential;
 
+/*!
+@struct Particle force data.
+*/
+struct DEFAULT_ALIGN ParticleForce_t
+{
+  float3  force;
+};
+
+typedef struct ParticleForce_t ParticleForce;
+
 #ifdef COMPUTE_SHADER_SCOPE
 
 float getInvMassUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)

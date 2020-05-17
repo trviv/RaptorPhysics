@@ -22,6 +22,7 @@ EntitySolver<IndexType, CoefficientType, VariableType>::EntitySolver(ComputeInte
   this->particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
   this->particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
   this->particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
+  this->particleForce.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE), false);
   this->particleAuxData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX), true);
   this->particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
 
@@ -120,6 +121,7 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->particlesPredicted.resize(this->particles.size(), false);
   this->compute->copyBuffer(this->particles.device(), this->particlesPredicted.device(), 0, 0, this->particles.size() * sizeof(ParticleStruct));
   this->particleDifferential.resize(this->particles.size(), false);
+  this->particleForce.resize(this->particles.size(), false);
   this->particleCollisionData.syncDevice();
   this->particleAuxData.syncDevice();
 
