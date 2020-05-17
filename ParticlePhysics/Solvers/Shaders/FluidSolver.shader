@@ -74,24 +74,21 @@ Kernel void calculateDensity(
 
 /*
 @kernel Resolve particle collisions.
-@param gridCellParticleOffsets Starting offset for each grid cell.
-@param particlesPredictedNew Updated particle positions post collision processing.
+@param particlesForce Force applied to the particle due to the fluid.
 @param particlesDensity Particles density.
-@param particlesPredictedOld Integrated particle position.
-@param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
+@param gridCellParticleOffsets Starting offset for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.
+@param particlesPredicted Integrated particle position.
+@param particleSharedData Particle entity shared data.
 @param nodeCount Total nodes in the solver.
-@param occupiedCellCount Total active grid cells.
 */
 Kernel void calculateForces(
-  Device ParticleStruct*              particlesPredictedNew,
+  Device ParticleForce*               particleForce,
   const Device float*                 particlesDensity,
   const Device ParticleDifferential*  particleDiff,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridParticleCellIndex,
-  const Device ParticleStruct*        particlesPredictedOld,
+  const Device ParticleStruct*        particlesPredicted,
   const Device ParticleSharedData*    particleSharedData,
   Device ParticleCollisionData*       particleCollisionData,
   Const XAB*                          systemBoundingBox,
@@ -117,7 +114,7 @@ Kernel void calculateForces(
   float3 colorLaplacian = constructFloat3(0.f);
 
   // current particle data
-  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
 
   const float3 selfParticleDiff = particleDiff[particleIndex].velocity;
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
@@ -138,7 +135,7 @@ Kernel void calculateForces(
     for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
     {
       // iterate over each particle in the loaded batch
-      const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+      const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
 
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
@@ -183,10 +180,7 @@ Kernel void calculateForces(
   particleCollisionData[particleIndex].gradientMagnitude = colorGradientLength * timeStep;
   particleCollisionData[particleIndex].transformedSdfGradient = encodeDirection(select(-colorGradient, constructFloat3(0.f), colorGradientLength <= FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD));
 
-  selfParticle.position += (pressureForce + viscosityForce + color) * sqr(timeStep);
-  selfParticle.identity = identity;
-
-  particlesPredictedNew[particleIndex] = selfParticle;
+  particleForce[particleIndex].force = (pressureForce + viscosityForce + color) / sharedData.sharedInvMass;
 }
 
 #endif

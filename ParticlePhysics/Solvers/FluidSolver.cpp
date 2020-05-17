@@ -237,8 +237,6 @@ void FluidSolver::solve(float timeStep)
 
     rearrangeParticles(particleCount);
 
-    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-
     {
       ComputeMemory* buffers[] = {
         particlesDensity.device(),
@@ -265,12 +263,12 @@ void FluidSolver::solve(float timeStep)
 
     {
       ComputeMemory* buffers[] = {
-        particlesPredicted.device(),
+        particleForce.device(),
         particlesDensity.device(),
         particleDifferential.device(),
         gridCellParticleOffsets.device(),
         gridParticleCellIndex.device(),
-        particlesPredictedCopy.device(),
+        particlesPredicted.device(),
         entitySharedData.device(),
         particleCollisionData.device(),
         systemBoundingBox.device(),
@@ -287,7 +285,7 @@ void FluidSolver::solve(float timeStep)
     }
 
 #ifdef DEBUG_FLUID_SOLVER
-    particlesPredicted.syncHost();
+    particleForce.syncHost();
     compute->sync();
 #endif
   }
