@@ -10,3 +10,4 @@ resetCameraPosition, -10.0f, 10.0f, 10.0f
 systemBoundMin, -4.f, 0.f, -4.f
 systemBoundMax, 4.f, 0.f, 4.f
 simulationIterations, 3
+solverIterations, 1

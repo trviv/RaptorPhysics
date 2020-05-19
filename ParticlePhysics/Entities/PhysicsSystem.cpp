@@ -23,6 +23,7 @@ static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 
 static Clock physicsSystemClock;
 static int simulationIterations = 1;
+static int solverIterations = 1;
 
 #define FRAME_BUFFERING_SIZE 3
 
@@ -103,6 +104,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   bindParameter("renderSystemBoundOption", &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("renderGridHeatmapOption", &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("simulationIterations", &simulationIterations, InputParameterType::ParameterTypeInt);
+  bindParameter("solverIterations", &solverIterations, InputParameterType::ParameterTypeInt);
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
@@ -985,13 +987,24 @@ void PhysicsSystem::step(float timeStep)
     integrate(timeStep);
   }
 
-  collisionSolver->solve(instanceNodeCount, systemSettings.device());
+  for (uint si = 0; si < solverIterations; si++)
+  {
+    for (uint i = 0; i < SOLVER_MAX; i++)
+    {
+      if (solversUint[i])
+      {
+        solversUint[i]->solve(timeStep / solverIterations);
+      }
+    }
+
+    collisionSolver->solve(instanceNodeCount, systemSettings.device());
+  }
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     if (solversUint[i])
     {
-      solversUint[i]->solve(timeStep);
+      solversUint[i]->postCollisionSolve(timeStep);
     }
   }
 

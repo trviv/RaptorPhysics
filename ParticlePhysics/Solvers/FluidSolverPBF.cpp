@@ -7,9 +7,10 @@
 #define FLUID_COLLISION_SOLVER_PBF_CELL_ARRAYS          2
 #define FLUID_COLLISION_SOLVER_REORDER                  3
 #define FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA          4
-#define FLUID_COLLISION_SOLVER_PBF_CALC_FORCES          5
-#define FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA           6
-#define FLUID_COLLISION_SOLVER_PBF_VORT_VISC            7
+#define FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION     5
+#define FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY      6
+#define FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA           7
+#define FLUID_COLLISION_SOLVER_PBF_VORT_VISC            8
 
 FluidSolverPBF::FluidSolverPBF(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator), FluidSolver(compute, allocator, true)
@@ -39,7 +40,8 @@ void FluidSolverPBF::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("createGridCellArrays"));
   kernels.push_back(programs[0].createKernel("reorderFluidParticles"));
   kernels.push_back(programs[0].createKernel("calculateLambda"));
-  kernels.push_back(programs[0].createKernel("calculateForces"));
+  kernels.push_back(programs[0].createKernel("applyCorrection"));
+  kernels.push_back(programs[0].createKernel("updateVelocities"));
   kernels.push_back(programs[0].createKernel("vorticityOmega"));
   kernels.push_back(programs[0].createKernel("vorticityConfinementXSPHViscosity"));
 
@@ -223,12 +225,12 @@ void FluidSolverPBF::solve(float timeStep)
         invMaxRadius.device()
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_FORCES].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_FORCES].setArg<uint>(&gridSizeExp, bufferCount + 1);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArgs(buffers, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&particleCount, bufferCount + 2);
 
-      compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_CALC_FORCES], workgroupSize, workgroupCount);
+      compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION], workgroupSize, workgroupCount);
     }
 
 #ifdef DEBUG_FLUID_PBF_SOLVER
@@ -236,8 +238,35 @@ void FluidSolverPBF::solve(float timeStep)
     compute->sync();
 #endif
   }
+}
 
-  ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+void FluidSolverPBF::postCollisionSolve(float timeStep)
+{
+  uint particleCount = lastPartition().end();
+
+  if (!particleCount) return;
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, particleCount);
+
+  {
+    ComputeMemory* buffers[] = {
+      particleDifferential.device(),
+      particlesPredicted.device(),
+      particles.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY].setArgs(buffers, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY].setArg<uint>(&particleCount, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY].setArg<float>(&timeStep, bufferCount + 1);
+
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY], workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_PBF_SOLVER
+  particleDifferential.syncHost();
+  compute->sync();
+#endif
 
   {
     size_t workgroupSize[3], workgroupCount[3];
@@ -272,10 +301,11 @@ void FluidSolverPBF::solve(float timeStep)
     compute->configureSize(workgroupSize, workgroupCount, particleCount);
 
     ComputeMemory* buffers[] = {
+      particleForce.device(),
       particlesPredicted.device(),
-      particlesPredictedCopy.device(),
       particleDifferential.device(),
       particlesOmega.device(),
+      particlesDensity.device(),
       gridCellParticleOffsets.device(),
       gridParticleCellIndex.device(),
       entitySharedData.device(),

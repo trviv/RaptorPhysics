@@ -74,7 +74,7 @@ Kernel void calculateDensity(
 
 /*
 @kernel Resolve particle collisions.
-@param particlesForce Force applied to the particle due to the fluid.
+@param particleForce Force applied to the particle due to the fluid.
 @param particlesDensity Particles density.
 @param gridCellParticleOffsets Starting offset for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.

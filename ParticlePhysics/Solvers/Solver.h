@@ -64,6 +64,9 @@ public:
   /*!@function Solve the entity constrains.*/
   virtual void solve(float timeStep) = 0;
 
+  /*!@function Apply post collision constrain constrains.*/
+  virtual void postCollisionSolve(float timeStep){};
+
   /*!@function Get an available unique entity id.*/
   uint newEntityId();
 
