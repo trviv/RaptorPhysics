@@ -117,7 +117,7 @@ Kernel void calculateLambda(
 @param gridSizeExp Grid size in power of 2.
 @param nodeCount Total nodes in the solver.
 */
-Kernel void calculateForces(
+Kernel void applyCorrection(
   Device ParticleStruct*              particlesPredictedNew,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device float*                 particlesDensity,
@@ -180,6 +180,34 @@ Kernel void calculateForces(
   selfParticle.identity = identity;
 
   particlesPredictedNew[particleIndex] = selfParticle;
+}
+
+/*
+@kernel Update velocities based on updated positions.
+@param particlesPosition Particle positions.
+@param particlesPressureForce Particle forces calculated from pressure.
+@param particleSharedData Particle entity shared data.
+@param partitions Instance partition data.
+@param gridParticleCellIndex Computed cell index for each particle.
+@param nodeCount Total nodes in the solver.
+@param occupiedCellCount Total active grid cells.
+*/
+Kernel void updateVelocities(
+  Device ParticleDifferential*        particlesDiff,
+  const Device ParticleStruct*        particlesPredicted,
+  const Device ParticleStruct*        particles,
+  constantKernelInput(uint,           nodeCount),
+  constantKernelInput(float,          timeStep)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint particleIndex = threadIndex();
+
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  particlesDiff[particleIndex].velocity = (particlesPredicted[particleIndex].position - particles[particleIndex].position) / timeStep;
 }
 
 /*
@@ -259,7 +287,7 @@ Kernel void vorticityOmega(
 
 /*
 @kernel Calculate vorticity confinement and XSPH viscosity for particles.
-@param particlesPredictedNew Reordered particle position.
+@param particleForce Force applied to the particle due to the fluid..
 @param particlesPredictedOld Integrated particle position.
 @param particlesDiff Particle velocity.
 @param particlesOmega Omega value for particles.
@@ -274,10 +302,11 @@ Kernel void vorticityOmega(
 @param timeStep Simulation time step.
 */
 Kernel void vorticityConfinementXSPHViscosity(
-  Device ParticleStruct*              particlesPredictedNew,
+  Device ParticleForce*               particleForce,
   const Device ParticleStruct*        particlesPredictedOld,
   const Device ParticleDifferential*  particlesDiff,
   const Device float3*                particlesOmega,
+  const Device float*                 particlesDensity,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleSharedData*    particleSharedData,
@@ -336,18 +365,16 @@ Kernel void vorticityConfinementXSPHViscosity(
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  delta *= timeStep * sharedData.viscosity * sharedData.fluidSolverData.fluidKernelFunctionConstant[0];
+  delta *= sharedData.viscosity * sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / (timeStep * sharedData.sharedInvMass);
   omegaDelta *= sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
 
   const float omegaDeltaLength = length(omegaDelta);
   if (omegaDeltaLength > COMPUTE_EPSILON)
   {
-    delta += cross(omegaDelta / omegaDeltaLength, selfOmega) * (0.01f * timeStep * timeStep * sharedData.sharedInvMass);
+    delta += cross(omegaDelta / omegaDeltaLength, selfOmega) * 0.01f / sharedData.sharedInvMass;
   }
 
-  selfParticle.position += delta;
-  selfParticle.identity = identity;
-  particlesPredictedNew[particleIndex] = selfParticle;
+  particleForce[particleIndex].force = delta;
 }
 
 #endif

@@ -21,6 +21,8 @@ public:
   void create(ComputeInterface* compute);
 
   void solve(float timeStep);
+
+  void postCollisionSolve(float timeStep);
 };
 
 #endif
