@@ -343,7 +343,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 
     size_t workgroupSize[3] = {1, 1, 1};
     size_t workgroupCount[3];
-    const uint maxWorkgroupSize = compute->simdSize();
+    const uint maxWorkgroupSize = compute->simdSize() * 2;
 
     compute->configureSize(workgroupSize, workgroupCount, instanceNodeCount, maxWorkgroupSize);
 

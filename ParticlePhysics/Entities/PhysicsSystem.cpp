@@ -24,6 +24,8 @@ static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 static Clock physicsSystemClock;
 static int simulationIterations = 1;
 static int solverIterations = 1;
+static uint frameCaptureStart = 0;
+static uint frameCaptureEnd = 0;
 
 #define FRAME_BUFFERING_SIZE 3
 
@@ -105,6 +107,8 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   bindParameter("renderGridHeatmapOption", &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
   bindParameter("simulationIterations", &simulationIterations, InputParameterType::ParameterTypeInt);
   bindParameter("solverIterations", &solverIterations, InputParameterType::ParameterTypeInt);
+  bindParameter("frameCaptureStart", &frameCaptureStart, InputParameterType::ParameterTypeInt);
+  bindParameter("frameCaptureEnd", &frameCaptureEnd, InputParameterType::ParameterTypeInt);
 
 #ifdef ENABLE_RENDERING
   elapsedRenderTime = 0.f;
@@ -324,6 +328,14 @@ void PhysicsSystem::step()
 #endif
 
   compute->sync(false);
+
+  if (frameCaptureStart)
+  {
+    if (frameCount == frameCaptureStart)
+      compute->startCapture();
+    else if (frameCount == frameCaptureEnd)
+      compute->endCapture();
+  }
 
   elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
   elapsedRenderTime += renderTime;

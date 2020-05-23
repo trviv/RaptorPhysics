@@ -298,23 +298,26 @@ inline short3 decodeCellVector(uchar encodedOffset)
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
   const short3 particleGridCellIndex = decodeGridIndexShort3(gridCellIndex, gridSize, gridSizeExp); \
-  short x = particleGridCellIndex.x - 2; \
-  short y = particleGridCellIndex.y - 1; \
-  short z = particleGridCellIndex.z - 1; \
+  short i = particleGridCellIndex.x - 2; \
+  short j = particleGridCellIndex.y - 1; \
+  short k = particleGridCellIndex.z - 1; \
   const short maxX = particleGridCellIndex.x + 2; \
   const short maxY = particleGridCellIndex.y + 2; \
   for (short n=0; n<27; n++) \
   { \
-    x++; \
-    if (x == maxX) \
-    { y++; x -= 3;} \
-    if (y == maxY) \
-    { z++; y -= 3;} \
-    if ((x < 0 | x >= gridSize) | (y < 0 | y >= gridSize) | (z < 0 | z >= gridSize))  \
+    i++; \
+    if (i == maxX) \
+    { j++; i -= 3;} \
+    if (j == maxY) \
+    { k++; j -= 3;} \
+    if ((i < 0 | i >= gridSize) | (j < 0 | j >= gridSize) | (k < 0 | k >= gridSize))  \
     { \
       continue; \
     } \
-    const int gridCellIndex = encodeGridIndexInt3(constructInt3(x, y, z), gridSizeExp);
+    const int gridCellIndex = encodeGridIndexInt3(constructInt3(i, j, k), gridSizeExp); \
+    const short x = i - particleGridCellIndex.x; \
+    const short y = j - particleGridCellIndex.y; \
+    const short z = k - particleGridCellIndex.z;
 
 #endif
 
@@ -557,7 +560,7 @@ Kernel void applyCollisions(
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(i, j, k);
+    validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(x, y, z);
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   for (uchar i=0; i<validNeighbourCount; i++)
@@ -576,7 +579,7 @@ Kernel void applyCollisions(
       // iterate over each particle in the loaded batch
       const int otherNodeIndex = gridCellParticleIndices[otherIndex];
 
-      otherParticle = particlesBufferOld[otherNodeIndex];
+      const ParticleStruct otherParticle = particlesBufferOld[otherNodeIndex];
       if (!shouldCheckForCollision(solverType, particleIndex, otherNodeIndex, &selfParticle, &otherParticle))
         continue;
 
