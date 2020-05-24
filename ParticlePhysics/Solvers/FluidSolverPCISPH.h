@@ -10,10 +10,9 @@ class FluidSolverPCISPH : public FluidSolver
 {
 protected:
 
-  float beta;
+  float invBeta;
 
   DeviceArray <float> &particlesPressure = particlesLambda;
-  DeviceArray <ParticleStruct> &particlesPressureForce  = particlesTemp[0];
   DeviceArray <ParticleStruct> &particlesNextPosition   = particlesTemp[1];
   DeviceArray <ParticleStruct> &particlesNextVelocity   = particlesBufferTemp;
 

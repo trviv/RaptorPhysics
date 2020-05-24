@@ -1,8 +1,6 @@
 #ifndef FLUID_SOLVER_COMMON_SHADER
 #define FLUID_SOLVER_COMMON_SHADER
 
-#ifndef COMPUTE_SHADER_SCOPE
-
 inline float poly6FunctionConstant(const float h)
 {
   const float x = 1.f / (h * h * h);
@@ -21,7 +19,7 @@ inline float viscosityFunctionConstant(const float h)
   return (45.f / M_PI_F) * x * x * x;
 }
 
-#else
+//#ifdef COMPUTE_SHADER_SCOPE
 
 inline float poly6FunctionVariable(const float r, const float h)
 {
@@ -76,6 +74,8 @@ inline float viscosityFunctionLaplacianVariable(const float r, const float h)
   const float x = (h - r);
   return x;
 }
+
+#ifdef COMPUTE_SHADER_SCOPE
 
 /*
 @kernel Kernel to reorder particles in buffers based on gird index.

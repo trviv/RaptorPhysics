@@ -22,7 +22,7 @@ PhysicsEntity::PhysicsEntity()
   sharedData.collisionSolverData.staticFrictionCoef = 0.9f;
   sharedData.fluidSolverData.fluidKernelRadius = 1.f;
   sharedData.invRestDensity = 1.f/997.f;
-  sharedData.gasConstantK = 0.01f;
+  sharedData.gasConstantK = 0.1f;
   setCollisionDataIsShared(sharedData, true);
   entitySharedData.host()->reserve(1);
   entitySharedData.host()->push_back(sharedData);
