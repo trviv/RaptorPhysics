@@ -13,7 +13,7 @@ Kernel void predictionStep(
   Device ParticleDifferential*        particlesNextVelocity,
   const Device ParticleStruct*        particlesPosition,
   const Device ParticleDifferential*  particlesDiff,
-  const Device float4*                particlesPressureForce,
+  const Device ParticleForce*         particlesPressureForce,
   const Device ParticleSharedData*    particleSharedData,
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
@@ -31,7 +31,7 @@ Kernel void predictionStep(
 
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
-  float3 velocity = particlesDiff[particleIndex].velocity + particlesPressureForce[particleIndex].xyz * timeStep * sharedData.sharedInvMass;
+  float3 velocity = particlesDiff[particleIndex].velocity + particlesPressureForce[particleIndex].force * timeStep * sharedData.sharedInvMass;
   particlesNextVelocity[particleIndex].velocity = velocity;
 
   selfParticle.position += velocity * timeStep;
@@ -109,6 +109,7 @@ Kernel void calculateDensity(
 /*
 @kernel Get particle pressures.
 @param particlesPressure Particle pressures output.
+@param particlesDensity Particle densities.
 @param gridCellParticleOffsets Starting offset for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredictedOld Integrated particle position.
@@ -121,6 +122,7 @@ Kernel void calculateDensity(
 */
 Kernel void calculatePressure(
   Device float*                     particlesPressure,
+  const Device float*               particlesDensity,
   const Device uint*                gridCellParticleOffsets,
   const Device uint*                gridParticleCellIndex,
   const Device ParticleStruct*      particlesPredicted,
@@ -131,7 +133,7 @@ Kernel void calculatePressure(
   constantKernelInput(int,          gridSizeExp),
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(float,        timeStep),
-  constantKernelInput(float,        beta)
+  constantKernelInput(float,        invBeta)
   KERNEL_GLOBAL_ARGUMENTS)
 {
 
@@ -145,7 +147,6 @@ Kernel void calculatePressure(
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
 
   // current particle data
-  float density = 0.f;
   float sumGradientMagnitude = 0.f;
   float3 sumGradientVector = constructFloat3(0.f);
 
@@ -170,8 +171,6 @@ Kernel void calculatePressure(
       const float3 collisionVector = selfParticle.position - otherParticle.position;
       const float actualDistanceSq = lengthSq(collisionVector);
 
-      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
-
       if (actualDistanceSq >= fluidKernelRadiusSq)
       {
         continue;
@@ -184,16 +183,11 @@ Kernel void calculatePressure(
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  density *= sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
   sumGradientVector *= sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
   sumGradientMagnitude *= (sharedData.fluidSolverData.fluidKernelFunctionConstant[1] * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]);
 
-  const float deltaDenom = (beta * (-dot(sumGradientVector, sumGradientVector) - sumGradientMagnitude));
-
-  if (fabs(deltaDenom) > COMPUTE_EPSILON_SQ)
-  {
-    particlesPressure[particleIndex] += -(density - 1.f/sharedData.invRestDensity) / deltaDenom;
-  }
+  const float invSigma = -(invBeta * sharedData.fluidSolverData.fluidKernelFunctionConstant[2]);
+  particlesPressure[particleIndex] += -(particlesDensity[particleIndex] - 1.f/sharedData.invRestDensity) * invSigma;
 }
 
 /*
@@ -211,7 +205,7 @@ Kernel void calculatePressure(
 @param occupiedCellCount Total active grid cells.
 */
 Kernel void calculateForces(
-  Device float4*                      particlesPressureForce,
+  Device ParticleForce*               particlesPressureForce,
   const Device float*                 particlesDensity,
   const Device float*                 particlesPressure,
   const Device uint*                  gridCellParticleOffsets,
@@ -273,43 +267,7 @@ Kernel void calculateForces(
     }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
-  particlesPressureForce[particleIndex].xyz = -(force * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]) / sqr(sharedData.sharedInvMass);
+  particlesPressureForce[particleIndex].force = -(force * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]) / sqr(sharedData.sharedInvMass);
 }
 
-/*
-@kernel Update positions based on pressure force.
-@param particlesPosition Particle positions.
-@param particlesPressureForce Particle forces calculated from pressure.
-@param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param gridParticleCellIndex Computed cell index for each particle.
-@param nodeCount Total nodes in the solver.
-@param occupiedCellCount Total active grid cells.
-*/
-Kernel void updatePositions(
-  Device ParticleStruct*              particlesPosition,
-  const Device float4*                particlesPressureForce,
-  const Device ParticleSharedData*    particleSharedData,
-  constantKernelInput(uint,           nodeCount),
-  constantKernelInput(float,          timeStep)
-  KERNEL_GLOBAL_ARGUMENTS)
-{
-  const uint particleIndex = threadIndex();
-
-  if (particleIndex >= nodeCount)
-  {
-    return;
-  }
-
-  const float3 force = particlesPressureForce[particleIndex].xyz;
-
-  // current particle data
-  DECLARE_SELF_PARTICLE(particlesPosition, identity, nodeIdentity)
-
-  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-
-  selfParticle.position += force * sqr(timeStep) * sharedData.sharedInvMass;
-  selfParticle.identity = identity;
-  particlesPosition[particleIndex] = selfParticle;
-}
 #endif

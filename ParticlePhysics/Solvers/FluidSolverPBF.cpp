@@ -21,7 +21,7 @@ FluidSolverPBF::FluidSolverPBF(ComputeInterface* compute, SharedAllocator* alloc
   gridSize = 64;
   gridSizeExp = mCeilExpOf2(gridSize);
 
-#ifdef DEBUG_FLUID_SOLVER
+#ifdef DEBUG_FLUID_PBF_SOLVER
   particlesLambda.create(compute, solverHeap, true);
 #else
   particlesLambda.create(compute, solverHeap);
