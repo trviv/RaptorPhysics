@@ -76,7 +76,12 @@ void FluidSolver::rearrangeParticles(uint particleCount)
 {
   size_t workgroupSize[3], workgroupCount[3];
 
-  compute->configureSize(workgroupSize, workgroupCount, particleCount);
+  uint multiplier = 1;
+#ifdef FLUID_SOLVER_SORTED_REARRANGE
+  multiplier = 2;
+#endif
+
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, multiplier));
 
   ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
   ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
@@ -93,10 +98,19 @@ void FluidSolver::rearrangeParticles(uint particleCount)
     gridParticleCellIndex.device(),
     particlesLambda.device(),
     gridCellParticleIndices.device(),
+#ifdef FLUID_SOLVER_SORTED_REARRANGE
+    systemBoundingBox.device(),
+    invMaxRadius.device(),
+#endif
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
   kernels[FLUID_COLLISION_SOLVER_REORDER].setArgs(buffers, bufferCount);
   kernels[FLUID_COLLISION_SOLVER_REORDER].setArg<uint>(&particleCount, bufferCount);
+#ifdef FLUID_SOLVER_SORTED_REARRANGE
+  kernels[FLUID_COLLISION_SOLVER_REORDER].setArg<uint>(&gridSize, bufferCount + 1);
+  kernels[FLUID_COLLISION_SOLVER_REORDER].setArg<uint>(&gridSizeExp, bufferCount + 2);
+  kernels[FLUID_COLLISION_SOLVER_REORDER].setSharedMemArg(sizeof(uint)*4*workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier, bufferCount + 3);
+#endif
 
   compute->execute(kernels[FLUID_COLLISION_SOLVER_REORDER], workgroupSize, workgroupCount);
 }
