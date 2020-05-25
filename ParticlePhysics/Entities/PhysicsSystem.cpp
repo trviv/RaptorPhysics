@@ -327,7 +327,8 @@ void PhysicsSystem::step()
   }
 #endif
 
-  compute->sync(false);
+  // enable wait for sync only with frame capture
+  compute->sync(frameCaptureStart);
 
   if (frameCaptureStart)
   {
@@ -979,7 +980,10 @@ void PhysicsSystem::step(float timeStep)
   {
     down.normalize();
     down *= this->getParamAsFloat3("gravity").length();
-    setGravity(down);
+
+    // disable orientation with frame capture
+    if (!frameCaptureStart)
+      setGravity(down);
   }
 
   // skip the below steps if simulation paused

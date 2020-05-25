@@ -1,6 +1,8 @@
 #ifndef FLUID_SOLVER_COMMON_SHADER
 #define FLUID_SOLVER_COMMON_SHADER
 
+//#define FLUID_SOLVER_SORTED_REARRANGE
+
 inline float poly6FunctionConstant(const float h)
 {
   const float x = 1.f / (h * h * h);
@@ -77,6 +79,45 @@ inline float viscosityFunctionLaplacianVariable(const float r, const float h)
 
 #ifdef COMPUTE_SHADER_SCOPE
 
+void bitonicSortSharedUint3(
+  Shared uint3* localNodes,
+  const short   maxDepth,
+  const short   localThreadCount,
+  const short   localIndex)
+{
+  localMemBarrier();
+
+  for (short i=0; i<maxDepth; i++)
+  {
+    for (short j=i; j>=0; j--)
+    {
+      const short stride = (1 << j);
+      const short index1 = localIndex << (j + 1);
+      const short index2 = index1 + stride;
+
+      uint3 node1;
+      uint3 node2;
+
+      if (index2 < localThreadCount)
+      {
+        node1 = localNodes[index1];
+        node2 = localNodes[index2];
+      }
+      localMemBarrier();
+
+      if (index2 < localThreadCount)
+      {
+        if (node1.x > node2.x && node1.y == node2.y)
+        {
+          localNodes[index1] = node2;
+          localNodes[index2] = node1;
+        }
+      }
+      localMemBarrier();
+    }
+  }
+}
+
 /*
 @kernel Kernel to reorder particles in buffers based on gird index.
 @param gridCellParticleIndices Output array for particle indices.
@@ -92,6 +133,59 @@ Kernel void reorderFluidParticles(
   Device uint*                        gridParticleCellIndexNew,
   const Device uint*                  gridParticleCellIndexOld,
   const Device uint*                  gridCellParticleIndices,
+#ifdef FLUID_SOLVER_SORTED_REARRANGE
+  Const XAB*                          systemBoundingBox,
+  Const float*                        invRadius,
+  constantKernelInput(uint,           nodeCount),
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(int,            gridSizeExp),
+  sharedMemKernelInput(uint3,         particleSpatialData,  14)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  const short elements = 2;
+  const short scale = 8;
+
+  for (short i=0; i<elements; i++)
+  {
+    particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = constructUint3(-1);
+  }
+
+  for (short i=0; i<elements; i++)
+  {
+    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * elements);
+    if (threadGlobalIndex < nodeCount)
+    {
+      const uint particleIndex = gridCellParticleIndices[threadGlobalIndex];
+      const uint gridCellIndex = gridParticleCellIndexOld[particleIndex];
+      const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
+      const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
+//      const uint cellInternalSpatialIndex = encodeGridIndexInt3(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale), scale);
+      const uint cellInternalSpatialIndex = get32BitMortonCode(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale));
+
+      particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = constructUint3(cellInternalSpatialIndex, gridCellIndex, particleIndex);
+    }
+  }
+
+  const short tgSizePowOf2 = sizeof(threadGroupSize()) * 8 - clz(threadGroupSize()) - 1;
+
+  bitonicSortSharedUint3(particleSpatialData, tgSizePowOf2, threadGroupSize()*elements, threadLocalIndex());
+
+  for (short i=0; i<elements; i++)
+  {
+    const uint2 particleData = particleSpatialData[threadLocalIndex() + i * threadGroupSize()].yz;
+    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * elements);
+
+    if (particleData.y != -1)
+    {
+      gridParticleCellIndexNew[threadGlobalIndex] = particleData.x;
+      particlesNew[threadGlobalIndex] = particlesOld[particleData.y];
+      particlesPredictedNew[threadGlobalIndex] = particlesPredictedOld[particleData.y];
+      particleDiffNew[threadGlobalIndex] = particleDiffOld[particleData.y];
+    }
+  }
+#else
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -108,6 +202,7 @@ Kernel void reorderFluidParticles(
   particlesNew[threadIndex()] = particlesOld[particleIndex];
   particlesPredictedNew[threadIndex()] = particlesPredictedOld[particleIndex];
   particleDiffNew[threadIndex()] = particleDiffOld[particleIndex];
+#endif
 }
 
 /*inline float poly6Function(const float r, const float h)
