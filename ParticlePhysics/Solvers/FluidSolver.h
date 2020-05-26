@@ -28,6 +28,8 @@ protected:
 
   void updateRadius();
 
+  float calculateGradientConstant(const ParticleSharedData& entitySharedData)const;
+
   FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate);
 
 public:

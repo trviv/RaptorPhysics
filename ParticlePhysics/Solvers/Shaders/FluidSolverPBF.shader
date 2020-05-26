@@ -96,9 +96,7 @@ Kernel void calculateLambda(
 
   particlesDensity[particleIndex] = density;
 
-  density *= sharedData.invRestDensity;
-
-  particlesLambda[particleIndex] = -select((density - 1.0f)/(sumGradientMagnitude + COMPUTE_EPSILON), 0.f, density < 1.f);
+  particlesLambda[particleIndex] = -(density * sharedData.invRestDensity - 1.f) * sharedData.fluidSolverData.fluidKernelFunctionConstant[2];
 }
 
 /*

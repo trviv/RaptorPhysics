@@ -336,6 +336,7 @@ void FluidSolverPBF::update()
   {
     esd.fluidSolverData.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidSolverData.fluidKernelRadius);
     esd.fluidSolverData.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidSolverData.fluidKernelRadius);
+    esd.fluidSolverData.fluidKernelFunctionConstant[2] = 1.f/(calculateGradientConstant(esd) * mSqr(esd.invRestDensity));
   }
 
   entitySharedData.syncDevice();

@@ -72,6 +72,35 @@ void FluidSolver::updateRadius()
   }
 }
 
+float FluidSolver::calculateGradientConstant(const ParticleSharedData& entitySharedData)const
+{
+  // create prototype neighbourhood
+  int kernelFactor = entitySharedData.fluidSolverData.fluidKernelRadius / (2.f * entitySharedData.sharedRadius);
+  vector<Real3> neighbourParticles;
+  neighbourParticles.reserve((2*kernelFactor+1) * (2*kernelFactor+1) * (2*kernelFactor+1));
+  for (int i=-kernelFactor; i<=kernelFactor; i++)
+  {
+    for (int j=-kernelFactor; j<=kernelFactor; j++)
+    {
+      for (int k=-kernelFactor; k<=kernelFactor; k++)
+      {
+        neighbourParticles.push_back(Real3(i, j, k));
+      }
+    }
+  }
+
+  // calculate gradient magnitude contribution from neighbours
+  float sumGradientMagnitude = 0.f;
+  for (const auto& position : neighbourParticles)
+  {
+    const Real3 collisionVector = position * 2.f * entitySharedData.sharedRadius;
+    const Real3 gradient = collisionVector * spikyFunctionGradientVariable(collisionVector.length(), entitySharedData.fluidSolverData.fluidKernelRadius);
+    sumGradientMagnitude += gradient.lengthSq();
+  }
+
+  return sumGradientMagnitude * mSqr(spikyFunctionConstant(entitySharedData.fluidSolverData.fluidKernelRadius));
+}
+
 void FluidSolver::rearrangeParticles(uint particleCount)
 {
   size_t workgroupSize[3], workgroupCount[3];

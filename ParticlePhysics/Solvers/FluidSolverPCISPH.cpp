@@ -304,32 +304,7 @@ void FluidSolverPCISPH::update()
   {
     esd.fluidSolverData.fluidKernelFunctionConstant[0] = poly6FunctionConstant(esd.fluidSolverData.fluidKernelRadius);
     esd.fluidSolverData.fluidKernelFunctionConstant[1] = spikyFunctionConstant(esd.fluidSolverData.fluidKernelRadius);
-
-    // create prototype neighbourhood
-    int kernelFactor = esd.fluidSolverData.fluidKernelRadius / (2.f * esd.sharedRadius);
-    vector<Real3> neighbourParticles;
-    neighbourParticles.reserve((2*kernelFactor+1) * (2*kernelFactor+1) * (2*kernelFactor+1));
-    for (int i=-kernelFactor; i<=kernelFactor; i++)
-    {
-      for (int j=-kernelFactor; j<=kernelFactor; j++)
-      {
-        for (int k=-kernelFactor; k<=kernelFactor; k++)
-        {
-          neighbourParticles.push_back(Real3(i, j, k));
-        }
-      }
-    }
-
-    // calculate inverse sigma constant and store it as kernel function constant to be used with invBeta
-    float sumGradientMagnitude = 0.f;
-    for (const auto& position : neighbourParticles)
-    {
-      const Real3 collisionVector = position * 2.f * esd.sharedRadius;
-      const Real3 gradient = collisionVector * spikyFunctionGradientVariable(collisionVector.length(), esd.fluidSolverData.fluidKernelRadius);
-      sumGradientMagnitude += gradient.lengthSq();
-    }
-
-    esd.fluidSolverData.fluidKernelFunctionConstant[2] = 1.f/(sumGradientMagnitude * esd.fluidSolverData.fluidKernelFunctionConstant[1] * esd.fluidSolverData.fluidKernelFunctionConstant[1]);
+    esd.fluidSolverData.fluidKernelFunctionConstant[2] = 1.f/calculateGradientConstant(esd);
   }
 
   entitySharedData.syncDevice();
