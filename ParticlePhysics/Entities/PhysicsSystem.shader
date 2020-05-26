@@ -56,7 +56,7 @@ Kernel void integrateDifferentiateStep(
 
       velocity += (systemSettings->gravity + particleForce[index].force * invMass) * timeStep;
       velocity *= sharedData.collisionSolverData.velocityDamping;
-      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.01f);
+      velocity = select(velocity, constructFloat3(0.f), fabs(velocity)<0.00001f);
 
       particleDiff[index].velocity = velocity;
       particle.position += velocity * timeStep;
