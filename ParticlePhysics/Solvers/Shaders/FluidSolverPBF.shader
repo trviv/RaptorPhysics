@@ -31,7 +31,7 @@ Kernel void calculateLambda(
   Device float*                       particlesLambda,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridParticleCellIndex,
-  const Device ParticleStruct*        particlesPredictedOld,
+  const Device ParticleStruct*        particlesPredicted,
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
@@ -48,55 +48,15 @@ Kernel void calculateLambda(
   }
 
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
-
-  // current particle data
-  float density = 0.f;
-  float sumGradientMagnitude = 0.f;
-  float3 sumGradientVector = constructFloat3(0.f);
-
-  DECLARE_SELF_PARTICLE(particlesPredictedOld, identity, nodeIdentity)
-
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const float mass = 1.f/particleSharedData[nodeIdentity.entityId].sharedInvMass;
+  const FluidSolverData fluidSolverData = particleSharedData[nodeIdentity.entityId].fluidSolverData;
 
-#ifdef GRID_SOLVER_HASH_FUNCTION
-  const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
-#endif
-
-  const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
-
-  // loop through neighboring cells
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
-
-    // iterate over particles in the cell
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
-    {
-      const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
-      sumGradientMagnitude += lengthSq(gradient);
-      sumGradientVector += gradient;
-    }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
-
-  sumGradientMagnitude += lengthSq(sumGradientVector);
-  sumGradientMagnitude *= (sharedData.fluidSolverData.fluidKernelFunctionConstant[1] * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]);
-
-  density *= sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / sharedData.sharedInvMass;
+  const float density = calculateParticleDensity(selfParticle, mass, fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
 
   particlesDensity[particleIndex] = density;
-
-  particlesLambda[particleIndex] = -(density * sharedData.invRestDensity - 1.f) * sharedData.fluidSolverData.fluidKernelFunctionConstant[2];
+  particlesLambda[particleIndex] = -(density * sharedData.invRestDensity - 1.f) * fluidSolverData.fluidKernelFunctionConstant[2];
 }
 
 /*

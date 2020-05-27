@@ -207,7 +207,8 @@ struct DEFAULT_ALIGN ParticleSharedData_t
   float invRestDensity;
   /*!@member Gas constant for fluid constraint.*/
   float gasConstantK;
-  float padding;
+  /*!@member Surface tension for fluid constraint.*/
+  float surfaceTensionCoeff;
 
   FluidSolverData fluidSolverData;
 

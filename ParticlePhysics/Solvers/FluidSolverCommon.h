@@ -205,6 +205,90 @@ Kernel void reorderFluidParticles(
 #endif
 }
 
+inline float calculateParticleDensity(
+  const ParticleStruct          selfParticle,
+  const float                   selfMass,
+  const FluidSolverData         fluidSolverData,
+  const Device uint*            gridCellParticleOffsets,
+  const Device ParticleStruct*  particles,
+  const uint                    gridCellIndex,
+  const short                   gridSize,
+  const short                   gridSizeExp)
+{
+  float density = 0.f;
+  const float fluidKernelRadiusSq = sqr(fluidSolverData.fluidKernelRadius);
+
+  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+
+    // batchwise iterate over indices in the cell
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    {
+      // iterate over each particle in the cell
+      const float3 collisionVector = selfParticle.position - particles[otherNodeIndex].position;
+      const float actualDistanceSq = lengthSq(collisionVector);
+
+      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
+    }
+  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+  return density * fluidSolverData.fluidKernelFunctionConstant[0] * selfMass;
+}
+
+/*
+@kernel Calculate fluid particle density.
+@param particlesDensity Calculated particle density.
+@param gridCellParticleOffsets Starting offset for each grid cell.
+@param gridParticleCellIndex Computed cell index for each particle.
+@param particlesPredicted Integrated particle position.
+@param particleSharedData Particle entity shared data.
+@param systemBoundingBox Physics system's bounding box.
+@param invRadius Inverse of max particle radius in the system.
+@param gridSize Size of grid in one dimension.
+@param gridSizeExp Grid size in power of 2.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void calculateDensity(
+  Device float*                       particlesDensity,
+  const Device uint*                  gridCellParticleOffsets,
+  const Device uint*                  gridParticleCellIndex,
+  const Device ParticleStruct*        particlesPredicted,
+  const Device ParticleSharedData*    particleSharedData,
+  Const XAB*                          systemBoundingBox,
+  Const float*                        invRadius,
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint particleIndex = threadIndex();
+
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  const uint gridCellIndex = gridParticleCellIndex[particleIndex];
+  DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
+  const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
+  const float mass = 1.f/particleSharedData[nodeIdentity.entityId].sharedInvMass;
+  const FluidSolverData fluidSolverData = particleSharedData[nodeIdentity.entityId].fluidSolverData;
+
+  particlesDensity[particleIndex] = calculateParticleDensity(selfParticle, mass, fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
+}
+
+inline float3 surfaceTensionAkinci(const float3 collisionVector, const float actualDistance, const float selfParticleMass, const float otherParticleMass, const ParticleSharedData sharedData)
+{
+  float h = sharedData.fluidSolverData.fluidKernelRadius;
+  float h_3 = h * h * h;
+  float h_6 = h_3 * h_3;
+  float h_9 = h_6 * h_3;
+  float x = (h - actualDistance);
+  x = x * x * x;
+  float y = x * actualDistance * actualDistance * actualDistance;
+  return collisionVector * (selfParticleMass * otherParticleMass * sharedData.surfaceTensionCoeff * (32.f / (3.1415926535897932384626433832795 * h_9 * actualDistance)) * select(2.f * y - h_6 / 64.f, y, (2.f * actualDistance) > h));
+}
+
 /*inline float poly6Function(const float r, const float h)
 {
   const float x = (h * h - r * r) / (h * h * h);
