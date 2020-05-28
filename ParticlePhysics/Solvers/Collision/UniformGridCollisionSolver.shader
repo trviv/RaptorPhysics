@@ -560,7 +560,10 @@ Kernel void applyCollisions(
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
 
-    validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(x, y, z);
+    if (indexRange.x != indexRange.y)
+    {
+      validNeighbourIndex[validNeighbourCount++] = encodeCellOffset(x, y, z);
+    }
   GRID_SOLVER_NEIGHBOUR_LOOP_END
 
   for (uchar i=0; i<validNeighbourCount; i++)

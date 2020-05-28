@@ -113,26 +113,20 @@ Kernel void applyCorrection(
 
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+    const float3 collisionVector = selfParticle.position - otherParticle.position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // loop through neighboring cells
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    if (actualDistanceSq >= fluidKernelRadiusSq)
     {
-      const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float scorr = scorrFunction(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
-      delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+      continue;
     }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+    const float actualDistance = sqrt(actualDistanceSq);
+    const float scorr = scorrFunction(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
+    delta += collisionVector * ((lambda + particlesLambda[otherNodeIndex] + scorr) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   selfParticle.position += delta * sharedData.invRestDensity * sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
   selfParticle.identity = identity;
@@ -219,26 +213,20 @@ Kernel void vorticityOmega(
 
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+    const float3 collisionVector = selfParticle.position - otherParticle.position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // loop through neighboring cells
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    if (actualDistanceSq >= fluidKernelRadiusSq)
     {
-      const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius)));
+      continue;
     }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+    const float actualDistance = sqrt(actualDistanceSq);
+    const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
+    sumOmega += cross(velocityDiff, collisionVector * (spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius)));
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   particlesOmega[particleIndex] = sumOmega * sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
 }
@@ -301,27 +289,21 @@ Kernel void vorticityConfinementXSPHViscosity(
 
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
+    const float3 collisionVector = selfParticle.position - otherParticle.position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // loop through neighboring cells
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    if (actualDistanceSq >= fluidKernelRadiusSq)
     {
-      const ParticleStruct otherParticle = particlesPredictedOld[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
-      delta += velocityDiff * poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq);
-      omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+      continue;
     }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+    const float actualDistance = sqrt(actualDistanceSq);
+    const float3 velocityDiff = particlesDiff[otherNodeIndex].velocity - selfParticleDiff.velocity;
+    delta += velocityDiff * poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq);
+    omegaDelta += collisionVector * (length(particlesOmega[otherNodeIndex]) * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   delta *= sharedData.viscosity * sharedData.fluidSolverData.fluidKernelFunctionConstant[0] / (timeStep * sharedData.sharedInvMass);
   omegaDelta *= sharedData.fluidSolverData.fluidKernelFunctionConstant[1];

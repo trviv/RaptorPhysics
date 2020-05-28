@@ -73,6 +73,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@function Perform integration step.*/
   void integrate(float timeStep);
 
+  /*!@function Populate grid for non fluid particles to use with fluid solver.*/
+  void createNonFluidGrid(float invMaxKernelRadius);
+
 public:
 
   /*!
