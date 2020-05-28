@@ -93,28 +93,21 @@ Kernel void calculatePressure(
 
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
+    const float3 collisionVector = selfParticle.position - otherParticle.position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // batchwise iterate over indices in the cell
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    if (actualDistanceSq >= fluidKernelRadiusSq)
     {
-      // iterate over each particle in the loaded batch
-      const ParticleStruct otherParticle = particlesPredicted[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
-      sumGradientMagnitude += lengthSq(gradient);
-      sumGradientVector += gradient;
+      continue;
     }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+    const float actualDistance = sqrt(actualDistanceSq);
+    const float3 gradient = collisionVector * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius);
+    sumGradientMagnitude += lengthSq(gradient);
+    sumGradientVector += gradient;
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   sumGradientVector *= sharedData.fluidSolverData.fluidKernelFunctionConstant[1];
   sumGradientMagnitude *= (sharedData.fluidSolverData.fluidKernelFunctionConstant[1] * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]);
@@ -178,27 +171,20 @@ Kernel void calculateForces(
   const float selfPressureByDensity = selfPressure/sqr(selfDensity);
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    const ParticleStruct otherParticle = particlesPosition[otherNodeIndex];
+    const float3 collisionVector = selfParticle.position - otherParticle.position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // batchwise iterate over indices in the cell
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
+    if (actualDistanceSq >= fluidKernelRadiusSq)
     {
-      // iterate over each particle in the loaded batch
-      const ParticleStruct otherParticle = particlesPosition[otherNodeIndex];
-      const float3 collisionVector = selfParticle.position - otherParticle.position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      if (actualDistanceSq >= fluidKernelRadiusSq)
-      {
-        continue;
-      }
-
-      const float actualDistance = sqrt(actualDistanceSq);
-      const float density = selfPressureByDensity + particlesPressure[otherNodeIndex]/sqr(particlesDensity[otherNodeIndex]);
-      force += collisionVector * (density * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+      continue;
     }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
+    const float actualDistance = sqrt(actualDistanceSq);
+    const float density = selfPressureByDensity + particlesPressure[otherNodeIndex]/sqr(particlesDensity[otherNodeIndex]);
+    force += collisionVector * (density * spikyFunctionGradientVariable(actualDistance, sharedData.fluidSolverData.fluidKernelRadius));
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   particlesPressureForce[particleIndex].force = -(force * sharedData.fluidSolverData.fluidKernelFunctionConstant[1]) / sqr(sharedData.sharedInvMass);
 }

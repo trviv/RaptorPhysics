@@ -21,8 +21,6 @@ inline float viscosityFunctionConstant(const float h)
   return (45.f / M_PI_F) * x * x * x;
 }
 
-//#ifdef COMPUTE_SHADER_SCOPE
-
 inline float poly6FunctionVariable(const float r, const float h)
 {
   const float x = (h * h - r * r);
@@ -205,6 +203,17 @@ Kernel void reorderFluidParticles(
 #endif
 }
 
+#define GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN \
+  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
+    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex); \
+    /* iterate over particles in neighboring cells*/ \
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++) \
+    {
+
+#define GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END \
+    } \
+  GRID_SOLVER_NEIGHBOUR_LOOP_END
+
 inline float calculateParticleDensity(
   const ParticleStruct          selfParticle,
   const float                   selfMass,
@@ -218,19 +227,13 @@ inline float calculateParticleDensity(
   float density = 0.f;
   const float fluidKernelRadiusSq = sqr(fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN
-    const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    // iterate over each particle in the cell
+    const float3 collisionVector = selfParticle.position - particles[otherNodeIndex].position;
+    const float actualDistanceSq = lengthSq(collisionVector);
 
-    // batchwise iterate over indices in the cell
-    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++)
-    {
-      // iterate over each particle in the cell
-      const float3 collisionVector = selfParticle.position - particles[otherNodeIndex].position;
-      const float actualDistanceSq = lengthSq(collisionVector);
-
-      density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
-    }
-  GRID_SOLVER_NEIGHBOUR_LOOP_END
+    density += select(0.f, poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
 
   return density * fluidSolverData.fluidKernelFunctionConstant[0] * selfMass;
 }

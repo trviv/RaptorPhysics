@@ -852,6 +852,11 @@ void PhysicsSystem::positionUpdate(float timeStep)
 #endif
 }
 
+void PhysicsSystem::createNonFluidGrid(float invMaxKernelRadius)
+{
+  
+}
+
 void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
