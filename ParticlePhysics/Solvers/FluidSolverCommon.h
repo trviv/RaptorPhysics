@@ -210,6 +210,12 @@ Kernel void reorderFluidParticles(
     for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++) \
     {
 
+#define GRID_SOLVER_PACKED_NEIGHBOUR_PARTICLE_LOOP_BEGIN \
+  GRID_SOLVER_PACKED_NEIGHBOUR_LOOP_BEGIN \
+    /* iterate over particles in neighboring cells*/ \
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++) \
+    {
+
 #define GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END \
     } \
   GRID_SOLVER_NEIGHBOUR_LOOP_END

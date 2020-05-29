@@ -319,6 +319,45 @@ inline short3 decodeCellVector(uchar encodedOffset)
     const short y = j - particleGridCellIndex.y; \
     const short z = k - particleGridCellIndex.z;
 
+#define GRID_SOLVER_PACKED_NEIGHBOUR_LOOP_BEGIN \
+  const short3 particleGridCellIndex = decodeGridIndexShort3(gridCellIndex, gridSize, gridSizeExp); \
+  short i = particleGridCellIndex.x - 2; \
+  short j = particleGridCellIndex.y - 1; \
+  short k = particleGridCellIndex.z - 1; \
+  const short maxX = particleGridCellIndex.x + 2; \
+  const short maxY = particleGridCellIndex.y + 2; \
+  for (short n=0; n<27; n++) \
+  { \
+    int gridCellIndex;\
+    uint2 indexRange; \
+    while (n<27) \
+    { \
+      i++; \
+      if (i == maxX) \
+      { j++; i -= 3;} \
+      if (j == maxY) \
+      { k++; j -= 3;} \
+      if ((i < 0 | i >= gridSize) | (j < 0 | j >= gridSize) | (k < 0 | k >= gridSize))  \
+      { \
+        n++; \
+        continue; \
+      } \
+      gridCellIndex = encodeGridIndexInt3(constructInt3(i, j, k), gridSizeExp); \
+      indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex); \
+      if (indexRange.x != indexRange.y) \
+      { \
+        break; \
+      } \
+      n++; \
+    } \
+    if (n >= 27) \
+    { \
+      break; \
+    } \
+    const short x = i - particleGridCellIndex.x; \
+    const short y = j - particleGridCellIndex.y; \
+    const short z = k - particleGridCellIndex.z;
+
 #endif
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_END }

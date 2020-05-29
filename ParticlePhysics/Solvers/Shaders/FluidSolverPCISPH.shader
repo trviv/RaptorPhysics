@@ -171,7 +171,7 @@ Kernel void calculateForces(
   const float selfPressureByDensity = selfPressure/sqr(selfDensity);
   const float fluidKernelRadiusSq = sqr(sharedData.fluidSolverData.fluidKernelRadius);
 
-  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+  GRID_SOLVER_PACKED_NEIGHBOUR_PARTICLE_LOOP_BEGIN
     const ParticleStruct otherParticle = particlesPosition[otherNodeIndex];
     const float3 collisionVector = selfParticle.position - otherParticle.position;
     const float actualDistanceSq = lengthSq(collisionVector);

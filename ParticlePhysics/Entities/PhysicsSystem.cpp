@@ -327,15 +327,20 @@ void PhysicsSystem::step()
   }
 #endif
 
-  // enable wait for sync only with frame capture
-  compute->sync(frameCaptureStart);
+  compute->sync(false);
 
   if (frameCaptureStart)
   {
     if (frameCount == frameCaptureStart)
+    {
+      compute->sync(true);
       compute->startCapture();
+    }
     else if (frameCount == frameCaptureEnd)
+    {
+      compute->sync(true);
       compute->endCapture();
+    }
   }
 
   elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
