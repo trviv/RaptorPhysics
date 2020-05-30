@@ -22,11 +22,18 @@ protected:
   DeviceArray <ParticleStruct>&particlesPredictedCopy = UniformGridCollisionSolver::particlesBufferTemp;
   DeviceArray <ParticleStruct>&particleDifferentialCopy = particlesTemp[0];
 
+  DeviceArray <uint>  boundaryParticleCellIndex;
+  DeviceArray <uint> &boundaryCellParticleOffsets;
+  DeviceArray <uint>  boundaryCellParticleIndices;
+  DeviceArray <uint>  boundaryCellParticleCount;
+
   void rearrangeParticles(uint particleCount);
 
   void update();
 
   void updateRadius();
+
+  void constructGrid();
 
   float calculateGradientConstant(const ParticleSharedData& entitySharedData)const;
 
