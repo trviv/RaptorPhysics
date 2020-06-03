@@ -245,6 +245,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 #endif
       solver->particles.host()->push_back(particle);
       solver->particleCollisionData.host()->push_back(entityParticleCol->at(i));
+      solver->particleCouplingData.host()->push_back(ParticleCouplingData());
     }
 
     PartitionInfo partition;
@@ -857,11 +858,6 @@ void PhysicsSystem::positionUpdate(float timeStep)
 #endif
 }
 
-void PhysicsSystem::createNonFluidGrid(float invMaxKernelRadius)
-{
-  
-}
-
 void PhysicsSystem::step(float timeStep)
 {
   ProfileBlock("Physics system step");
@@ -1012,6 +1008,14 @@ void PhysicsSystem::step(float timeStep)
   {
     integrate(timeStep);
   }
+
+  // set system data pointers in fluid solver
+  // TODO: Probably move it to a place less frequently updated
+  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions    = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
+  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
+  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce        = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
+  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount        = instanceNodeCount;
+  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings             = systemSettings.device();
 
   for (uint si = 0; si < solverIterations; si++)
   {

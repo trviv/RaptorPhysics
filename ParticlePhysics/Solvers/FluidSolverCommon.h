@@ -286,6 +286,110 @@ Kernel void calculateDensity(
   particlesDensity[particleIndex] = calculateParticleDensity(selfParticle, mass, fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
 }
 
+Kernel void createBoundaryGridCellHistogram(
+  atomicKernelInput(uint,       systemGridCellIndexCount),
+  Device uint*                  systemGridParticleCellIndex,
+  const Device ParticleStruct*  particles,
+  Const PhySystemSettings*      systemSettings,
+  Const XAB*                    systemBoundingBox,
+  Const float*                  invRadius,
+  constantKernelInput(uint,     nodeCount),
+  constantKernelInput(int,      gridSize),
+  constantKernelInput(int,      gridSizeExp)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  uint index = threadIndex();
+
+  if (index < nodeCount)
+  {
+    // if index is in range of fluid nodes
+    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[SOLVER_FLUID];
+    // offset it to go to next solver node indices
+    if (index >= phySystemOffsets.globalNodeOffset)
+    {
+      index += systemSettings->globalOffsets[SOLVER_FLUID+1].globalNodeOffset - phySystemOffsets.globalNodeOffset;
+    }
+    const ParticleStruct selfParticle = particles[index];
+
+#ifndef GRID_SOLVER_HASH_FUNCTION
+    const float3 inverseMergedBoxSize = ((float)gridSize) / max(gridSize / invRadius[0], systemBoundingBox->max - systemBoundingBox->min);
+    int3 quantizedPosition = convertInt3((selfParticle.position - systemBoundingBox->min) * inverseMergedBoxSize);
+#else
+    int3 quantizedPosition = positionHashFunction((selfParticle.position - systemBoundingBox->min) * invRadius[0], gridSize, gridSizeExp);
+#endif
+
+    uint gridCountOffset = -1;
+    const ushort solverType = getSolverType(selfParticle.identity);
+
+    if (quantizedPosition.x >= -1 && quantizedPosition.x <= gridSize &&
+        quantizedPosition.y >= -1 && quantizedPosition.y <= gridSize &&
+        quantizedPosition.z >= -1 && quantizedPosition.z <= gridSize)
+    {
+      quantizedPosition = quantizedPosition & constructInt3(gridSize-1);
+      gridCountOffset = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
+
+      atomicAdd(&systemGridCellIndexCount[gridCountOffset], 1);
+    }
+
+    systemGridParticleCellIndex[threadIndex()] = gridCountOffset;
+  }
+}
+
+Kernel void createBoundaryGridCellArrays(
+  Device uint*                  systemGridCellParticleIndices,
+  atomicKernelInput(uint,       systemGridCellParticleOffsets),
+  const Device uint*            systemGridParticleCellIndex,
+  constantKernelInput(uint,     nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index < nodeCount)
+  {
+    const uint gridCountOffset = systemGridParticleCellIndex[index];
+    if (gridCountOffset != -1)
+    {
+      const uint offset = atomicAdd(&systemGridCellParticleOffsets[gridCountOffset], 1);
+      systemGridCellParticleIndices[offset] = index;
+    }
+  }
+}
+
+Kernel void reorderBoundaryParticles(
+  Device ParticleStruct*              particlesNew,
+  const Device ParticleStruct*        particlesOld,
+  Device ParticleDifferential*        particleDiffNew,
+  const Device ParticleDifferential*  particleDiffOld,
+  Device uint*                        systemGridParticleCellIndexNew,
+  const Device uint*                  systemGridParticleCellIndexOld,
+  const Device uint*                  systemGridCellParticleIndices,
+  Device uint*                        systemGridParticleSystemIndex,
+  Const PhySystemSettings*            systemSettings,
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  if (threadIndex() >= nodeCount)
+  {
+    return;
+  }
+
+  uint particleIndex = systemGridCellParticleIndices[threadIndex()];
+
+  systemGridParticleCellIndexNew[threadIndex()] = systemGridParticleCellIndexOld[particleIndex];
+  particlesNew[threadIndex()] = particlesOld[particleIndex];
+  particleDiffNew[threadIndex()] = particleDiffOld[particleIndex];
+
+  // if index is in range of fluid nodes
+  const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[SOLVER_FLUID];
+
+  // offset it to go to next solver node indices
+  if (particleIndex >= phySystemOffsets.globalNodeOffset)
+  {
+    particleIndex += systemSettings->globalOffsets[SOLVER_FLUID+1].globalNodeOffset - phySystemOffsets.globalNodeOffset;
+  }
+  systemGridParticleSystemIndex[threadIndex()] = particleIndex;
+}
+
 inline float3 surfaceTensionAkinci(const float3 collisionVector, const float actualDistance, const float selfParticleMass, const float otherParticleMass, const ParticleSharedData sharedData)
 {
   float h = sharedData.fluidSolverData.fluidKernelRadius;

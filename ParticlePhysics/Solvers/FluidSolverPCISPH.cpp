@@ -58,34 +58,7 @@ void FluidSolverPCISPH::solve(float timeStep)
     invBeta = 1.f/(2.f * mSqr(timeStep) * mSqr(1.f/entitySharedData.host()->at(0).sharedInvMass) * mSqr(entitySharedData.host()->at(0).invRestDensity));
   }
 
-  uint nodeBatchSize = 8;
-  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
-
-  const uint gridElements = gridSize * gridSize * gridSize;
-
-  size_t groupWorkgroupSize[3], groupWorkgroupCount[3];
-  compute->configureSize(groupWorkgroupSize, groupWorkgroupCount, nodeBatchCount);
-
-  if (particleGroupBoundingBoxes.size() < groupWorkgroupSize[0] * groupWorkgroupCount[0])
-  {
-    particleGroupBoundingBoxes.resize((uint)(groupWorkgroupSize[0] * groupWorkgroupCount[0]), false);
-  }
-
-  if (gridParticleCellIndex.size() < particleCount)
-  {
-    particlesNextPosition.resize(particleCount, false);
-    particlesNextVelocity.resize(particleCount, false);
-    particleDifferentialCopy.resize(particleCount, false);
-    particlesPressure.resize(particleCount, false);
-    particlesDensity.resize(particleCount, false);
-    gridParticleCellIndex.resize(particleCount, false);
-    gridCellParticleIndices.resize(particleCount, false);
-  }
-
-  if (gridCellParticleCount.size() < gridElements)
-  {
-    gridCellParticleCount.resize(gridElements, false);
-  }
+  allocateBuffers();
 
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextPosition.device(), particleCount * 4);
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextVelocity.device(), particleCount * 4);

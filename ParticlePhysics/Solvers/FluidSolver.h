@@ -22,10 +22,22 @@ protected:
   DeviceArray <ParticleStruct>&particlesPredictedCopy = UniformGridCollisionSolver::particlesBufferTemp;
   DeviceArray <ParticleStruct>&particleDifferentialCopy = particlesTemp[0];
 
-  DeviceArray <uint>  boundaryParticleCellIndex;
-  DeviceArray <uint> &boundaryCellParticleOffsets;
-  DeviceArray <uint>  boundaryCellParticleIndices;
-  DeviceArray <uint>  boundaryCellParticleCount;
+  /* Physics system related variables, used for fluid-solid coupling */
+  DeviceArray <uint>  systemGridParticleCellIndex;
+  DeviceArray <uint> &systemGridCellParticleOffsets;
+  DeviceArray <uint>  systemGridCellParticleIndices;
+  DeviceArray <uint>  systemGridCellParticleCount;
+  DeviceArray <uint>  systemGridParticleSystemIndex;
+
+  DeviceArray <ParticleStruct>  systemParticlePositionsCopy;
+  DeviceArray <ParticleStruct>  systemParticleDifferentialCopy;
+  ComputeMemory *systemParticlePositions;
+  ComputeMemory *systemParticleDifferential;
+  ComputeMemory *systemParticleAuxData;
+  ComputeMemory *systemParticleForce;
+  ComputeMemory *systemSettings;
+  uint systemParticleCount;
+  uint systemNonFluidParticleCount;
 
   void rearrangeParticles(uint particleCount);
 
@@ -36,6 +48,16 @@ protected:
   void constructGrid();
 
   float calculateGradientConstant(const ParticleSharedData& entitySharedData)const;
+
+  void constructBoundaryGrid();
+
+  void allocateBoundingBoxes();
+
+  void allocatePositionBuffers();
+
+  void allocateIndexBuffers();
+
+  void allocateBuffers();
 
   FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate);
 

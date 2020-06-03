@@ -5,13 +5,16 @@
 #define FLUID_COLLISION_SOLVER_REORDER              3
 #define FLUID_COLLISION_SOLVER_CALC_DENSITY         4
 #define FLUID_COLLISION_SOLVER_CALC_FORCES          5
+#define FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS   6
+#define FLUID_COLLISION_SOLVER_SYSTEM_CELL_ARRAYS   7
+#define FLUID_COLLISION_SOLVER_SYSTEM_REORDER       8
 
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   : FluidSolver(compute, allocator, false)
 {}
 
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate)
-  : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), boundaryCellParticleOffsets(boundaryCellParticleCount)
+  : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), systemGridCellParticleOffsets(systemGridCellParticleCount)
 {
   iterations = 1;
   gridSize = 64;
@@ -27,10 +30,22 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
   particlesLambda.create(compute, solverHeap, true);
   particlesTemp[0].create(compute, solverHeap, true);
   particlesTemp[1].create(compute, solverHeap, true);
+  systemGridParticleCellIndex.create(compute, solverHeap, true);
+  systemGridCellParticleIndices.create(compute, solverHeap, true);
+  systemGridCellParticleCount.create(compute, solverHeap, true);
+  systemParticlePositionsCopy.create(compute, solverHeap, true);
+  systemParticleDifferentialCopy.create(compute, solverHeap, true);
+  systemGridParticleSystemIndex.create(compute, solverHeap, true);
 #else
   particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);
+  systemGridParticleCellIndex.create(compute, solverHeap);
+  systemGridCellParticleIndices.create(compute, solverHeap);
+  systemGridCellParticleCount.create(compute, solverHeap);
+  systemParticlePositionsCopy.create(compute, solverHeap);
+  systemParticleDifferentialCopy.create(compute, solverHeap);
+  systemGridParticleSystemIndex.create(compute, solverHeap);
 #endif
 }
 
@@ -47,6 +62,9 @@ void FluidSolver::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("reorderFluidParticles"));
   kernels.push_back(programs[0].createKernel("calculateDensity"));
   kernels.push_back(programs[0].createKernel("calculateForces"));
+  kernels.push_back(programs[0].createKernel("createBoundaryGridCellHistogram"));
+  kernels.push_back(programs[0].createKernel("createBoundaryGridCellArrays"));
+  kernels.push_back(programs[0].createKernel("reorderBoundaryParticles"));
 
   invMaxRadius.host()->push_back(-1.f);
 
@@ -147,14 +165,6 @@ void FluidSolver::constructGrid()
   uint nodeBatchSize = 8;
   uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
 
-  size_t workgroupSize[3], workgroupCount[3];
-  compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
-
-  if (particleGroupBoundingBoxes.size() < workgroupSize[0] * workgroupCount[0])
-  {
-    particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
-  }
-
   const uint gridElements = gridSize * gridSize * gridSize;
 
   {
@@ -220,6 +230,8 @@ void FluidSolver::constructGrid()
   compute->sync();
 #endif
 
+//  constructBoundaryGrid();
+
   // get prefix sum for each
   ComputeUtil::get(gridComputeUtilId)->prefixScan1D(compute, gridCellParticleOffsets.device(), gridCellParticleCount.device(), gridElements);
 
@@ -253,18 +265,10 @@ void FluidSolver::constructGrid()
   rearrangeParticles(particleCount);
 }
 
-void FluidSolver::solve(float timeStep)
+void FluidSolver::allocateBoundingBoxes()
 {
-  uint particleCount = lastPartition().end();
-
-  if (!particleCount) return;
-
-  updateRadius();
-
   uint nodeBatchSize = 8;
-  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
-
-  const uint gridElements = gridSize * gridSize * gridSize;
+  uint nodeBatchCount = mAlignBy(lastPartition().end(), nodeBatchSize);
 
   size_t workgroupSize[3], workgroupCount[3];
   compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
@@ -273,22 +277,76 @@ void FluidSolver::solve(float timeStep)
   {
     particleGroupBoundingBoxes.resize((uint)(workgroupSize[0] * workgroupCount[0]), false);
   }
+}
+
+void FluidSolver::allocatePositionBuffers()
+{
+  const uint particleCount = lastPartition().end();
+
+  if (systemParticlePositionsCopy.size() < systemNonFluidParticleCount)
+  {
+    systemParticlePositionsCopy.resize(systemNonFluidParticleCount, false);
+    systemParticleDifferentialCopy.resize(systemNonFluidParticleCount, false);
+  }
 
   if (gridParticleCellIndex.size() < particleCount)
   {
     particlesCopy.resize(particleCount, false);
     particlesPredictedCopy.resize(particleCount, false);
     particleDifferentialCopy.resize(particleCount, false);
+  }
+}
+
+void FluidSolver::allocateIndexBuffers()
+{
+  const uint particleCount = lastPartition().end();
+
+  if (gridParticleCellIndex.size() < particleCount)
+  {
     particlesDensity.resize(particleCount, false);
     particlesLambda.resize(particleCount, false);
     gridParticleCellIndex.resize(particleCount, false);
     gridCellParticleIndices.resize(particleCount, false);
   }
 
+  if (particlesLambda.size() < systemNonFluidParticleCount)
+  {
+    particlesLambda.resize(systemNonFluidParticleCount, false);
+  }
+
+  if (systemGridParticleCellIndex.size() < systemNonFluidParticleCount)
+  {
+    systemGridParticleCellIndex.resize(systemNonFluidParticleCount, false);
+    systemGridCellParticleIndices.resize(systemNonFluidParticleCount, false);
+    systemGridParticleSystemIndex.resize(systemNonFluidParticleCount, false);
+  }
+
+  const uint gridElements = gridSize * gridSize * gridSize;
+
   if (gridCellParticleCount.size() < gridElements)
   {
     gridCellParticleCount.resize(gridElements, false);
+    systemGridCellParticleCount.resize(systemNonFluidParticleCount, false);
   }
+}
+
+void FluidSolver::allocateBuffers()
+{
+  systemNonFluidParticleCount = systemParticleCount - lastPartition().end();
+  allocateBoundingBoxes();
+  allocatePositionBuffers();
+  allocateIndexBuffers();
+}
+
+void FluidSolver::solve(float timeStep)
+{
+  uint particleCount = lastPartition().end();
+
+  if (!particleCount) return;
+
+  updateRadius();
+
+  allocateBuffers();
 
   for (int i=0; i<iterations; i++)
   {
@@ -365,4 +423,94 @@ void FluidSolver::update()
   }
 
   entitySharedData.syncDevice();
+}
+
+void FluidSolver::constructBoundaryGrid()
+{
+  if (!systemNonFluidParticleCount) return;
+
+  const uint gridElements = gridSize * gridSize * gridSize;
+
+  ComputeUtil::get(gridComputeUtilId)->clearBuffer(compute, systemGridCellParticleCount.device(), gridElements);
+
+  { // get count for each grid cell
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, systemNonFluidParticleCount);
+
+    ComputeMemory* buffers[] = {
+      systemGridCellParticleCount.device(),
+      systemGridParticleCellIndex.device(),
+      systemParticlePositions,
+      systemSettings,
+      systemBoundingBox.device(),
+      invMaxRadius.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArgs(buffers, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&systemNonFluidParticleCount, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&gridSize, bufferCount + 1);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&gridSizeExp, bufferCount + 2);
+
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS], workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  systemGridCellParticleCount.syncHost();
+  systemGridParticleCellIndex.syncHost();
+  compute->sync();
+#endif
+
+  // get prefix sum for each
+  ComputeUtil::get(gridComputeUtilId)->prefixScan1D(compute, systemGridCellParticleOffsets.device(), systemGridCellParticleCount.device(), gridElements);
+
+#ifdef DEBUG_FLUID_SOLVER
+  systemGridCellParticleOffsets.syncHost();
+  compute->sync();
+#endif
+
+  { // put particle indices in cell array
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, systemNonFluidParticleCount, compute->simdSize());
+
+    ComputeMemory* buffers[] = {
+      systemGridCellParticleIndices.device(),
+      systemGridCellParticleOffsets.device(),
+      systemGridParticleCellIndex.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_ARRAYS].setArgs(buffers, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_ARRAYS].setArg<uint>(&systemNonFluidParticleCount, bufferCount);
+
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_ARRAYS], workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  systemGridCellParticleIndices.syncHost();
+  systemGridCellParticleOffsets.syncHost();
+  compute->sync();
+#endif
+
+  ComputeUtil::get(0)->copyBuffer(compute, systemGridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*systemNonFluidParticleCount);
+
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, systemNonFluidParticleCount);
+
+    ComputeMemory* buffers[] = {
+      systemParticlePositionsCopy.device(),
+      systemParticlePositions,
+      systemParticleDifferentialCopy.device(),
+      systemParticleDifferential,
+      systemGridParticleCellIndex.device(),
+      particlesLambda.device(),
+      systemGridCellParticleIndices.device(),
+      systemGridParticleSystemIndex.device(),
+      systemSettings
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_REORDER].setArgs(buffers, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_REORDER].setArg<uint>(&systemNonFluidParticleCount, bufferCount);
+
+    compute->execute(kernels[FLUID_COLLISION_SOLVER_SYSTEM_REORDER], workgroupSize, workgroupCount);
+  }
 }

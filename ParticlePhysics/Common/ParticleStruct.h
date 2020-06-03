@@ -290,7 +290,7 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 typedef struct ParticleRigidData_t ParticleRigidData;
 
 
-/*
+/*!
 @struct Additional data for particle.
 */
 struct ALIGN(4) ParticleAuxData_t
@@ -300,6 +300,17 @@ struct ALIGN(4) ParticleAuxData_t
 };
 
 typedef struct ParticleAuxData_t ParticleAuxData;
+
+
+/*!
+@struct Fluid-rigid coupling data for particles.
+*/
+struct ALIGN(4) ParticleCouplingData_t
+{
+  float   volume;
+};
+
+typedef struct ParticleCouplingData_t ParticleCouplingData;
 
 
 /*!

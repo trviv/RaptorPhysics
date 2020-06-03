@@ -55,34 +55,7 @@ void FluidSolverPBF::solve(float timeStep)
 
   updateRadius();
 
-  uint nodeBatchSize = 8;
-  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
-
-  const uint gridElements = gridSize * gridSize * gridSize;
-
-  size_t groupWorkgroupSize[3], groupWorkgroupCount[3];
-  compute->configureSize(groupWorkgroupSize, groupWorkgroupCount, nodeBatchCount);
-
-  if (particleGroupBoundingBoxes.size() < groupWorkgroupSize[0] * groupWorkgroupCount[0])
-  {
-    particleGroupBoundingBoxes.resize((uint)(groupWorkgroupSize[0] * groupWorkgroupCount[0]), false);
-  }
-
-  if (gridParticleCellIndex.size() < particleCount)
-  {
-    particlesCopy.resize(particleCount, false);
-    particlesPredictedCopy.resize(particleCount, false);
-    particleDifferentialCopy.resize(particleCount, false);
-    particlesDensity.resize(particleCount, false);
-    particlesLambda.resize(particleCount, false);
-    gridParticleCellIndex.resize(particleCount, false);
-    gridCellParticleIndices.resize(particleCount, false);
-  }
-
-  if (gridCellParticleCount.size() < gridElements)
-  {
-    gridCellParticleCount.resize(gridElements, false);
-  }
+  allocateBuffers();
 
   constructGrid();
 
