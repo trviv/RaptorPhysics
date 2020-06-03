@@ -38,6 +38,7 @@ protected:
   DeviceArray<ParticleRigidData>    particleRigidData;
   DeviceArray<ParticleStruct>       particlesTemp[2];
   DeviceArray<ParticleCollisionData>particleCollisionData;
+  DeviceArray<ParticleCouplingData> particleCouplingData;
 
   DeviceArray<PartitionInfo>        partitions;
   DeviceArray<uint>                 partitionsCount;
