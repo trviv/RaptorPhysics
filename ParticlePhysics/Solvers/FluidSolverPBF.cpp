@@ -2,12 +2,11 @@
 
 //#define DEBUG_FLUID_PBF_SOLVER
 
-#define FLUID_COLLISION_SOLVER_REORDER                  3
-#define FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA          4
-#define FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION     5
-#define FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY      6
-#define FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA           7
-#define FLUID_COLLISION_SOLVER_PBF_VORT_VISC            8
+#define FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA          0
+#define FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION     1
+#define FLUID_COLLISION_SOLVER_PBF_UPDATE_VELOCITY      2
+#define FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA           3
+#define FLUID_COLLISION_SOLVER_PBF_VORT_VISC            4
 
 FluidSolverPBF::FluidSolverPBF(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator), FluidSolver(compute, allocator, true)
@@ -27,15 +26,12 @@ FluidSolverPBF::FluidSolverPBF(ComputeInterface* compute, SharedAllocator* alloc
 
 void FluidSolverPBF::create(ComputeInterface* compute)
 {
-  includeFiles.push_back("UniformGridCollisionSolver.shader");
-  includeFiles.push_back("FluidSolverCommon.h");
-
   registerShader(compute, "FluidSolverPBF.shader", NULL, NULL);
 
-  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
-  kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
-  kernels.push_back(programs[0].createKernel("createGridCellArrays"));
-  kernels.push_back(programs[0].createKernel("reorderFluidParticles"));
+  createBoundingBoxes     = programs[0].createKernel("createBoundingBoxes");
+  createGridCellHistogram = programs[0].createKernel("createGridCellHistogram");
+  createGridCellArrays    = programs[0].createKernel("createGridCellArrays");
+  reorderFluidParticles   = programs[0].createKernel("reorderFluidParticles");
   kernels.push_back(programs[0].createKernel("calculateLambda"));
   kernels.push_back(programs[0].createKernel("applyCorrection"));
   kernels.push_back(programs[0].createKernel("updateVelocities"));

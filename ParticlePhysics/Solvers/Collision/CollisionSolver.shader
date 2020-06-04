@@ -325,7 +325,7 @@ inline float3 processParticleCollision(
 @param groupRadius Maximum radius from the threadgroup.
 @param particles Integrated particle position.
 @param particleSharedData Particle entity shared data.
-@param particleAuxData Additional particle data.
+@param particleCollisionData Array containing particle SDF mass and radius data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
 @param systemSettings Settings for the physics system.
@@ -333,15 +333,15 @@ inline float3 processParticleCollision(
 @param nodeCount Total nodes in the solver.
 */
 Kernel void getSystemMaxRadius(
-  Device float*                     groupRadius,
-  const Device ParticleStruct*      particles,
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
-  Const PhySystemSettings*          systemSettings,
-  constantKernelInput(uint,         nodeBatchCount),
-  constantKernelInput(uint,         nodeCount)
+  Device float*                       groupRadius,
+  const Device ParticleStruct*        particles,
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleCollisionData* particleCollisionData,
+  const Device PartitionInfo*         partitions,
+  const Device EntityLocation*        entityLocation,
+  Const PhySystemSettings*            systemSettings,
+  constantKernelInput(uint,           nodeBatchCount),
+  constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
@@ -361,7 +361,7 @@ Kernel void getSystemMaxRadius(
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    maxRadius = max(maxRadius, getRadiusUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex));
+    maxRadius = max(maxRadius, getRadiusUsingDeviceCollision(&sharedData, particleCollisionData, index));
   }
 
   if (threadIndex() < nodeBatchCount)
@@ -375,7 +375,7 @@ Kernel void getSystemMaxRadius(
 @param particleBoundingBoxes Particle bounding box array.
 @param particlesPredicted Integrated particle position.
 @param particleSharedData Particle entity shared data.
-@param particleAuxData Additional particle data.
+@param particleCollisionData Array containing particle SDF mass and radius data.
 @param partitions Instance partition data.
 @param entityLocation Entity section data.
 @param systemSettings Settings for the physics system.
@@ -383,19 +383,19 @@ Kernel void getSystemMaxRadius(
 */
 Kernel void createBoundingBoxes(
 #ifdef COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES
-  Device XAB*                       particleBoundingBoxes,
+  Device XAB*                         particleBoundingBoxes,
 #endif
-  Device XAB*                       particleGroupBoundingBoxes,
-  const Device ParticleStruct*      particlesPredicted,
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
+  Device XAB*                         particleGroupBoundingBoxes,
+  const Device ParticleStruct*        particlesPredicted,
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleCollisionData* particleCollisionData,
+  const Device PartitionInfo*         partitions,
+  const Device EntityLocation*        entityLocation,
 #ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-  Const PhySystemSettings*          systemSettings,
+  Const PhySystemSettings*            systemSettings,
 #endif
-  constantKernelInput(uint,         nodeBatchCount),
-  constantKernelInput(uint,         nodeCount)
+  constantKernelInput(uint,           nodeBatchCount),
+  constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
@@ -424,7 +424,7 @@ Kernel void createBoundingBoxes(
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 #endif
 
-    const float radius = getRadiusUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float radius = getRadiusUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     XAB particleBoundingBox;
     particleBoundingBox.min = particle.position - constructFloat3(radius);

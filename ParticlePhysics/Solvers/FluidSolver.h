@@ -15,6 +15,13 @@ protected:
 
   friend class PhysicsSystem;
 
+  /* Kernels common to fluid solvers */
+  ComputeKernel createBoundingBoxes;
+  ComputeKernel createGridCellHistogram;
+  ComputeKernel createGridCellArrays;
+  ComputeKernel reorderFluidParticles;
+  ComputeKernel calculateDensity;
+
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
 
@@ -33,7 +40,7 @@ protected:
   DeviceArray <ParticleStruct>  systemParticleDifferentialCopy;
   ComputeMemory *systemParticlePositions;
   ComputeMemory *systemParticleDifferential;
-  ComputeMemory *systemParticleAuxData;
+  ComputeMemory *systemParticleCollisionData;
   ComputeMemory *systemParticleForce;
   ComputeMemory *systemSettings;
   uint systemParticleCount;

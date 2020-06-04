@@ -12,7 +12,7 @@ Kernel void integrateDifferentiateStep(
   Device ParticleDifferential*        particleDiff,
   Device ParticleForce*               particleForce,
   const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
+  const Device ParticleCollisionData* particleCollisionData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemSettings*            systemSettings,
@@ -36,7 +36,7 @@ Kernel void integrateDifferentiateStep(
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float invMass = getInvMassUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     float3 velocity, particlePositionPredicted;
 
@@ -74,7 +74,7 @@ Kernel void startStep(
   Device ParticleStruct*            	particlesPredicted,
   Device ParticleDifferential*        particleDiff,
   const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
+  const Device ParticleCollisionData* particleCollisionData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemSettings*            systemSettings,
@@ -98,7 +98,7 @@ Kernel void startStep(
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float invMass = getInvMassUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     float3 velocity;
 
@@ -156,7 +156,7 @@ Kernel void endStep(
   Device ParticleDifferential*        particleDiff,
   Device ParticleForce*               particleForce,
   const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleAuxData*       particleAuxData,
+  const Device ParticleCollisionData* particleCollisionData,
   const Device PartitionInfo*         partitions,
   const Device EntityLocation*        entityLocation,
   Const PhySystemSettings*            systemSettings,
@@ -180,7 +180,7 @@ Kernel void endStep(
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
     const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 
-    const float invMass = getInvMassUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float invMass = getInvMassUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     float3 velocity, particlePositionPredicted;
 

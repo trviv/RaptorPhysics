@@ -49,10 +49,6 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
     for (uint x = 0; x < subdivision[0]; x++)
     {
       addConnection(index, index, y || (x > 0 && x < subdivision[0]-1) ? perParticleInvMass : 0);
-      ParticleAuxData auxData;
-      auxData.invMass = rawConstrainCoefficients[index][0];
-      auxData.radius = minRadius;
-      particleAuxData.host()->push_back(auxData);
       index++;
     }
   }
@@ -70,8 +66,8 @@ void Cloth::initXY(const real dimensions[], const uint subdivision[], const real
       ParticleCollisionData colData;
       colData.transformedSdfGradient = 0;
       colData.gradientMagnitude = 0.f;
-      colData.invMass = particleAuxData.host()->at(index).invMass;
-      colData.radius = particleAuxData.host()->at(index).radius;
+      colData.invMass = rawConstrainCoefficients[index][0];
+      colData.radius = minRadius;
       particleCollisionData.host()->push_back(colData);
 
       // add twice because constrain is solved only once

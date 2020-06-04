@@ -291,18 +291,6 @@ typedef struct ParticleRigidData_t ParticleRigidData;
 
 
 /*!
-@struct Additional data for particle.
-*/
-struct ALIGN(4) ParticleAuxData_t
-{
-  float   invMass;
-  float   radius;
-};
-
-typedef struct ParticleAuxData_t ParticleAuxData;
-
-
-/*!
 @struct Fluid-rigid coupling data for particles.
 */
 struct ALIGN(4) ParticleCouplingData_t
@@ -335,31 +323,31 @@ typedef struct ParticleForce_t ParticleForce;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-float getInvMassUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)
+float getInvMassUsingDeviceCollision(const Thread ParticleSharedData* particleSharedData, const Device ParticleCollisionData* particleCollisionData, const uint index)
 {
   if (getInvMassIsShared(particleSharedData))
   {
     return particleSharedData->sharedInvMass;
   }
-  return particleAuxData[index].invMass;
+  return particleCollisionData[index].invMass;
 }
 
-float getInvMassUsingThreadAux(const Thread ParticleSharedData* particleSharedData, const Thread ParticleAuxData* particleAuxData)
+float getInvMassUsingThreadCollision(const Thread ParticleSharedData* particleSharedData, const Thread ParticleCollisionData* particleCollisionData)
 {
   if (getInvMassIsShared(particleSharedData))
   {
     return particleSharedData->sharedInvMass;
   }
-  return particleAuxData->invMass;
+  return particleCollisionData->invMass;
 }
 
-float getRadiusUsingDeviceAux(const Thread ParticleSharedData* particleSharedData, const Device ParticleAuxData* particleAuxData, const uint index)
+float getRadiusUsingDeviceCollision(const Thread ParticleSharedData* particleSharedData, const Device ParticleCollisionData* particleCollisionData, const uint index)
 {
   if (getRadiusIsShared(particleSharedData))
   {
     return particleSharedData->sharedRadius;
   }
-  return particleAuxData[index].radius;
+  return particleCollisionData[index].radius;
 }
 
 

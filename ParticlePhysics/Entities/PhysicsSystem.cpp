@@ -196,9 +196,6 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   solver->constrainConstants.host()->insert(solver->constrainConstants.host()->end(),
     entity->constrainConstants.host()->begin(), entity->constrainConstants.host()->end());
 
-  solver->particleAuxData.host()->insert(solver->particleAuxData.host()->end(),
-    entity->particleAuxData.host()->begin(), entity->particleAuxData.host()->end());
-
   solver->particleRigidData.host()->insert(solver->particleRigidData.host()->end(),
     entity->particleRigidData.host()->begin(), entity->particleRigidData.host()->end());
 
@@ -241,7 +238,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       particle.position = pos;
       particle.identity = entityInstanceId;
 #ifdef ENABLE_RENDERING
-      solverParticleRadius[solverType].push_back(solver->particleAuxData.host()->at(lastPartitionOffset + i).radius);
+      solverParticleRadius[solverType].push_back(entityParticleCol->at(i).radius);
 #endif
       solver->particles.host()->push_back(particle);
       solver->particleCollisionData.host()->push_back(entityParticleCol->at(i));
@@ -784,7 +781,7 @@ void PhysicsSystem::integrate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
@@ -813,7 +810,7 @@ void PhysicsSystem::differentiate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
@@ -842,7 +839,7 @@ void PhysicsSystem::positionUpdate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+    allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
     allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
@@ -1010,12 +1007,16 @@ void PhysicsSystem::step(float timeStep)
   }
 
   // set system data pointers in fluid solver
-  // TODO: Probably move it to a place less frequently updated
-  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions    = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
-  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
-  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce        = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
-  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount        = instanceNodeCount;
-  ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings             = systemSettings.device();
+  if (solversUint[SOLVER_FLUID] != NULL)
+  {
+    // TODO: Probably move it to a place less frequently updated
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions      = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential   = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCollisionData  = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get();
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce          = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount          = instanceNodeCount;
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings               = systemSettings.device();
+  }
 
   for (uint si = 0; si < solverIterations; si++)
   {
