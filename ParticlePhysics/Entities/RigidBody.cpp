@@ -131,11 +131,6 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         rigidData.gradientMagnitude = particleRadius;
         particleRigidData.host()->push_back(rigidData);
 
-        ParticleAuxData auxData;
-        auxData.invMass = perParticleInvMass;
-        auxData.radius = particleRadius;
-        particleAuxData.host()->push_back(auxData);
-
         index++;
       }
     }

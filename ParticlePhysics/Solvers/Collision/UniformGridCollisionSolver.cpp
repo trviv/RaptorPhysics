@@ -180,7 +180,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particlesBufferTemp.device(),
       particleBuffer,
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings
@@ -220,7 +220,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particleGroupBoundingBoxes.device(),
       particleBuffer,
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings
@@ -264,7 +264,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particleBuffer,
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_AUX)->get(),
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
       allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings,

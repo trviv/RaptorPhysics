@@ -64,23 +64,23 @@ inline void decodeScatterCellIndex(Thread uint* cellIndex, Thread ushort* serial
 @param gridSize Size of grid in one dimension.
 */
 Kernel void createGridCellHistogram(
-  atomicKernelInput(uint,           gridCellIndexCount),
-  Device uint*                      gridParticleCellIndex,
-  const Device ParticleStruct*      particles,
+  atomicKernelInput(uint,             gridCellIndexCount),
+  Device uint*                        gridParticleCellIndex,
+  const Device ParticleStruct*        particles,
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
-  const Device ParticleSharedData*  particleSharedData,
-  const Device ParticleAuxData*     particleAuxData,
-  const Device PartitionInfo*       partitions,
-  const Device EntityLocation*      entityLocation,
+  const Device ParticleSharedData*    particleSharedData,
+  const Device ParticleCollisionData* particleCollisionData,
+  const Device PartitionInfo*         partitions,
+  const Device EntityLocation*        entityLocation,
 #ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-  Const PhySystemSettings*          systemSettings,
+  Const PhySystemSettings*            systemSettings,
 #endif
 #endif
-  Const XAB*                        systemBoundingBox,
-  Const float*                      invRadius,
-  constantKernelInput(uint,         nodeCount),
-  constantKernelInput(int,          gridSize),
-  constantKernelInput(int,          gridSizeExp)
+  Const XAB*                          systemBoundingBox,
+  Const float*                        invRadius,
+  constantKernelInput(uint,           nodeCount),
+  constantKernelInput(int,            gridSize),
+  constantKernelInput(int,            gridSizeExp)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -134,7 +134,7 @@ Kernel void createGridCellHistogram(
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
-    const float radius = getRadiusUsingDeviceAux(&sharedData, particleAuxData, nodeLocator.commonNodeIndex);
+    const float radius = getRadiusUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     uint gridCellIndices[9];
 

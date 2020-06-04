@@ -91,11 +91,6 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
         colData.radius = particleRadius;
         particleCollisionData.host()->push_back(colData);
 
-        ParticleAuxData auxData;
-        auxData.invMass = perParticleInvMass;
-        auxData.radius = particleRadius;
-        particleAuxData.host()->push_back(auxData);
-
         index++;
       }
     }

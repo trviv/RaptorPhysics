@@ -48,7 +48,6 @@ protected:
 
   /*!@member Per entity simulation property.*/
   DeviceArray<ParticleSharedData>   entitySharedData;
-  DeviceArray<ParticleAuxData>      particleAuxData;
 
   /*!@member Per entity shared data info.*/
   DeviceArray<EntityLocation>       entityLocations;
