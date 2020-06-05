@@ -139,7 +139,6 @@ Kernel void applyCorrection(
 @param particlesPosition Particle positions.
 @param particlesPressureForce Particle forces calculated from pressure.
 @param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param nodeCount Total nodes in the solver.
 @param occupiedCellCount Total active grid cells.

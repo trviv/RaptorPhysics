@@ -782,8 +782,6 @@ void PhysicsSystem::integrate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -811,8 +809,6 @@ void PhysicsSystem::differentiate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -840,8 +836,6 @@ void PhysicsSystem::positionUpdate(float timeStep)
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
     allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-    allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-    allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
     systemSettings.device()
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);

@@ -70,8 +70,6 @@ Kernel void createGridCellHistogram(
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleCollisionData* particleCollisionData,
-  const Device PartitionInfo*         partitions,
-  const Device EntityLocation*        entityLocation,
 #ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
   Const PhySystemSettings*            systemSettings,
 #endif
@@ -126,10 +124,6 @@ Kernel void createGridCellHistogram(
 
     nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
     nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, phySystemOffsets.globalNodeOffset + partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
-#else
-    const ParticleNodeLocator nodeLocator = getNodeLocator(index, partitions[nodeIdentity.instanceId].offset, entityLocation[nodeIdentity.entityId].node);
 #endif
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
@@ -379,8 +373,6 @@ uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, const uint 
 @param particlesBufferOld Old particle position.
 @param particleCollisionData Array containing particle SDF mass and radius data.
 @param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
 @param systemSettings Settings for the physics system.
 @param gridSize Size of grid in one dimension.
 @param stablizationPass Marks if this is a stablization pass.

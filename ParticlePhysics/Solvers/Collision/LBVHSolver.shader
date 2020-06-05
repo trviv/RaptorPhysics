@@ -639,8 +639,6 @@ inline float3 stackTraverseBinaryTree(
 @param particlesPredictedOld Integrated particle position.
 @param particleCollisionData Array containing particle SDF mass and radius data.
 @param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
 @param systemSettings Settings for the physics system.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param nodeCount Total nodes in the solver.
@@ -750,11 +748,7 @@ Kernel void applyCollisions(
 
       uint collisionCount = 0;
       // apply boundary
-      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount,
-#ifdef MARK_COLLIDED_PARTICLES
-        &particleCollisionData[index],
-#endif
-        &collisionSolverData);
+      delta += boundaryCollision(&currentParticle, &selfParticleDiff, &collisionData, systemSettings, stablizationPass, &collisionCount, &particleCollisionData[index], &collisionSolverData);
 
       // update position
       particlesPredictedNew[index].position += delta;
