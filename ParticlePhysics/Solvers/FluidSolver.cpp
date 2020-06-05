@@ -174,9 +174,7 @@ void FluidSolver::constructGrid()
       particleGroupBoundingBoxes.device(),
       particlesPredicted.device(),
       entitySharedData.device(),
-      particleCollisionData.device(),
-      partitions.device(),
-      entityLocations.device()
+      particleCollisionData.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     createBoundingBoxes.setArgs(buffers, bufferCount);

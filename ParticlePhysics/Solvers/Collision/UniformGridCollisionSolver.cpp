@@ -181,8 +181,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particleBuffer,
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-      allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -221,8 +219,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particleBuffer,
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-      allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
@@ -265,8 +261,6 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
 #ifdef GRID_COLLISION_SOLVER_SCATTER_PARTICLES
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
       allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTITIONS)->get(),
-      allocator->getHeap(COMPUTE_HEAP_SECTIONS)->get(),
       systemSettings,
 #endif
       systemBoundingBox.device(),

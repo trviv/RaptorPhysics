@@ -124,8 +124,6 @@ Kernel void calculatePressure(
 @param gridCellParticleOffsets Starting offset for each grid cell.
 @param particlesPosition Integrated particle position.
 @param particleSharedData Particle entity shared data.
-@param partitions Instance partition data.
-@param entityLocation Entity section data.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param nodeCount Total nodes in the solver.
 @param occupiedCellCount Total active grid cells.
