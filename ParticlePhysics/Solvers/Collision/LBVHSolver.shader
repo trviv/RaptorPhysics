@@ -298,7 +298,7 @@ inline float3 stacklessTraverseBinaryTree(
   const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
-  const uint                          stablizationPass,
+  const ushort                        stablizationPass,
   const short                         solverType,
   Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
@@ -511,7 +511,7 @@ inline float3 stackTraverseBinaryTree(
   const Device uint*                  nodeParentNodeIndices,
   const Device XAB*                   treeInternalNodeBoundingBoxes,
   const Thread ParticleCollisionData* collisionData,
-  const uint                          stablizationPass,
+  const ushort                        stablizationPass,
   const short                         solverType,
   Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
@@ -662,7 +662,7 @@ Kernel void applyCollisions(
   const Device ParticleSharedData*    particleSharedData,
   Const PhySystemSettings*            systemSettings,
   constantKernelInput(uint,           nodeCount),
-  constantKernelInput(uint,           stablizationPass)
+  constantKernelInput(ushort,         stablizationPass)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS)
 {

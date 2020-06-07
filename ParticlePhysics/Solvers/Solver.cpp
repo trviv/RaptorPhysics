@@ -123,6 +123,7 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->particleDifferential.resize(this->particles.size(), false);
   this->particleForce.resize(this->particles.size(), false);
   this->particleCollisionData.syncDevice();
+  this->particleCouplingData.resize(this->particles.size(), false);
 
   this->partitions.syncDevice();
   (*this->partitionsCount.host())[0] = (uint)this->partitions.host()->size();

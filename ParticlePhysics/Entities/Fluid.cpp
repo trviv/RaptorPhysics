@@ -116,9 +116,6 @@ void Fluid::initFluid(const real dimensions[], real particleRadius, const real m
 
 #ifdef ENABLE_RENDERING
   displayElements.gen();
-  //displayElements.copyData((GLuint*)&connectionElements[0], (uint)connectionElements.size());
-
   displayEdges.gen();
-  //displayEdges.copyData((GLuint*)&edgeElements[0], (uint)edgeElements.size());
 #endif
 }

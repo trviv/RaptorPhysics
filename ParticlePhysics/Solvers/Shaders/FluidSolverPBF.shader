@@ -35,8 +35,8 @@ Kernel void calculateLambda(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -85,8 +85,8 @@ Kernel void applyCorrection(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -184,8 +184,8 @@ Kernel void vorticityOmega(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -257,8 +257,8 @@ Kernel void vorticityConfinementXSPHViscosity(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
   KERNEL_GLOBAL_ARGUMENTS)

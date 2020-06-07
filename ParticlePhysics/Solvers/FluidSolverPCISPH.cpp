@@ -31,6 +31,9 @@ void FluidSolverPCISPH::create(ComputeInterface* compute)
   createGridCellArrays    = programs[0].createKernel("createGridCellArrays");
   reorderFluidParticles   = programs[0].createKernel("reorderFluidParticles");
   calculateDensity        = programs[0].createKernel("calculateDensity");
+  calculateCouplingData   = programs[0].createKernel("calculateCouplingData");
+  reorderCouplingParticles    = programs[0].createKernel("reorderCouplingParticles");
+  createBoundingBoxesCoupling = programs[0].createKernel("createBoundingBoxesCollision");
   kernels.push_back(programs[0].createKernel("predictionStep"));
   kernels.push_back(programs[0].createKernel("calculatePressure"));
   kernels.push_back(programs[0].createKernel("calculateForces"));
@@ -53,7 +56,7 @@ void FluidSolverPCISPH::solve(float timeStep)
     invBeta = 1.f/(2.f * mSqr(timeStep) * mSqr(1.f/entitySharedData.host()->at(0).sharedInvMass) * mSqr(entitySharedData.host()->at(0).invRestDensity));
   }
 
-  allocateBuffers();
+  allocateBuffers(particleCount);
 
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextPosition.device(), particleCount * 4);
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextVelocity.device(), particleCount * 4);
@@ -102,8 +105,8 @@ void FluidSolverPCISPH::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       calculateDensity.setArgs(buffers, bufferCount);
-      calculateDensity.setArg<uint>(&gridSize, bufferCount);
-      calculateDensity.setArg<uint>(&gridSizeExp, bufferCount + 1);
+      calculateDensity.setArg<ushort>(&gridSize, bufferCount);
+      calculateDensity.setArg<ushort>(&gridSizeExp, bufferCount + 1);
       calculateDensity.setArg<uint>(&particleCount, bufferCount + 2);
       calculateDensity.setArg<float>(&timeStep, bufferCount + 3);
       calculateDensity.setArg<float>(&invBeta, bufferCount + 4);
@@ -129,8 +132,8 @@ void FluidSolverPCISPH::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<uint>(&particleCount, bufferCount + 2);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<float>(&timeStep, bufferCount + 3);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE].setArg<float>(&invBeta, bufferCount + 4);
@@ -157,8 +160,8 @@ void FluidSolverPCISPH::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES], workgroupSize, workgroupCount);

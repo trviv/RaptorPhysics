@@ -258,18 +258,18 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   uint cumulativeInstance = 0;
 
   // update starting offset for each solver
-  for (uint i = 2; i < SOLVER_MAX; i++)
+  for (uint i = 1; i < SOLVER_MAX-1; i++)
   {
-    EntitySolver<uint, real, Real3>* localSolver = (EntitySolver<uint, real, Real3>*)getSolver((SolverType)(1 << (i - 2)));
-    if (localSolver)
+    if (solversUint[i])
     {
+      EntitySolver<uint, real, Real3>* localSolver = (EntitySolver<uint, real, Real3>*)getSolver((SolverType)i);
       cumulativeNode += localSolver->lastPartition().end();
       cumulativeSolver += localSolver->newEntityId();
       cumulativeInstance += localSolver->newEntityInstanceId();
     }
-    systemSettings.host()->at(0).globalOffsets[i].globalNodeOffset = cumulativeNode;
-    systemSettings.host()->at(0).globalOffsets[i].globalSolverOffset = cumulativeSolver;
-    systemSettings.host()->at(0).globalOffsets[i].globalInstanceOffset = cumulativeInstance;
+    systemSettings.host()->at(0).globalOffsets[i+1].globalNodeOffset = cumulativeNode;
+    systemSettings.host()->at(0).globalOffsets[i+1].globalSolverOffset = cumulativeSolver;
+    systemSettings.host()->at(0).globalOffsets[i+1].globalInstanceOffset = cumulativeInstance;
   }
   systemSettings.syncDevice();
 
@@ -970,6 +970,66 @@ void PhysicsSystem::step(float timeStep)
 #endif
 
     indexMap.resize(instanceNodeCount, false);
+
+    // set system data pointers in fluid solver
+    if (solversUint[SOLVER_FLUID] != NULL)
+    {
+      // TODO: Probably move it to a place less frequently updated
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions      = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential   = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCollisionData  = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get();
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce          = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount          = instanceNodeCount;
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings               = systemSettings.device();
+    }
+
+    // create coupling data for rigid bodies
+    if (solversUint[SOLVER_RIGID_BODY] && solversUint[SOLVER_FLUID])
+    {
+      RigidSolver* rigidSolver = (RigidSolver*)solversUint[SOLVER_RIGID_BODY];
+
+      rigidSolver->particles.syncHost();
+      compute->sync();
+      const vector<ParticleStruct>& hostParticles = *(rigidSolver->particles.host());
+
+      DeviceArray<ParticleStruct> particles(compute);
+      DeviceArray<ParticleCouplingData> particleCouplingData(compute, NULL, true);
+      DeviceArray<ParticleCollisionData> particleCollisionData(compute);
+
+      for (int entityId=0; entityId<rigidSolver->entityLocations.host()->size(); entityId++)
+      {
+        const PartitionInfo &partition = rigidSolver->entityLocations.host()->at(entityId).node;
+        if (particles.size() < partition.count)
+        {
+          particles.resize(partition.count, false);
+          particleCouplingData.resize(partition.count, false);
+          particleCollisionData.resize(partition.count, false);
+        }
+        compute->copyBuffer(rigidSolver->particles.device(), particles.device(), partition.offset * sizeof(ParticleStruct), 0, sizeof(ParticleStruct) * partition.count);
+        compute->copyBuffer(rigidSolver->particleCollisionData.device(), particleCollisionData.device(), partition.offset * sizeof(ParticleCollisionData), 0, sizeof(ParticleCollisionData) * partition.count);
+
+        ((FluidSolver*)solversUint[SOLVER_FLUID])->calculateParticleCouplingData(particleCouplingData, particles, particleCollisionData, partition.count);
+#ifdef DEBUG_PHYSICS_SYSTEM
+        particleCouplingData.syncHost();
+        compute->sync();
+#endif
+        // loop over partitions and copy the calculated values to instances of this entity
+        for (const PartitionInfo &partition : *(rigidSolver->partitions.host()))
+        {
+          if (getEntityId(hostParticles[partition.offset].identity) == entityId)
+          {
+            compute->copyBuffer(particleCouplingData.device(), rigidSolver->particleCouplingData.device(), 0, partition.offset * sizeof(ParticleCouplingData), sizeof(ParticleCouplingData) * partition.count);
+          }
+        }
+      }
+    }
+  }
+
+  // create coupling data for cloth
+  if (solversUint[SOLVER_CLOTH] && solversUint[SOLVER_FLUID])
+  {
+    DistanceSolver* clothSolver = (DistanceSolver*)solversUint[SOLVER_CLOTH];
+    ((FluidSolver*)solversUint[SOLVER_FLUID])->calculateParticleCouplingData(clothSolver->particleCouplingData, clothSolver->particles, clothSolver->particleCollisionData, clothSolver->particles.size());
   }
 
   // update gravity if
@@ -998,18 +1058,6 @@ void PhysicsSystem::step(float timeStep)
 #endif
   {
     integrate(timeStep);
-  }
-
-  // set system data pointers in fluid solver
-  if (solversUint[SOLVER_FLUID] != NULL)
-  {
-    // TODO: Probably move it to a place less frequently updated
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions      = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential   = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCollisionData  = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get();
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce          = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount          = instanceNodeCount;
-    ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings               = systemSettings.device();
   }
 
   for (uint si = 0; si < solverIterations; si++)

@@ -269,8 +269,8 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
     kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&instanceNodeCount, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSize, bufferCount + 1);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&gridSizeExp, bufferCount + 2);
+    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<ushort>(&gridSize, bufferCount + 1);
+    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<ushort>(&gridSizeExp, bufferCount + 2);
 
     compute->execute(kernels[GRID_COLLISION_SOLVER_CELL_COUNTS], workgroupSize, workgroupCount);
   }
@@ -316,7 +316,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 {
   for (int i=0; i<iterations; i++)
   {
-    uint stablizationPass = (i < (iterations-1));
+    ushort stablizationPass = (i < (iterations-1));
 
     ComputeMemory* particleBuffer = stablizationPass ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
 
@@ -365,9 +365,9 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSize, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&gridSizeExp, bufferCount + 1);
-    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 2);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<ushort>(&gridSize, bufferCount);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<ushort>(&gridSizeExp, bufferCount + 1);
+    kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<ushort>(&stablizationPass, bufferCount + 2);
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount + 3);
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
     kernels[GRID_COLLISION_SOLVER_APPLY_COLLISIONS].setSharedMemArg(sizeof(CollisionSharedData)*maxWorkgroupSize, bufferCount + 4);
@@ -392,7 +392,7 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArgs(buffers, bufferCount);
-      kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArg<uint>(&stablizationPass, bufferCount);
+      kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArg<ushort>(&stablizationPass, bufferCount);
       kernels[GRID_COLLISION_SOLVER_APPLY_DELTA].setArg<uint>(&instanceNodeCount, bufferCount + 1);
 
       compute->execute(kernels[GRID_COLLISION_SOLVER_APPLY_DELTA], workgroupSize, workgroupCount);

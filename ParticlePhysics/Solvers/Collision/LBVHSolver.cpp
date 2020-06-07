@@ -224,7 +224,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
 
   for (int i=0; i<iterations; i++)
   {
-    uint stablizationPass = (i < (iterations-1));
+    ushort stablizationPass = (i < (iterations-1));
 
     ComputeMemory* particleBuffer = stablizationPass ? allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get() : allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
 
@@ -261,7 +261,7 @@ void LBVHSolver::solve(uint instanceNodeCount, ComputeMemory* systemSettings)
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArgs(buffers, bufferCount);
     kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&instanceNodeCount, bufferCount);
-    kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<uint>(&stablizationPass, bufferCount + 1);
+    kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS].setArg<ushort>(&stablizationPass, bufferCount + 1);
 
     compute->execute(kernels[LBVH_COLLISION_SOLVER_APPLY_COLLISIONS], workgroupSize, workgroupCount);
 #ifdef DEBUG_LBVH_SOLVER

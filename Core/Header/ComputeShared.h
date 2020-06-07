@@ -47,7 +47,7 @@ struct ALIGN(8) SortNode32_t
 
 typedef struct SortNode32_t SortNode32;
 
-#ifdef COMPUTE_SHADER_SCOPE
+#if defined(COMPUTE_SHADER_SCOPE) && !defined(ComputeUtilSkipParallelPrimitives)
 
 static SortNode32 defaultSortNode()
 {
