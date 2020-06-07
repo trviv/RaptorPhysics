@@ -21,6 +21,9 @@ protected:
   ComputeKernel createGridCellArrays;
   ComputeKernel reorderFluidParticles;
   ComputeKernel calculateDensity;
+  ComputeKernel createBoundingBoxesCoupling;
+  ComputeKernel calculateCouplingData;
+  ComputeKernel reorderCouplingParticles;
 
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
@@ -58,13 +61,13 @@ protected:
 
   void constructBoundaryGrid();
 
-  void allocateBoundingBoxes();
+  void allocateBoundingBoxes(const uint particleCount);
 
-  void allocatePositionBuffers();
+  void allocatePositionBuffers(const uint particleCount);
 
-  void allocateIndexBuffers();
+  void allocateIndexBuffers(const uint particleCount);
 
-  void allocateBuffers();
+  void allocateBuffers(const uint particleCount);
 
   FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate);
 
@@ -75,6 +78,11 @@ public:
   void create(ComputeInterface* compute);
 
   void solve(float timeStep);
+
+  void calculateParticleCouplingData(DeviceArray<ParticleCouplingData> &particleCouplingData,
+                                     DeviceArray<ParticleStruct> &particles,
+                                     DeviceArray<ParticleCollisionData> &particleCollisionData,
+                                     uint particleCount);
 };
 
 #endif

@@ -117,7 +117,7 @@ void bitonicSortSharedUint3(
 }
 
 /*
-@kernel Kernel to reorder particles in buffers based on gird index.
+@kernel Kernel to reorder particles in buffers based on grid index.
 @param gridCellParticleIndices Output array for particle indices.
 @param nodeCount Total nodes in the solver.
 */
@@ -135,8 +135,8 @@ Kernel void reorderFluidParticles(
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
   constantKernelInput(uint,           nodeCount),
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   sharedMemKernelInput(uint3,         particleSpatialData,  14)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
@@ -203,6 +203,33 @@ Kernel void reorderFluidParticles(
 #endif
 }
 
+/*
+@kernel Kernel to reorder particles in buffers based on grid index.
+@param gridCellParticleIndices Output array for particle indices.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void reorderCouplingParticles(
+  Device ParticleStruct*              particlesNew,
+  const Device ParticleStruct*        particlesOld,
+  Device uint*                        gridParticleCellIndexNew,
+  const Device uint*                  gridParticleCellIndexOld,
+  const Device uint*                  gridCellParticleIndices,
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  uint particleIndex = threadIndex();
+
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  particleIndex = gridCellParticleIndices[threadIndex()];
+
+  gridParticleCellIndexNew[threadIndex()] = gridParticleCellIndexOld[particleIndex];
+  particlesNew[threadIndex()] = particlesOld[particleIndex];
+}
+
 #define GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_BEGIN \
   GRID_SOLVER_NEIGHBOUR_LOOP_BEGIN \
     const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex); \
@@ -227,8 +254,8 @@ inline float calculateParticleDensity(
   const Device uint*            gridCellParticleOffsets,
   const Device ParticleStruct*  particles,
   const uint                    gridCellIndex,
-  const short                   gridSize,
-  const short                   gridSizeExp)
+  const ushort                  gridSize,
+  const ushort                  gridSizeExp)
 {
   float density = 0.f;
   const float fluidKernelRadiusSq = sqr(fluidSolverData.fluidKernelRadius);
@@ -265,8 +292,8 @@ Kernel void calculateDensity(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -280,10 +307,48 @@ Kernel void calculateDensity(
   const uint gridCellIndex = gridParticleCellIndex[particleIndex];
   DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-  const float mass = 1.f/particleSharedData[nodeIdentity.entityId].sharedInvMass;
-  const FluidSolverData fluidSolverData = particleSharedData[nodeIdentity.entityId].fluidSolverData;
 
-  particlesDensity[particleIndex] = calculateParticleDensity(selfParticle, mass, fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
+  particlesDensity[particleIndex] = calculateParticleDensity(selfParticle, 1.f/sharedData.sharedInvMass, sharedData.fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
+}
+
+/*
+@kernel Calculate non fluid particle volume as specified in Versatile Rigid-Fluid Coupling for Incompressible SPH.
+@param particleCouplingData Calculated particle compling data.
+@param gridCellParticleOffsets Starting offset for each grid cell.
+@param gridParticleCellIndex Computed cell index for each particle.
+@param particles Particle positions.
+@param particleSharedData Particle entity shared data.
+@param systemBoundingBox Physics system's bounding box.
+@param invRadius Inverse of max particle radius in the system.
+@param gridSize Size of grid in one dimension.
+@param gridSizeExp Grid size in power of 2.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void calculateCouplingData(
+  Device ParticleCouplingData*        particleCouplingData,
+  const Device uint*                  gridCellParticleOffsets,
+  const Device uint*                  gridParticleCellIndex,
+  const Device uint*                  gridCellParticleIndices,
+  const Device ParticleStruct*        particles,
+  constantKernelInput(FluidSolverData,fluidSolverData),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  uint particleIndex = threadIndex();
+
+  if (particleIndex >= nodeCount)
+  {
+    return;
+  }
+
+  const uint gridCellIndex = gridParticleCellIndex[particleIndex];
+  DECLARE_SELF_PARTICLE(particles, identity, nodeIdentity)
+
+  particleIndex = gridCellParticleIndices[particleIndex];
+
+  particleCouplingData[particleIndex].volume = 1.f/calculateParticleDensity(selfParticle, 1.f, fluidSolverData, gridCellParticleOffsets, particles, gridCellIndex, gridSize, gridSizeExp);
 }
 
 Kernel void createBoundaryGridCellHistogram(
@@ -294,8 +359,8 @@ Kernel void createBoundaryGridCellHistogram(
   Const XAB*                    systemBoundingBox,
   Const float*                  invRadius,
   constantKernelInput(uint,     nodeCount),
-  constantKernelInput(int,      gridSize),
-  constantKernelInput(int,      gridSizeExp)
+  constantKernelInput(ushort,   gridSize),
+  constantKernelInput(ushort,   gridSizeExp)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();

@@ -62,8 +62,8 @@ Kernel void calculatePressure(
   const Device ParticleSharedData*  particleSharedData,
   Const XAB*                        systemBoundingBox,
   Const float*                      invRadius,
-  constantKernelInput(int,          gridSize),
-  constantKernelInput(int,          gridSizeExp),
+  constantKernelInput(ushort,       gridSize),
+  constantKernelInput(ushort,       gridSizeExp),
   constantKernelInput(uint,         nodeCount),
   constantKernelInput(float,        timeStep),
   constantKernelInput(float,        invBeta)
@@ -138,8 +138,8 @@ Kernel void calculateForces(
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
   KERNEL_GLOBAL_ARGUMENTS)

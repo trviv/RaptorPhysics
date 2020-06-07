@@ -24,8 +24,8 @@ Kernel void calculateForces(
   Device ParticleCollisionData*       particleCollisionData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
   constantKernelInput(uint,           nodeCount),
   constantKernelInput(float,          timeStep)
   KERNEL_GLOBAL_ARGUMENTS)

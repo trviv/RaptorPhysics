@@ -4,7 +4,7 @@
 //#define GRID_SOLVER_SEPARATE_LOOPS
 //#define DEBUG_GRID_SOLVER_SCATTER
 
-inline uint encodeGridIndexInt3(const int3 relativeIndex, const int gridSizeExp)
+inline uint encodeGridIndexInt3(const int3 relativeIndex, const ushort gridSizeExp)
 {
 #ifdef GRID_SOLVER_USE_Z_ORDER
   return get32BitMortonCode(relativeIndex);
@@ -13,7 +13,7 @@ inline uint encodeGridIndexInt3(const int3 relativeIndex, const int gridSizeExp)
 #endif
 }
 
-inline short3 decodeGridIndexShort3(const uint gridIndex, const int gridSize, const int gridSizeExp)
+inline short3 decodeGridIndexShort3(const uint gridIndex, const ushort gridSize, const ushort gridSizeExp)
 {
 #ifdef GRID_SOLVER_USE_Z_ORDER
   const int3 ret = decode32BitMortonCode(gridIndex);
@@ -27,7 +27,7 @@ inline short3 decodeGridIndexShort3(const uint gridIndex, const int gridSize, co
 #endif
 }
 
-inline int3 positionHashFunction(const float3 position, const int gridSize, const int gridSizeExp)
+inline int3 positionHashFunction(const float3 position, const ushort gridSize, const ushort gridSizeExp)
 {
   const int3 quantizedPosition = convertInt3(position) + gridSize - 1;
   const int3 multiplier = (quantizedPosition >> gridSizeExp);
@@ -77,8 +77,8 @@ Kernel void createGridCellHistogram(
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
   constantKernelInput(uint,           nodeCount),
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp)
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -127,7 +127,6 @@ Kernel void createGridCellHistogram(
 #endif
 
     const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-
     const float radius = getRadiusUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     uint gridCellIndices[9];
@@ -236,7 +235,7 @@ inline uchar encodeCellOffset(short x, short y, short z)
   return (z << 4) | (y << 2) | x;
 }
 
-inline uint decodeCellIndex(uchar encodedOffset, short3 baseIndex, int gridSizeExp)
+inline uint decodeCellIndex(uchar encodedOffset, short3 baseIndex, ushort gridSizeExp)
 {
   baseIndex--;
   return baseIndex.x + (encodedOffset & 3) + ((baseIndex.y + ((encodedOffset >> 2) & 3) + ((baseIndex.z + (encodedOffset >> 4)) << gridSizeExp)) << gridSizeExp);
@@ -395,9 +394,9 @@ Kernel void applyCollisions(
   Const PhySystemSettings*            systemSettings,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  constantKernelInput(int,            gridSize),
-  constantKernelInput(int,            gridSizeExp),
-  constantKernelInput(uint,           stablizationPass),
+  constantKernelInput(ushort,         gridSize),
+  constantKernelInput(ushort,         gridSizeExp),
+  constantKernelInput(ushort,         stablizationPass),
   constantKernelInput(uint,           nodeCount)
 #ifdef GRID_COLLISION_SOLVER_USE_SHARED_MEMORY
   , sharedMemKernelInput(CollisionSharedData, localCollisionSharedData, 16)
@@ -750,7 +749,7 @@ Kernel void applyDeltas(
   Device ParticleStruct*        particlesPredicted,
   Device ParticleStruct*        particles,
   const Device ParticleStruct*  particlesDelta,
-  constantKernelInput(uint,     stablizationPass),
+  constantKernelInput(ushort,   stablizationPass),
   constantKernelInput(uint,     nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {

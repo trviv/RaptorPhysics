@@ -32,6 +32,9 @@ void FluidSolverPBF::create(ComputeInterface* compute)
   createGridCellHistogram = programs[0].createKernel("createGridCellHistogram");
   createGridCellArrays    = programs[0].createKernel("createGridCellArrays");
   reorderFluidParticles   = programs[0].createKernel("reorderFluidParticles");
+  calculateCouplingData   = programs[0].createKernel("calculateCouplingData");
+  reorderCouplingParticles    = programs[0].createKernel("reorderCouplingParticles");
+  createBoundingBoxesCoupling = programs[0].createKernel("createBoundingBoxesCollision");
   kernels.push_back(programs[0].createKernel("calculateLambda"));
   kernels.push_back(programs[0].createKernel("applyCorrection"));
   kernels.push_back(programs[0].createKernel("updateVelocities"));
@@ -51,7 +54,7 @@ void FluidSolverPBF::solve(float timeStep)
 
   updateRadius();
 
-  allocateBuffers();
+  allocateBuffers(particleCount);
 
   constructGrid();
 
@@ -75,8 +78,8 @@ void FluidSolverPBF::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_CALC_LAMBDA], workgroupSize, workgroupCount);
@@ -102,8 +105,8 @@ void FluidSolverPBF::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_APPLY_CORRECTION], workgroupSize, workgroupCount);
@@ -160,8 +163,8 @@ void FluidSolverPBF::postCollisionSolve(float timeStep)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArgs(buffers, bufferCount);
-    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArg<uint>(&gridSize, bufferCount);
-    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArg<uint>(&gridSizeExp, bufferCount + 1);
+    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArg<ushort>(&gridSize, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArg<ushort>(&gridSizeExp, bufferCount + 1);
     kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA].setArg<uint>(&particleCount, bufferCount + 2);
 
     compute->execute(kernels[FLUID_COLLISION_SOLVER_PBF_VORT_OMEGA], workgroupSize, workgroupCount);
@@ -190,8 +193,8 @@ void FluidSolverPBF::postCollisionSolve(float timeStep)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArgs(buffers, bufferCount);
-    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<uint>(&gridSize, bufferCount);
-    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<uint>(&gridSizeExp, bufferCount + 1);
+    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<ushort>(&gridSize, bufferCount);
+    kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<ushort>(&gridSizeExp, bufferCount + 1);
     kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<uint>(&particleCount, bufferCount + 2);
     kernels[FLUID_COLLISION_SOLVER_PBF_VORT_VISC].setArg<float>(&timeStep, bufferCount + 3);
 

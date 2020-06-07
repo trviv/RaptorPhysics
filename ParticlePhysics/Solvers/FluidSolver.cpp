@@ -12,7 +12,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
 {}
 
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate)
-  : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), systemGridCellParticleOffsets(systemGridCellParticleCount)
+  : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), systemGridCellParticleOffsets(systemGridCellParticleCount), systemParticleCount(0), systemNonFluidParticleCount(0)
 {
   iterations = 1;
   gridSize = 64;
@@ -59,6 +59,9 @@ void FluidSolver::create(ComputeInterface* compute)
   createGridCellArrays    = programs[0].createKernel("createGridCellArrays");
   reorderFluidParticles   = programs[0].createKernel("reorderFluidParticles");
   calculateDensity        = programs[0].createKernel("calculateDensity");
+  calculateCouplingData   = programs[0].createKernel("calculateCouplingData");
+  reorderCouplingParticles    = programs[0].createKernel("reorderCouplingParticles");
+  createBoundingBoxesCoupling = programs[0].createKernel("createBoundingBoxesCollision");
   kernels.push_back(programs[0].createKernel("calculateForces"));
   kernels.push_back(programs[0].createKernel("createBoundaryGridCellHistogram"));
   kernels.push_back(programs[0].createKernel("createBoundaryGridCellArrays"));
@@ -149,8 +152,8 @@ void FluidSolver::rearrangeParticles(uint particleCount)
   reorderFluidParticles.setArgs(buffers, bufferCount);
   reorderFluidParticles.setArg<uint>(&particleCount, bufferCount);
 #ifdef FLUID_SOLVER_SORTED_REARRANGE
-  reorderFluidParticles.setArg<uint>(&gridSize, bufferCount + 1);
-  reorderFluidParticles.setArg<uint>(&gridSizeExp, bufferCount + 2);
+  reorderFluidParticles.setArg<ushort>(&gridSize, bufferCount + 1);
+  reorderFluidParticles.setArg<ushort>(&gridSizeExp, bufferCount + 2);
   reorderFluidParticles.setSharedMemArg(sizeof(uint)*4*workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier, bufferCount + 3);
 #endif
 
@@ -214,8 +217,8 @@ void FluidSolver::constructGrid()
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     createGridCellHistogram.setArgs(buffers, bufferCount);
     createGridCellHistogram.setArg<uint>(&particleCount, bufferCount);
-    createGridCellHistogram.setArg<uint>(&gridSize, bufferCount + 1);
-    createGridCellHistogram.setArg<uint>(&gridSizeExp, bufferCount + 2);
+    createGridCellHistogram.setArg<ushort>(&gridSize, bufferCount + 1);
+    createGridCellHistogram.setArg<ushort>(&gridSizeExp, bufferCount + 2);
 
     compute->execute(createGridCellHistogram, workgroupSize, workgroupCount);
   }
@@ -261,10 +264,10 @@ void FluidSolver::constructGrid()
   rearrangeParticles(particleCount);
 }
 
-void FluidSolver::allocateBoundingBoxes()
+void FluidSolver::allocateBoundingBoxes(const uint particleCount)
 {
   uint nodeBatchSize = 8;
-  uint nodeBatchCount = mAlignBy(lastPartition().end(), nodeBatchSize);
+  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
 
   size_t workgroupSize[3], workgroupCount[3];
   compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
@@ -275,10 +278,8 @@ void FluidSolver::allocateBoundingBoxes()
   }
 }
 
-void FluidSolver::allocatePositionBuffers()
+void FluidSolver::allocatePositionBuffers(const uint particleCount)
 {
-  const uint particleCount = lastPartition().end();
-
   if (systemParticlePositionsCopy.size() < systemNonFluidParticleCount)
   {
     systemParticlePositionsCopy.resize(systemNonFluidParticleCount, false);
@@ -293,10 +294,8 @@ void FluidSolver::allocatePositionBuffers()
   }
 }
 
-void FluidSolver::allocateIndexBuffers()
+void FluidSolver::allocateIndexBuffers(const uint particleCount)
 {
-  const uint particleCount = lastPartition().end();
-
   if (gridParticleCellIndex.size() < particleCount)
   {
     particlesDensity.resize(particleCount, false);
@@ -326,12 +325,12 @@ void FluidSolver::allocateIndexBuffers()
   }
 }
 
-void FluidSolver::allocateBuffers()
+void FluidSolver::allocateBuffers(const uint particleCount)
 {
-  systemNonFluidParticleCount = systemParticleCount - lastPartition().end();
-  allocateBoundingBoxes();
-  allocatePositionBuffers();
-  allocateIndexBuffers();
+  systemNonFluidParticleCount = systemParticleCount - particleCount;
+  allocateBoundingBoxes(particleCount);
+  allocatePositionBuffers(particleCount);
+  allocateIndexBuffers(particleCount);
 }
 
 void FluidSolver::solve(float timeStep)
@@ -341,8 +340,7 @@ void FluidSolver::solve(float timeStep)
   if (!particleCount) return;
 
   updateRadius();
-
-  allocateBuffers();
+  allocateBuffers(particleCount);
 
   for (int i=0; i<iterations; i++)
   {
@@ -363,8 +361,8 @@ void FluidSolver::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       calculateDensity.setArgs(buffers, bufferCount);
-      calculateDensity.setArg<uint>(&gridSize, bufferCount);
-      calculateDensity.setArg<uint>(&gridSizeExp, bufferCount + 1);
+      calculateDensity.setArg<ushort>(&gridSize, bufferCount);
+      calculateDensity.setArg<ushort>(&gridSizeExp, bufferCount + 1);
       calculateDensity.setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(calculateDensity, workgroupSize, workgroupCount);
@@ -390,8 +388,8 @@ void FluidSolver::solve(float timeStep)
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArgs(buffers, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSize, bufferCount);
-      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
       kernels[FLUID_COLLISION_SOLVER_CALC_FORCES].setArg<float>(&timeStep, bufferCount + 3);
 
@@ -444,8 +442,8 @@ void FluidSolver::constructBoundaryGrid()
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArgs(buffers, bufferCount);
     kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&systemNonFluidParticleCount, bufferCount);
-    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&gridSize, bufferCount + 1);
-    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<uint>(&gridSizeExp, bufferCount + 2);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<ushort>(&gridSize, bufferCount + 1);
+    kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS].setArg<ushort>(&gridSizeExp, bufferCount + 2);
 
     compute->execute(kernels[FLUID_COLLISION_SOLVER_SYSTEM_CELL_COUNTS], workgroupSize, workgroupCount);
   }
@@ -509,4 +507,154 @@ void FluidSolver::constructBoundaryGrid()
 
     compute->execute(kernels[FLUID_COLLISION_SOLVER_SYSTEM_REORDER], workgroupSize, workgroupCount);
   }
+}
+
+void FluidSolver::calculateParticleCouplingData(DeviceArray<ParticleCouplingData> &particleCouplingData,
+                                                DeviceArray<ParticleStruct> &particles,
+                                                DeviceArray<ParticleCollisionData> &particleCollisionData,
+                                                uint particleCount)
+{
+  updateRadius();
+  allocateBuffers(particleCount);
+
+  uint nodeBatchSize = 8;
+  uint nodeBatchCount = mAlignBy(particleCount, nodeBatchSize);
+
+  const uint gridElements = gridSize * gridSize * gridSize;
+
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, nodeBatchCount);
+
+    // compute axis aligned bounding boxes for particles
+    ComputeMemory* buffers[] = {
+      particleGroupBoundingBoxes.device(),
+      particles.device(),
+      particleCollisionData.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    createBoundingBoxesCoupling.setArgs(buffers, bufferCount);
+    createBoundingBoxesCoupling.setArg<uint>(&particleCount, bufferCount);
+
+    compute->execute(createBoundingBoxesCoupling, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_FLUID_SOLVER
+  particleGroupBoundingBoxes.syncHost();
+  compute->sync();
+#endif
+
+    // find bounding box for the simulation space
+    ComputeUtil::get(gridXABComputeUtilId)->sum1D(compute, systemBoundingBox.device(), particleGroupBoundingBoxes.device(), (uint)(workgroupSize[0] * workgroupCount[0]));
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  systemBoundingBox.syncHost();
+  compute->sync();
+#endif
+
+  // clear index offset buffer
+  ComputeUtil::get(gridComputeUtilId)->clearBuffer(compute, gridCellParticleCount.device(), gridElements);
+
+  { // get count for each grid cell
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, particleCount);
+
+    ComputeMemory* buffers[] = {
+      gridCellParticleCount.device(),
+      gridParticleCellIndex.device(),
+      particles.device(),
+      systemBoundingBox.device(),
+      invMaxRadius.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    createGridCellHistogram.setArgs(buffers, bufferCount);
+    createGridCellHistogram.setArg<uint>(&particleCount, bufferCount);
+    createGridCellHistogram.setArg<ushort>(&gridSize, bufferCount + 1);
+    createGridCellHistogram.setArg<ushort>(&gridSizeExp, bufferCount + 2);
+
+    compute->execute(createGridCellHistogram, workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  gridCellParticleCount.syncHost();
+  gridParticleCellIndex.syncHost();
+  compute->sync();
+#endif
+
+  // get prefix sum for each
+  ComputeUtil::get(gridComputeUtilId)->prefixScan1D(compute, gridCellParticleOffsets.device(), gridCellParticleCount.device(), gridElements);
+
+#ifdef DEBUG_FLUID_SOLVER
+  gridCellParticleOffsets.syncHost();
+  compute->sync();
+#endif
+
+  { // put particle indices in cell array
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, particleCount, compute->simdSize());
+
+    ComputeMemory* buffers[] = {
+      gridCellParticleIndices.device(),
+      gridCellParticleOffsets.device(),
+      gridParticleCellIndex.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    createGridCellArrays.setArgs(buffers, bufferCount);
+    createGridCellArrays.setArg<uint>(&particleCount, bufferCount);
+
+    compute->execute(createGridCellArrays, workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  gridCellParticleIndices.syncHost();
+  gridCellParticleOffsets.syncHost();
+  compute->sync();
+#endif
+
+//  ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+//  ComputeUtil::get(0)->copyBuffer(compute, gridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*particleCount);
+
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, particleCount);
+
+    ComputeMemory* buffers[] = {
+      particlesCopy.device(),
+      particles.device(),
+      particlesLambda.device(),
+      gridParticleCellIndex.device(),
+      gridCellParticleIndices.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    reorderCouplingParticles.setArgs(buffers, bufferCount);
+    reorderCouplingParticles.setArg<uint>(&particleCount, bufferCount);
+
+    compute->execute(reorderCouplingParticles, workgroupSize, workgroupCount);
+  }
+
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, particleCount);
+
+    ComputeMemory* buffers[] = {
+      particleCouplingData.device(),
+      gridCellParticleOffsets.device(),
+      particlesLambda.device(),
+      gridCellParticleIndices.device(),
+      particlesCopy.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    calculateCouplingData.setArgs(buffers, bufferCount);
+    calculateCouplingData.setArg<FluidSolverData>(&(entitySharedData.host()->at(0).fluidSolverData), bufferCount);
+    calculateCouplingData.setArg<ushort>(&gridSize, bufferCount + 1);
+    calculateCouplingData.setArg<ushort>(&gridSizeExp, bufferCount + 2);
+    calculateCouplingData.setArg<uint>(&particleCount, bufferCount + 3);
+
+    compute->execute(calculateCouplingData, workgroupSize, workgroupCount);
+  }
+
+#ifdef DEBUG_FLUID_SOLVER
+  particleCouplingData.syncHost();
+  compute->sync();
+#endif
 }

@@ -155,7 +155,7 @@ inline float3 boundaryCollision(
   const Thread ParticleDifferential*  selfParticleDiff,
   const Thread ParticleCollisionData* collisionData,
   Const PhySystemSettings*            systemSettings,
-  const uint                          stablizationPass,
+  const ushort                        stablizationPass,
   Thread uint*                        collisionCount,
 #ifdef MARK_COLLIDED_PARTICLES
   Device ParticleCollisionData*       particleCollisionData,
@@ -179,31 +179,31 @@ inline float3 boundaryCollision(
     if (particle->position.y < min.y)
     {
       ret.y = min.y - particle->position.y;
-      *collisionCount++;
+      (*collisionCount)++;
     }
 
     if (particle->position.x < min.x)
     {
       ret.x = min.x - particle->position.x;
-      *collisionCount++;
+      (*collisionCount)++;
     }
 
     if (particle->position.x > max.x)
     {
       ret.x = max.x - particle->position.x;
-      *collisionCount++;
+      (*collisionCount)++;
     }
 
     if (particle->position.z < min.z)
     {
       ret.z = min.z - particle->position.z;
-      *collisionCount++;
+      (*collisionCount)++;
     }
 
     if (particle->position.z > max.z)
     {
       ret.z = max.z - particle->position.z;
-      *collisionCount++;
+      (*collisionCount)++;
     }
 
     if (dot(ret, ret) > 0.f && SOLVER_FLUID != getSolverType(particle->identity))
@@ -229,9 +229,9 @@ inline float3 boundaryCollision(
 inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle, const bool differentCell = true)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
-  return (differentCell | otherParticleIndex < selfParticleIndex) & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
+  return ((solverType == SOLVER_FLUID) | (solverType == SOLVER_CLOTH) | (otherParticle->identity.identity != selfParticle->identity.identity)) & (differentCell | (otherParticleIndex < selfParticleIndex));
 #else
-  return otherParticleIndex != selfParticleIndex & (solverType == SOLVER_FLUID | solverType == SOLVER_CLOTH | otherParticle->identity.identity != selfParticle->identity.identity);
+  return ((solverType == SOLVER_FLUID) | (solverType == SOLVER_CLOTH) | (otherParticle->identity.identity != selfParticle->identity.identity)) & (otherParticleIndex != selfParticleIndex);
 #endif
 }
 
@@ -248,7 +248,7 @@ inline float3 processParticleCollision(
   const uint                          index,
   const float                         sdfMagnitude,
   Thread uint*                        collisionCount,
-  const uint                          stablizationPass,
+  const ushort                        stablizationPass,
   const short                         solverType,
   Device ParticleStruct*              particlesDelta,
 #ifdef MARK_COLLIDED_PARTICLES
@@ -418,6 +418,43 @@ Kernel void createBoundingBoxes(
 #ifdef COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES
     particleBoundingBoxes[index] = particleBoundingBox;
 #endif
+
+    mergeXAB(&accumulatedBoundingBox, &particleBoundingBox);
+  }
+
+  particleGroupBoundingBoxes[threadIndex()] = accumulatedBoundingBox;
+}
+
+/*
+@kernel Compute and store bounding boxes for each particle only based on collision data.
+@param particleBoundingBoxes Particle bounding box array.
+@param particles Particle positions.
+@param particleCollisionData Array containing particle SDF mass and radius data.
+@param nodeCount Total nodes in the solver.
+*/
+Kernel void createBoundingBoxesCollision(
+  Device XAB*                         particleGroupBoundingBoxes,
+  const Device ParticleStruct*        particles,
+  const Device ParticleCollisionData* particleCollisionData,
+  constantKernelInput(uint,           nodeCount)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  // bounding box for the batch
+  XAB accumulatedBoundingBox;
+
+  // reset to INF, -INF
+  clearXAB(&accumulatedBoundingBox, INFINITY);
+
+  for (uint index = threadIndex(); index < nodeCount; index += threadGroupCount() * threadGroupSize())
+  {
+    const ParticleStruct particle = particles[index];
+    const float radius = particleCollisionData[index].radius;
+
+    XAB particleBoundingBox;
+    particleBoundingBox.min = particle.position - constructFloat3(radius);
+    particleBoundingBox.max = particle.position + constructFloat3(radius);
 
     mergeXAB(&accumulatedBoundingBox, &particleBoundingBox);
   }
