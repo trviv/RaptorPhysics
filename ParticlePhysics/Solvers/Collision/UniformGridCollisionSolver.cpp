@@ -96,8 +96,8 @@ void UniformGridCollisionSolver::createUtilities()
 
 void UniformGridCollisionSolver::init()
 {
-  vector<string> oldType = {"COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
-  vector<string> newType = {""};
+  vector<string> oldType;
+  vector<string> newType;
 
 #ifdef GRID_COLLISION_SOLVE_PAIR_ONCE
   oldType.push_back("GRID_COLLISION_SOLVE_PAIR_ONCE");
@@ -216,10 +216,7 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
       particleGroupBoundingBoxes.device(),
-      particleBuffer,
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-      systemSettings
+      particleBuffer
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArgs(buffers, bufferCount);

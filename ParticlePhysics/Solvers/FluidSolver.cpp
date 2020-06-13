@@ -175,9 +175,7 @@ void FluidSolver::constructGrid()
     // compute axis aligned bounding boxes for particles
     ComputeMemory* buffers[] = {
       particleGroupBoundingBoxes.device(),
-      particlesPredicted.device(),
-      entitySharedData.device(),
-      particleCollisionData.device()
+      particlesPredicted.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     createBoundingBoxes.setArgs(buffers, bufferCount);
@@ -610,9 +608,6 @@ void FluidSolver::calculateParticleCouplingData(DeviceArray<ParticleCouplingData
   gridCellParticleOffsets.syncHost();
   compute->sync();
 #endif
-
-//  ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-//  ComputeUtil::get(0)->copyBuffer(compute, gridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*particleCount);
 
   {
     size_t workgroupSize[3], workgroupCount[3];
