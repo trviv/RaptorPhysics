@@ -380,11 +380,6 @@ Kernel void createBoundingBoxes(
 #endif
   Device XAB*                         particleGroupBoundingBoxes,
   const Device ParticleStruct*        particlesPredicted,
-  const Device ParticleSharedData*    particleSharedData,
-  const Device ParticleCollisionData* particleCollisionData,
-#ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-  Const PhySystemSettings*            systemSettings,
-#endif
   constantKernelInput(uint,           nodeBatchCount),
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS
@@ -400,20 +395,10 @@ Kernel void createBoundingBoxes(
   for (uint index = threadIndex(); index < nodeCount; index += threadGroupCount() * threadGroupSize())
   {
     const ParticleStruct particle = particlesPredicted[index];
-    ParticleNodeIdentity nodeIdentity = uncompressToNodeIdentity(particle.identity);
-#ifdef COLLISION_SOLVER_USE_SYSTEM_OFFSETS
-    const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[nodeIdentity.solverType];
-
-    nodeIdentity.entityId += phySystemOffsets.globalSolverOffset;
-    nodeIdentity.instanceId += phySystemOffsets.globalInstanceOffset;
-#endif
-
-    const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
-    const float radius = getRadiusUsingDeviceCollision(&sharedData, particleCollisionData, index);
 
     XAB particleBoundingBox;
-    particleBoundingBox.min = particle.position - constructFloat3(radius);
-    particleBoundingBox.max = particle.position + constructFloat3(radius);
+    particleBoundingBox.min = particle.position;
+    particleBoundingBox.max = particle.position;
 
 #ifdef COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES
     particleBoundingBoxes[index] = particleBoundingBox;

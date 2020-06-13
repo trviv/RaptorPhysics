@@ -227,6 +227,13 @@ public:
   {
     return deviceBuffer;
   }
+
+  void purgeHost()
+  {
+    hostBuffer->clear();
+    delete hostBuffer;
+    hostBuffer = NULL;
+  }
 };
 
 #endif

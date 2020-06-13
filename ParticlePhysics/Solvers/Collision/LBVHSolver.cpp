@@ -50,8 +50,8 @@ LBVHSolver::~LBVHSolver()
 
 void LBVHSolver::init()
 {
-  const vector<string> oldType = {"COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES", "COLLISION_SOLVER_USE_SYSTEM_OFFSETS"};
-  const vector<string> newType = {"", ""};
+  const vector<string> oldType = {"COLLISION_SOLVER_SET_PARTICLE_BOUNDING_BOXES"};
+  const vector<string> newType = {""};
 
   registerShader(compute, "LBVHSolver.shader", &oldType, &newType);
 
@@ -118,10 +118,7 @@ void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings, Co
     ComputeMemory* buffers[] = {
       particleBoundingBoxes.device(),
       particleGroupBoundingBoxes.device(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED)->get(),
-      allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get(),
-      systemSettings
+      allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[LBVH_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArgs(buffers, bufferCount);
