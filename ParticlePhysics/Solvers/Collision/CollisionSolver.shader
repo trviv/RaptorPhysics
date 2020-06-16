@@ -229,9 +229,9 @@ inline float3 boundaryCollision(
 inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle, const bool differentCell = true)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
-  return ((solverType == SOLVER_FLUID) | (solverType == SOLVER_CLOTH) | (otherParticle->identity.identity != selfParticle->identity.identity)) & (differentCell | (otherParticleIndex < selfParticleIndex));
+  return ((solverType == SOLVER_FLUID) || (solverType == SOLVER_CLOTH) || (otherParticle->identity.identity != selfParticle->identity.identity)) && (differentCell || (otherParticleIndex < selfParticleIndex));
 #else
-  return ((solverType == SOLVER_FLUID) | (solverType == SOLVER_CLOTH) | (otherParticle->identity.identity != selfParticle->identity.identity)) & (otherParticleIndex != selfParticleIndex);
+  return ((solverType == SOLVER_FLUID) || (solverType == SOLVER_CLOTH) || (otherParticle->identity.identity != selfParticle->identity.identity)) && (otherParticleIndex != selfParticleIndex);
 #endif
 }
 

@@ -7,11 +7,8 @@
 //#define GRID_COLLISION_SOLVER_SCATTER_PARTICLES
 
 #define GRID_COLLISION_SOLVER_GET_MAX_RADIUS      0
-#define GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX 1
-#define GRID_COLLISION_SOLVER_CELL_COUNTS         2
-#define GRID_COLLISION_SOLVER_CELL_ARRAYS         3
-#define GRID_COLLISION_SOLVER_APPLY_COLLISIONS    4
-#define GRID_COLLISION_SOLVER_APPLY_DELTA         5
+#define GRID_COLLISION_SOLVER_APPLY_COLLISIONS    1
+#define GRID_COLLISION_SOLVER_APPLY_DELTA         2
 
 static uint gridGetSystemRadiusUtilId;
 
@@ -121,10 +118,10 @@ void UniformGridCollisionSolver::init()
 
   registerShader(compute, "UniformGridCollisionSolver.shader", &oldType, &newType);
 
+  createBoundingBoxes     = programs[0].createKernel("createBoundingBoxes");
+  createGridCellHistogram = programs[0].createKernel("createGridCellHistogram");
+  createGridCellArrays    = programs[0].createKernel("createGridCellArrays");
   kernels.push_back(programs[0].createKernel("getSystemMaxRadius"));
-  kernels.push_back(programs[0].createKernel("createBoundingBoxes"));
-  kernels.push_back(programs[0].createKernel("createGridCellHistogram"));
-  kernels.push_back(programs[0].createKernel("createGridCellArrays"));
   kernels.push_back(programs[0].createKernel("applyCollisions"));
   kernels.push_back(programs[0].createKernel("applyDeltas"));
 
@@ -219,11 +216,11 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       particleBuffer
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArgs(buffers, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArg<uint>(&nodeBatchCount, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX].setArg<uint>(&instanceNodeCount, bufferCount + 1);
+    createBoundingBoxes.setArgs(buffers, bufferCount);
+    createBoundingBoxes.setArg<uint>(&nodeBatchCount, bufferCount);
+    createBoundingBoxes.setArg<uint>(&instanceNodeCount, bufferCount + 1);
 
-    compute->execute(kernels[GRID_COLLISION_SOLVER_CREATE_BOUNDING_BOX], workgroupSize, workgroupCount);
+    compute->execute(createBoundingBoxes, workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_GRID_SOLVER
@@ -264,12 +261,12 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArgs(buffers, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<uint>(&instanceNodeCount, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<ushort>(&gridSize, bufferCount + 1);
-    kernels[GRID_COLLISION_SOLVER_CELL_COUNTS].setArg<ushort>(&gridSizeExp, bufferCount + 2);
+    createGridCellHistogram.setArgs(buffers, bufferCount);
+    createGridCellHistogram.setArg<uint>(&instanceNodeCount, bufferCount);
+    createGridCellHistogram.setArg<ushort>(&gridSize, bufferCount + 1);
+    createGridCellHistogram.setArg<ushort>(&gridSizeExp, bufferCount + 2);
 
-    compute->execute(kernels[GRID_COLLISION_SOLVER_CELL_COUNTS], workgroupSize, workgroupCount);
+    compute->execute(createGridCellHistogram, workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_GRID_SOLVER
@@ -296,10 +293,10 @@ void UniformGridCollisionSolver::build(uint instanceNodeCount, ComputeMemory* sy
       gridParticleCellIndex.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    kernels[GRID_COLLISION_SOLVER_CELL_ARRAYS].setArgs(buffers, bufferCount);
-    kernels[GRID_COLLISION_SOLVER_CELL_ARRAYS].setArg<uint>(&instanceNodeCount, bufferCount);
+    createGridCellArrays.setArgs(buffers, bufferCount);
+    createGridCellArrays.setArg<uint>(&instanceNodeCount, bufferCount);
 
-    compute->execute(kernels[GRID_COLLISION_SOLVER_CELL_ARRAYS], workgroupSize, workgroupCount);
+    compute->execute(createGridCellArrays, workgroupSize, workgroupCount);
   }
 
 #ifdef DEBUG_GRID_SOLVER

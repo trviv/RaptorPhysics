@@ -16,9 +16,6 @@ protected:
   friend class PhysicsSystem;
 
   /* Kernels common to fluid solvers */
-  ComputeKernel createBoundingBoxes;
-  ComputeKernel createGridCellHistogram;
-  ComputeKernel createGridCellArrays;
   ComputeKernel reorderFluidParticles;
   ComputeKernel calculateDensity;
   ComputeKernel createBoundingBoxesCoupling;

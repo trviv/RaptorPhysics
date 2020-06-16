@@ -13,6 +13,11 @@ protected:
   static uint gridXABComputeUtilId;
   static uint gridComputeUtilId;
 
+  /* Kernels common to uniform grid solvers */
+  ComputeKernel createBoundingBoxes;
+  ComputeKernel createGridCellHistogram;
+  ComputeKernel createGridCellArrays;
+
   DeviceArray <uint>  gridParticleCellIndex;
   DeviceArray <uint> &gridCellParticleOffsets;
   DeviceArray <uint>  gridCellParticleIndices;
