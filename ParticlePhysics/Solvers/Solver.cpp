@@ -143,7 +143,6 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->particleCouplingData.purgeHost();
   this->partitions.syncDevice();
   this->partitionsCount.purgeHost();
-  this->entityLocations.purgeHost();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

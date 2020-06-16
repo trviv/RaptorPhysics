@@ -34,6 +34,9 @@ void FluidSolverPCISPH::create(ComputeInterface* compute)
   calculateCouplingData   = programs[0].createKernel("calculateCouplingData");
   reorderCouplingParticles    = programs[0].createKernel("reorderCouplingParticles");
   createBoundingBoxesCoupling = programs[0].createKernel("createBoundingBoxesCollision");
+  createBoundaryGridCellHistogram = programs[0].createKernel("createBoundaryGridCellHistogram");
+  createBoundaryGridCellArrays    = programs[0].createKernel("createBoundaryGridCellArrays");
+  reorderBoundaryParticles        = programs[0].createKernel("reorderBoundaryParticles");
   kernels.push_back(programs[0].createKernel("predictionStep"));
   kernels.push_back(programs[0].createKernel("calculatePressure"));
   kernels.push_back(programs[0].createKernel("calculateForces"));

@@ -352,8 +352,8 @@ Kernel void calculateCouplingData(
 }
 
 Kernel void createBoundaryGridCellHistogram(
-  atomicKernelInput(uint,       systemGridCellIndexCount),
-  Device uint*                  systemGridParticleCellIndex,
+  atomicKernelInput(uint,       boundaryGridCellIndexCount),
+  Device uint*                  boundaryGridParticleCellIndex,
   const Device ParticleStruct*  particles,
   Const PhySystemSettings*      systemSettings,
   Const XAB*                    systemBoundingBox,
@@ -393,17 +393,17 @@ Kernel void createBoundaryGridCellHistogram(
       quantizedPosition = quantizedPosition & constructInt3(gridSize-1);
       gridCountOffset = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
 
-      atomicAdd(&systemGridCellIndexCount[gridCountOffset], 1);
+      atomicAdd(&boundaryGridCellIndexCount[gridCountOffset], 1);
     }
 
-    systemGridParticleCellIndex[threadIndex()] = gridCountOffset;
+    boundaryGridParticleCellIndex[threadIndex()] = gridCountOffset;
   }
 }
 
 Kernel void createBoundaryGridCellArrays(
-  Device uint*                  systemGridCellParticleIndices,
+  Device uint*                  boundaryGridCellParticleIndices,
   atomicKernelInput(uint,       systemGridCellParticleOffsets),
-  const Device uint*            systemGridParticleCellIndex,
+  const Device uint*            boundaryGridParticleCellIndex,
   constantKernelInput(uint,     nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -411,11 +411,11 @@ Kernel void createBoundaryGridCellArrays(
 
   if (index < nodeCount)
   {
-    const uint gridCountOffset = systemGridParticleCellIndex[index];
+    const uint gridCountOffset = boundaryGridParticleCellIndex[index];
     if (gridCountOffset != -1)
     {
       const uint offset = atomicAdd(&systemGridCellParticleOffsets[gridCountOffset], 1);
-      systemGridCellParticleIndices[offset] = index;
+      boundaryGridCellParticleIndices[offset] = index;
     }
   }
 }
@@ -425,10 +425,10 @@ Kernel void reorderBoundaryParticles(
   const Device ParticleStruct*        particlesOld,
   Device ParticleDifferential*        particleDiffNew,
   const Device ParticleDifferential*  particleDiffOld,
-  Device uint*                        systemGridParticleCellIndexNew,
-  const Device uint*                  systemGridParticleCellIndexOld,
-  const Device uint*                  systemGridCellParticleIndices,
-  Device uint*                        systemGridParticleSystemIndex,
+  Device uint*                        boundaryGridParticleCellIndexNew,
+  const Device uint*                  boundaryGridParticleCellIndexOld,
+  const Device uint*                  boundaryGridCellParticleIndices,
+  Device uint*                        boundaryGridParticleSystemIndex,
   Const PhySystemSettings*            systemSettings,
   constantKernelInput(uint,           nodeCount)
   KERNEL_GLOBAL_ARGUMENTS)
@@ -438,9 +438,9 @@ Kernel void reorderBoundaryParticles(
     return;
   }
 
-  uint particleIndex = systemGridCellParticleIndices[threadIndex()];
+  uint particleIndex = boundaryGridCellParticleIndices[threadIndex()];
 
-  systemGridParticleCellIndexNew[threadIndex()] = systemGridParticleCellIndexOld[particleIndex];
+  boundaryGridParticleCellIndexNew[threadIndex()] = boundaryGridParticleCellIndexOld[particleIndex];
   particlesNew[threadIndex()] = particlesOld[particleIndex];
   particleDiffNew[threadIndex()] = particleDiffOld[particleIndex];
 
@@ -452,7 +452,7 @@ Kernel void reorderBoundaryParticles(
   {
     particleIndex += systemSettings->globalOffsets[SOLVER_FLUID+1].globalNodeOffset - phySystemOffsets.globalNodeOffset;
   }
-  systemGridParticleSystemIndex[threadIndex()] = particleIndex;
+  boundaryGridParticleSystemIndex[threadIndex()] = particleIndex;
 }
 
 inline float3 surfaceTensionAkinci(const float3 collisionVector, const float actualDistance, const float selfParticleMass, const float otherParticleMass, const ParticleSharedData sharedData)
