@@ -21,6 +21,7 @@ protected:
   ComputeKernel createBoundingBoxesCoupling;
   ComputeKernel calculateCouplingData;
   ComputeKernel reorderCouplingParticles;
+  ComputeKernel reorderBoundaryParticles;
 
   DeviceArray <float> particlesDensity;
   DeviceArray <float> particlesLambda;
@@ -30,14 +31,15 @@ protected:
   DeviceArray <ParticleStruct>&particleDifferentialCopy = particlesTemp[0];
 
   /* Physics system related variables, used for fluid-solid coupling */
-  DeviceArray <uint>  systemGridParticleCellIndex;
-  DeviceArray <uint> &systemGridCellParticleOffsets;
-  DeviceArray <uint>  systemGridCellParticleIndices;
-  DeviceArray <uint>  systemGridCellParticleCount;
-  DeviceArray <uint>  systemGridParticleSystemIndex;
+  DeviceArray <uint>  boundaryGridParticleCellIndex;
+  DeviceArray <uint> &boundaryGridCellParticleOffsets;
+  DeviceArray <uint>  boundaryGridCellParticleIndices;
+  DeviceArray <uint>  boundaryGridCellParticleCount;
+  DeviceArray <uint>  boundaryGridParticleSystemIndex;
 
-  DeviceArray <ParticleStruct>  systemParticlePositionsCopy;
-  DeviceArray <ParticleStruct>  systemParticleDifferentialCopy;
+  DeviceArray <ParticleStruct>  boundaryParticlePositions;
+  DeviceArray <ParticleStruct>  boundaryParticleDifferential;
+
   ComputeMemory *systemParticlePositions;
   ComputeMemory *systemParticleDifferential;
   ComputeMemory *systemParticleCollisionData;

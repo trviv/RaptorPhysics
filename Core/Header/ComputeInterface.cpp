@@ -396,6 +396,7 @@ void ComputeHeap::create(size_t sizeInBytes)
 
 ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryFlag flag)
 {
+  sizeInBytes = mAlignBy(sizeInBytes, 16) * 16;
   ComputeMemory* ret;
   ComputeStatus status;
   if (bypass)

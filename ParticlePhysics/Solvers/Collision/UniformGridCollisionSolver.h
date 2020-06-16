@@ -17,6 +17,8 @@ protected:
   ComputeKernel createBoundingBoxes;
   ComputeKernel createGridCellHistogram;
   ComputeKernel createGridCellArrays;
+  ComputeKernel createBoundaryGridCellHistogram;
+  ComputeKernel createBoundaryGridCellArrays;
 
   DeviceArray <uint>  gridParticleCellIndex;
   DeviceArray <uint> &gridCellParticleOffsets;

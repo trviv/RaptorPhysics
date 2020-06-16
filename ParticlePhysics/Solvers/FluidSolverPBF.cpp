@@ -35,6 +35,9 @@ void FluidSolverPBF::create(ComputeInterface* compute)
   calculateCouplingData   = programs[0].createKernel("calculateCouplingData");
   reorderCouplingParticles    = programs[0].createKernel("reorderCouplingParticles");
   createBoundingBoxesCoupling = programs[0].createKernel("createBoundingBoxesCollision");
+  createBoundaryGridCellHistogram = programs[0].createKernel("createBoundaryGridCellHistogram");
+  createBoundaryGridCellArrays    = programs[0].createKernel("createBoundaryGridCellArrays");
+  reorderBoundaryParticles        = programs[0].createKernel("reorderBoundaryParticles");
   kernels.push_back(programs[0].createKernel("calculateLambda"));
   kernels.push_back(programs[0].createKernel("applyCorrection"));
   kernels.push_back(programs[0].createKernel("updateVelocities"));
