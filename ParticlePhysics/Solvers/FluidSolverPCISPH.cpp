@@ -2,9 +2,10 @@
 
 //#define DEBUG_FLUID_PCISPH_SOLVER
 
-#define FLUID_COLLISION_SOLVER_PCISPH_PREDICT             0
-#define FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE       1
-#define FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES         2
+#define FLUID_COLLISION_SOLVER_PCISPH_PREDICT               0
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_PRESSURE         1
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES           2
+#define FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES  3
 
 FluidSolverPCISPH::FluidSolverPCISPH(ComputeInterface* compute, SharedAllocator* allocator)
   : Solver(compute, allocator), FluidSolver(compute, allocator, true), invBeta(0)
@@ -40,6 +41,7 @@ void FluidSolverPCISPH::create(ComputeInterface* compute)
   kernels.push_back(programs[0].createKernel("predictionStep"));
   kernels.push_back(programs[0].createKernel("calculatePressure"));
   kernels.push_back(programs[0].createKernel("calculateForces"));
+  kernels.push_back(programs[0].createKernel("calculateBoundaryForces"));
 
   invMaxRadius.host()->push_back(-1.f);
 
@@ -102,6 +104,9 @@ void FluidSolverPCISPH::solve(float timeStep)
         gridCellParticleOffsets.device(),
         gridParticleCellIndex.device(),
         particlesNextPosition.device(),
+        boundaryGridCellParticleOffsets.device(),
+        boundaryParticleCouplingData.device(),
+        boundaryParticlePositions.device(),
         entitySharedData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
@@ -157,6 +162,11 @@ void FluidSolverPCISPH::solve(float timeStep)
         gridCellParticleOffsets.device(),
         gridParticleCellIndex.device(),
         particlesNextPosition.device(),
+        particlesNextVelocity.device(),
+        boundaryGridCellParticleOffsets.device(),
+        boundaryParticleCouplingData.device(),
+        boundaryParticlePositions.device(),
+        boundaryParticleDifferential.device(),
         entitySharedData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
@@ -168,6 +178,40 @@ void FluidSolverPCISPH::solve(float timeStep)
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES], workgroupSize, workgroupCount);
+    }
+
+#ifdef DEBUG_FLUID_PCISPH_SOLVER
+    particleForce.syncHost();
+    compute->sync();
+#endif
+
+    {
+      size_t workgroupSize[3], workgroupCount[3];
+      compute->configureSize(workgroupSize, workgroupCount, systemNonFluidParticleCount);
+
+      ComputeMemory* buffers[] = {
+        systemParticleForce,
+        particlesDensity.device(),
+        particlesPressure.device(),
+        gridCellParticleOffsets.device(),
+        particlesNextPosition.device(),
+        particlesNextVelocity.device(),
+        boundaryGridParticleCellIndex.device(),
+        boundaryParticleCouplingData.device(),
+        boundaryParticlePositions.device(),
+        boundaryParticleDifferential.device(),
+        boundaryGridParticleSystemIndex.device(),
+        entitySharedData.device(),
+        systemBoundingBox.device(),
+        invMaxRadius.device()
+      };
+      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES].setArgs(buffers, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES].setArg<ushort>(&gridSize, bufferCount);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES].setArg<ushort>(&gridSizeExp, bufferCount + 1);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES].setArg<uint>(&systemNonFluidParticleCount, bufferCount + 2);
+
+      compute->execute(kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_BOUNDARY_FORCES], workgroupSize, workgroupCount);
     }
 
 #ifdef DEBUG_FLUID_PCISPH_SOLVER

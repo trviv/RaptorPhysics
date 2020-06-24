@@ -312,6 +312,25 @@ inline short3 decodeCellVector(uchar encodedOffset)
     const short y = j - particleGridCellIndex.y; \
     const short z = k - particleGridCellIndex.z;
 
+#define GRID_SOLVER_BOUNDARY_NEIGHBOUR_LOOP_BEGIN \
+  const short3 particleGridCellIndex = decodeGridIndexShort3(gridCellIndex, gridSize, gridSizeExp); \
+  short i = particleGridCellIndex.x - 2; \
+  short j = particleGridCellIndex.y - 1; \
+  short k = particleGridCellIndex.z - 1; \
+  const short maxX = particleGridCellIndex.x + 2; \
+  const short maxY = particleGridCellIndex.y + 2; \
+  for (short n=0; n<27; n++) \
+  { \
+    i++; \
+    if (i == maxX) \
+    { j++; i -= 3;} \
+    if (j == maxY) \
+    { k++; j -= 3;} \
+    const int gridCellIndex = encodeGridIndexInt3(constructInt3(i, j, k) & (gridSize - 1), gridSizeExp); \
+    const short x = i - particleGridCellIndex.x; \
+    const short y = j - particleGridCellIndex.y; \
+    const short z = k - particleGridCellIndex.z;
+
 #define GRID_SOLVER_PACKED_NEIGHBOUR_LOOP_BEGIN \
   const short3 particleGridCellIndex = decodeGridIndexShort3(gridCellIndex, gridSize, gridSizeExp); \
   short i = particleGridCellIndex.x - 2; \

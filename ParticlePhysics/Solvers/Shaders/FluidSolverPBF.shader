@@ -54,7 +54,7 @@ Kernel void calculateLambda(
   const float density = calculateParticleDensity(selfParticle, 1.f/sharedData.sharedInvMass, sharedData.fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
 
   particlesDensity[particleIndex] = density;
-  particlesLambda[particleIndex] = -(density * sharedData.invRestDensity - 1.f) * fluidSolverData.fluidKernelFunctionConstant[2];
+  particlesLambda[particleIndex] = -(density * sharedData.invRestDensity - 1.f) * sharedData.fluidSolverData.fluidKernelFunctionConstant[2];
 }
 
 /*

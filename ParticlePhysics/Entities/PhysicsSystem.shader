@@ -62,6 +62,7 @@ Kernel void integrateDifferentiateStep(
 #ifdef DEBUG_PHYSICS_SYSTEM
     printf("Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
 #endif
+    particleForce[index].force = 0.f;
   }
 }
 
@@ -200,6 +201,7 @@ Kernel void endStep(
     printf("End Out: %d %d %f %f %f\n", index, identity.identity, particle.position.x, particle.position.y, particle.position.z);
 #endif
   }
+  particleForce[index].force = 0.f;
 }
 
 #endif

@@ -977,7 +977,7 @@ void PhysicsSystem::step(float timeStep)
       // TODO: Probably move it to a place less frequently updated
       ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticlePositions      = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get();
       ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleDifferential   = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get();
-      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCollisionData  = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION)->get();
+      ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCouplingData   = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_COUPLING)->get();
       ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleForce          = allocators[0]->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get();
       ((FluidSolver*)solversUint[SOLVER_FLUID])->systemParticleCount          = instanceNodeCount;
       ((FluidSolver*)solversUint[SOLVER_FLUID])->systemSettings               = systemSettings.device();

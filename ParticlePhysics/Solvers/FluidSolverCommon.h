@@ -243,6 +243,13 @@ Kernel void reorderCouplingParticles(
     for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++) \
     {
 
+#define GRID_SOLVER_BOUNDARY_NEIGHBOUR_PARTICLE_LOOP_BEGIN \
+  GRID_SOLVER_BOUNDARY_NEIGHBOUR_LOOP_BEGIN \
+    const uint2 indexRange = getRangeFromOffset(boundaryGridCellParticleOffsets, gridCellIndex); \
+    /* iterate over particles in neighboring cells*/ \
+    for (int otherNodeIndex = indexRange.x; otherNodeIndex < indexRange.y; otherNodeIndex++) \
+    {
+
 #define GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END \
     } \
   GRID_SOLVER_NEIGHBOUR_LOOP_END
@@ -271,12 +278,39 @@ inline float calculateParticleDensity(
   return density * fluidSolverData.fluidKernelFunctionConstant[0] * selfMass;
 }
 
+inline float calculateBoundaryParticleDensity(
+  const ParticleStruct                selfParticle,
+  const FluidSolverData               fluidSolverData,
+  const Device uint*                  boundaryGridCellParticleOffsets,
+  const Device ParticleStruct*        boundaryParticles,
+  const Device ParticleCouplingData*  boundaryParticleCouplingData,
+  const uint                          gridCellIndex,
+  const ushort                        gridSize,
+  const ushort                        gridSizeExp)
+{
+  float density = 0.f;
+  const float fluidKernelRadiusSq = sqr(fluidSolverData.fluidKernelRadius);
+
+  GRID_SOLVER_BOUNDARY_NEIGHBOUR_PARTICLE_LOOP_BEGIN
+    // iterate over each particle in the cell
+    const float3 collisionVector = selfParticle.position - boundaryParticles[otherNodeIndex].position;
+    const float actualDistanceSq = lengthSq(collisionVector);
+
+    density += select(0.f, boundaryParticleCouplingData[otherNodeIndex].volume * poly6FunctionVariableSquares(actualDistanceSq, fluidKernelRadiusSq), actualDistanceSq < fluidKernelRadiusSq);
+  GRID_SOLVER_NEIGHBOUR_PARTICLE_LOOP_END
+
+  return density * fluidSolverData.fluidKernelFunctionConstant[0];
+}
+
 /*
 @kernel Calculate fluid particle density.
 @param particlesDensity Calculated particle density.
 @param gridCellParticleOffsets Starting offset for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particlesPredicted Integrated particle position.
+@param boundaryGridCellParticleOffsets Starting offset for each grid cell for boundary particles.
+@param particleCouplingData Particle coupling data.
+@param boundaryParticles Boundary particles.
 @param particleSharedData Particle entity shared data.
 @param systemBoundingBox Physics system's bounding box.
 @param invRadius Inverse of max particle radius in the system.
@@ -289,6 +323,9 @@ Kernel void calculateDensity(
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridParticleCellIndex,
   const Device ParticleStruct*        particlesPredicted,
+  const Device uint*                  boundaryGridCellParticleOffsets,
+  const Device ParticleCouplingData*  boundaryParticleCouplingData,
+  const Device ParticleStruct*        boundaryParticles,
   const Device ParticleSharedData*    particleSharedData,
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
@@ -308,12 +345,15 @@ Kernel void calculateDensity(
   DECLARE_SELF_PARTICLE(particlesPredicted, identity, nodeIdentity)
   const ParticleSharedData sharedData = particleSharedData[nodeIdentity.entityId];
 
-  particlesDensity[particleIndex] = calculateParticleDensity(selfParticle, 1.f/sharedData.sharedInvMass, sharedData.fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
+  float density = calculateParticleDensity(selfParticle, 1.f/sharedData.sharedInvMass, sharedData.fluidSolverData, gridCellParticleOffsets, particlesPredicted, gridCellIndex, gridSize, gridSizeExp);
+  density += calculateBoundaryParticleDensity(selfParticle, sharedData.fluidSolverData, boundaryGridCellParticleOffsets, boundaryParticles, boundaryParticleCouplingData, gridCellIndex, gridSize, gridSizeExp) * 1.f/sharedData.invRestDensity;
+
+  particlesDensity[particleIndex] = density;
 }
 
 /*
 @kernel Calculate non fluid particle volume as specified in Versatile Rigid-Fluid Coupling for Incompressible SPH.
-@param particleCouplingData Calculated particle compling data.
+@param particleCouplingData Calculated particle coupling data.
 @param gridCellParticleOffsets Starting offset for each grid cell.
 @param gridParticleCellIndex Computed cell index for each particle.
 @param particles Particle positions.
@@ -325,7 +365,7 @@ Kernel void calculateDensity(
 @param nodeCount Total nodes in the solver.
 */
 Kernel void calculateCouplingData(
-  Device ParticleCouplingData*        particleCouplingData,
+  Device ParticleCouplingData*        boundaryParticleCouplingData,
   const Device uint*                  gridCellParticleOffsets,
   const Device uint*                  gridParticleCellIndex,
   const Device uint*                  gridCellParticleIndices,
@@ -348,7 +388,7 @@ Kernel void calculateCouplingData(
 
   particleIndex = gridCellParticleIndices[particleIndex];
 
-  particleCouplingData[particleIndex].volume = 1.f/calculateParticleDensity(selfParticle, 1.f, fluidSolverData, gridCellParticleOffsets, particles, gridCellIndex, gridSize, gridSizeExp);
+  boundaryParticleCouplingData[particleIndex].volume = 1.f/calculateParticleDensity(selfParticle, 1.f, fluidSolverData, gridCellParticleOffsets, particles, gridCellIndex, gridSize, gridSizeExp);
 }
 
 Kernel void createBoundaryGridCellHistogram(
@@ -425,6 +465,8 @@ Kernel void reorderBoundaryParticles(
   const Device ParticleStruct*        particlesOld,
   Device ParticleDifferential*        particleDiffNew,
   const Device ParticleDifferential*  particleDiffOld,
+  Device ParticleCouplingData*        boundaryParticleCouplingDataNew,
+  const Device ParticleCouplingData*  boundaryParticleCouplingDataOld,
   Device uint*                        boundaryGridParticleCellIndexNew,
   const Device uint*                  boundaryGridParticleCellIndexOld,
   const Device uint*                  boundaryGridCellParticleIndices,
@@ -443,6 +485,7 @@ Kernel void reorderBoundaryParticles(
   boundaryGridParticleCellIndexNew[threadIndex()] = boundaryGridParticleCellIndexOld[particleIndex];
   particlesNew[threadIndex()] = particlesOld[particleIndex];
   particleDiffNew[threadIndex()] = particleDiffOld[particleIndex];
+  boundaryParticleCouplingDataNew[threadIndex()] = boundaryParticleCouplingDataOld[particleIndex];
 
   // if index is in range of fluid nodes
   const PhySystemOffsets phySystemOffsets = systemSettings->globalOffsets[SOLVER_FLUID];
