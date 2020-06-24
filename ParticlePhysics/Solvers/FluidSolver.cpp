@@ -34,9 +34,10 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
   boundaryGridParticleCellIndex.create(compute, solverHeap, true);
   boundaryGridCellParticleIndices.create(compute, solverHeap, true);
   boundaryGridCellParticleCount.create(compute, solverHeap, true);
-  systemParticlePositionsCopy.create(compute, solverHeap, true);
-  systemParticleDifferentialCopy.create(compute, solverHeap, true);
+  boundaryParticlePositions.create(compute, solverHeap, true);
+  boundaryParticleDifferential.create(compute, solverHeap, true);
   boundaryGridParticleSystemIndex.create(compute, solverHeap, true);
+  boundaryParticleCouplingData.create(compute, solverHeap, true);
 #else
   particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
@@ -47,6 +48,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
   boundaryParticlePositions.create(compute, solverHeap);
   boundaryParticleDifferential.create(compute, solverHeap);
   boundaryGridParticleSystemIndex.create(compute, solverHeap);
+  boundaryParticleCouplingData.create(compute, solverHeap);
 #endif
 }
 
@@ -313,6 +315,7 @@ void FluidSolver::allocateIndexBuffers(const uint particleCount)
     boundaryGridParticleCellIndex.resize(systemNonFluidParticleCount, false);
     boundaryGridCellParticleIndices.resize(systemNonFluidParticleCount, false);
     boundaryGridParticleSystemIndex.resize(systemNonFluidParticleCount, false);
+    boundaryParticleCouplingData.resize(systemNonFluidParticleCount, false);
   }
 
   const uint gridElements = gridSize * gridSize * gridSize;
@@ -320,7 +323,7 @@ void FluidSolver::allocateIndexBuffers(const uint particleCount)
   if (gridCellParticleCount.size() < gridElements)
   {
     gridCellParticleCount.resize(gridElements, false);
-    boundaryGridCellParticleCount.resize(systemNonFluidParticleCount, false);
+    boundaryGridCellParticleCount.resize(gridElements, false);
   }
 }
 
@@ -354,6 +357,9 @@ void FluidSolver::solve(float timeStep)
         gridCellParticleOffsets.device(),
         gridParticleCellIndex.device(),
         particlesPredicted.device(),
+        boundaryGridCellParticleOffsets.device(),
+        boundaryParticleCouplingData.device(),
+        boundaryParticlePositions.device(),
         entitySharedData.device(),
         systemBoundingBox.device(),
         invMaxRadius.device()
@@ -494,6 +500,8 @@ void FluidSolver::constructBoundaryGrid()
       systemParticlePositions,
       boundaryParticleDifferential.device(),
       systemParticleDifferential,
+      boundaryParticleCouplingData.device(),
+      systemParticleCouplingData,
       boundaryGridParticleCellIndex.device(),
       particlesLambda.device(),
       boundaryGridCellParticleIndices.device(),
@@ -506,6 +514,11 @@ void FluidSolver::constructBoundaryGrid()
 
     compute->execute(reorderBoundaryParticles, workgroupSize, workgroupCount);
   }
+
+#ifdef DEBUG_FLUID_SOLVER
+  boundaryParticleCouplingData.syncHost();
+  compute->sync();
+#endif
 }
 
 void FluidSolver::calculateParticleCouplingData(DeviceArray<ParticleCouplingData> &particleCouplingData,

@@ -39,10 +39,11 @@ protected:
 
   DeviceArray <ParticleStruct>  boundaryParticlePositions;
   DeviceArray <ParticleStruct>  boundaryParticleDifferential;
+  DeviceArray <ParticleCouplingData> boundaryParticleCouplingData;
 
   ComputeMemory *systemParticlePositions;
   ComputeMemory *systemParticleDifferential;
-  ComputeMemory *systemParticleCollisionData;
+  ComputeMemory *systemParticleCouplingData;
   ComputeMemory *systemParticleForce;
   ComputeMemory *systemSettings;
   uint systemParticleCount;
