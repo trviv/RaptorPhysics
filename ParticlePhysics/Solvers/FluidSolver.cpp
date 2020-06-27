@@ -268,10 +268,10 @@ void FluidSolver::allocateBoundingBoxes(const uint particleCount)
 
 void FluidSolver::allocatePositionBuffers(const uint particleCount)
 {
-  if (boundaryParticlePositions.size() < systemNonFluidParticleCount)
+  if (boundaryParticlePositions.size() < mMax(systemNonFluidParticleCount, (uint)1))
   {
-    boundaryParticlePositions.resize(systemNonFluidParticleCount, false);
-    boundaryParticleDifferential.resize(systemNonFluidParticleCount, false);
+    boundaryParticlePositions.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
+    boundaryParticleDifferential.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
   }
 
   if (gridParticleCellIndex.size() < particleCount)
@@ -297,12 +297,12 @@ void FluidSolver::allocateIndexBuffers(const uint particleCount)
     particlesLambda.resize(systemNonFluidParticleCount, false);
   }
 
-  if (boundaryGridParticleCellIndex.size() < systemNonFluidParticleCount)
+  if (boundaryGridParticleCellIndex.size() < mMax(systemNonFluidParticleCount, (uint)1))
   {
-    boundaryGridParticleCellIndex.resize(systemNonFluidParticleCount, false);
-    boundaryGridCellParticleIndices.resize(systemNonFluidParticleCount, false);
-    boundaryGridParticleSystemIndex.resize(systemNonFluidParticleCount, false);
-    boundaryParticleCouplingData.resize(systemNonFluidParticleCount, false);
+    boundaryGridParticleCellIndex.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
+    boundaryGridCellParticleIndices.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
+    boundaryGridParticleSystemIndex.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
+    boundaryParticleCouplingData.resize(mMax(systemNonFluidParticleCount, (uint)1), false);
   }
 
   const uint gridElements = gridSize * gridSize * gridSize;
@@ -311,6 +311,8 @@ void FluidSolver::allocateIndexBuffers(const uint particleCount)
   {
     gridCellParticleCount.resize(gridElements, false);
     boundaryGridCellParticleCount.resize(gridElements, false);
+    // do this atleast once, so its all 0s when there are no boundary particles
+    ComputeUtil::get(gridComputeUtilId)->clearBuffer(compute, boundaryGridCellParticleCount.device(), gridElements);
   }
 }
 
