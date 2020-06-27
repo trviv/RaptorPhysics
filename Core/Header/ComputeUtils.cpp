@@ -368,10 +368,10 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
   if (!localArrays[UtilTempReduceSum])
   {
     localArrays[UtilTempReduceSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL);
 
     localArrays[UtilTempReduceStatus] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL);
   }
 
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
@@ -458,10 +458,10 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
   if (!localArrays[UtilTempReduceSum])
   {
     localArrays[UtilTempReduceSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceSum])->create(compute, NULL);
 
     localArrays[UtilTempReduceStatus] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempReduceStatus])->create(compute, NULL);
   }
 
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempReduceSum];
@@ -503,10 +503,10 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   if (!localArrays[UtilTempPrefixGroupSum])
   {
     localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL);
 
     localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL, false);
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
   }
 
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
@@ -562,10 +562,10 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   if (!localArrays[UtilTempPrefixGroupSum])
   {
     localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL, true);
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL);
 
     localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL, false);
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
   }
 
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
@@ -619,15 +619,8 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   if (!localArrays[UtilTempRadixGroupSum])
   {
-
-#ifdef DEBUG_RADIX_SORT
     localArrays[UtilTempRadixGroupSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL, true);
-#else
-    localArrays[UtilTempRadixGroupSum] = new DeviceArray<uint>();
-    ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL, false);
-#endif
-
+    ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL);
   }
 
   const uint groupFactor = RADIX_SORT_BIT_COUNT * (RADIX_REDUCTION_PACKING_EXP << 1) * 256;

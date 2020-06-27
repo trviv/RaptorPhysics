@@ -16,16 +16,6 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
 {
   solverHeap = new ComputeHeap(compute);
 
-#ifdef DEBUG_LBVH_SOLVER
-  particlesBufferTemp.create(compute, NULL, true);
-  treeInternalNodes.create(compute, NULL, true);
-  particleLeafData.create(compute, NULL, true);
-  particleLeafDataSorted.create(compute, NULL, true);
-  visitedInternalNodes.create(compute, NULL, true);
-  leafParentNodeIndices.create(compute, NULL, true);
-  nodeParentNodeIndices.create(compute, NULL, true);
-  particleBoundingBoxes.create(compute, NULL, true);
-#else
   particlesBufferTemp.create(compute, NULL);
   treeInternalNodes.create(compute, NULL);
   particleLeafData.create(compute, NULL);
@@ -34,13 +24,12 @@ LBVHSolver::LBVHSolver(ComputeInterface* compute, SharedAllocator* allocator) :
   leafParentNodeIndices.create(compute, NULL);
   nodeParentNodeIndices.create(compute, NULL);
   particleBoundingBoxes.create(compute, NULL);
-#endif
-  particleGroupBoundingBoxes.create(compute, NULL, true);
+  particleGroupBoundingBoxes.create(compute, NULL);
 
   // allocate space for fixed sized data
-  treeInternalNodeBoundingBoxes.create(compute, NULL, true);
+  treeInternalNodeBoundingBoxes.create(compute, NULL);
 
-  systemBoundingBox.create(compute, NULL, true);
+  systemBoundingBox.create(compute, NULL);
   systemBoundingBox.resize(1, false);
 }
 

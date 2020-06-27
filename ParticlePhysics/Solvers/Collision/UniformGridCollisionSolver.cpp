@@ -33,23 +33,17 @@ UniformGridCollisionSolver::UniformGridCollisionSolver(ComputeInterface* compute
   solverHeap->create((gridSize * gridSize * gridSize + 2 * maxParticles + 4 * maxParticles) * sizeof(uint) + maxParticles * sizeof(XAB));
 #endif
 
-#ifdef DEBUG_GRID_SOLVER
-  gridParticleCellIndex.create(compute, solverHeap, true);
-  gridCellParticleIndices.create(compute, solverHeap, true);
-  particlesBufferTemp.create(compute, solverHeap, true);
-#else
   gridParticleCellIndex.create(compute, solverHeap);
   gridCellParticleIndices.create(compute, solverHeap);
   particlesBufferTemp.create(compute, solverHeap);
-#endif
-  gridCellParticleCount.create(compute, solverHeap, true);
+  gridCellParticleCount.create(compute, solverHeap);
 
-  particleGroupBoundingBoxes.create(compute, solverHeap, true);
+  particleGroupBoundingBoxes.create(compute, solverHeap);
 
-  systemBoundingBox.create(compute, NULL, true);
+  systemBoundingBox.create(compute, NULL);
   systemBoundingBox.resize(1, false);
 
-  invMaxRadius.create(compute, NULL, true);
+  invMaxRadius.create(compute, NULL);
   invMaxRadius.resize(1, false);
 }
 

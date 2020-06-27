@@ -93,8 +93,8 @@ void testBandwidthRW(ComputeInterface* compute)
 {
   logComputeMessage("Read/Write bandwidth test:");
 
-  DeviceArray<float> data(compute, NULL, false);
-  DeviceArray<float> outdata(compute, NULL, false);
+  DeviceArray<float> data(compute, NULL);
+  DeviceArray<float> outdata(compute, NULL);
   const int elements = 1024 * 1024 * 16;
   uint iterations = runOnlyFunctional?0:20;
 
@@ -126,8 +126,8 @@ void testCustomBandwidthRW(ComputeInterface* compute)
 {
   logComputeMessage("Read/Write custom bandwidth test:");
 
-  DeviceArray<float> data(compute, NULL, true);
-  DeviceArray<float> outdata(compute, NULL, true);
+  DeviceArray<float> data(compute, NULL);
+  DeviceArray<float> outdata(compute, NULL);
   const int elements = 1024 * 1024 * 16;
   uint iterations = runOnlyFunctional?0:20;
 
@@ -187,7 +187,7 @@ void testSetBuffer(ComputeInterface* compute)
 {
   logComputeMessage("Clear bandwidth test:");
 
-  DeviceArray<uint> data(compute, NULL, true);
+  DeviceArray<uint> data(compute, NULL);
   const int elements = 1024 * 1024 * 128;
   uint iterations = runOnlyFunctional?0:20;
 
@@ -243,8 +243,8 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
 {
   logComputeMessage("Testing 1D mean:");
 
-  DeviceArray<DataType> data(compute, NULL, true);
-  DeviceArray<DataType> output(compute, NULL, true);
+  DeviceArray<DataType> data(compute, NULL);
+  DeviceArray<DataType> output(compute, NULL);
 
   const int elements = roughElements;
   double sum = 0;
@@ -305,8 +305,8 @@ void testRegular2DMean(ComputeInterface* compute)
 {
   logComputeMessage("Testing regular 2D mean:");
 
-  DeviceArray<ParticleStruct> particles(compute, NULL, true);
-  DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
+  DeviceArray<ParticleStruct> particles(compute, NULL);
+  DeviceArray<PartitionInfo>  partitions(compute, NULL);
 
   uint width = 83;
   const uint parts = 625;
@@ -376,10 +376,10 @@ void testIrregular2DMean(ComputeInterface* compute)
 {
   logComputeMessage("Testing irregular 2D mean:");
 
-  DeviceArray<ParticleStruct> particlesIn(compute, NULL, true);
-  DeviceArray<ParticleStruct> particles(compute, NULL, true);
-  DeviceArray<PartitionInfo>  partitions(compute, NULL, true);
-  DeviceArray<uint>           partitionCount(compute, NULL, true);
+  DeviceArray<ParticleStruct> particlesIn(compute, NULL);
+  DeviceArray<ParticleStruct> particles(compute, NULL);
+  DeviceArray<PartitionInfo>  partitions(compute, NULL);
+  DeviceArray<uint>           partitionCount(compute, NULL);
 
   uint width = 125;
   const uint parts = 2000;
@@ -559,8 +559,8 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 {
   logComputeMessage("Testing 1D prefix scan:");
 
-  DeviceArray<DataType> data(compute, NULL, true);
-  DeviceArray<DataType> backupData(compute, NULL, false);
+  DeviceArray<DataType> data(compute, NULL);
+  DeviceArray<DataType> backupData(compute, NULL);
   vector<DataType> prefixSum;
 
   const int elements = roughElements;
@@ -632,9 +632,9 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
 {
   logComputeMessage("Testing 1D compaction pass:");
 
-  DeviceArray<DataType> count(compute, NULL, true);
-  DeviceArray<DataType> compactIndexArray(compute, NULL, true);
-  DeviceArray<DataType> selectionArray(compute, NULL, true);
+  DeviceArray<DataType> count(compute, NULL);
+  DeviceArray<DataType> compactIndexArray(compute, NULL);
+  DeviceArray<DataType> selectionArray(compute, NULL);
   vector<uint> statusOutput;
 
   const int elements = roughElements;
@@ -756,8 +756,8 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
 {
   logComputeMessage("Testing 1D radix sort:");
 
-  DeviceArray<SortNode32> destination(compute, NULL, true);
-  DeviceArray<SortNode32> data(compute, NULL, true);
+  DeviceArray<SortNode32> destination(compute, NULL);
+  DeviceArray<SortNode32> data(compute, NULL);
   vector<SortNode32> sortedData;
   const int elements = 12345678;// 1024 * 1024 * 4;
 

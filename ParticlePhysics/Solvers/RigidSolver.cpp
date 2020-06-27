@@ -17,11 +17,7 @@ RigidSolver::RigidSolver(ComputeInterface* compute, SharedAllocator* allocator)
   iterations = 1;
   create(compute);
 
-#ifdef DEBUG_RIGID_SOLVER
-  covarianceMatrix.create(compute, NULL, true);
-#else
-  covarianceMatrix.create(compute, NULL, false);
-#endif
+  covarianceMatrix.create(compute, NULL);
 }
 
 void RigidSolver::create(ComputeInterface* compute)

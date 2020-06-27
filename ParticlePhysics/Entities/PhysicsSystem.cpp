@@ -39,7 +39,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   allocators.clear();
   updates.clear();
   elapsedSimTime = 0.f;
-  frameCount = 0;
+  frameCount = 1;
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -62,7 +62,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   kernels.push_back(programs[0].createKernel("endStep"));
   kernels.push_back(programs[0].createKernel("integrateDifferentiateStep"));
 
-  systemSettings.create(compute, NULL, true);
+  systemSettings.create(compute, NULL);
   systemSettings.resize(1, false);
   systemSettings.host()->resize(1);
   systemSettings.host()->at(0).systemBound.min = Real3(-20.f, 0.f, -20.f);
@@ -78,7 +78,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 
   systemSettings.syncDevice();
 
-  indexMap.create(compute, NULL, true);
+  indexMap.create(compute, NULL);
 
   // create memory heap allocators for the system
   if (!allocators.size())
@@ -387,6 +387,8 @@ void PhysicsSystem::step()
     frameText += temp;
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
+
+    memoryManager.dealloc();
   }
 #endif
 
@@ -993,7 +995,7 @@ void PhysicsSystem::step(float timeStep)
       const vector<ParticleStruct>& hostParticles = *(rigidSolver->particles.host());
 
       DeviceArray<ParticleStruct> particles(compute);
-      DeviceArray<ParticleCouplingData> particleCouplingData(compute, NULL, true);
+      DeviceArray<ParticleCouplingData> particleCouplingData(compute, NULL);
       DeviceArray<ParticleCollisionData> particleCollisionData(compute);
 
       for (int entityId=0; entityId<rigidSolver->entityLocations.host()->size(); entityId++)
