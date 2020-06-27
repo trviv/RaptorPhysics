@@ -61,7 +61,6 @@ void FluidSolverPCISPH::solve(float timeStep)
 
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextPosition.device(), particleCount * 4);
   ComputeUtil::get(0)->clearBuffer(compute, particlesNextVelocity.device(), particleCount * 4);
-  ComputeUtil::get(0)->clearBuffer(compute, particleForce.device(), particleCount * 4);
   ComputeUtil::get(0)->clearBuffer(compute, particlesPressure.device(), particleCount);
 
   constructGrid();
@@ -181,6 +180,7 @@ void FluidSolverPCISPH::solve(float timeStep)
     compute->sync();
 #endif
 
+    if (systemNonFluidParticleCount)
     {
       size_t workgroupSize[3], workgroupCount[3];
       compute->configureSize(workgroupSize, workgroupCount, systemNonFluidParticleCount);
