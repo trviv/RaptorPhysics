@@ -39,7 +39,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   allocators.clear();
   updates.clear();
   elapsedSimTime = 0.f;
-  frameCount = 1;
+  frameCount = 0;
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
@@ -387,7 +387,9 @@ void PhysicsSystem::step()
     frameText += temp;
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
-
+  }
+  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == (GUI_REFRESH_AFTER_FRAMES-1))
+  {
     memoryManager.dealloc();
   }
 #endif
