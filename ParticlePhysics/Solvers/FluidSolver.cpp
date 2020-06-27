@@ -26,19 +26,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
     create(compute);
   }
 
-  particlesDensity.create(compute, solverHeap, true);
-#ifdef DEBUG_FLUID_SOLVER
-  particlesLambda.create(compute, solverHeap, true);
-  particlesTemp[0].create(compute, solverHeap, true);
-  particlesTemp[1].create(compute, solverHeap, true);
-  boundaryGridParticleCellIndex.create(compute, solverHeap, true);
-  boundaryGridCellParticleIndices.create(compute, solverHeap, true);
-  boundaryGridCellParticleCount.create(compute, solverHeap, true);
-  boundaryParticlePositions.create(compute, solverHeap, true);
-  boundaryParticleDifferential.create(compute, solverHeap, true);
-  boundaryGridParticleSystemIndex.create(compute, solverHeap, true);
-  boundaryParticleCouplingData.create(compute, solverHeap, true);
-#else
+  particlesDensity.create(compute, solverHeap);
   particlesLambda.create(compute, solverHeap);
   particlesTemp[0].create(compute, solverHeap);
   particlesTemp[1].create(compute, solverHeap);
@@ -49,7 +37,6 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
   boundaryParticleDifferential.create(compute, solverHeap);
   boundaryGridParticleSystemIndex.create(compute, solverHeap);
   boundaryParticleCouplingData.create(compute, solverHeap);
-#endif
 }
 
 void FluidSolver::create(ComputeInterface* compute)

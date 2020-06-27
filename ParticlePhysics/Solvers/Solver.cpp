@@ -10,37 +10,32 @@ template<class IndexType, class CoefficientType, class VariableType>
 EntitySolver<IndexType, CoefficientType, VariableType>::EntitySolver(ComputeInterface* compute, SharedAllocator* allocator, SolverType type) :
   Solver(compute, allocator), SolverData<IndexType, CoefficientType, VariableType>(), type(type)
 {
-  this->constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS), true);
-  this->constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES), true);
-  this->constrainCoefficients.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_COEFFICIENTS), true);
-  this->constrainConstants.create(compute, NULL, true);
-  this->constrainVariableAux[0].create(compute, NULL, false);
-  this->constrainVariableAux[1].create(compute, NULL, false);
+  this->constrainHeaders.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_HEADERS));
+  this->constrainIndices.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_INDICES));
+  this->constrainCoefficients.create(compute, allocator->getHeap(COMPUTE_HEAP_CONSTRAIN_COEFFICIENTS));
+  this->constrainConstants.create(compute, NULL);
+  this->constrainVariableAux[0].create(compute, NULL);
+  this->constrainVariableAux[1].create(compute, NULL);
 
-  this->entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED), true);
+  this->entitySharedData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_SHARED));
 
-  this->particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE), true);
-  this->particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED), true);
-  this->particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF), false);
-  this->particleForce.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE), false);
-  this->particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID), true);
+  this->particles.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE));
+  this->particlesPredicted.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED));
+  this->particleDifferential.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF));
+  this->particleForce.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE));
+  this->particleRigidData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_RIGID));
 
-#ifdef DEBUG_SOLVERS
-  this->particlesTemp[0].create(compute, NULL, true);
-  this->particlesTemp[1].create(compute, NULL, true);
-#else
-  this->particlesTemp[0].create(compute, NULL, false);
-  this->particlesTemp[1].create(compute, NULL, false);
-#endif
+  this->particlesTemp[0].create(compute, NULL);
+  this->particlesTemp[1].create(compute, NULL);
 
-  this->particleCollisionData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION), true);
-  this->particleCouplingData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COUPLING), true);
+  this->particleCollisionData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COLLISION));
+  this->particleCouplingData.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_COUPLING));
 
-  this->partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS), true);
-  this->partitionsCount.create(compute, NULL, true);
+  this->partitions.create(compute, allocator->getHeap(COMPUTE_HEAP_PARTITIONS));
+  this->partitionsCount.create(compute, NULL);
   this->partitionsCount.host()->reserve(1);
   this->partitionsCount.host()->resize(1);
-  this->entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS), true);
+  this->entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS));
 
   this->iterations = 1;
 
@@ -133,16 +128,6 @@ void EntitySolver<IndexType, CoefficientType, VariableType>::update()
   this->updates.clear();
 
   compute->sync();
-
-  // remove host data
-  this->constrainHeaders.purgeHost();
-  this->constrainConstants.purgeHost();
-  this->constrainIndices.purgeHost();
-  this->constrainCoefficients.purgeHost();
-  this->particlesPredicted.purgeHost();
-  this->particleCouplingData.purgeHost();
-  this->partitions.syncDevice();
-  this->partitionsCount.purgeHost();
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

@@ -1,20 +1,19 @@
 #ifndef DEVICE_ARRAY_H
 #define DEVICE_ARRAY_H
 
-#include "ComputeShared.h"
+#include "MemoryManager.h"
 
 /*!
 @class Class to allocate a device array of a specific type.
 */
-template<class ClassType> class DeviceArray
+template<class ClassType> class DeviceArray : MemoryManaged
 {
   ComputeHeap*        heap;
   ComputeMemory*      deviceBuffer; //pointer to device memory
   ComputeInterface*   compute;
-  vector<ClassType>*  hostBuffer;   //host memory
-  uint  elements;                   //the number of elements allocated
+  mutable vector<ClassType>*  hostBuffer; //host memory
+  uint  elements; //the number of elements allocated
   uint  allocated;
-  bool  shared;                     //if the array is shared
 
   void allocDevice()
   {
@@ -32,6 +31,16 @@ template<class ClassType> class DeviceArray
     }
   }
 
+  void freeManaged()const
+  {
+    if (hostBuffer)
+    {
+      hostBuffer->clear();
+      delete hostBuffer;
+      hostBuffer = NULL;
+    }
+  }
+
 public:
 
   DeviceArray()
@@ -42,13 +51,11 @@ public:
     hostBuffer = NULL;
     elements = 0;
     allocated = 0;
-    shared = false;
   }
 
-  DeviceArray(ComputeInterface* compute, ComputeHeap* heap = NULL, bool shared = false)
-    : DeviceArray()
+  DeviceArray(ComputeInterface* compute, ComputeHeap* heap = NULL) : DeviceArray()
   {
-    create(compute, heap, shared);
+    create(compute, heap);
   }
 
   DeviceArray(const DeviceArray& ref)
@@ -56,7 +63,7 @@ public:
     logComputeError("Copying device array is not defined yet!");
   }
 
-  void create(ComputeInterface* compute, ComputeHeap* heap = NULL, bool shared = false)
+  void create(ComputeInterface* compute, ComputeHeap* heap = NULL)
   {
     free();
     deviceBuffer = NULL;
@@ -65,12 +72,6 @@ public:
     allocated = 0;
     this->compute = compute;
     this->heap = heap ? heap : (compute ? &compute->heap : NULL);
-    this->shared = shared;
-
-    if (shared)
-    {
-      hostBuffer = new vector<ClassType>();
-    }
   }
 
   //free device memory while destroying object
@@ -143,21 +144,13 @@ public:
   void free()
   {
     freeDevice();
-    if (hostBuffer)
-    {
-      delete hostBuffer;
-      hostBuffer = NULL;
-    }
+    freeManaged();
     elements = 0;
     allocated = 0;
   }
 
   void syncHost(size_t hostOffset = 0, size_t elements = 0, size_t deviceOffset = 0)
   {
-    if (!hostBuffer)
-    {
-      logComputeError("Device array does not have a host buffer!");
-    }
     if (!elements)
     {
       elements = this->elements;
@@ -167,7 +160,7 @@ public:
       logComputeError("Device array is empty!");
     }
 
-    if (hostBuffer->size() < (hostOffset + elements))
+    if (host()->size() < (hostOffset + elements))
     {
       hostBuffer->resize(hostOffset + elements);
     }
@@ -210,11 +203,29 @@ public:
 
   vector<ClassType>* host()
   {
+    if (!hostBuffer)
+    {
+      hostBuffer = (vector<ClassType>*)memoryManager.alloc(this, sizeof(vector<ClassType>));
+      new (hostBuffer) vector<ClassType>();
+    }
+    else
+    {
+      memoryManager.hit(this);
+    }
     return hostBuffer;
   }
 
   const vector<ClassType>* host()const
   {
+    if (!hostBuffer)
+    {
+      hostBuffer = (vector<ClassType>*)memoryManager.alloc(this, sizeof(vector<ClassType>));
+      new (hostBuffer) vector<ClassType>();
+    }
+    else
+    {
+      memoryManager.hit(this);
+    }
     return hostBuffer;
   }
 
@@ -226,13 +237,6 @@ public:
   const ComputeMemory* device()const
   {
     return deviceBuffer;
-  }
-
-  void purgeHost()
-  {
-    hostBuffer->clear();
-    delete hostBuffer;
-    hostBuffer = NULL;
   }
 };
 

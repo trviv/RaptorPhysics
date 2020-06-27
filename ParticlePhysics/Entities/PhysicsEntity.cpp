@@ -2,11 +2,11 @@
 
 PhysicsEntity::PhysicsEntity()
 {
-  constrainConstants.create(NULL, NULL, true);
-  entitySharedData.create(NULL, NULL, true);
-  particleRigidData.create(NULL, NULL, true);
-  particleCollisionData.create(NULL, NULL, true);
-  particleCouplingData.create(NULL, NULL, true);
+  constrainConstants.create(NULL, NULL);
+  entitySharedData.create(NULL, NULL);
+  particleRigidData.create(NULL, NULL);
+  particleCollisionData.create(NULL, NULL);
+  particleCouplingData.create(NULL, NULL);
 
   solver = SOLVER_NULL;
 
