@@ -219,7 +219,10 @@ void FluidSolverPCISPH::solve(float timeStep)
 
 void FluidSolverPCISPH::update()
 {
+  const bool updateRequired = updates.size();
   FluidSolver::update();
+
+  if (!updateRequired) return;
 
   for (auto& esd : *entitySharedData.host())
   {
