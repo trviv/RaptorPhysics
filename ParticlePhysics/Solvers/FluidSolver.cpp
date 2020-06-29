@@ -80,8 +80,10 @@ void FluidSolver::updateRadius()
 
 float FluidSolver::calculateGradientConstant(const ParticleSharedData& entitySharedData)const
 {
+  // TODO: Find proper way of calculating prototype neighborhood, right now it has to be made dense for fluid to work
+  const float scale = 8;
   // create prototype neighbourhood
-  int kernelFactor = entitySharedData.fluidSolverData.fluidKernelRadius / (2.f * entitySharedData.sharedRadius);
+  int kernelFactor = scale * ceil(entitySharedData.fluidSolverData.fluidKernelRadius / entitySharedData.sharedRadius);
   vector<Real3> neighbourParticles;
   neighbourParticles.reserve((2*kernelFactor+1) * (2*kernelFactor+1) * (2*kernelFactor+1));
   for (int i=-kernelFactor; i<=kernelFactor; i++)
@@ -90,7 +92,7 @@ float FluidSolver::calculateGradientConstant(const ParticleSharedData& entitySha
     {
       for (int k=-kernelFactor; k<=kernelFactor; k++)
       {
-        neighbourParticles.push_back(Real3(i, j, k));
+        neighbourParticles.push_back(Real3(i, j, k) / scale);
       }
     }
   }
@@ -100,8 +102,11 @@ float FluidSolver::calculateGradientConstant(const ParticleSharedData& entitySha
   for (const auto& position : neighbourParticles)
   {
     const Real3 collisionVector = position * 2.f * entitySharedData.sharedRadius;
-    const Real3 gradient = collisionVector * spikyFunctionGradientVariable(collisionVector.length(), entitySharedData.fluidSolverData.fluidKernelRadius);
-    sumGradientMagnitude += gradient.lengthSq();
+    if (collisionVector.length() < entitySharedData.fluidSolverData.fluidKernelRadius)
+    {
+      const Real3 gradient = collisionVector * spikyFunctionGradientVariable(collisionVector.length(), entitySharedData.fluidSolverData.fluidKernelRadius);
+      sumGradientMagnitude += gradient.lengthSq();
+    }
   }
 
   return sumGradientMagnitude * mSqr(spikyFunctionConstant(entitySharedData.fluidSolverData.fluidKernelRadius));

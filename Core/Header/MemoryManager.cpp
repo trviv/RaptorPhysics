@@ -10,6 +10,7 @@ MemoryManager::MemoryManager()
 
 MemoryManager::~MemoryManager()
 {
+  dealloc();
 }
 
 void* MemoryManager::alloc(const MemoryManaged* managed, uint sizeInBytes)

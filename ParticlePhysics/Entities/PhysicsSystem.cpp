@@ -388,7 +388,7 @@ void PhysicsSystem::step()
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
   }
-  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == (GUI_REFRESH_AFTER_FRAMES-1))
+  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {
     memoryManager.dealloc();
   }

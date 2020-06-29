@@ -208,7 +208,10 @@ void FluidSolverPBF::postCollisionSolve(float timeStep)
 
 void FluidSolverPBF::update()
 {
+  const bool updateRequired = updates.size();
   FluidSolver::update();
+
+  if (!updateRequired) return;
 
   for (auto& esd : *entitySharedData.host())
   {
