@@ -82,6 +82,8 @@ public:
   */
   void init(ComputeInterface* compute, const uint maxParticles);
 
+  void initRender();
+
   /*!@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
 
