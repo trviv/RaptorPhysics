@@ -37,7 +37,7 @@ void MemoryManager::dealloc()
     }
     else
     {
-      i.second = 0;
+      i.second /= 2;
     }
   }
 

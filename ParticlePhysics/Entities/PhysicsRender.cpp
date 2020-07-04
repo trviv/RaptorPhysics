@@ -11,6 +11,7 @@
 
 #define FRAME_BUFFERING_SIZE 3
 
+static const string PAUSE_SIM_OPTION              ("Pause Sim");
 static const string RENDER_PARTICLES_OPTION       ("Particles");
 static const string RENDER_SOLIDS_OPTION          ("Solids");
 static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
@@ -20,6 +21,8 @@ static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 
 void PhysicsSystem::initRender()
 {
+  displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
+  
   addFrameOption(UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
   addFrameOption(UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
   addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true, "fa-brands-400", 0xF247));
@@ -347,7 +350,7 @@ void PhysicsSystem::render()
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
   }
-  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
+  if ((!getFrameOption(PAUSE_SIM_OPTION).boolValue) && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {
     memoryManager.dealloc();
   }
@@ -557,6 +560,15 @@ void PhysicsSystem::render()
     displayGridElements.bind();
 
     DeviceArray <uint>* gridCellParticleCount = &((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount;
+
+    const uint gridElements = (((UniformGridCollisionSolver*)collisionSolver)->gridSize * mSqr(((UniformGridCollisionSolver*)collisionSolver)->gridSize)) / 4;
+    if ((displayGridBuffer.height() * displayGridBuffer.width()) < gridElements)
+    {
+      const uint textureWidth = 128;
+      const uint textureHeight = (gridElements + textureWidth - 1) / textureWidth;
+      displayGridBuffer.init(textureWidth, textureHeight);
+      displayGridBuffer.gen();
+    }
 
     displayGridBuffer.copy((float*)&((*gridCellParticleCount->host())[0]), 0, 0, (uint)gridCellParticleCount->host()->size() / 4);
     displayGridShader.activateTexture("gridCellParticleCount", 0, displayGridBuffer);
