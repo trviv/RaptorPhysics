@@ -24,7 +24,6 @@ static uint frameCaptureEnd = 0;
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
   this->compute = compute;
-  displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
   nodeCount = 0;
   instanceNodeCount = 0;
   availableEntityIds.clear();
@@ -391,18 +390,6 @@ void PhysicsSystem::step(float timeStep)
     ComputeUtil::get(0)->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(), instanceNodeCount * sizeof(ParticleForce)/sizeof(uint), 0);
 
     updates.clear();
-
-#ifdef ENABLE_RENDERING
-    const uint textureWidth = 128;
-
-    {
-      const uint gridElements = (((UniformGridCollisionSolver*)collisionSolver)->gridSize * mSqr(((UniformGridCollisionSolver*)collisionSolver)->gridSize)) / 4;
-      const uint textureHeight = (gridElements + textureWidth - 1) / textureWidth;
-
-      displayGridBuffer.init(textureWidth, textureHeight);
-      displayGridBuffer.gen();
-    }
-#endif
 
     indexMap.resize(instanceNodeCount, false);
 

@@ -238,6 +238,7 @@ GLint getFormatForTexture(TextureFormat format)
 
 Texture::Texture(TextureFormat format):format(format)
 {
+  init(0, 0);
   bindType = GL_TEXTURE_2D;
 }
 
