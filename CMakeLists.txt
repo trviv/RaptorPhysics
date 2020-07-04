@@ -53,7 +53,7 @@ macro(GROUPFILES CURRENT_DIRECTORY)
   subdirlist(SUBDIRS ${CURRENT_DIRECTORY})
   # code to include subdirectories to the project
   foreach(SUBDIR ${SUBDIRS})
-    file(GLOB_RECURSE dir_files ${SUBDIR}/*.h ${SUBDIR}/*.cu ${SUBDIR}/*.cpp ${SUBDIR}/*.shader)
+    file(GLOB_RECURSE dir_files ${SUBDIR}/*.h ${SUBDIR}/*.cu ${SUBDIR}/*.cpp ${SUBDIR}/*.shader ${SUBDIR}/*.glsl)
     foreach(filename ${dir_files})
       # remove leading path
       string(REPLACE "${CURRENT_DIRECTORY}/${SUBDIR}/" "" first_word ${filename})
@@ -62,7 +62,7 @@ macro(GROUPFILES CURRENT_DIRECTORY)
       # remove trailing .
       string(REGEX REPLACE "[.]+.+" "" first_word ${first_word})
       # remove second word (starting with a capital letter)
-      string(REGEX REPLACE "^([A-Z]+[a-z]+)([A-Z]+[a-z]+)" "\\1" first_word ${first_word})
+      string(REGEX REPLACE "^([A-Z]+[a-z]+)([A-Z|a-z]*)" "\\1" first_word ${first_word})
       source_group(${SUBDIR}\\${first_word} FILES ${filename})
     endforeach(filename ${dir_files})
   endforeach(SUBDIR ${SUBDIRS})
@@ -99,7 +99,7 @@ endmacro(INCLUDE_ADDITIONAL_DIR ADDITIONAL_INCLUDE_DIR)
 # script for sub directories
 macro(CREATE_LIB_AND_EXE)
   file(GLOB_RECURSE SOURCES_C "*.c" "*.cpp" "*.h" "../*.xml")
-  file(GLOB_RECURSE SOURCES_S "*.shader")
+  file(GLOB_RECURSE SOURCES_S "*.shader" "*.glsl")
 
   set_source_files_properties(${SOURCES_S} PROPERTIES LANGUAGE METAL)
 
