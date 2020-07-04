@@ -395,22 +395,6 @@ void PhysicsSystem::step(float timeStep)
 #ifdef ENABLE_RENDERING
     const uint textureWidth = 128;
 
-    displayParticleVertex.gen();
-    displaySolidVertex.gen();
-    displayBoxVertex.gen();
-    displayFlatVertex.gen();
-    displayLineVertex.gen();
-    displayBackgroundVertex.gen();
-
-    displayParticleElements.gen();
-    displayBoxElements.gen();
-    displayGridElements.gen();
-
-    displayPositionBuffer.gen();
-    displayCollisionBuffer.gen();
-    displayBoxBuffer.gen();
-    displayDensityBuffer.gen();
-
     {
       const uint gridElements = (((UniformGridCollisionSolver*)collisionSolver)->gridSize * mSqr(((UniformGridCollisionSolver*)collisionSolver)->gridSize)) / 4;
       const uint textureHeight = (gridElements + textureWidth - 1) / textureWidth;
@@ -418,74 +402,6 @@ void PhysicsSystem::step(float timeStep)
       displayGridBuffer.init(textureWidth, textureHeight);
       displayGridBuffer.gen();
     }
-
-    clearColor[0] = 0.7f;
-    clearColor[1] = 0.7f;
-    clearColor[2] = 0.7f;
-    clearColor[3] = 1.0f;
-
-    displayParticleShader.init("ParticleVert.glsl", "ParticleFrag.glsl");
-    displaySolidShader.init("SolidVert.glsl", "SolidFrag.glsl");
-    displayFlatShader.init("FlatVert.glsl", "SolidFrag.glsl");
-    displayBoxShader.init("BoxVert.glsl", "PassthruFrag.glsl");
-    displayLineShader.init("LineVert.glsl", "PassthruFrag.glsl");
-    displayGridShader.init("GridVert.glsl", "PassthruFrag.glsl");
-    displayBackgroundShader.init("BGVert.glsl", "BGFrag.glsl");
-
-    displayParticleShader.linkPrograms();
-    displaySolidShader.linkPrograms();
-    displayFlatShader.linkPrograms();
-    displayBoxShader.linkPrograms();
-    displayLineShader.linkPrograms();
-    displayGridShader.linkPrograms();
-    displayBackgroundShader.linkPrograms();
-    displayBackgroundShader.bind();
-    displayBackgroundShader.set("flipY", (int)1);
-    displayBackgroundShader.set("fillScreen", (int)0);
-    displayBackgroundShader.unbind();
-    displayFlatShader.bind();
-    displayFlatShader.set("screenAligned", (int)1);
-    displayFlatShader.set("fillShader", 1.f);
-    displayFlatShader.unbind();
-
-    createSphere(1.f);
-
-    displaySolidVertex.bind();
-    GL_CHECK(glEnableVertexAttribArray(0));
-    displaySolidVertex.unbind();
-
-    createUnitCircle();
-
-    createUnitBox();
-
-    float line[] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-    displayLineVertex.copyData(line, 2, 0, 3 * sizeof(float));
-    displayLineVertex.bind();
-    displayPositionBuffer.bind();
-    GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
-    GL_CHECK(glVertexAttribDivisor(0, 1));
-    displayCollisionBuffer.bind();
-    GL_CHECK(glEnableVertexAttribArray(1));
-    GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0));
-    GL_CHECK(glVertexAttribDivisor(1, 1));
-    displayLineVertex.unbind();
-
-    float quad[] = {
-      -1.f, -1.f, 0.f, 1.f, 0.f, 0.f,
-      -1.f,  1.f, 0.f, 1.f, 0.f, 1.f,
-       1.f, -1.f, 0.f, 1.f, 1.f, 0.f,
-       1.f, -1.f, 0.f, 1.f, 1.f, 0.f,
-      -1.f,  1.f, 0.f, 1.f, 0.f, 1.f,
-       1.f,  1.f, 0.f, 1.f, 1.f, 1.f,
-    };
-    displayBackgroundVertex.copyData(quad, 6, 0, 6 * sizeof(float));
-    displayBackgroundVertex.bind();
-    GL_CHECK(glEnableVertexAttribArray(0));
-    GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
-    GL_CHECK(glEnableVertexAttribArray(1));
-    GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
-    displayBackgroundVertex.unbind();
 #endif
 
     indexMap.resize(instanceNodeCount, false);
