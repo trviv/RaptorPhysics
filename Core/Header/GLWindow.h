@@ -2,7 +2,7 @@
 #define GL_WINDOW
 
 #include "../Vector/Matrix.h"
-#include "UIElements.h"
+#include "GUI/UIFrame.h"
 #include "Animator.h"
 #include "ParameterReader.h"
 #include "ComputeGraphicsSharedTexture.h"
@@ -38,14 +38,13 @@ protected:
   Texture moveControlImageBack, moveControlImage;
   Real3 down;
 
-  // GUI Frame info related variables
-  Real3   frameTextSize;
-  string  frameText;
-
   // Dynamic GUI options
+  UIList                      uiFrames;
   Real3                       uiWindowSize;
   vector<UIElement>           uiElements;
   unordered_map<string, uint> uiElementMap;
+
+  static const int statFrameIndex = 0;
 
   float clearColor[4];
 
