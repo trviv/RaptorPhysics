@@ -312,11 +312,12 @@ void PhysicsSystem::render()
 #define GUI_REFRESH_AFTER_FRAMES 0xF
   if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
   {
-    frameText.clear();
+    UIFrame* statFrame = (UIFrame*)uiFrames[statFrameIndex];
+    statFrame->text.clear();
 
     char temp[64];
     sprintf(temp, "Particles:   %d\n", instanceNodeCount);
-    frameText += temp;
+    statFrame->text += temp;
 
     uint vertexCount = 0;
     if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
@@ -342,11 +343,11 @@ void PhysicsSystem::render()
       vertexCount += displayBoxVertex.count() * ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size();
     }
     sprintf(temp, "Vertices:    %d\n", vertexCount);
-    frameText += temp;
+    statFrame->text += temp;
     sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);
-    frameText += temp;
+    statFrame->text += temp;
     sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / GUI_REFRESH_AFTER_FRAMES);
-    frameText += temp;
+    statFrame->text += temp;
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
   }

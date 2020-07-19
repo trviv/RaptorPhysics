@@ -166,8 +166,7 @@ void Window::init(int argc, char** argv, int width, int height,
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
 
-  frameTextSize.x = 176;
-  frameTextSize.y = 128;
+  uiFrames.push_back(new UIFrame("Stat", 176, 128, 0));
 
   uiWindowSize.x = 176;
   uiWindowSize.y = 128;
@@ -249,6 +248,12 @@ void Window::init(int argc, char** argv, int width, int height,
 
 Window::~Window()
 {
+  for (int i=0; i<uiFrames.size(); i++)
+  {
+    delete uiFrames[i];
+    uiFrames[i] = NULL;
+  }
+
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
@@ -696,22 +701,22 @@ void Window::start()
 
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
 
-    ImGui::Begin("Stats", NULL, windowFlags);
-    ImGui::SetWindowSize({frameTextSize.x, frameTextSize.y});
-    ImGui::SetWindowPos({0, 16});
-    if (ImGui::IsWindowFocused())
+    char temp[32] = {NULL};
+    UIFrame* statFrame = (UIFrame*)uiFrames[statFrameIndex];
+    if (statFrame->isShrunk())
     {
-      shrinkStats = !shrinkStats;
-    }
-    if (shrinkStats)
-    {
-      ImGui::Text("%.f %s", ImGui::GetIO().Framerate, collapsedIcon.c_str());
+      sprintf(temp, "%.f %s", ImGui::GetIO().Framerate, "v");
+      statFrame->text = temp;
     }
     else
     {
-      ImGui::Text("Frame Rate:  %.f\n%s", ImGui::GetIO().Framerate, frameText.c_str());
+      if (ImStrnicmp("Frame Rate: ", statFrame->text.c_str(), sizeof("Frame Rate:")) != 0)
+      {
+        sprintf(temp, "Frame Rate:  %.f\n", ImGui::GetIO().Framerate);
+        statFrame->text = temp + statFrame->text;
+      }
     }
-    ImGui::End();
+    uiFrames.render();
 
     ImGui::Begin("Options", NULL, windowFlags);
     if (ImGui::IsWindowFocused())

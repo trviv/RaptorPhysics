@@ -91,6 +91,10 @@ UIElement::UIElement(const string& identifier, const string& text, const char* i
   displayText = getIconAsString(iconFont, iconId) + text;
 }
 
+UIElement::~UIElement()
+{
+}
+
 string UIElement::getIconAsString(const char* iconFont, ushort iconId)
 {
   string str;
@@ -104,7 +108,7 @@ string UIElement::getIconAsString(const char* iconFont, ushort iconId)
   return str;
 }
 
-void UIElement::render(uint width, uint height)
+void UIElement::render()
 {
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
@@ -116,7 +120,7 @@ void UIElement::render(uint width, uint height)
   {
     if (texture.get() != -1)
     {
-      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), height * BUTTON_ROUNDNESS_FRACTION);
+      ImGui::ImageButton((ImTextureID)texture.get(), ImVec2(0, 0), ImVec2(0, 0), ImVec2(1, 1), 0 * BUTTON_ROUNDNESS_FRACTION);
     }
     else
     {
