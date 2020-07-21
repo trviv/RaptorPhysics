@@ -72,23 +72,25 @@ float UIElement::ButtonHeight = 32;
 
 UIElement::UIElement(const string& identifier, const bool value, const char* iconFont, ushort iconId, const char* font)
 {
-  type = UI_ELEMENT_BOOL;
+  alignment = UIObject::FloatX|UIObject::FloatY;
+  type = UIElementType::Bool;
   this->identifier = identifier;
   boolValue = value;
   this->font = IOInterface::getFont(font);
-  displayText = getIconAsString(iconFont, iconId) + identifier;
+  this->text = getIconAsString(iconFont, iconId) + identifier;
 }
 
 UIElement::UIElement(const string& identifier, const string& text, const char* iconFont, ushort iconId, const char* font)
 {
-  type = UI_ELEMENT_STRING;
+  alignment = UIObject::FloatX|UIObject::FloatY;
+  type = UIElementType::String;
   this->identifier = identifier;
   if (IOInterface::checkImageExist(identifier.c_str()))
   {
     IOInterface::readImageFile(identifier.c_str(), &texture, 32, 32);
   }
   this->font = IOInterface::getFont(font);
-  displayText = getIconAsString(iconFont, iconId) + text;
+  this->text = getIconAsString(iconFont, iconId) + text;
 }
 
 UIElement::~UIElement()
@@ -112,11 +114,11 @@ void UIElement::render()
 {
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
-  if (type == UI_ELEMENT_BOOL)
+  if (type == UIElementType::Bool)
   {
-    ToggleButton(identifier.c_str(), displayText.c_str(), &boolValue, ButtonWidth, ButtonHeight);
+    ToggleButton(identifier.c_str(), text.c_str(), &boolValue, ButtonWidth, ButtonHeight);
   }
-  else if (type == UI_ELEMENT_STRING)
+  else if (type == UIElementType::String)
   {
     if (texture.get() != -1)
     {
@@ -124,7 +126,7 @@ void UIElement::render()
     }
     else
     {
-      ImGui::Button(displayText.c_str(), ImVec2(ButtonWidth, ButtonHeight));
+      ImGui::Button(text.c_str(), ImVec2(ButtonWidth, ButtonHeight));
     }
   }
   ImGui::PopStyleVar(2);

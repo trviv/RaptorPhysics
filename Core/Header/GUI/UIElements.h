@@ -3,17 +3,19 @@
 
 #include "UIList.h"
 
-enum UIElementType
-{
-  UI_ELEMENT_BOOL,
-  UI_ELEMENT_STRING
-};
-
 /*!
-@class Class holding user interface item data.
+@class Class representing user interface button.
 */
 class UIElement : public UIObject
 {
+public:
+  enum UIElementType
+  {
+    Bool,
+    String
+  };
+
+private:
   UIElementType type;
   Texture texture;
   void*   font;
@@ -26,7 +28,6 @@ public:
 
   string  identifier;
   bool    boolValue;
-  string  displayText;
 
   UIElement(const string& identifier, const bool value, const char* iconFont = NULL, ushort iconId = 0, const char* font = NULL);
 

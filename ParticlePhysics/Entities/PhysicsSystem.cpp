@@ -83,7 +83,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  addFrameOption(UIElement(PAUSE_SIM_OPTION, false, "fa-solid-900", 0xF04C));
+  optionFrame->addElement(new UIElement(PAUSE_SIM_OPTION, false, "fa-solid-900", 0xF04C));
 
   bindParameter("simulationIterations", &simulationIterations, InputParameterType::ParameterTypeInt);
   bindParameter("solverIterations", &solverIterations, InputParameterType::ParameterTypeInt);
@@ -466,7 +466,7 @@ void PhysicsSystem::step(float timeStep)
   }
 
   // skip the below steps if simulation paused
-  if (getFrameOption(PAUSE_SIM_OPTION).boolValue)
+  if (optionFrame->getElement(PAUSE_SIM_OPTION)->boolValue)
   {
     return;
   }

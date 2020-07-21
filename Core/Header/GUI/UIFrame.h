@@ -1,6 +1,7 @@
 #ifndef UIFRAME_H
 #define UIFRAME_H
 
+#include "UIList.h"
 #include "UIElements.h"
 #include <unordered_map>
 
@@ -11,7 +12,7 @@ class UIFrame : public UIObject
 {
 protected:
   unordered_map<string, uint> uiElementMap;
-  vector<UIElement> uiElements;
+  UIList  uiElements;
 
   bool    shrink;
   string  name;
@@ -19,8 +20,6 @@ protected:
   void render();
 
 public:
-  string  text;
-
   UIFrame(const string &name, float width, float height, float posX, float posY);
 
   UIFrame(const string &name, float width, float height, uint alignment);
@@ -29,9 +28,11 @@ public:
 
   ~UIFrame();
 
-  void addElement(const UIElement& option);
+  void addElement(UIElement* option);
 
-  UIElement& getElement(const string& name);
+  UIElement* getElement(const string& name);
+
+  UIList& getElements() { return uiElements;}
 
   bool isShrunk() const { return shrink;};
 };
