@@ -25,15 +25,15 @@ UIFrame::~UIFrame()
 {
 }
 
-void UIFrame::addElement(const UIElement& option)
+void UIFrame::addElement(UIElement* object)
 {
-  uiElements.push_back(option);
-  uiElementMap[option.identifier] = (uint)uiElements.size() - 1;
+  uiElements.push_back(object);
+  uiElementMap[object->identifier] = (uint)uiElements.size() - 1;
 }
 
-UIElement& UIFrame::getElement(const string& name)
+UIElement* UIFrame::getElement(const string& name)
 {
-  return uiElements[uiElementMap[name]];
+  return (UIElement*)uiElements[uiElementMap[name]];
 }
 
 void UIFrame::render()
@@ -54,6 +54,15 @@ void UIFrame::render()
   size[1] = ImGui::GetWindowSize().y;
 
   ImGui::SetWindowPos({pos[0], pos[1]});
+
+  // do not display sub elements if shrunk
+  if (!shrink)
+  {
+    for (auto i : uiElements)
+    {
+      i->render();
+    }
+  }
 
   ImGui::End();
 }

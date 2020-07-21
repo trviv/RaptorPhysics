@@ -25,6 +25,8 @@ public:
     FloatY = 0x8
   };
 
+  string  text;
+
   virtual ~UIObject() {}
 
   virtual void render() = 0;

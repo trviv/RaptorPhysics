@@ -33,31 +33,21 @@ class Window : public ParameterReader
 protected:
 
   string collapsedIcon;
-  bool shrinkStats, shrinkOptions;
   float controlWindowHeight, controlWindowSidePos, controlWindowBottomPos;
   Texture moveControlImageBack, moveControlImage;
   Real3 down;
 
-  // Dynamic GUI options
-  UIList                      uiFrames;
-  Real3                       uiWindowSize;
-  vector<UIElement>           uiElements;
-  unordered_map<string, uint> uiElementMap;
-
-  static const int statFrameIndex = 0;
+  UIList  uiFrames;
 
   float clearColor[4];
 
   float modelMatrix[16];
   float projectionMatrix[16];
 
-  void addFrameOption(const UIElement& option);
-
-  UIElement& getFrameOption(const string& name);
-
   void processOnScreenController(void* eventData, bool end);
 
 public:
+  UIFrame* statFrame, *optionFrame;
 
   virtual ~Window();
 

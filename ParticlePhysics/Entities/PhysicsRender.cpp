@@ -22,19 +22,19 @@ static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
 void PhysicsSystem::initRender()
 {
   displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
-  
-  addFrameOption(UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
-  addFrameOption(UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
-  addFrameOption(UIElement(RENDER_BOUNDING_BOXES_OPTION, true, "fa-brands-400", 0xF247));
-  addFrameOption(UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
-  addFrameOption(UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
-  addFrameOption(UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
 
-  bindParameter("renderParticlesOption", &getFrameOption(RENDER_PARTICLES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSolidsOption", &getFrameOption(RENDER_SOLIDS_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderBoundingBoxesOption", &getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSystemBoundOption", &getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderGridHeatmapOption", &getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue, InputParameterType::ParameterTypeBool);
+  optionFrame->addElement(new UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
+  optionFrame->addElement(new UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
+  optionFrame->addElement(new UIElement(RENDER_BOUNDING_BOXES_OPTION, true, "fa-brands-400", 0xF247));
+  optionFrame->addElement(new UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
+  optionFrame->addElement(new UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
+  optionFrame->addElement(new UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
+
+  bindParameter("renderParticlesOption", &optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSolidsOption", &optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderBoundingBoxesOption", &optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderSystemBoundOption", &optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
+  bindParameter("renderGridHeatmapOption", &optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
 
   elapsedRenderTime = 0.f;
 
@@ -290,17 +290,17 @@ void PhysicsSystem::render()
     }
   }
 
-  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
+  if (optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
     collisionSolver->particleGroupBoundingBoxes.syncHost();
   }
 
-  if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+  if (optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue && collisionSolver->systemBoundingBox.size())
   {
     collisionSolver->systemBoundingBox.syncHost();
   }
 
-  if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+  if (optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
   {
     ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.syncHost();
     collisionSolver->systemBoundingBox.syncHost();
@@ -312,7 +312,6 @@ void PhysicsSystem::render()
 #define GUI_REFRESH_AFTER_FRAMES 0xF
   if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
   {
-    UIFrame* statFrame = (UIFrame*)uiFrames[statFrameIndex];
     statFrame->text.clear();
 
     char temp[64];
@@ -320,25 +319,25 @@ void PhysicsSystem::render()
     statFrame->text += temp;
 
     uint vertexCount = 0;
-    if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
+    if (optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue)
     {
       vertexCount += displayParticleVertex.count() * instanceNodeCount;
       vertexCount += displayLineVertex.count() * instanceNodeCount;
     }
-    if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue)
+    if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue)
     {
       // TODO: Find a good way to find this value, ignore for now
       //vertexCount += displaySolidVertex.count();
     }
-    if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
+    if (optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue && collisionSolver->particleGroupBoundingBoxes.size())
     {
       vertexCount += displayBoxVertex.count() * collisionSolver->particleGroupBoundingBoxes.host()->size();
     }
-    if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+    if (optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue && collisionSolver->systemBoundingBox.size())
     {
       vertexCount += displayBoxVertex.count() * collisionSolver->systemBoundingBox.host()->size();
     }
-    if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+    if (optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
     {
       vertexCount += displayBoxVertex.count() * ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size();
     }
@@ -351,7 +350,7 @@ void PhysicsSystem::render()
     elapsedSimTime = 0.f;
     elapsedRenderTime = 0.f;
   }
-  if ((!getFrameOption(PAUSE_SIM_OPTION).boolValue) && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
+  if ((!optionFrame->getElement(PAUSE_SIM_OPTION)->boolValue) && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {
     memoryManager.dealloc();
   }
@@ -432,7 +431,7 @@ void PhysicsSystem::render()
       ParticleCollisionData* collisionData = &(*(solversUint[solver]->particleCollisionData.host()))[hostOffset];
       ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[hostOffset];
 
-      if (getFrameOption(RENDER_PARTICLES_OPTION).boolValue)
+      if (optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue)
       {
         GL_CHECK(glEnable(GL_CULL_FACE));
         // copy particle position and collision data for display
@@ -456,7 +455,7 @@ void PhysicsSystem::render()
         GL_CHECK(glDisable(GL_CULL_FACE));
       }
 
-      if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue && solver != SOLVER_FLUID)
+      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && solver != SOLVER_FLUID)
       {
         displaySolidShader.bind();
         displaySolidVertex.bind();
@@ -488,7 +487,7 @@ void PhysicsSystem::render()
         displaySolidShader.unbind();
       }
 
-      if (getFrameOption(RENDER_SOLIDS_OPTION).boolValue && solver == SOLVER_FLUID)
+      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && solver == SOLVER_FLUID)
       {
         displayFlatShader.bind();
         float* density = &(*(((FluidSolver*)solversUint[solver])->particlesDensity.host()))[hostOffset];
@@ -520,7 +519,7 @@ void PhysicsSystem::render()
   displayBoxVertex.bind();
   displayBoxElements.bind();
   // render boundign boxes if supplied by the colision solver
-  if (getFrameOption(RENDER_BOUNDING_BOXES_OPTION).boolValue && collisionSolver->particleGroupBoundingBoxes.size())
+  if (optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->particleGroupBoundingBoxes;
     displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
@@ -536,7 +535,7 @@ void PhysicsSystem::render()
   }
 
   // render boundign boxes if supplied by the colision solver
-  if (getFrameOption(RENDER_SYSTEM_BOUND_OPTION).boolValue && collisionSolver->systemBoundingBox.size())
+  if (optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue && collisionSolver->systemBoundingBox.size())
   {
     DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->systemBoundingBox;
     displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
@@ -554,7 +553,7 @@ void PhysicsSystem::render()
   displayBoxVertex.unbind();
   displayBoxShader.unbind();
 
-  if (getFrameOption(RENDER_GRID_HEATMAP_OPTION).boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
+  if (optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue && ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size())
   {
     displayGridShader.bind();
     displayBoxVertex.bind();

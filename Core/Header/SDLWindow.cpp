@@ -166,10 +166,10 @@ void Window::init(int argc, char** argv, int width, int height,
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
 
-  uiFrames.push_back(new UIFrame("Stat", 176, 128, 0));
-
-  uiWindowSize.x = 176;
-  uiWindowSize.y = 128;
+  statFrame = new UIFrame("Stat", 176, 128, 0);
+  optionFrame = new UIFrame("Options", 176, 128, UIFrame::Right);
+  uiFrames.push_back(statFrame);
+  uiFrames.push_back(optionFrame);
 
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
@@ -236,8 +236,6 @@ void Window::init(int argc, char** argv, int width, int height,
 
   ImGui::GetIO().Fonts->Build();
 
-  shrinkStats = false;
-  shrinkOptions = false;
   collapsedIcon = UIElement::getIconAsString("fa-solid-900", 0xF0C9);
   controlWindowHeight = 128.0f;
   controlWindowSidePos = 96.0f;
@@ -377,17 +375,6 @@ void Window::pinch(float d)
 {
   cameraForwardSpeed += d;
   cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
-}
-
-void Window::addFrameOption(const UIElement& option)
-{
-  uiElements.push_back(option);
-  uiElementMap[option.identifier] = (uint)uiElements.size() - 1;
-}
-
-UIElement& Window::getFrameOption(const string& name)
-{
-  return uiElements[uiElementMap[name]];
 }
 
 Real3 initialLeft, initialRight;
@@ -545,9 +532,9 @@ void Window::start()
       }
 
       // Frame list option can be toggled using keys 1 - frameOptionList.size()
-      if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+uiElements.size()))
+      if (event.type == SDL_KEYDOWN && event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym < (SDLK_1+optionFrame->getElements().size()))
       {
-        uiElements[event.key.keysym.sym - SDLK_1].boolValue = !uiElements[event.key.keysym.sym - SDLK_1].boolValue;
+        ((UIElement*)optionFrame->getElements()[event.key.keysym.sym - SDLK_1])->boolValue = !((UIElement*)optionFrame->getElements()[event.key.keysym.sym - SDLK_1])->boolValue;
       }
 
       switch (event.type)
@@ -702,7 +689,6 @@ void Window::start()
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
 
     char temp[32] = {NULL};
-    UIFrame* statFrame = (UIFrame*)uiFrames[statFrameIndex];
     if (statFrame->isShrunk())
     {
       sprintf(temp, "%.f %s", ImGui::GetIO().Framerate, "v");
@@ -716,31 +702,17 @@ void Window::start()
         statFrame->text = temp + statFrame->text;
       }
     }
-    uiFrames.render();
 
-    ImGui::Begin("Options", NULL, windowFlags);
-    if (ImGui::IsWindowFocused())
+    if (optionFrame->isShrunk())
     {
-      shrinkOptions = !shrinkOptions;
-    }
-    if (shrinkOptions)
-    {
-      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - ImGui::CalcTextSize(collapsedIcon.c_str()).x * 1.5f, 16});
-      ImGui::Text("%s", collapsedIcon.c_str());
+      optionFrame->text = collapsedIcon;
     }
     else
     {
-      ImGui::SetWindowSize({uiWindowSize.x, uiElements.size() * (UIElement::ButtonHeight + 4)});
-      ImGui::SetWindowPos({ImGui::GetIO().DisplaySize.x - uiWindowSize.x, 16});
-      ImGui::SetCursorPosX(uiElements[0].ButtonWidth * 0.5f);
-      ImGui::Text("%s", UIElement::getIconAsString("fa-solid-900", 0xF106).c_str());
-
-      // add toggle options
-      for (auto& option : uiElements)
-      {
-        option.render();
-      }
+      optionFrame->text = "";
     }
+
+    uiFrames.render();
 
     // remove right finger data when this window in focus
     if (ImGui::IsWindowFocused())
@@ -749,7 +721,7 @@ void Window::start()
     }
 
     // add buttons
-    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::GetCurrentContext()->CurrentWindow->GetID(getFrameOption("Reset Camera").displayText.c_str()))
+    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::FindWindowByName("Options")->GetID(optionFrame->getElement("Reset Camera")->text.c_str()))
     {
       const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
       if (animationTime == 0.f)
@@ -783,8 +755,6 @@ void Window::start()
         initialPitch = pitch;
       }
     }
-
-    ImGui::End();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     ImGui::Begin("Control", NULL, ((windowFlags ^ ImGuiWindowFlags_AlwaysAutoResize) |
