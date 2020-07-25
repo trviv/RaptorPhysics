@@ -1,5 +1,23 @@
 #include "UIList.h"
 
+UIObject::UIObject()
+{
+  pos[0] = 0.f;
+  pos[1] = 0.f;
+  size[0] = 0.f;
+  size[1] = 0.f;
+  alignment = 0;
+  fixed = false;
+}
+
+UIList::UIList()
+{
+  cornerPadding[0][0] = 0.f;
+  cornerPadding[0][1] = 0.f;
+  cornerPadding[1][0] = 0.f;
+  cornerPadding[1][1] = 0.f;
+}
+
 UIList::~UIList()
 {
   for (int i=0; i<size(); i++)
@@ -18,6 +36,7 @@ void UIList::alignByAxis(UIObject* object, int axis)
   // don't proceed if float not specified
   if ((object->alignment & alignFloat) == 0)
   {
+    object->pos[axis] += (object->alignment & alignDir) ? -cornerPadding[axis][1] : cornerPadding[axis][0];
     return;
   }
 
@@ -63,7 +82,7 @@ void UIList::render()
   for (const auto object : *this)
   {
     // if aligment option specified
-    if (object->alignment)
+    if (!object->fixed)
     {
       alignByAxis(object, 0);
       alignByAxis(object, 1);
