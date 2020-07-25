@@ -11,7 +11,7 @@ class UIObject
   friend class UIList;
 
 protected:
-  bool  refresh;
+  bool  refresh, fixed;
   float pos[2];
   float size[2];
   uint  alignment;
@@ -27,6 +27,8 @@ public:
 
   string  text;
 
+  UIObject();
+
   virtual ~UIObject() {}
 
   virtual void render() = 0;
@@ -40,6 +42,11 @@ class UIList : public vector<UIObject*>
   void alignByAxis(UIObject* object, int axis);
   
 public:
+  /*!@member Common padding applied to each object in the list. [X = 0, Y = 1][Left = Top = 0, Right = Bottom = 1]*/
+  float cornerPadding[2][2];
+
+  UIList();
+
   ~UIList();
 
   void render();

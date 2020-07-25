@@ -242,6 +242,11 @@ void Window::init(int argc, char** argv, int width, int height,
   controlWindowBottomPos = 192.0f;
   IOInterface::readImageFile("MoveControl", &moveControlImage, 96, 96);
   IOInterface::readImageFile("MoveControlBack", &moveControlImageBack, 96, 96);
+
+  uiFrames.cornerPadding[0][0] = 16.f;
+  uiFrames.cornerPadding[0][1] = 16.f;
+  uiFrames.cornerPadding[1][0] = 16.f;
+  uiFrames.cornerPadding[1][1] = 16.f;
 }
 
 Window::~Window()
@@ -691,7 +696,7 @@ void Window::start()
     char temp[32] = {NULL};
     if (statFrame->isShrunk())
     {
-      sprintf(temp, "%.f %s", ImGui::GetIO().Framerate, "v");
+      sprintf(temp, "%.f", ImGui::GetIO().Framerate);
       statFrame->text = temp;
     }
     else

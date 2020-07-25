@@ -8,14 +8,12 @@ UIFrame::UIFrame(const string &name, float width, float height, float posX, floa
   pos[1] = posY;
   size[0] = width;
   size[1] = height;
-  alignment = 0;
+  fixed = true;
 }
 
 UIFrame::UIFrame(const string &name, float width, float height, uint alignment)
   : shrink(false), name(name)
 {
-  pos[0] = 0;
-  pos[1] = 0;
   size[0] = width;
   size[1] = height;
   this->alignment = alignment;
