@@ -55,8 +55,12 @@ string getCurrentDir(void)
 bool IOInterface::checkFileExist(const char* fileName)
 {
   std::string directory = getCurrentDir();
-#if __APPLE__ && TARGET_OS_OSX
+#if __APPLE__
+#if TARGET_OS_OSX
   return access((directory + "/../Resources/" + fileName).c_str(), F_OK) != -1;
+#else
+  return access((directory + "/" + fileName).c_str(), F_OK) != -1;
+#endif
 #else
   struct stat buffer;
   return stat((directory + "/" + fileName).c_str(), &buffer) == 0;
@@ -73,8 +77,12 @@ std::string IOInterface::readFile(const char* fileName)
   std::string directory = getCurrentDir();
   std::string data;
   std::ifstream file;
-#if __APPLE__ && TARGET_OS_OSX
+#if __APPLE__
+#if TARGET_OS_OSX
   file.open(directory + "/../Resources/" + fileName, std::ios::binary);
+#else
+  file.open(directory + "/" + fileName, std::ios::binary);
+#endif
 #else
   file.open(directory + "\\" + fileName, std::ios::binary);
 #endif
