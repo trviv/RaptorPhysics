@@ -9,8 +9,8 @@ set(PROJECT_EXECUTABLE FALSE)
 #===============================================================================
 # Apple Specific
 #===============================================================================
+set(CMAKE_CXX_STANDARD 14)
 if (APPLE)
-  set(CMAKE_CXX_STANDARD 14)
   set(CMAKE_CXX_FLAGS "-x objective-c++")
 endif (APPLE)
 
@@ -148,11 +148,11 @@ macro(CREATE_LIB_AND_EXE)
   else (APPLE)
     if (PROJECT_EXECUTABLE)
       add_executable(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
+      add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
     else (PROJECT_EXECUTABLE)
       add_library(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
     endif (PROJECT_EXECUTABLE)
-    add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
 
   endif (APPLE)
 
@@ -165,16 +165,10 @@ endmacro(CREATE_LIB_AND_EXE)
 # End Macros
 #===============================================================================
 
-# include Freeglut and GLEW on Windows
 if (WIN32)
-  include_directories("External/GLEW/include/GL/")
-  link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/")
-
-  set(PROJECT_STRING Freeglut)
-  add_subdirectory(Freeglut)
-
-  set(ADDITIONAL_INCLUDE_DIR Freeglut)
-  set(ADDITIONAL_LIBRARY Freeglut glew32)
+  include_directories("${CMAKE_SOURCE_DIR}/External/GLEW/include/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/SDL2/")
+  link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x86" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x64")
+  set(ADDITIONAL_LIBRARY SDL2 SDL2main glew32 opengl32)
 endif (WIN32)
 
 # include SDL on Apple

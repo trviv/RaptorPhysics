@@ -3,8 +3,6 @@
 #define TOGGLE_ANIMATION_SPEED    25.0f
 #define BUTTON_ROUNDNESS_FRACTION 0.125f
 
-#if ENV_APPLE
-
 void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, int width, int height)
 {
   if (!*value)
@@ -131,5 +129,3 @@ void UIElement::render()
   }
   ImGui::PopStyleVar(2);
 }
-
-#endif

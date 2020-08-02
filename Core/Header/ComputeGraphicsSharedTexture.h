@@ -25,6 +25,17 @@ enum SharedTextureFormat
 
 #else
 
+#define GLContext void
+
+enum SharedTextureFormat
+{
+  SHARED_TEXTURE_FORMAT_UINT8x4,
+  SHARED_TEXTURE_FORMAT_FLOAT32,
+  SHARED_TEXTURE_FORMAT_FLOAT32x4,
+  SHARED_TEXTURE_FORMAT_FLOAT32x2,
+  SHARED_TEXTURE_FORMAT_FLOAT16x4,
+};
+
 #endif
 
 /*!

@@ -1,5 +1,5 @@
 #include <SDL2/SDL_atomic.h>
-#import "ComputeGraphicsSharedTexture.h"
+#include "ComputeGraphicsSharedTexture.h"
 
 typedef struct
 {

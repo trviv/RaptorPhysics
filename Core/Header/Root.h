@@ -33,14 +33,20 @@
 
 #if ENV_WIN
 #include <omp.h>
+#include <cctype>
 #include <dvec.h>
 #include <time.h>
 #include <conio.h>
 #include <windows.h>
+#include <intrin.h>
+#include <algorithm>
 
 #if REN_GL
+#if ENV_APPLE
 #include <glew.h>
-#include <freeglut.h>
+#else
+#include <GL/glew.h>
+#endif
 #endif
 
 
@@ -73,7 +79,6 @@
 #   error "Unknown Apple platform"
 #endif
 #endif
-
 #endif
 
 #if PREC_DOUBLE

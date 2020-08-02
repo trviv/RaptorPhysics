@@ -1,6 +1,6 @@
 #include "GLWindow.h"
 
-#if ENV_WIN
+#if ENV_WIN && 0
 
 int Window::del_time = 5;
 Window *main_window = NULL;
