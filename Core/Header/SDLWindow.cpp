@@ -1,7 +1,6 @@
 #include "GLWindow.h"
 
-#if ENV_APPLE
-
+#define NO_SDL_GLEXT
 #include <SDL2/SDL.h>
 
 int Window::del_time = 5;
@@ -133,7 +132,8 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,   8);
   SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,    8);
   SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE,   8);
-  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   32);
+  // 24 is to maintain compatiblity with older windows GPU
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   24);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
   int windowFlags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI;
@@ -806,5 +806,3 @@ ComputeGraphicsSharedTexture Window::createSharedTexture(ComputeInterface* compu
 {
   return ComputeGraphicsSharedTexture(compute, (GLContext*)SDL_GL_GetCurrentContext(), textureFormat, textureSize);
 }
-
-#endif

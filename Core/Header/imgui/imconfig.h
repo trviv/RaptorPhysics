@@ -16,7 +16,11 @@
 #define CL_SILENCE_DEPRECATION
 #define GL_SILENCE_DEPRECATION
 #define GLES_SILENCE_DEPRECATION
+#ifdef __APPLE__
 #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM <OpenGL/gl3.h>
+#else
+#define IMGUI_IMPL_OPENGL_LOADER_GLEW
+#endif
 
 //---- Define assertion handler. Defaults to calling assert().
 //#define IM_ASSERT(_EXPR)  MyAssert(_EXPR)

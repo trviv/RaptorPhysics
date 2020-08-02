@@ -15,6 +15,7 @@
 #include <OpenCL/cl_ext.h>
 #endif
 #else
+#define USE_OPENCL_COMPUTE
 #ifdef USE_MINICL
 #include <MiniCL/cl.h>
 #else

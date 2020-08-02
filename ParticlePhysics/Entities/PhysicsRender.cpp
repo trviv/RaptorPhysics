@@ -389,7 +389,8 @@ void PhysicsSystem::render()
   {
     if (displayBackgroundBuffer.getComputeTexture() == NULL)
     {
-      displayBackgroundBuffer = createSharedTexture(compute, (uint[2]){cameraInterface->width(), cameraInterface->height()}, SHARED_TEXTURE_FORMAT_UINT8x4);
+      uint cameraSize[2] = {cameraInterface->width(), cameraInterface->height()};
+      displayBackgroundBuffer = createSharedTexture(compute, cameraSize, SHARED_TEXTURE_FORMAT_UINT8x4);
       displayBackgroundShader.bind();
       displayBackgroundShader.set("frameDimensions", (float)width(), (float)height(),
                                   (float)displayBackgroundBuffer.getGraphicsTexture().width(),

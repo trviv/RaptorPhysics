@@ -28,6 +28,7 @@ string getCurrentDir(void)
   char *currentPath = new char[2048];
 #if   ENV_WIN
   int len = GetModuleFileName(NULL, currentPath, 2047);
+  const char *executablePath = currentPath;
 #elif ENV_APPLE
   currentPath[0] = NULL;
   const char *executablePath = [[[[[NSProcessInfo processInfo] arguments] objectAtIndex:0] stringByDeletingLastPathComponent] fileSystemRepresentation];
@@ -39,6 +40,7 @@ string getCurrentDir(void)
   len += 1;
 #else
   ssize_t len = ::readlink("/proc/self/exe", currentPath, 2047);
+  const char *executablePath = currentPath;
 #endif
   if (len != -1)
   {
@@ -56,7 +58,8 @@ bool IOInterface::checkFileExist(const char* fileName)
 #if __APPLE__ && TARGET_OS_OSX
   return access((directory + "/../Resources/" + fileName).c_str(), F_OK) != -1;
 #else
-  return access((directory + "/" + fileName).c_str(), F_OK) != -1;
+  struct stat buffer;
+  return stat((directory + "/" + fileName).c_str(), &buffer) == 0;
 #endif
 }
 
@@ -73,7 +76,7 @@ std::string IOInterface::readFile(const char* fileName)
 #if __APPLE__ && TARGET_OS_OSX
   file.open(directory + "/../Resources/" + fileName, std::ios::binary);
 #else
-  file.open(directory + "/" + fileName, std::ios::binary);
+  file.open(directory + "\\" + fileName, std::ios::binary);
 #endif
 
   file.seekg(0, std::ios::end);
