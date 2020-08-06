@@ -468,7 +468,7 @@ inline float3 stacklessTraverseBinaryTree(
     if (index != currentNodeIndex)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle))
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle, true))
       {
         const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
         output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,
@@ -594,7 +594,7 @@ inline float3 stackTraverseBinaryTree(
     if (currentNodeIndex != LBVH_ROOT_NODE_MARKER)
     {
       const ParticleStruct otherParticle = particlesPredictedOld[currentNodeIndex];
-      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle))
+      if (shouldCheckForCollision(solverType, index, currentNodeIndex, currentParticle, &otherParticle, true))
       {
         const ParticleDifferential otherParticleDiff = particlesDiff[currentNodeIndex];
         output += processParticleCollision(currentParticle, &selfParticleDiff, &otherParticle, &otherParticleDiff, true,

@@ -161,6 +161,14 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_MakeCurrent(sdl_window, gl_context);
   SDL_CheckError();
 
+#if ENV_WIN
+  glewExperimental = true;
+  if (glewInit() != GLEW_OK)
+  {
+    std::cout << "Glew Error..." << std::endl;
+  }
+#endif
+
   // Setup GUI
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -194,6 +202,9 @@ void Window::init(int argc, char** argv, int width, int height,
   cameraUpSpeed = 0.f;
   cameraSideSpeed = 0.f;
   cameraForwardSpeed = 0.f;
+
+  // this initial check fails on windows systems for some reason
+  glGetError();
 
   SDL_GL_GetDrawableSize(sdl_window, &width, &height);
   reshape(width, height);
