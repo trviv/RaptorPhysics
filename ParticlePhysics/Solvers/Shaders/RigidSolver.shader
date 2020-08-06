@@ -118,7 +118,7 @@ float getGamma(const Thread float* matrix2, const Thread float* matrixPtr, const
  @info Based on Computing the Polar Decomposition with Applications Nicholas J. Higham 1986
 */
 inline void rigidSolverFunction(
-  float localMatrix[9],
+  Thread float localMatrix[9],
   const Device float* matrixData,
   const uint iterations,
   uint instanceId)
@@ -164,7 +164,7 @@ Kernel void rigidSolver(
 {
   const uint index = threadIndex();
 
-  float localMatrix[9];
+  Thread float localMatrix[9];
 
   if (index < length)
   {

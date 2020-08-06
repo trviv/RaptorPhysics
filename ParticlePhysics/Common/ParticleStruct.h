@@ -140,7 +140,7 @@ typedef struct ParticleCollisionData_t ParticleCollisionData;
 inline int encodeDirection(const float3 normalizedDirection)
 {
   const int3 transformedGradientShort3 = convertInt3(constructFloat3(normalizedDirection.x, normalizedDirection.y, normalizedDirection.z) * 511.f) & 0x3FF;
-  return ((int)transformedGradientShort3[0]) | (((int)transformedGradientShort3[1]) << 10) | (((int)transformedGradientShort3[2]) << 20);
+  return transformedGradientShort3.x | (transformedGradientShort3.y << 10) | (transformedGradientShort3.z << 20);
 }
 
 inline int3 decodeDirection(const int encodedDirection)

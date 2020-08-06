@@ -94,14 +94,12 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
         setConstant(index, newPosition);
         pointPosition.push_back(newPosition);
 
-#ifdef ENABLE_RENDERING
         if ((x == 0 || x == (signedSubdivision[0] - 1)) &&
             (y == 0 || y == (signedSubdivision[1] - 1)) &&
             (z == 0 || z == (signedSubdivision[2] - 1)))
         {
           endIndices.push_back(index);
         }
-#endif
 
         /*if ((normal[0] == normal[1]) && (normal[0] == normal[2]) && (normal[0] == 0))
         {

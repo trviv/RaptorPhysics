@@ -60,7 +60,7 @@
 #define atomicAddShared(location, value)  atomic_add((Shared uint*)location, value)
 #define atomicAddSignedShared(location, value)  atomic_add((Shared int*)location, value)
 #define atomicCmpXchgShared(location, existingValue, desiredValue) \
-  ((existingValue == atomic_cmpxchg((Shared uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoad(location) | true))
+  ((existingValue == atomic_cmpxchg((Shared uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoadShared(location) | true))
 
 #define KERNEL_GLOBAL_ARGUMENTS
 #define KERNEL_THREAD_ARGUMENTS

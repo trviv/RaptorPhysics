@@ -90,7 +90,9 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   bindParameter("frameCaptureStart", &frameCaptureStart, InputParameterType::ParameterTypeInt);
   bindParameter("frameCaptureEnd", &frameCaptureEnd, InputParameterType::ParameterTypeInt);
 
+#ifdef ENABLE_RENDERING
   initRender();
+#endif
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -282,7 +284,9 @@ void PhysicsSystem::step()
   }
 
   elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
+#ifdef ENABLE_RENDERING
   elapsedRenderTime += renderTime;
+#endif
 
   physicsSystemClock.reset();
 }

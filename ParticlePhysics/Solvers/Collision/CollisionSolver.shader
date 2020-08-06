@@ -66,10 +66,10 @@ inline void atomicAddFloat3(Device float3 *destination, const float3 value)
   for (short i=0; i<3; i++, uintDestination++)
   {
     uint existingValue = atomicLoad(uintDestination);
-    float desiredValue = value[i] + asFloat(existingValue);
+    float desiredValue = ((const Thread float*)&value)[i] + asFloat(existingValue);
     while (!atomicCmpXchg(uintDestination, existingValue, desiredValue))
     {
-      desiredValue = value[i] + asFloat(existingValue);
+      desiredValue = ((const Thread float*)&value)[i] + asFloat(existingValue);
     }
   }
 }
@@ -88,10 +88,10 @@ inline void atomicAddFloat3Shared(Shared float3 *destination, const float3 value
   for (short i=0; i<3; i++, uintDestination++)
   {
     uint existingValue = atomicLoadShared(uintDestination);
-    float desiredValue = value[i] + asFloat(existingValue);
+    float desiredValue = ((const Thread float*)&value)[i] + asFloat(existingValue);
     while (!atomicCmpXchgShared(uintDestination, existingValue, desiredValue))
     {
-      desiredValue = value[i] + asFloat(existingValue);
+      desiredValue = ((const Thread float*)&value)[i] + asFloat(existingValue);
     }
   }
 }
@@ -226,7 +226,7 @@ inline float3 boundaryCollision(
 }
 
 // function to check if objects are eligible for collision
-inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle, const bool differentCell = true)
+inline bool shouldCheckForCollision(const short solverType, const uint selfParticleIndex, const uint otherParticleIndex, const Thread ParticleStruct* selfParticle, const Thread ParticleStruct* otherParticle, const bool differentCell)
 {
 #if defined(GRID_COLLISION_SOLVE_PAIR_ONCE) && !defined(GRID_COLLISION_SOLVER_SCATTER_PARTICLES)
   return ((solverType == SOLVER_FLUID) || (solverType == SOLVER_CLOTH) || (otherParticle->identity.identity != selfParticle->identity.identity)) && (differentCell || (otherParticleIndex < selfParticleIndex));
