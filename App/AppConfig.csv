@@ -13,3 +13,20 @@ simulationIterations, 3
 solverIterations, 1
 frameCaptureStart, 0
 frameCaptureEnd, 0
+
+fluidEntities, 1
+fluidDimension, 1.6f, 10.0f, 1.6f
+fluidRadius, 0.04f
+fluidKernelRadius, 0.16f
+
+rigidEntities, 0
+rigidInstances, 1
+rigidDimension, 2.0f, 2.0f, 2.0f
+rigidSimSize, 2.0f
+rigidKernelRadius, 0.16f
+
+clothEntities, 0
+clothInstances, 1
+clothSubdivision, 12, 24
+clothDimension, 2.f, 4.f, 2.f
+clothSimSize, 2.f

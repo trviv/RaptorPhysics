@@ -35,7 +35,7 @@ public:
 
   ~UIElement();
 
-  void render();
+  bool render();
 };
 
 #endif

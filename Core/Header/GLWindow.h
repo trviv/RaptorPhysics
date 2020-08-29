@@ -38,6 +38,7 @@ protected:
   Real3 down;
 
   UIList  uiFrames;
+  int     forceRefreshUICount;
 
   float clearColor[4];
 

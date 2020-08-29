@@ -3,7 +3,7 @@
 #define TOGGLE_ANIMATION_SPEED    25.0f
 #define BUTTON_ROUNDNESS_FRACTION 0.125f
 
-void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, int width, int height)
+void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, int width, int height, bool& changed)
 {
   if (!*value)
   {
@@ -20,13 +20,14 @@ void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, i
 
   if (ImGui::Button(text, ImVec2(UIElement::ButtonWidth, UIElement::ButtonHeight)))
   {
+    changed = true;
     *value = !*value;
   }
 
   ImGui::PopStyleColor(4);
 }
 
-void ToggleButton2(const char* buttonIdentifier, bool* value, int width, int height)
+void ToggleButton2(const char* buttonIdentifier, bool* value, int width, int height, bool& changed)
 {
   ImVec2 position = ImGui::GetCursorScreenPos();
 
@@ -34,6 +35,7 @@ void ToggleButton2(const char* buttonIdentifier, bool* value, int width, int hei
   ImGui::InvisibleButton(buttonIdentifier, ImVec2(width, height));
   if (ImGui::IsItemClicked())
   {
+    changed = true;
     *value = !*value;
   }
 
@@ -108,13 +110,14 @@ string UIElement::getIconAsString(const char* iconFont, ushort iconId)
   return str;
 }
 
-void UIElement::render()
+bool UIElement::render()
 {
+  bool changed = false;
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
   if (type == UIElementType::Bool)
   {
-    ToggleButton(identifier.c_str(), text.c_str(), &boolValue, ButtonWidth, ButtonHeight);
+    ToggleButton(identifier.c_str(), text.c_str(), &boolValue, ButtonWidth, ButtonHeight, changed);
   }
   else if (type == UIElementType::String)
   {
@@ -128,4 +131,5 @@ void UIElement::render()
     }
   }
   ImGui::PopStyleVar(2);
+  return changed;
 }

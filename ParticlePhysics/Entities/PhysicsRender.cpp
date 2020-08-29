@@ -10,6 +10,7 @@
 #include "../Solvers/Collision/LBVHSolver.h"
 
 #define FRAME_BUFFERING_SIZE 3
+#define GUI_REFRESH_AFTER_FRAMES 0xF
 
 static const string PAUSE_SIM_OPTION              ("Pause Sim");
 static const string RENDER_PARTICLES_OPTION       ("Particles");
@@ -309,8 +310,7 @@ void PhysicsSystem::render()
   compute->sync(false);
 
   // Display frame info
-#define GUI_REFRESH_AFTER_FRAMES 0xF
-  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
+  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0 || forceRefreshUICount)
   {
     statFrame->text.clear();
 
@@ -343,12 +343,18 @@ void PhysicsSystem::render()
     }
     sprintf(temp, "Vertices:    %d\n", vertexCount);
     statFrame->text += temp;
-    sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / GUI_REFRESH_AFTER_FRAMES);
+    sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / (((frameCount-1) & GUI_REFRESH_AFTER_FRAMES) + 1));
     statFrame->text += temp;
-    sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / GUI_REFRESH_AFTER_FRAMES);
+    sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / (((frameCount-1) & GUI_REFRESH_AFTER_FRAMES) + 1));
     statFrame->text += temp;
-    elapsedSimTime = 0.f;
-    elapsedRenderTime = 0.f;
+
+    // only clear if triggered by refresh cycle and not force UI count
+    if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
+    {
+      elapsedSimTime = 0.f;
+      elapsedRenderTime = 0.f;
+    }
+    forceRefreshUICount = max(forceRefreshUICount - 1, 0);
   }
   if ((!optionFrame->getElement(PAUSE_SIM_OPTION)->boolValue) && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {

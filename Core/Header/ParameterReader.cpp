@@ -63,6 +63,14 @@ int ParameterReader::getParamAsInt(const string param, const int index)const
   return atoi(getParamAsString(param, index).c_str());
 }
 
+Int2 ParameterReader::getParamAsInt2(const string param)const
+{
+  vector<int> ret(2);
+  ret[0] = atoi(getParamAsString(param, 0).c_str());
+  ret[1] = atoi(getParamAsString(param, 1).c_str());
+  return ret;
+}
+
 float ParameterReader::getParamAsFloat(const string param, const int index)const
 {
   return atof(getParamAsString(param, index).c_str());

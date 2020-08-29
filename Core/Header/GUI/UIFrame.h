@@ -17,7 +17,7 @@ protected:
   bool    shrink;
   string  name;
 
-  void render();
+  bool render();
 
 public:
   UIFrame(const string &name, float width, float height, float posX, float posY);

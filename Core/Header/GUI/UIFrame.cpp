@@ -34,8 +34,9 @@ UIElement* UIFrame::getElement(const string& name)
   return (UIElement*)uiElements[uiElementMap[name]];
 }
 
-void UIFrame::render()
+bool UIFrame::render()
 {
+  bool changed = false;
   ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
 
   ImGui::Begin(name.c_str(), NULL, windowFlags);
@@ -44,6 +45,7 @@ void UIFrame::render()
   if (ImGui::IsWindowFocused())
   {
     shrink = !shrink;
+    changed = true;
   }
 
   ImGui::Text("%s", text.c_str());
@@ -58,9 +60,10 @@ void UIFrame::render()
   {
     for (auto i : uiElements)
     {
-      i->render();
+      changed |= i->render();
     }
   }
 
   ImGui::End();
+  return changed;
 }
