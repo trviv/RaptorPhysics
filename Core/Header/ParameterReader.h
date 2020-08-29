@@ -16,6 +16,8 @@ enum InputParameterType
   ParameterTypeMax
 };
 
+typedef vector<int> Int2;
+
 /*!
 @class Class to read and retain parameteres from a file.
 */
@@ -35,6 +37,8 @@ public:
   bool getParamAsBool(const string param, const int index = 0)const;
 
   int getParamAsInt(const string param, const int index = 0)const;
+
+  Int2 getParamAsInt2(const string param)const;
 
   float getParamAsFloat(const string param, const int index = 0)const;
 

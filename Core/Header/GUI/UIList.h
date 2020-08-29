@@ -11,7 +11,7 @@ class UIObject
   friend class UIList;
 
 protected:
-  bool  refresh, fixed;
+  bool  fixed;
   float pos[2];
   float size[2];
   uint  alignment;
@@ -31,7 +31,7 @@ public:
 
   virtual ~UIObject() {}
 
-  virtual void render() = 0;
+  virtual bool render() = 0;
 };
 
 /*!
@@ -49,7 +49,7 @@ public:
 
   ~UIList();
 
-  void render();
+  bool render();
 };
 
 #endif

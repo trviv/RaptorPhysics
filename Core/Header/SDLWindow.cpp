@@ -258,6 +258,8 @@ void Window::init(int argc, char** argv, int width, int height,
   uiFrames.cornerPadding[0][1] = 16.f;
   uiFrames.cornerPadding[1][0] = 16.f;
   uiFrames.cornerPadding[1][1] = 16.f;
+
+  forceRefreshUICount = 0;
 }
 
 Window::~Window()
@@ -728,7 +730,10 @@ void Window::start()
       optionFrame->text = "";
     }
 
-    uiFrames.render();
+    if (uiFrames.render())
+    {
+      forceRefreshUICount = 2;
+    }
 
     // remove right finger data when this window in focus
     if (ImGui::IsWindowFocused())

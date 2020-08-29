@@ -76,8 +76,9 @@ void UIList::alignByAxis(UIObject* object, int axis)
   }
 }
 
-void UIList::render()
+bool UIList::render()
 {
+  bool changed = false;
   // loop to render all objects in the list
   for (const auto object : *this)
   {
@@ -87,6 +88,7 @@ void UIList::render()
       alignByAxis(object, 0);
       alignByAxis(object, 1);
     }
-    object->render();
+    changed |= object->render();
   }
+  return changed;
 }
