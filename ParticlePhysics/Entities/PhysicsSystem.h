@@ -5,6 +5,14 @@
 #include "PhysicsEntity.h"
 #include "../Solvers/Collision/CollisionSolver.h"
 
+const extern string PAUSE_SIM_OPTION;
+const extern string RENDER_PARTICLES_OPTION;
+const extern string RENDER_SOLIDS_OPTION;
+const extern string RENDER_BOUNDING_BOXES_OPTION;
+const extern string RENDER_SYSTEM_BOUND_OPTION;
+const extern string RENDER_GRID_HEATMAP_OPTION;
+const extern string RENDER_RESET_CAMERA_OPTION;
+
 /*!
 @class Class representing a system simulating physical entities.
 */
@@ -73,6 +81,12 @@ class PhysicsSystem : protected ShaderEntity, public Window
   /*!@function Perform integration step.*/
   void integrate(float timeStep);
 
+  int simulationIterations;
+  int solverIterations;
+  uint frameCaptureStart;
+  uint frameCaptureEnd;
+
+  friend class ReaderScene;
 public:
 
   /*!

@@ -12,13 +12,13 @@
 #define FRAME_BUFFERING_SIZE 3
 #define GUI_REFRESH_AFTER_FRAMES 0xF
 
-static const string PAUSE_SIM_OPTION              ("Pause Sim");
-static const string RENDER_PARTICLES_OPTION       ("Particles");
-static const string RENDER_SOLIDS_OPTION          ("Solids");
-static const string RENDER_BOUNDING_BOXES_OPTION  ("Bounding Boxes");
-static const string RENDER_SYSTEM_BOUND_OPTION    ("Scene Box");
-static const string RENDER_GRID_HEATMAP_OPTION    ("Grid Heatmap");
-static const string RENDER_RESET_CAMERA_OPTION    ("Reset Camera");
+const string PAUSE_SIM_OPTION              = "Pause Sim";
+const string RENDER_PARTICLES_OPTION       = "Particles";
+const string RENDER_SOLIDS_OPTION          = "Solids";
+const string RENDER_BOUNDING_BOXES_OPTION  = "Bounding Boxes";
+const string RENDER_SYSTEM_BOUND_OPTION    = "Scene Box";
+const string RENDER_GRID_HEATMAP_OPTION    = "Grid Heatmap";
+const string RENDER_RESET_CAMERA_OPTION    = "Reset Camera";
 
 void PhysicsSystem::initRender()
 {
@@ -30,12 +30,6 @@ void PhysicsSystem::initRender()
   optionFrame->addElement(new UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
   optionFrame->addElement(new UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
   optionFrame->addElement(new UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
-
-  bindParameter("renderParticlesOption", &optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSolidsOption", &optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderBoundingBoxesOption", &optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderSystemBoundOption", &optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
-  bindParameter("renderGridHeatmapOption", &optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue, InputParameterType::ParameterTypeBool);
 
   elapsedRenderTime = 0.f;
 

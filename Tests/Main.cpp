@@ -69,26 +69,6 @@ cons.commit(entityLocation);
 cons.solve();
 }*/
 
-
-void testCSVReader()
-{
-  ParameterReader reader;
-  reader.readCSVFile("TestCSV.csv");
-  assert(string("abc") == reader.getParamAsString("param1"));
-  assert(123 == reader.getParamAsInt("param2"));
-  assert(2 == reader.getParamAsInt("param3", 1));
-
-  int preReadParam = 0;
-  int postReadParam = 0;
-  ParameterReader reader2;
-  reader2.bindParameter("preReadParam", &preReadParam, ParameterTypeInt);
-  reader2.readCSVFile("TestCSV.csv");
-  assert(preReadParam == 1);
-
-  reader2.bindParameter("postReadParam", &postReadParam, ParameterTypeInt);
-  assert(postReadParam == 2);
-}
-
 void testBandwidthRW(ComputeInterface* compute)
 {
   logComputeMessage("Read/Write bandwidth test:");
@@ -842,7 +822,6 @@ int main(int argc, char** argv)
   compute = new ComputeInterface();
   compute->create();
 
-  testCSVReader();
   testBandwidthRW(compute);
   testCustomBandwidthRW(compute);
   testSetBuffer(compute);

@@ -13,13 +13,7 @@
 //#define DEBUG_PHYSICS_SYSTEM
 #define PHYSICS_SYSTEM_SINGLE_UPDATE
 
-static const string PAUSE_SIM_OPTION  ("Pause Sim");
-
 static Clock physicsSystemClock;
-static int simulationIterations = 1;
-static int solverIterations = 1;
-static uint frameCaptureStart = 0;
-static uint frameCaptureEnd = 0;
 
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
@@ -85,10 +79,10 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 
   optionFrame->addElement(new UIElement(PAUSE_SIM_OPTION, false, "fa-solid-900", 0xF04C));
 
-  bindParameter("simulationIterations", &simulationIterations, InputParameterType::ParameterTypeInt);
-  bindParameter("solverIterations", &solverIterations, InputParameterType::ParameterTypeInt);
-  bindParameter("frameCaptureStart", &frameCaptureStart, InputParameterType::ParameterTypeInt);
-  bindParameter("frameCaptureEnd", &frameCaptureEnd, InputParameterType::ParameterTypeInt);
+  simulationIterations = 1;
+  solverIterations = 1;
+  frameCaptureStart = 0;
+  frameCaptureEnd = 0;
 
 #ifdef ENABLE_RENDERING
   initRender();
@@ -462,7 +456,7 @@ void PhysicsSystem::step(float timeStep)
   if (down.length() > 0.f)
   {
     down.normalize();
-    down *= this->getParamAsFloat3("gravity").length();
+    down *= Real3(systemSettings.host()->at(0).gravity).length();
 
     // disable orientation with frame capture
     if (!frameCaptureStart)

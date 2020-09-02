@@ -5,7 +5,7 @@ Fluid::Fluid()
   solver = SOLVER_FLUID;
 }
 
-void Fluid::initFluid(const real dimensions[], real particleRadius, const real mass, float kernelRadius)
+void Fluid::initFluid(const real dimensions[], real particleRadius, const real mass, const real kernelRadius)
 {
   uint subdivision[3];
   const int density = 1;

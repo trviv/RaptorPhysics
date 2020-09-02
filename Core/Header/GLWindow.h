@@ -4,11 +4,12 @@
 #include "../Vector/Matrix.h"
 #include "GUI/UIFrame.h"
 #include "Animator.h"
-#include "ParameterReader.h"
 #include "ComputeGraphicsSharedTexture.h"
 
-class Window : public ParameterReader
+class Window
 {
+  friend class ReaderScene;
+  
   int win_width;
   int win_height;
 
