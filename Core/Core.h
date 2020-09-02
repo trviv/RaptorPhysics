@@ -11,10 +11,11 @@
 #include "Header/ShaderEntity.h"
 #include "Header/ComputeShared.h"
 #include "Header/ComputeUtils.h"
-#include "Header/ParameterReader.h"
 
 #include "Header/GLClass.h"
 #include "Header/GLWindow.h"
+
+#include "Header/tinyxml/tinyxml2.h"
 
 #include "Vector/Real3.h"
 #include "Vector/Matrix.h"

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scene>
+  <settings>
+    <physics max-memory="131072">
+      <bound-min xyz="-4.f, -2.f, -4.f"/>
+      <bound-max xyz="4.f, 0.f, 4.f"/>
+      <gravity xyz="0.f, -9.8f, 0.f"/>
+      <simulation-iterations value="3"/>
+      <solver-iterations value="1"/>
+      <frame-capture-start value="0"/>
+      <frame-capture-end value="0"/>
+    </physics>
+    <rendering width="1280" height="1080">
+      <render-particles-option value="false"/>
+      <render-solids-option value="true"/>
+      <render-bounding-boxes-option value="false"/>
+      <render-system-bound-option value="false"/>
+      <render-grid-heatmap-option value="true"/>
+      <reset-camera-up xyz="0.0f, 1.0f, 0.0f"/>
+      <reset-camera-front xyz="0.577350f, -0.577350f, -0.577350f"/>
+      <reset-camera-position xyz="-10.0f, 10.0f, 10.0f"/>
+    </rendering>
+  </settings>
+  
+  <entities>
+    <!-- <cloth id="cloth1">
+      <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f"/>
+    </cloth> -->
+    <!-- <rigidbody id="cube1">
+      <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f"/>
+    </rigidbody> -->
+    <fluid id="fluid1">
+      <shape type="cuboid" dim="1.6f, 10.0f, 1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
+    </fluid>
+  </entities>
+
+  <instances>
+    <!-- <cloth1 count="1">
+      <transform>
+        <translate xyz="0.f, 1.f, -1.f"/>
+        <rotate xyz="0.f, 1.f, -1.f"/>
+        <scale xyz="1.f, 1.f, 1.f"/>
+      </transform>
+    </cloth1> -->
+    <!-- <cube1 count="1">
+      <transform>
+        <translate xyz="0.f, 4.f, 1.f"/>
+      </transform>
+    </cube1> -->
+    <fluid1 count="1">
+      <transform>
+        <translate xyz="0.f, 20.f, 0.f"/>
+      </transform>
+    </fluid1>
+  </instances>
+</scene>

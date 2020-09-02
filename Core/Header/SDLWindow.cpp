@@ -219,10 +219,6 @@ void Window::init(int argc, char** argv, int width, int height,
   cameraFront = Real3(0.0f, 0.0f, -1.0f);
   cameraPosition = Real3(0.0f, 0.0f, 0.0f);
 
-  bindParameter("resetCameraUp", &cameraUp.end(), InputParameterType::ParameterTypeFloat3);
-  bindParameter("resetCameraFront", &cameraFront.end(), InputParameterType::ParameterTypeFloat3);
-  bindParameter("resetCameraPosition", &cameraPosition.end(), InputParameterType::ParameterTypeFloat3);
-
   yaw   = -M_PI_2;
   pitch = 0.0f;
 

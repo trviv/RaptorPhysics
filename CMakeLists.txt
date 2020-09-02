@@ -98,7 +98,7 @@ endmacro(INCLUDE_ADDITIONAL_DIR ADDITIONAL_INCLUDE_DIR)
 
 # script for sub directories
 macro(CREATE_LIB_AND_EXE)
-  file(GLOB_RECURSE SOURCES_C "*.c" "*.cpp" "*.h" "../*.xml")
+  file(GLOB_RECURSE SOURCES_C "*.c" "*.cpp" "*.h")
   file(GLOB_RECURSE SOURCES_S "*.shader" "*.glsl")
 
   set_source_files_properties(${SOURCES_S} PROPERTIES LANGUAGE METAL)

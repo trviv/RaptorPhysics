@@ -20,7 +20,7 @@ public:
   @param particleRadius Radius for each particle.
   @param mass Entity mass.
   */
-  void initFluid(const real dimensions[], const real particleRadius, const real mass, float kernelRadius);
+  void initFluid(const real dimensions[], const real particleRadius, const real mass, const real kernelRadius);
 };
 
 #endif
