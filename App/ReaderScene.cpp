@@ -147,6 +147,13 @@ void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physics
   physics->FirstChildElement("frame-capture-start")->QueryUnsignedAttribute("value", &physicsSystem->frameCaptureStart);
   physics->FirstChildElement("frame-capture-end")->QueryUnsignedAttribute("value", &physicsSystem->frameCaptureEnd);
 
+  if (physics->FirstChildElement("stream-max-capacity"))
+  {
+    uint sizeInBytes = 0;
+    physics->FirstChildElement("stream-max-capacity")->QueryUnsignedAttribute("value", &sizeInBytes);
+    physicsSystem->particlePositionStream.setMaxCapacity(sizeInBytes);
+  }
+
   render->FirstChildElement("render-particles-option")->QueryBoolAttribute("value", &renderer->optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue);
   render->FirstChildElement("render-solids-option")->QueryBoolAttribute("value", &renderer->optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue);
   render->FirstChildElement("render-bounding-boxes-option")->QueryBoolAttribute("value", &renderer->optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue);

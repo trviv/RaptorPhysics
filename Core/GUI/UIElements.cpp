@@ -129,7 +129,7 @@ bool UIElement::render()
   bool changed = false;
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
-  ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 32.f);
+  ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 24.f * BUTTON_ROUNDNESS_FRACTION);
 
   ImVec2 size(UIElement::ButtonWidth, UIElement::ButtonHeight);
   if (autoWidth)
@@ -154,7 +154,8 @@ bool UIElement::render()
   }
   else if (type == UIElementType::Slider)
   {
-    ImGui::SliderInt(text.c_str(), &rangeValue, range[0], range[1]);
+    ImGui::Text("");
+    ImGui::SliderInt(identifier.c_str(), &rangeValue, range[0], range[1]);
   }
   uiID = ImGui::GetItemID();
   this->size[0] = ImGui::GetItemRectSize()[0];

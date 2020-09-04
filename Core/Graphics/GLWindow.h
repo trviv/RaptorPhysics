@@ -47,7 +47,7 @@ protected:
   void processOnScreenController(void* eventData, bool end);
 
 public:
-  UIFrame* statFrame, *optionFrame, *timelineFrame;
+  UIFrame* statFrame, *optionFrame, *timeSliderFrame;
 
   virtual ~Window();
 

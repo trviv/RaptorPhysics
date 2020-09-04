@@ -348,7 +348,7 @@ void PhysicsSystem::render()
     }
     forceRefreshUICount = max(forceRefreshUICount - 1, 0);
   }
-  if (timelineFrame->isShrunk() && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
+  if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {
     memoryManager.dealloc();
   }
@@ -417,6 +417,24 @@ void PhysicsSystem::render()
   GL_CHECK(glFrontFace(GL_CW));
   GL_CHECK(glCullFace(GL_BACK));
 
+  // only when running and not paused
+  if (timeSliderFrame->isShrunk())
+  {
+    // add new entry to position stream
+    particlePositionStream.addItem(instanceNodeCount * sizeof(ParticleStruct));
+    ((UIElement*)timeSliderFrame->getElement(REPLAY_SIM_OPTION))->rangeValue = 0;
+  }
+  else
+  {
+    // set time scroll range based on recorder output when paused
+    UIElement* timeline = (UIElement*)timeSliderFrame->getElement(REPLAY_SIM_OPTION);
+    timeline->range[0] = -(particlePositionStream.size()-1);
+    timeline->range[1] = 0;
+  }
+
+  // just an easy way to keep track of particle offsets per solver
+  uint instanceStartingOffset = 0;
+
   for (uint solver = 0; solver < SOLVER_MAX; solver++)
   {
     if (solversUint[solver])
@@ -429,6 +447,18 @@ void PhysicsSystem::render()
       const uint hostOffset = (frameCount % FRAME_BUFFERING_SIZE) * elements;
       ParticleCollisionData* collisionData = &(*(solversUint[solver]->particleCollisionData.host()))[hostOffset];
       ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[hostOffset];
+
+      // only when running and not paused
+      if (timeSliderFrame->isShrunk())
+      {
+        // append data at the end of position stream
+        particlePositionStream.appendToLast(particles, elements * sizeof(ParticleStruct));
+      }
+      else
+      {
+        uint offset = ((UIElement*)timeSliderFrame->getElement(REPLAY_SIM_OPTION))->rangeValue;
+        particles = (ParticleStruct*)particlePositionStream.getItem(particlePositionStream.size() + offset - 1, instanceStartingOffset * sizeof(ParticleStruct));
+      }
 
       if (optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue)
       {
@@ -508,6 +538,8 @@ void PhysicsSystem::render()
         GL_CHECK(glDisable(GL_BLEND));
         displayFlatShader.unbind();
       }
+
+      instanceStartingOffset += elements;
     }
   }
 
@@ -585,7 +617,12 @@ void PhysicsSystem::render()
   }
 
   GL_CHECK(glDisable(GL_BLEND));
-  frameCount++;
+
+  // don't increase frame count if paused
+  if (timeSliderFrame->isShrunk())
+  {
+    frameCount++;
+  }
 }
 
 #endif

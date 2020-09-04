@@ -21,6 +21,7 @@
 
 #include "Utils/Clock.h"
 #include "Utils/Profiler.h"
+#include "Utils/MemoryStreamer.h"
 #include "Utils/tinyxml/tinyxml2.h"
 
 #endif

@@ -176,14 +176,14 @@ void Window::init(int argc, char** argv, int width, int height,
 
   statFrame = new UIFrame("Stat", 176, 128, 0);
   optionFrame = new UIFrame("Options", 176, 128, UIFrame::Right);
-  timelineFrame = new UIFrame("Timeline", 176, 128, UIFrame::Right|UIFrame::FloatX);
+  timeSliderFrame = new UIFrame("TimeSlider", 176, 128, UIFrame::Right|UIFrame::FloatX);
 
-  timelineFrame->setCompactText(UIElement::getIconAsString("fa-solid-900", 0xF04C)+"Pause");
-  timelineFrame->setCompactOptionText(UIElement::getIconAsString("fa-solid-900", 0xF04B)+"Resume Sim");
+  timeSliderFrame->setCompactText(UIElement::getIconAsString("fa-solid-900", 0xF04C)+"Pause");
+  timeSliderFrame->setCompactOptionText(UIElement::getIconAsString("fa-solid-900", 0xF04B)+"Resume Sim");
 
   uiFrames.push_back(statFrame);
   uiFrames.push_back(optionFrame);
-  uiFrames.push_back(timelineFrame);
+  uiFrames.push_back(timeSliderFrame);
 
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
