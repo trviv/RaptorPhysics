@@ -16,15 +16,17 @@ protected:
 
   bool    shrink;
   string  name;
+  string  compactText;
+  string  compactOptionText;
 
   bool render();
+
+  explicit UIFrame(const string &name, float width, float height);
 
 public:
   UIFrame(const string &name, float width, float height, float posX, float posY);
 
   UIFrame(const string &name, float width, float height, uint alignment);
-
-  UIFrame(const UIFrame &ref);
 
   ~UIFrame();
 
@@ -34,7 +36,11 @@ public:
 
   UIList& getElements() { return uiElements;}
 
-  bool isShrunk() const { return shrink;};
+  bool isShrunk() const { return shrink;}
+
+  void setCompactText(const string& compactText);
+
+  void setCompactOptionText(const string& compactOptionText);
 };
 
 #endif

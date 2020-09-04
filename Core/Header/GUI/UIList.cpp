@@ -8,6 +8,7 @@ UIObject::UIObject()
   size[1] = 0.f;
   alignment = 0;
   fixed = false;
+  uiID  = 0;
 }
 
 UIList::UIList()

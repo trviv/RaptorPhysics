@@ -12,13 +12,13 @@
 #define FRAME_BUFFERING_SIZE 3
 #define GUI_REFRESH_AFTER_FRAMES 0xF
 
-const string PAUSE_SIM_OPTION              = "Pause Sim";
-const string RENDER_PARTICLES_OPTION       = "Particles";
-const string RENDER_SOLIDS_OPTION          = "Solids";
-const string RENDER_BOUNDING_BOXES_OPTION  = "Bounding Boxes";
-const string RENDER_SYSTEM_BOUND_OPTION    = "Scene Box";
-const string RENDER_GRID_HEATMAP_OPTION    = "Grid Heatmap";
-const string RENDER_RESET_CAMERA_OPTION    = "Reset Camera";
+const string REPLAY_SIM_OPTION            = "Replay Sim";
+const string RENDER_PARTICLES_OPTION      = "Particles";
+const string RENDER_SOLIDS_OPTION         = "Solids";
+const string RENDER_BOUNDING_BOXES_OPTION = "Bounding Boxes";
+const string RENDER_SYSTEM_BOUND_OPTION   = "Scene Box";
+const string RENDER_GRID_HEATMAP_OPTION   = "Grid Heatmap";
+const string RENDER_RESET_CAMERA_OPTION   = "Reset Camera";
 
 void PhysicsSystem::initRender()
 {
@@ -306,11 +306,9 @@ void PhysicsSystem::render()
   // Display frame info
   if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0 || forceRefreshUICount)
   {
-    statFrame->text.clear();
-
     char temp[64];
     sprintf(temp, "Particles:   %d\n", instanceNodeCount);
-    statFrame->text += temp;
+    statFrame->setText(temp);
 
     uint vertexCount = 0;
     if (optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue)
@@ -336,11 +334,11 @@ void PhysicsSystem::render()
       vertexCount += displayBoxVertex.count() * ((UniformGridCollisionSolver*)collisionSolver)->gridCellParticleCount.size();
     }
     sprintf(temp, "Vertices:    %d\n", vertexCount);
-    statFrame->text += temp;
+    statFrame->setText(statFrame->getText() + temp);
     sprintf(temp, "Sim Time:    %.1f ms\n", elapsedSimTime / (((frameCount-1) & GUI_REFRESH_AFTER_FRAMES) + 1));
-    statFrame->text += temp;
+    statFrame->setText(statFrame->getText() + temp);
     sprintf(temp, "Render Time: %.1f ms\n", elapsedRenderTime / (((frameCount-1) & GUI_REFRESH_AFTER_FRAMES) + 1));
-    statFrame->text += temp;
+    statFrame->setText(statFrame->getText() + temp);
 
     // only clear if triggered by refresh cycle and not force UI count
     if ((frameCount & GUI_REFRESH_AFTER_FRAMES) == 0)
@@ -350,7 +348,7 @@ void PhysicsSystem::render()
     }
     forceRefreshUICount = max(forceRefreshUICount - 1, 0);
   }
-  if ((!optionFrame->getElement(PAUSE_SIM_OPTION)->boolValue) && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
+  if (timelineFrame->isShrunk() && (frameCount & GUI_REFRESH_AFTER_FRAMES) == GUI_REFRESH_AFTER_FRAMES)
   {
     memoryManager.dealloc();
   }

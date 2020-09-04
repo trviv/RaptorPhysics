@@ -5,7 +5,7 @@
 #include "PhysicsEntity.h"
 #include "../Solvers/Collision/CollisionSolver.h"
 
-const extern string PAUSE_SIM_OPTION;
+const extern string REPLAY_SIM_OPTION;
 const extern string RENDER_PARTICLES_OPTION;
 const extern string RENDER_SOLIDS_OPTION;
 const extern string RENDER_BOUNDING_BOXES_OPTION;

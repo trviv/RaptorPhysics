@@ -16,6 +16,9 @@ protected:
   float size[2];
   uint  alignment;
 
+  string  text;
+  uint    uiID;
+
 public:
   enum UIObjectAlign
   {
@@ -25,13 +28,19 @@ public:
     FloatY = 0x8
   };
 
-  string  text;
-
   UIObject();
 
   virtual ~UIObject() {}
 
   virtual bool render() = 0;
+
+  void setAlignment(const uint align) {alignment = align;}
+
+  uint getUIID()const { return uiID;}
+
+  void setText(const string& text) {this->text = text;}
+
+  const string& getText()const {return text;}
 };
 
 /*!
