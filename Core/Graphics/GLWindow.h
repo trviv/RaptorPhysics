@@ -1,10 +1,10 @@
 #ifndef GL_WINDOW
 #define GL_WINDOW
 
-#include "../Vector/Matrix.h"
-#include "GUI/UIFrame.h"
-#include "Animator.h"
-#include "ComputeGraphicsSharedTexture.h"
+#include <Vector/Matrix.h>
+#include <GUI/UIFrame.h>
+#include <Utils/Animator.h>
+#include <Compute/ComputeGraphicsSharedTexture.h>
 
 class Window
 {

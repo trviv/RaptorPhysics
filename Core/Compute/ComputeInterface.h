@@ -1,9 +1,8 @@
 #ifndef COMPUTE_INTERFACE_H
 #define COMPUTE_INTERFACE_H
 
-#include "Root.h"
-#include "Math.h"
-#include "IOInterface.h"
+#include <Header/Math.h>
+#include <Utils/IOInterface.h>
 
 #ifdef __APPLE__
 #import <Foundation/Foundation.h>

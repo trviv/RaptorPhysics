@@ -1,7 +1,7 @@
 #ifndef SHADER_ENTITY_H
 #define SHADER_ENTITY_H
 
-#include "ComputeInterface.h"
+#include <Compute/ComputeInterface.h>
 
 /*!
 @class Class representing an shader using entities.

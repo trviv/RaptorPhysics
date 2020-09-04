@@ -1,7 +1,7 @@
 #ifndef CAMERA_INTERFACE_H
 #define CAMERA_INTERFACE_H
 
-#include "../Header/ComputeInterface.h"
+#include <Compute/ComputeInterface.h>
 
 /*!
 @class Interface providing abstraction to access Camera.

@@ -1,7 +1,7 @@
 #ifndef ANIMATOR_H
 #define ANIMATOR_H
 
-#include "../Vector/Real3.h"
+#include <Vector/Real3.h>
 
 /*!
 @class Class to hold an object which can be moved from one point to another.

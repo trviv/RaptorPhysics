@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "../Root.h"
+#include <Header/Root.h>
 
 #ifdef __APPLE__
 #if TARGET_OS_OSX

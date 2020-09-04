@@ -1,7 +1,7 @@
 #ifndef GL_CLASS
 #define GL_CLASS
 
-#include "IOInterface.h"
+#include <Utils/IOInterface.h>
 
 static void CheckOpenGLError(const char* stmt, const char* fname, int line)
 {

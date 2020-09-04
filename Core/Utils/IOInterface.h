@@ -1,8 +1,7 @@
 #ifndef IOINTERFACE_H
 #define IOINTERFACE_H
 
-#include "Root.h"
-#include "Math.h"
+#include <Header/Math.h>
 #include <vector>
 #include <unordered_map>
 

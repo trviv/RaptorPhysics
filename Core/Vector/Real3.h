@@ -1,7 +1,7 @@
 #ifndef REAL3
 #define REAL3
 
-#include "../Header/Math.h"
+#include <Header/Math.h>
 
 enum AXIS
 {

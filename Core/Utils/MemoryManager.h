@@ -1,8 +1,8 @@
 #ifndef MEMORY_MANAGER_H
 #define MEMORY_MANAGER_H
 
-#include "ComputeShared.h"
-#include "ComputeInterface.h"
+#include <Compute/ComputeShared.h>
+#include <Compute/ComputeInterface.h>
 #include <unordered_map>
 
 /*!
