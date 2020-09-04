@@ -176,8 +176,14 @@ void Window::init(int argc, char** argv, int width, int height,
 
   statFrame = new UIFrame("Stat", 176, 128, 0);
   optionFrame = new UIFrame("Options", 176, 128, UIFrame::Right);
+  timelineFrame = new UIFrame("Timeline", 176, 128, UIFrame::Right|UIFrame::FloatX);
+
+  timelineFrame->setCompactText(UIElement::getIconAsString("fa-solid-900", 0xF04C)+"Pause");
+  timelineFrame->setCompactOptionText(UIElement::getIconAsString("fa-solid-900", 0xF04B)+"Resume Sim");
+
   uiFrames.push_back(statFrame);
   uiFrames.push_back(optionFrame);
+  uiFrames.push_back(timelineFrame);
 
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
@@ -243,7 +249,6 @@ void Window::init(int argc, char** argv, int width, int height,
 
   ImGui::GetIO().Fonts->Build();
 
-  collapsedIcon = UIElement::getIconAsString("fa-solid-900", 0xF0C9);
   controlWindowHeight = 128.0f;
   controlWindowSidePos = 96.0f;
   controlWindowBottomPos = 192.0f;
@@ -706,24 +711,15 @@ void Window::start()
     if (statFrame->isShrunk())
     {
       sprintf(temp, "%.f", ImGui::GetIO().Framerate);
-      statFrame->text = temp;
+      statFrame->setText(temp);
     }
     else
     {
-      if (ImStrnicmp("Frame Rate: ", statFrame->text.c_str(), sizeof("Frame Rate:")) != 0)
+      if (ImStrnicmp("Frame Rate: ", statFrame->getText().c_str(), sizeof("Frame Rate:")) != 0)
       {
         sprintf(temp, "Frame Rate:  %.f\n", ImGui::GetIO().Framerate);
-        statFrame->text = temp + statFrame->text;
+        statFrame->setText(temp + statFrame->getText());
       }
-    }
-
-    if (optionFrame->isShrunk())
-    {
-      optionFrame->text = collapsedIcon;
-    }
-    else
-    {
-      optionFrame->text = "";
     }
 
     if (uiFrames.render())
@@ -738,7 +734,7 @@ void Window::start()
     }
 
     // add buttons
-    if (ImGui::GetCurrentContext()->LastActiveId == ImGui::FindWindowByName("Options")->GetID(optionFrame->getElement("Reset Camera")->text.c_str()))
+    if (ImGui::GetCurrentContext()->LastActiveId == optionFrame->getElement("Reset Camera")->getUIID())
     {
       const float animationTime = ImSaturate(ImGui::GetCurrentContext()->LastActiveIdTimer * RESET_CAMERA_SPEED);
       if (animationTime == 0.f)
@@ -795,7 +791,6 @@ void Window::start()
     ImGui::End();
     ImGui::PopStyleVar(ImGuiStyleVar_WindowPadding);
 
-    ImGui::FocusWindow(NULL);
     ImGui::Render();
 
     // main work

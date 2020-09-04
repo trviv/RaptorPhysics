@@ -18,7 +18,7 @@ void ToggleButton(const char* buttonIdentifier, const char* text, bool* value, i
   ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25999999f, 0.980000019f, 0.589999974f, 0.400000006f));
   ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0599999987f, 0.980000019f, 0.529999971f, 1.f));
 
-  if (ImGui::Button(text, ImVec2(UIElement::ButtonWidth, UIElement::ButtonHeight)))
+  if (ImGui::ButtonEx(text, ImVec2(width, height), ImGuiButtonFlags_PressedOnClick))
   {
     changed = true;
     *value = !*value;
@@ -70,27 +70,41 @@ void ToggleButton2(const char* buttonIdentifier, bool* value, int width, int hei
 float UIElement::ButtonWidth = 160;
 float UIElement::ButtonHeight = 32;
 
-UIElement::UIElement(const string& identifier, const bool value, const char* iconFont, ushort iconId, const char* font)
+UIElement::UIElement(const string& identifier, const char* iconFont, ushort iconId, const char* font)
 {
   alignment = UIObject::FloatX|UIObject::FloatY;
-  type = UIElementType::Bool;
-  this->identifier = identifier;
-  boolValue = value;
-  this->font = IOInterface::getFont(font);
-  this->text = getIconAsString(iconFont, iconId) + identifier;
-}
-
-UIElement::UIElement(const string& identifier, const string& text, const char* iconFont, ushort iconId, const char* font)
-{
-  alignment = UIObject::FloatX|UIObject::FloatY;
-  type = UIElementType::String;
   this->identifier = identifier;
   if (IOInterface::checkImageExist(identifier.c_str()))
   {
     IOInterface::readImageFile(identifier.c_str(), &texture, 32, 32);
   }
   this->font = IOInterface::getFont(font);
+  this->autoWidth = false;
+}
+
+UIElement::UIElement(const string& identifier, const bool value, const char* iconFont, ushort iconId, const char* font)
+  :UIElement(identifier, iconFont, iconId, font)
+{
+  type = UIElementType::Bool;
+  this->text = getIconAsString(iconFont, iconId) + identifier;
+  boolValue = value;
+}
+
+UIElement::UIElement(const string& identifier, const string& text, const char* iconFont, ushort iconId, const char* font)
+  :UIElement(identifier, iconFont, iconId, font)
+{
+  type = UIElementType::String;
   this->text = getIconAsString(iconFont, iconId) + text;
+}
+
+UIElement::UIElement(const string& identifier, const int min, const int max, const char* iconFont, ushort iconId, const char* font)
+  :UIElement(identifier, iconFont, iconId, font)
+{
+  type = UIElementType::Slider;
+  this->text = getIconAsString(iconFont, iconId);
+  range[0] = min;
+  range[1] = max;
+  rangeValue = 0;
 }
 
 UIElement::~UIElement()
@@ -115,9 +129,17 @@ bool UIElement::render()
   bool changed = false;
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ButtonHeight * BUTTON_ROUNDNESS_FRACTION);
+  ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 32.f);
+
+  ImVec2 size(UIElement::ButtonWidth, UIElement::ButtonHeight);
+  if (autoWidth)
+  {
+    size.x = 0;
+  }
+
   if (type == UIElementType::Bool)
   {
-    ToggleButton(identifier.c_str(), text.c_str(), &boolValue, ButtonWidth, ButtonHeight, changed);
+    ToggleButton(identifier.c_str(), text.c_str(), &boolValue, size.x, size.y, changed);
   }
   else if (type == UIElementType::String)
   {
@@ -127,9 +149,20 @@ bool UIElement::render()
     }
     else
     {
-      ImGui::Button(text.c_str(), ImVec2(ButtonWidth, ButtonHeight));
+      ImGui::ButtonEx(text.c_str(), size, ImGuiButtonFlags_PressedOnClick);
     }
   }
-  ImGui::PopStyleVar(2);
+  else if (type == UIElementType::Slider)
+  {
+    ImGui::SliderInt(text.c_str(), &rangeValue, range[0], range[1]);
+  }
+  uiID = ImGui::GetItemID();
+  this->size[0] = ImGui::GetItemRectSize()[0];
+  this->size[1] = ImGui::GetItemRectSize()[1];
+
+  this->pos[0]  = ImGui::GetCursorPos()[0];
+  this->pos[1]  = ImGui::GetCursorPos()[1];
+
+  ImGui::PopStyleVar(3);
   return changed;
 }

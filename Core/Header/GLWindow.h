@@ -32,8 +32,6 @@ class Window
   float cameraForwardSpeed;
 
 protected:
-
-  string collapsedIcon;
   float controlWindowHeight, controlWindowSidePos, controlWindowBottomPos;
   Texture moveControlImageBack, moveControlImage;
   Real3 down;
@@ -49,7 +47,7 @@ protected:
   void processOnScreenController(void* eventData, bool end);
 
 public:
-  UIFrame* statFrame, *optionFrame;
+  UIFrame* statFrame, *optionFrame, *timelineFrame;
 
   virtual ~Window();
 
