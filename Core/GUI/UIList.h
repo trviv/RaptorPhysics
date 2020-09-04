@@ -1,7 +1,7 @@
 #ifndef UILIST_H
 #define UILIST_H
 
-#include "../GLClass.h"
+#include <Graphics/GLClass.h>
 
 /*!
 @class Base class for all UI objects containing common functionalities.

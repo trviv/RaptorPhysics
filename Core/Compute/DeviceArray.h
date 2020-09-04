@@ -1,7 +1,7 @@
 #ifndef DEVICE_ARRAY_H
 #define DEVICE_ARRAY_H
 
-#include "MemoryManager.h"
+#include <Utils/MemoryManager.h>
 
 /*!
 @class Class to allocate a device array of a specific type.

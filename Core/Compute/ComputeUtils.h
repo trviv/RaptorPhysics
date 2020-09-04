@@ -1,7 +1,7 @@
 #ifndef COMPUTE_UTILS_H
 #define COMPUTE_UTILS_H
 
-#include "ShaderEntity.h"
+#include <Header/ShaderEntity.h>
 #include "DeviceArray.h"
 
 enum ComputeUtilKey

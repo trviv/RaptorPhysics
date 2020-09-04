@@ -1,7 +1,7 @@
 #ifndef COMPUTE_GRAPHICS_SHARED_TEXTURE
 #define COMPUTE_GRAPHICS_SHARED_TEXTURE
 
-#include "GLClass.h"
+#include <Graphics/GLClass.h>
 #include "ComputeInterface.h"
 
 #ifdef __APPLE__

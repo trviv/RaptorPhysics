@@ -3,23 +3,24 @@
 
 #include "Header/Root.h"
 #include "Header/Math.h"
-#include "Header/Clock.h"
-#include "Header/Profiler.h"
-#include "Header/ComputeInterface.h"
-#include "Header/ComputeGraphicsSharedTexture.h"
-#include "Header/DeviceArray.h"
 #include "Header/ShaderEntity.h"
-#include "Header/ComputeShared.h"
-#include "Header/ComputeUtils.h"
 
-#include "Header/GLClass.h"
-#include "Header/GLWindow.h"
+#include "Compute/ComputeInterface.h"
+#include "Compute/DeviceArray.h"
+#include "Compute/ComputeShared.h"
+#include "Compute/ComputeUtils.h"
+#include "Compute/ComputeGraphicsSharedTexture.h"
 
-#include "Header/tinyxml/tinyxml2.h"
+#include "Device/CameraInterface.h"
 
 #include "Vector/Real3.h"
 #include "Vector/Matrix.h"
 
-#include "Device/CameraInterface.h"
+#include "Graphics/GLClass.h"
+#include "Graphics/GLWindow.h"
+
+#include "Utils/Clock.h"
+#include "Utils/Profiler.h"
+#include "Utils/tinyxml/tinyxml2.h"
 
 #endif

@@ -2,7 +2,7 @@
 #define COMPUTE_SHARED_H
 
 #ifndef COMPUTE_SHADER_SCOPE
-#include "Root.h"
+#include <Header/Root.h>
 #endif
 
 #pragma pack(push, 4)

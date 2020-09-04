@@ -1,6 +1,6 @@
-#include "GLClass.h"
+#include <Graphics/GLClass.h>
 #include "IOInterface.h"
-#include "ComputeInterface.h"
+#include <Compute/ComputeInterface.h>
 
 #include <fstream>
 #include <stdio.h>  /* defines FILENAME_MAX */
