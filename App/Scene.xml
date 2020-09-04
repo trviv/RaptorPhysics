@@ -9,6 +9,7 @@
       <solver-iterations value="1"/>
       <frame-capture-start value="0"/>
       <frame-capture-end value="0"/>
+      <stream-max-capacity value="100000000"/>
     </physics>
     <rendering width="1280" height="1080">
       <render-particles-option value="false"/>

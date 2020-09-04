@@ -86,6 +86,9 @@ class PhysicsSystem : protected ShaderEntity, public Window
   uint frameCaptureStart;
   uint frameCaptureEnd;
 
+  /*!@member Memory streamer for particle positions.*/
+  MemoryStreamer particlePositionStream;
+
   friend class ReaderScene;
 public:
 
