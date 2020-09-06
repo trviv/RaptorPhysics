@@ -121,6 +121,8 @@ bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *textu
   return true;
 }
 
+static ImWchar glyphRanges[] = {0xF000, (0xF000 + 0x3FF), 0};
+
 bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *texture, uint resizeWidth, uint resizeHeight)
 {
   int imageWidth = 0;
@@ -163,7 +165,6 @@ void* IOInterface::readFontFile(const char* font, float fontSize, void* fontConf
     const ushort offset = 0xF000;
     const string fontData = IOInterface::readFile((font+string(".ttf")).c_str());
     const ImWchar start = offset;//static_cast<ImWchar>(offset + fontDictionary.size() * 0x0400);
-    const ImWchar glyphRanges[] = {start, (ImWchar)(start + 0x3FF), 0};
 
     fontDictionary[font] = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), (int)fontData.size(), fontSize, (ImFontConfig*)fontConfig, glyphRanges);
     fontOffset[font] = start;

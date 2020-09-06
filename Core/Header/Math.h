@@ -10,7 +10,7 @@
 #define mCos(x)       cosf(x)
 #define mSin(x)       sinf(x)
 #define mSqrt(x)      sqrtf(x)
-#define mSqr(x)       (x*x)
+#define mSqr(x)       ((x)*(x))
 
 #else
 
@@ -19,7 +19,7 @@
 #define mCos(x)       cos(x)
 #define mSin(x)       sin(x)
 #define mSqrt(x)      sqrt(x)
-#define mSqr(x)       (x*x)
+#define mSqr(x)       ((x)*(x))
 
 #endif
 
