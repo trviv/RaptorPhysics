@@ -386,9 +386,6 @@ bool UIElement::render()
   this->size[0] = ImGui::GetItemRectSize()[0];
   this->size[1] = ImGui::GetItemRectSize()[1];
 
-  this->pos[0]  = ImGui::GetCursorPos()[0];
-  this->pos[1]  = ImGui::GetCursorPos()[1];
-
   ImGui::PopStyleVar(3);
   return changed;
 }

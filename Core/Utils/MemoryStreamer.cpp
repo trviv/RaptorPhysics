@@ -89,7 +89,7 @@ void MemoryStreamer::appendToLast(void* data, uint sizeInBytes)
     logComputeError("Trying to fill more data then allowed!");
   }
 
-  memcpy(&(*(allocatedMemory.back()))[0], data, sizeInBytes);
+  memcpy(&(*(allocatedMemory.back()))[lastOffset], data, sizeInBytes);
   lastOffset += sizeInBytes;
 }
 

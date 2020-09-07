@@ -80,12 +80,14 @@ bool UIFrame::render()
     ImGui::Text("%s", text.c_str());
   }
 
-  size[0] = ImGui::GetWindowSize().x;
-  size[1] = ImGui::GetWindowSize().y;
-  ImGui::SetWindowSize({size[0], size[1]});
-
+  ImGuiWindow* window = ImGui::GetCurrentWindow();
   ImGui::SetWindowPos({pos[0], pos[1]});
   ImGui::End();
+
+  ImVec2 windowSize = ImGui::CalcWindowExpectedSize(window);
+  size[0] = windowSize.x;
+  size[1] = windowSize.y;
+
   return changed;
 }
 
