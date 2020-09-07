@@ -11,6 +11,19 @@ UIObject::UIObject()
   uiID  = 0;
 }
 
+bool UIObject::overlap(const UIObject* other)const
+{
+  // If one rectangle is on left side of other or
+  // If one rectangle is above other
+  if ((this->pos[0] >= (other->pos[0]+other->size[0]) || other->pos[0] >= (this->pos[0]+this->size[0])) ||
+      (this->pos[1] >= (other->pos[1]+other->size[1]) || other->pos[1] >= (this->pos[1]+this->size[1])))
+  {
+    return false;
+  }
+
+  return true;
+}
+
 UIList::UIList()
 {
   cornerPadding[0][0] = 0.f;
@@ -52,7 +65,7 @@ void UIList::alignByAxis(UIObject* object, int axis)
         break;
 
       float j = i->pos[axis] - object->size[axis];
-      if (j < object->pos[axis])
+      if (j < object->pos[axis] && i->overlap(object))
       {
         object->pos[axis] = j;
       }
@@ -69,7 +82,7 @@ void UIList::alignByAxis(UIObject* object, int axis)
         break;
 
       float j = i->pos[axis] + i->size[axis];
-      if (j > object->pos[axis])
+      if (j > object->pos[axis] && i->overlap(object))
       {
         object->pos[axis] = j;
       }

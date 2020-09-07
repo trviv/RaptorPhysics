@@ -175,11 +175,11 @@ void Window::init(int argc, char** argv, int width, int height,
   ImGui::StyleColorsDark();
 
   statFrame = new UIFrame("Stat", 176, 128, 0);
-  optionFrame = new UIFrame("Options", 176, 128, UIFrame::Right);
-  timeSliderFrame = new UIFrame("TimeSlider", 176, 128, UIFrame::Right|UIFrame::FloatX);
+  optionFrame = new UIFrame("Options", 176, 128, UIFrame::Right|UIFrame::FloatX);
+  timeSliderFrame = new UIFrame("TimeSlider", 176, 128, UIFrame::Bottom|UIFrame::Right|UIFrame::FloatX);
 
-  timeSliderFrame->setCompactText(UIElement::getIconAsString("fa-solid-900", 0xF04C)+"Pause");
-  timeSliderFrame->setCompactOptionText(UIElement::getIconAsString("fa-solid-900", 0xF04B)+"Resume Sim");
+  timeSliderFrame->setCompactText(UIElement::getIconAsString("fa-solid-900", 0xF04C)+"Pause ");
+  timeSliderFrame->setCompactOptionText(UIElement::getIconAsString("fa-solid-900", 0xF04B)+"Resume Sim ");
 
   uiFrames.push_back(statFrame);
   uiFrames.push_back(optionFrame);
