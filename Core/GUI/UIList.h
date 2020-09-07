@@ -36,11 +36,13 @@ public:
 
   void setAlignment(const uint align) {alignment = align;}
 
-  uint getUIID()const { return uiID;}
+  uint getUIID()const {return uiID;}
 
   void setText(const string& text) {this->text = text;}
 
   const string& getText()const {return text;}
+
+  bool overlap(const UIObject* other)const;
 };
 
 /*!

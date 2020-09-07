@@ -380,6 +380,7 @@ bool UIElement::render()
     ImGui::Text("");
     ImGui::SliderInt(identifier.c_str(), &rangeValue, range[0], range[1]);
 //    CircularDial(identifier.c_str(), &rangeValue, range[0], range[1], 4);
+    ImGui::Text("");
   }
   uiID = ImGui::GetItemID();
   this->size[0] = ImGui::GetItemRectSize()[0];
