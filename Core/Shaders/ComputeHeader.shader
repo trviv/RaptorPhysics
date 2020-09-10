@@ -8,6 +8,7 @@
 #define sharedMemKernelInput(type, variableName, index) Shared type *variableName
 
 #define threadIndex()       get_global_id(0)
+#define threadIndexN(dim)   get_global_id(dim)
 #define threadLocalIndex()  get_local_id(0)
 #define threadGroupSize()   get_local_size(0)
 #define threadGroupIndex()  get_group_id(0)
@@ -83,6 +84,7 @@
 #define sharedMemKernelInput(type, variableName, index) Shared type *variableName[[ threadgroup(index) ]]
 
 #define threadIndex()       thread_position_in_grid[0]
+#define threadIndexN(dim)   thread_position_in_grid[dim]
 #define threadLocalIndex()  thread_index_in_threadgroup
 #define threadGroupSize()   threads_per_threadgroup[0]
 #define threadGroupIndex()  threadgroup_position_in_grid[0]

@@ -52,44 +52,44 @@
     <true/>
   </dict>
   <key>UTExportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.source-code</string>
-			</array>
-			<key>UTTypeIdentifier</key>
-			<string>org.vivekprojects.shader</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>shader</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.source-code</string>
-			</array>
-			<key>UTTypeIdentifier</key>
-			<string>org.vivekprojects.shader</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>shader</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
+  <array>
+    <dict>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.source-code</string>
+      </array>
+      <key>UTTypeIdentifier</key>
+      <string>org.vivekprojects.shader</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>shader</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.source-code</string>
+      </array>
+      <key>UTTypeIdentifier</key>
+      <string>org.vivekprojects.shader</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>shader</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
   <key>NSCameraUsageDescription</key>
-	<string>App uses the camera to take photos and video.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>App uses the microphone to record sound during live photos and movies.</string>
+  <string>App uses the camera to take photos and video.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>App uses the microphone to record sound during live photos and movies.</string>
 </dict>
 </plist>

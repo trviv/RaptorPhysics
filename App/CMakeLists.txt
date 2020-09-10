@@ -31,6 +31,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/Reduce.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/ComplexReduce.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../Core/Shaders/RadixSort.shader"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Common/RayTracingStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene.xml"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/DefaultFont.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-solid-900.ttf"
