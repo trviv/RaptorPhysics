@@ -68,7 +68,7 @@ Kernel void integrateDifferentiateStep(
 
 Kernel void startStep(
   const Device ParticleStruct*        particles,
-  Device ParticleStruct*            	particlesPredicted,
+  Device ParticleStruct*              particlesPredicted,
   Device ParticleDifferential*        particleDiff,
   const Device ParticleSharedData*    particleSharedData,
   const Device ParticleCollisionData* particleCollisionData,

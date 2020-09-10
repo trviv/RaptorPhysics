@@ -260,8 +260,13 @@ if (APPLE)
 
 endif (APPLE)
 
-set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} ParticlePhysics)
+set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} RayTracing)
 set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} Core)
+set(PROJECT_STRING RayTracing)
+add_subdirectory(RayTracing)
+
+set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} ParticlePhysics)
+set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} RayTracing)
 set(PROJECT_STRING ParticlePhysics)
 add_subdirectory(ParticlePhysics)
 
