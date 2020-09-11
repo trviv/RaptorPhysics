@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include <Common/RayTracingStruct.h>
-#include <Entity/RayTracingEntity.h>
+#include <Entities/RayTracingEntity.h>
 
 /*!
 @class Base class for camera, implementing pinhole camera.
@@ -13,7 +13,7 @@ class CameraSimple : public CameraStruct, public RayTracingEntity
 
 protected:
 
-  uint  width, height;
+  float scale;
   uint  samples;        // samples per pixel
   real  nearPlane;
 
@@ -24,18 +24,18 @@ protected:
   // Function to calculate differentials for different axis and setup ray origin
   void calculateDelta(Real3& origin);
 
+  void update();
+
 public:
 
   CameraSimple(ComputeInterface* compute);
 
   ~CameraSimple();
 
-  void update();
+  /*!@function Update camera struct values using these window based values.*/
+  virtual void update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront);
 
-  /*!@function Sample a ray at this coordinate.*/
-  Ray sampleCamera(const Real3& screenCoordinates)const;
-
-  virtual void emitPrimaryRays(DeviceArray<Ray>* rays);
+  virtual void emitPrimaryRays(DeviceArray<Ray>& rays);
 };
 
 
@@ -54,7 +54,11 @@ public:
 
   CameraDepth(ComputeInterface* compute);
 
-  void update();
+  ~CameraDepth();
+
+  virtual void update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront);
+
+  virtual void emitPrimaryRays(DeviceArray<Ray>& rays);
 };
 
 #endif

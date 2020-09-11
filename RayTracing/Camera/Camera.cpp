@@ -3,6 +3,7 @@
 CameraSimple::CameraSimple(ComputeInterface* compute)
   :RayTracingEntity(RayTracingEntityCamera, compute)
 {
+  scale = 1.f;
   samples = 1;
   buffer = NULL;
 
@@ -62,21 +63,46 @@ void CameraSimple::calculateDelta(Real3& origin)
 
 void CameraSimple::update()
 {
-  Real3(origin).setNull();
-  // get origin and set differentials
-  calculateDelta(origin);
+  logComputeError("Camera update without arguments is not supported!");
 }
 
-Ray CameraSimple::sampleCamera(const Real3& screenCoordinates)const
+void CameraSimple::update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront)
 {
-  Ray worldRay;
-  worldRay.origin = origin;
-  worldRay.direction = Real3(topLeft) + Real3(deltaX) * width * screenCoordinates[0] + Real3(deltaY) * height * screenCoordinates[1] - origin;
-  Real3(worldRay.direction).normalize();
-  return worldRay;
+  const real w = width, h = height;
+
+  Real3 cross = cameraFront.cross(cameraUp);
+  cross.normalize();
+
+  if (h < w)
+  {
+    this->topLeft = cross - (w / h) * cameraUp;
+  }
+  else
+  {
+    this->topLeft = cross * (h / w) - cameraUp;
+  }
+
+  this->origin = origin;
+  this->deltaX = cameraUp;
+  this->deltaY = cross;
 }
 
-void CameraSimple::emitPrimaryRays(DeviceArray<Ray>* rays)
+void CameraSimple::emitPrimaryRays(DeviceArray<Ray>& rays)
 {
-  
+  rays.resize(width * height, false);
+
+  { // get count for each grid cell
+    size_t workgroupSize[3], workgroupCount[3];
+    uint size[3] = {width, height, 1};
+    compute->configureSize(workgroupSize, workgroupCount, size);
+
+    ComputeMemory* buffers[] = {
+      rays.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    kernels[0].setArgs(buffers, bufferCount);
+    kernels[0].setArg<CameraStruct>(this, bufferCount);
+
+    compute->execute(kernels[0], workgroupSize, workgroupCount);
+  }
 }

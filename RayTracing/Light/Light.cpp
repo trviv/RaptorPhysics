@@ -3,5 +3,5 @@
 Light::Light()
   :RayTracingEntity(RayTracingEntityLight)
 {
-  color.setNull();
+  Real3(color).setNull();
 }

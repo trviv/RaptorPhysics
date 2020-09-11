@@ -20,7 +20,7 @@ ComputeHeap* RayTracingAllocator::getHeap(RayTracingHeapEnum type)
 }
 
 RayTracingEntity::RayTracingEntity(RayTracingEntityType type, ComputeInterface* compute)
-  :type(type), compute(compute)
+  :compute(compute), type(type)
 {
   affine.setIdentity();
 }

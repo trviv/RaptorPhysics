@@ -15,7 +15,7 @@
 // value used to render the image should use a different independent dimension 'd',
 // and each sample (frame) should use a different index 'i'. To decorrelate each
 // pixel, a random offset can be applied to 'i'.
-float halton(Const* primes, uint i, uint d)
+float halton(Const uint* primes, uint i, uint d)
 {
   uint b = primes[d];
 
@@ -44,10 +44,7 @@ struct Ray_t
 {
   union
   {
-    struct
-    {
-      float3  origin;
-    };
+    float3  origin;
     struct
     {
       uint    reserved[3];
@@ -57,10 +54,7 @@ struct Ray_t
 
   union
   {
-    struct
-    {
-      float3  direction;
-    };
+    float3  direction;
     struct
     {
       uint    reserved1[3];
@@ -78,10 +72,7 @@ struct CameraStruct_t
 {
   union
   {
-    struct
-    {
-      float3  deltaX;  // shift in x axis per pixel
-    };
+    float3  deltaX;  // shift in x axis per pixel
     struct
     {
       uint    reserved1[3];
@@ -90,10 +81,7 @@ struct CameraStruct_t
   };
   union
   {
-    struct
-    {
-      float3  deltaY;  // shift in y axis per pixel
-    };
+    float3  deltaY;  // shift in y axis per pixel
     struct
     {
       uint    reserved2[3];
@@ -116,6 +104,18 @@ struct LightStruct_t
 };
 
 typedef struct LightStruct_t LightStruct;
+
+
+/*!
+@struct Hit Info containing distance information.
+*/
+struct HitInfoDistance_t
+{
+  uint  primitiveIndex;
+  float distance;
+};
+
+typedef struct HitInfoDistance_t HitInfoDistance;
 
 #pragma pack(pop)
 

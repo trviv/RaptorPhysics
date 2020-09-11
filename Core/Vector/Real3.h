@@ -366,8 +366,6 @@ static Real3 operator*(const real& val1, const Real3& val2)
   return Real3(val2)*val1;
 }
 
-typedef Real3 Color3;
-
 float3::operator Real3&()const
 {
   return *((Real3*)&x);

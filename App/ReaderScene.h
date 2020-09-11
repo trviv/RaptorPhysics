@@ -11,7 +11,7 @@ class ReaderScene : public Reader
   unordered_map<string, PhysicsEntityId>  registeredEntities;
 
   /*!@function Read settings for physics and renderer.*/
-  void readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* settings);
+  void readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, XMLElement* settings);
 
   /*!@function Read entities in the scene.*/
   void readEntities(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* entities);
@@ -24,7 +24,7 @@ class ReaderScene : public Reader
 
 public:
 
-  bool readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, const char fileName[]);
+  bool readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, const char fileName[]);
 };
 
 #endif
