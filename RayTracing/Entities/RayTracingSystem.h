@@ -1,13 +1,14 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include <Core.h>
 #include <Light/Light.h>
 #include <Camera/Camera.h>
 
 /*!
-@class Class representng a scene.
+@class Class representing a ray tracing system.
 */
-class Scene : protected ShaderEntity
+class RayTracingSystem : protected ShaderEntity
 {
   friend class ReaderScene;
 
@@ -22,15 +23,20 @@ protected:
   /*!@member Lights in the scene.*/
   DeviceArray<LightStruct>  lights;
 
+  /*!@member Ray buffer for the scene.*/
+  DeviceArray<Ray>          rays;
+
 public:
 
-  Scene();
+  RayTracingSystem();
 
-  ~Scene();
+  ~RayTracingSystem();
 
   void init(ComputeInterface* compute);
 
   void update();
+
+  void renderParticles(Window* window, ComputeMemory* particles, uint count);
 };
 
 #endif

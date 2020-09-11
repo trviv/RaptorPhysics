@@ -1047,6 +1047,25 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   workgroupCount[2] = 1;
 }
 
+void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3])
+{
+  configureSize(workgroupSize, workgroupCount, threadCount, 1024);
+}
+
+void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3], const uint maxThreadsPerThreadgroup)
+{
+  const uint width = maxThreadsPerThreadgroup > simdSize() ? simdSize() : maxThreadsPerThreadgroup;
+  const uint height = maxThreadsPerThreadgroup / width;
+
+  workgroupSize[0] = width;
+  workgroupSize[1] = height;
+  workgroupSize[2] = 1;
+
+  workgroupCount[0] = mAlignBy(width, workgroupSize[0]);
+  workgroupCount[1] = mAlignBy(height, workgroupSize[1]);
+  workgroupCount[2] = 1;
+}
+
 void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
 {
 #ifdef USE_OPENCL_COMPUTE

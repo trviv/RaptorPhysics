@@ -102,10 +102,7 @@ struct DEFAULT_ALIGN ParticleStruct_t
 {
   union
   {
-    struct
-    {
-      float3  position;
-    };
+    float3  position;
     struct
     {
       uint          reserved[3];
@@ -264,10 +261,7 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 {
   union
   {
-    struct
-    {
-      float3  initialSdfGradient;
-    };
+    float3  initialSdfGradient;
     struct
     {
       uint    reserved1[3];
@@ -276,10 +270,7 @@ struct DEFAULT_ALIGN ParticleRigidData_t
   };
   union
   {
-    struct
-    {
-      float3  initialComOffset;
-    };
+    float3  initialComOffset;
     struct
     {
       uint    reserved2[4];
@@ -433,31 +424,6 @@ struct ALIGN(8) BVHNodeInfo_t
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
 
-
-/*!
-@struct Axis aligned bounding box data.
-*/
-struct DEFAULT_ALIGN XAB_t
-{
-  union
-  {
-    float3  min;
-    float   reserved1[4];
-  };
-  union
-  {
-    float3  max;
-    float   reserved2[4];
-  };
-};
-
-typedef struct XAB_t XAB;
-
-#define mergeXAB(a, b)  { (a)->min = min((a)->min, (b)->min); (a)->max = max((a)->max, (b)->max);}
-#define divXAB(a, b)    { (a)->min /= (*b); (a)->max /= (*b);}
-#define copyXAB(a, b)   { (a)->min = (b)->min; (a)->max = (b)->max;}
-#define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
-#define reduceXAB(o, i) { o.min = simdMin(i.min); o.max = simdMax(i.max);}
 
 #define mergeFloat(a, b)  { *a = max(*a, *b);}
 #define reduceFloat(o, i) { o = simdMax(i);}

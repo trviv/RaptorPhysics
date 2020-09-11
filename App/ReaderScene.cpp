@@ -107,12 +107,13 @@ void QueryInt3Attribute(const XMLElement* element, int value[3], const char* att
   value[2] = val[2];
 }
 
-void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* settings)
+void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, XMLElement* settings)
 {
   XMLError queryResult;
 
   XMLElement* render = settings->FirstChildElement("rendering");
   XMLElement* physics = settings->FirstChildElement("physics");
+  XMLElement* rayTracing = settings->FirstChildElement("ray-tracing");
 
   uint width = 640, height = 480;
   render->QueryUnsignedAttribute("width", &width);
@@ -163,6 +164,12 @@ void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physics
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-up"), renderer->cameraUp.end());
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-front"), renderer->cameraFront.end());
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-position"), renderer->cameraPosition.end());
+
+  if (rayTracing->FirstChildElement("simple-camera"))
+  {
+    rayTracingSystem->camera = new CameraSimple(compute);
+    rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &rayTracingSystem->camera->scale);
+  }
 }
 
 struct ShapeData
@@ -278,7 +285,7 @@ void ReaderScene::createInstances(ComputeInterface* compute, PhysicsSystem* phys
   }
 }
 
-bool ReaderScene::readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, const char fileName[])
+bool ReaderScene::readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, const char fileName[])
 {
   XMLDocument document;
   string xmlContents = IOInterface::readFile(fileName);
@@ -298,7 +305,7 @@ bool ReaderScene::readFile(ComputeInterface* compute, PhysicsSystem* physicsSyst
   }
 
   // read settings first
-  readSettings(compute, physicsSystem, renderer, scene->FirstChildElement("settings"));
+  readSettings(compute, physicsSystem, renderer, rayTracingSystem, scene->FirstChildElement("settings"));
 
   // then read entities
   readEntities(compute, physicsSystem, renderer, scene->FirstChildElement("entities"));

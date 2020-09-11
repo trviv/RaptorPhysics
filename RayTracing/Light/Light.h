@@ -2,7 +2,7 @@
 #define LIGHT_H
 
 #include <Common/RayTracingStruct.h>
-#include <Entity/RayTracingEntity.h>
+#include <Entities/RayTracingEntity.h>
 
 /*!
 @class Base class represeting a light, implementing a point light.

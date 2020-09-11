@@ -83,6 +83,10 @@ public:
   virtual void step() {};
 
   ComputeGraphicsSharedTexture createSharedTexture(ComputeInterface* compute, uint textureSize[2], SharedTextureFormat textureFormat);
+
+  const Real3& getCameraUp()const       {return cameraUp;}
+  const Real3& getCameraFront()const    {return cameraFront;}
+  const Real3& getCameraPosition()const {return cameraPosition;}
 };
 
 extern Window *main_window;

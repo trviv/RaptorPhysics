@@ -253,6 +253,10 @@ public:
 
   void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount, const uint maxThreadsPerThreadgroup);
 
+  void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3]);
+
+  void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3], const uint maxThreadsPerThreadgroup);
+
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
   void execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);

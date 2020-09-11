@@ -2,6 +2,7 @@
 #define READER
 
 #include "UnifiedPhysics.h"
+#include "RayTracing.h"
 using namespace tinyxml2;
 
 /*!
@@ -17,7 +18,7 @@ protected:
 
 public:
 
-  virtual bool readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, const char fname[]) = 0;
+  virtual bool readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, const char fname[]) = 0;
 };
 
 #endif
