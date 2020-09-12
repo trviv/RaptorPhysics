@@ -89,6 +89,4 @@ public:
   const Real3& getCameraPosition()const {return cameraPosition;}
 };
 
-extern Window *main_window;
-
 #endif

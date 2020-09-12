@@ -14,17 +14,17 @@ class PhysicsEntity : protected SolverData<uint, real, Real3>
 {
 protected:
 
-#ifdef ENABLE_RENDERING
-  Face    displayElements;
-  Face    displayEdges;
-#endif
-
   /*!@member Entity solver type.*/
   SolverType  solver;
 
   friend class PhysicsSystem;
 
 public:
+
+#ifdef ENABLE_RENDERING
+  Face displayElements;
+  Face displayEdges;
+#endif
 
   IdentityInfo identity;
 

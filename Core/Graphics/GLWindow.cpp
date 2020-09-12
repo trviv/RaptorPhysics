@@ -3,7 +3,6 @@
 #if ENV_WIN && 0
 
 int Window::del_time = 5;
-Window *main_window = NULL;
 
 #define WINDOW_MAX_TRANSLATION_RATE 1.f
 #define WINDOW_TRANSLATION_RATE     0.05f

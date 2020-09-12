@@ -149,7 +149,7 @@ public:
     allocated = 0;
   }
 
-  void syncHost(size_t hostOffset = 0, size_t elements = 0, size_t deviceOffset = 0)
+  void syncHost(size_t hostOffset = 0, size_t elements = 0, size_t deviceOffset = 0)const
   {
     if (!elements)
     {

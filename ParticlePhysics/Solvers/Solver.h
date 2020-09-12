@@ -25,7 +25,7 @@ public:
 @class Base class for all entity solvers.
 */
 template<class IndexType, class CoefficientType, class VariableType>
-class EntitySolver : virtual protected Solver, protected SolverData<IndexType, CoefficientType, VariableType>
+class EntitySolver : virtual protected Solver, public SolverData<IndexType, CoefficientType, VariableType>
 {
 protected:
 
@@ -73,5 +73,7 @@ public:
   /*!@function Get an available unique instance id.*/
   uint newEntityInstanceId()const;
 };
+
+typedef EntitySolver<uint, real, Real3> EntitySolverType;
 
 #endif

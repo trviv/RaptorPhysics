@@ -1,30 +1,34 @@
-#ifndef READER_SCENE
-#define READER_SCENE
+#ifndef READER_SCENE_H
+#define READER_SCENE_H
 
-#include "Reader.h"
+#include <UnifiedPhysics.h>
+
+using namespace tinyxml2;
+
+class MainSystem;
 
 /*!
 @class Class to read and initialize scene.
 */
-class ReaderScene : public Reader
+class ReaderScene
 {
   unordered_map<string, PhysicsEntityId>  registeredEntities;
 
   /*!@function Read settings for physics and renderer.*/
-  void readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, XMLElement* settings);
+  void readSettings(MainSystem* system, XMLElement* settings);
 
   /*!@function Read entities in the scene.*/
-  void readEntities(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* entities);
+  void readEntities(MainSystem* system, XMLElement* entities);
 
   /*!@function Instantiate entities.*/
-  void createInstances(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* instances);
+  void createInstances(MainSystem* system, XMLElement* instances);
 
   /*!@function Apply transformation by reading the element.*/
   void transform(const XMLElement* element, Matrix* matrix);
 
 public:
 
-  bool readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, const char fileName[]);
+  bool readFile(MainSystem* system, const char fileName[]);
 };
 
 #endif

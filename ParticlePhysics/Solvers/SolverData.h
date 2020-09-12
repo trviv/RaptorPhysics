@@ -63,20 +63,27 @@ protected:
 
   void addConstrain(IndexType index, IndexType connection);
 
-public:
-
   SolverData();
 
   uint nodes()const;
 
   uint connectionCount()const;
 
-  const PartitionInfo lastPartition()const;
-
   void addConnection(IndexType index, IndexType connection, CoefficientType coefficient);
 
   void setConstant(IndexType index, VariableType value);
 
+public:
+
+  const PartitionInfo lastPartition()const;
+
+  const DeviceArray<ParticleStruct>& getParticles()const {return particles;}
+
+  const DeviceArray<PartitionInfo>& getPartitions()const {return partitions;}
+
+  const DeviceArray<ParticleSharedData>& getEntitySharedData()const {return entitySharedData;}
+
+  const DeviceArray<ParticleCollisionData>& getParticleCollisionData()const {return particleCollisionData;}
 };
 
 #endif

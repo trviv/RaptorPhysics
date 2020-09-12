@@ -9,7 +9,7 @@
 /*!
 @class Class to solve fluid constraints.
 */
-class FluidSolver : public EntitySolver<uint, real, Real3>, protected UniformGridCollisionSolver
+class FluidSolver : public EntitySolverType, protected UniformGridCollisionSolver
 {
 protected:
 
@@ -83,6 +83,8 @@ public:
                                      DeviceArray<ParticleStruct> &particles,
                                      DeviceArray<ParticleCollisionData> &particleCollisionData,
                                      uint particleCount);
+
+  const DeviceArray<float>& getParticlesDensity()const {return particlesDensity;}
 };
 
 #endif

@@ -68,6 +68,9 @@ void CameraSimple::update()
 
 void CameraSimple::update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront)
 {
+  width  = ImGui::GetIO().DisplaySize.x * scale;
+  height = ImGui::GetIO().DisplaySize.y * scale;
+
   const real w = width, h = height;
 
   Real3 cross = cameraFront.cross(cameraUp);

@@ -275,7 +275,7 @@ public:
 
   void unbind()const;
 
-  void copyData(float data[], GLsizei size);
+  void copyData(const float data[], GLsizei size);
 
   void gen();
 
