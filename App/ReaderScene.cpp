@@ -1,4 +1,5 @@
 #include "ReaderScene.h"
+#include "MainSystem.h"
 #include <sstream>
 
 void QueryFloat3Attribute(const XMLElement* element, float* value, const char* attributeName="xyz")
@@ -107,8 +108,13 @@ void QueryInt3Attribute(const XMLElement* element, int value[3], const char* att
   value[2] = val[2];
 }
 
-void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, XMLElement* settings)
+void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
 {
+  Window* renderer = system;
+  ComputeInterface* compute = system->compute;
+  PhysicsSystem* physicsSystem = &system->physicsSystem;
+  RayTracingSystem* rayTracingSystem = &system->rayTracingSystem;
+
   XMLError queryResult;
 
   XMLElement* render = settings->FirstChildElement("rendering");
@@ -118,15 +124,15 @@ void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physics
   uint width = 640, height = 480;
   render->QueryUnsignedAttribute("width", &width);
   render->QueryUnsignedAttribute("height", &height);
-  main_window->init(0, NULL, width, height);
+  renderer->init(0, NULL, width, height);
 
-  uint maxMemory;
-  queryResult = physics->QueryUnsignedAttribute("max-memory", &maxMemory);
+  uint maxParticles;
+  queryResult = physics->QueryUnsignedAttribute("max-particles", &maxParticles);
   if (queryResult)
   {
     logComputeError("Physics Max Memory is required!");
   }
-  physicsSystem->init(compute, maxMemory);
+  physicsSystem->init(compute, maxParticles);
 
   if (physics->FirstChildElement("bound-min") || physics->FirstChildElement("bound-max"))
   {
@@ -145,14 +151,14 @@ void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physics
 
   physics->FirstChildElement("simulation-iterations")->QueryIntAttribute("value", &physicsSystem->simulationIterations);
   physics->FirstChildElement("solver-iterations")->QueryIntAttribute("value", &physicsSystem->solverIterations);
-  physics->FirstChildElement("frame-capture-start")->QueryUnsignedAttribute("value", &physicsSystem->frameCaptureStart);
-  physics->FirstChildElement("frame-capture-end")->QueryUnsignedAttribute("value", &physicsSystem->frameCaptureEnd);
+  physics->FirstChildElement("frame-capture-start")->QueryUnsignedAttribute("value", &system->frameCaptureStart);
+  physics->FirstChildElement("frame-capture-end")->QueryUnsignedAttribute("value", &system->frameCaptureEnd);
 
   if (physics->FirstChildElement("stream-max-capacity"))
   {
     uint sizeInBytes = 0;
     physics->FirstChildElement("stream-max-capacity")->QueryUnsignedAttribute("value", &sizeInBytes);
-    physicsSystem->particlePositionStream.setMaxCapacity(sizeInBytes);
+    system->particlePositionStream.setMaxCapacity(sizeInBytes);
   }
 
   render->FirstChildElement("render-particles-option")->QueryBoolAttribute("value", &renderer->optionFrame->getElement(RENDER_PARTICLES_OPTION)->boolValue);
@@ -162,8 +168,11 @@ void ReaderScene::readSettings(ComputeInterface* compute, PhysicsSystem* physics
   render->FirstChildElement("render-grid-heatmap-option")->QueryBoolAttribute("value", &renderer->optionFrame->getElement(RENDER_GRID_HEATMAP_OPTION)->boolValue);
 
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-up"), renderer->cameraUp.end());
+  renderer->cameraUp.begin() = renderer->cameraUp.end();
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-front"), renderer->cameraFront.end());
+  renderer->cameraFront.begin() = renderer->cameraFront.end();
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-position"), renderer->cameraPosition.end());
+  renderer->cameraPosition.begin() = renderer->cameraPosition.end();
 
   if (rayTracing->FirstChildElement("simple-camera"))
   {
@@ -205,7 +214,7 @@ ShapeData readShape(XMLConstHandle shapeHandle)
   return shape;
 }
 
-void ReaderScene::readEntities(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* entities)
+void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
 {
   for (const XMLElement* entity = entities->FirstChildElement(); entity; entity = entity->NextSiblingElement())
   {
@@ -255,11 +264,11 @@ void ReaderScene::readEntities(ComputeInterface* compute, PhysicsSystem* physics
       logComputeError("Duplicate id %s, not allowed!", identity.c_str());
     }
 
-    registeredEntities[identity] = physicsSystem->registerEntity(newEntity);
+    registeredEntities[identity] = system->physicsSystem.registerEntity(newEntity);
   }
 }
 
-void ReaderScene::createInstances(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, XMLElement* instances)
+void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
 {
   for (const XMLElement* instance = instances->FirstChildElement(); instance; instance = instance->NextSiblingElement())
   {
@@ -281,11 +290,11 @@ void ReaderScene::createInstances(ComputeInterface* compute, PhysicsSystem* phys
       matrixTransforms.push_back(matrix[TRANS]);
     }
 
-    physicsSystem->addEntityInstance(registeredEntities[identity], count, &matrixTransforms[0]);
+    system->physicsSystem.addEntityInstance(registeredEntities[identity], count, &matrixTransforms[0]);
   }
 }
 
-bool ReaderScene::readFile(ComputeInterface* compute, PhysicsSystem* physicsSystem, Window* renderer, RayTracingSystem* rayTracingSystem, const char fileName[])
+bool ReaderScene::readFile(MainSystem* system, const char fileName[])
 {
   XMLDocument document;
   string xmlContents = IOInterface::readFile(fileName);
@@ -305,13 +314,13 @@ bool ReaderScene::readFile(ComputeInterface* compute, PhysicsSystem* physicsSyst
   }
 
   // read settings first
-  readSettings(compute, physicsSystem, renderer, rayTracingSystem, scene->FirstChildElement("settings"));
+  readSettings(system, scene->FirstChildElement("settings"));
 
   // then read entities
-  readEntities(compute, physicsSystem, renderer, scene->FirstChildElement("entities"));
+  readEntities(system, scene->FirstChildElement("entities"));
 
   // then instanciate entities
-  createInstances(compute, physicsSystem, renderer, scene->FirstChildElement("instances"));
+  createInstances(system, scene->FirstChildElement("instances"));
 
   return true;
 

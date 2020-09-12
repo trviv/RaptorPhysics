@@ -13,8 +13,6 @@
 //#define DEBUG_PHYSICS_SYSTEM
 #define PHYSICS_SYSTEM_SINGLE_UPDATE
 
-static Clock physicsSystemClock;
-
 void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
 {
   this->compute = compute;
@@ -23,17 +21,12 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   availableEntityIds.clear();
   allocators.clear();
   updates.clear();
-  elapsedSimTime = 0.f;
-  frameCount = 0;
 
   for (uint i = 0; i < SOLVER_MAX; i++)
   {
     entities[i].clear();
     solversUshort[i] = NULL;
     solversUint[i] = NULL;
-#ifdef ENABLE_RENDERING
-    solverParticleRadius[i].clear();
-#endif
   }
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -77,16 +70,8 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
     collisionSolver->init();
   }
 
-  timeSliderFrame->addElement(new UIElement(REPLAY_SIM_OPTION, 0, 0, "fa-solid-900"));
-
   simulationIterations = 1;
   solverIterations = 1;
-  frameCaptureStart = 0;
-  frameCaptureEnd = 0;
-
-#ifdef ENABLE_RENDERING
-  initRender();
-#endif
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -103,7 +88,32 @@ PhysicsSystem::~PhysicsSystem()
   delete collisionSolver;
 }
 
-void* PhysicsSystem::getSolver(SolverType type)
+uint PhysicsSystem::particleCount()const
+{
+  return instanceNodeCount;
+}
+
+const CollisionSolver* PhysicsSystem::getCollisionSolver()const
+{
+  return collisionSolver;
+}
+
+const PhySystemSettings& PhysicsSystem::getSystemSettings()const
+{
+  return systemSettings.host()->at(0);
+}
+
+vector<PhysicsEntity*>& PhysicsSystem::getEntities(SolverType type)
+{
+  return entities[type];
+}
+
+EntitySolverType* PhysicsSystem::getSolver(SolverType type)
+{
+  return solversUint[type];
+}
+
+EntitySolverType* PhysicsSystem::getAndInitSolver(SolverType type)
 {
   // get solver
   int index = type;
@@ -147,7 +157,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   PhysicsEntityId entityId;
   resetIdentity(entityId);
 
-  EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(entity->solver);
+  EntitySolverType* solver = getAndInitSolver(entity->solver);
 
   // create section data to issue updates
   EntityLocation systemUpdateInfo;
@@ -195,9 +205,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   const PhysicsEntity* entity = entities[getSolverType(registeredEntityId)][entityId];
   const vector<Real3>* entityPositions = entity->constrainConstants.host();
   const vector<ParticleCollisionData>* entityParticleCol = entity->particleCollisionData.host();
-  EntitySolver<uint, real, Real3>* solver = (EntitySolver<uint, real, Real3>*)getSolver(solverType);
-
-  const uint lastPartitionOffset = solver->entityLocations.host()->at(entityId).node.offset;
+  EntitySolverType* solver = getAndInitSolver(solverType);
 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
@@ -211,9 +219,6 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
       instanceTransforms[instance].transformPos(pos, entityPositions->at(i));
       particle.position = pos;
       particle.identity = entityInstanceId;
-#ifdef ENABLE_RENDERING
-      solverParticleRadius[solverType].push_back(entityParticleCol->at(i).radius);
-#endif
       solver->particles.host()->push_back(particle);
       solver->particleCollisionData.host()->push_back(entityParticleCol->at(i));
       solver->particleCouplingData.host()->push_back(ParticleCouplingData());
@@ -236,7 +241,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   {
     if (solversUint[i])
     {
-      EntitySolver<uint, real, Real3>* localSolver = (EntitySolver<uint, real, Real3>*)getSolver((SolverType)i);
+      EntitySolverType* localSolver = getAndInitSolver((SolverType)i);
       cumulativeNode += localSolver->lastPartition().end();
       cumulativeSolver += localSolver->newEntityId();
       cumulativeInstance += localSolver->newEntityInstanceId();
@@ -252,37 +257,12 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
 
 void PhysicsSystem::step()
 {
-  // record render time
-  const float renderTime = physicsSystemClock.getTimeMilliseconds();
-  physicsSystemClock.reset();
-
   for (int i=0; i<simulationIterations; i++)
   {
     step(1.f / (simulationIterations * 60));
   }
 
   compute->sync(false);
-
-  if (frameCaptureStart)
-  {
-    if (frameCount == frameCaptureStart)
-    {
-      compute->sync(true);
-      compute->startCapture();
-    }
-    else if (frameCount == frameCaptureEnd)
-    {
-      compute->sync(true);
-      compute->endCapture();
-    }
-  }
-
-  elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
-#ifdef ENABLE_RENDERING
-  elapsedRenderTime += renderTime;
-#endif
-
-  physicsSystemClock.reset();
 }
 
 void PhysicsSystem::integrate(float timeStep)
@@ -452,23 +432,6 @@ void PhysicsSystem::step(float timeStep)
     ((FluidSolver*)solversUint[SOLVER_FLUID])->calculateParticleCouplingData(clothSolver->particleCouplingData, clothSolver->particles, clothSolver->particleCollisionData, clothSolver->particles.size());
   }
 
-  // update gravity if
-  if (down.length() > 0.f)
-  {
-    down.normalize();
-    down *= Real3(systemSettings.host()->at(0).gravity).length();
-
-    // disable orientation with frame capture
-    if (!frameCaptureStart)
-      setGravity(down);
-  }
-
-  // skip the below steps if simulation paused
-  if (!timeSliderFrame->isShrunk())
-  {
-    return;
-  }
-
 #ifdef PHYSICS_SYSTEM_SINGLE_UPDATE
   if (!firstStep)
   {
@@ -516,9 +479,4 @@ void PhysicsSystem::setSystemBoundary(const XAB& bound)
 {
   systemSettings.host()->at(0).systemBound = bound;
   systemSettings.syncDevice();
-}
-
-void PhysicsSystem::setCameraInterface(CameraInterface *cameraInterface)
-{
-  this->cameraInterface = cameraInterface;
 }

@@ -12,7 +12,7 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator)
 {}
 
 FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, bool noCreate)
-  : Solver(compute, allocator), EntitySolver<uint, real, Real3>(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), boundaryGridCellParticleOffsets(boundaryGridCellParticleCount), systemParticleCount(0), systemNonFluidParticleCount(0)
+  : Solver(compute, allocator), EntitySolverType(compute, allocator, SOLVER_FLUID), UniformGridCollisionSolver(compute, allocator), boundaryGridCellParticleOffsets(boundaryGridCellParticleCount), systemParticleCount(0), systemNonFluidParticleCount(0)
 {
   iterations = 1;
   gridSize = 64;

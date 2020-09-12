@@ -1,26 +1,39 @@
-#include "PhysicsSystem.h"
+#include "MainSystem.h"
 
-#ifdef ENABLE_RENDERING
-
-#include "../Solvers/FluidSolver.h"
-#include "../Solvers/FluidSolverPBF.h"
-#include "../Solvers/FluidSolverPCISPH.h"
-
-#include "../Solvers/Collision/UniformGridCollisionSolver.h"
-#include "../Solvers/Collision/LBVHSolver.h"
+static Clock physicsSystemClock;
 
 #define FRAME_BUFFERING_SIZE 3
 #define GUI_REFRESH_AFTER_FRAMES 0xF
 
-const string REPLAY_SIM_OPTION            = "Replay Sim";
-const string RENDER_PARTICLES_OPTION      = "Particles";
-const string RENDER_SOLIDS_OPTION         = "Solids";
-const string RENDER_BOUNDING_BOXES_OPTION = "Bounding Boxes";
-const string RENDER_SYSTEM_BOUND_OPTION   = "Scene Box";
-const string RENDER_GRID_HEATMAP_OPTION   = "Grid Heatmap";
-const string RENDER_RESET_CAMERA_OPTION   = "Reset Camera";
+MainSystem::MainSystem(ComputeInterface* compute)
+  :compute(compute), cameraInterface(compute)
+{
+}
 
-void PhysicsSystem::initRender()
+MainSystem::~MainSystem()
+{
+}
+
+void MainSystem::init(int argc, char** argv, int width, int height, const char* name)
+{
+  Window::init(argc, argv, width, height, name);
+  frameCount = 0;
+  frameCaptureStart = 0;
+  frameCaptureEnd = 0;
+
+#ifdef ENABLE_RENDERING
+  initRender();
+#endif
+}
+
+void MainSystem::createFromFile(const char fileName[])
+{
+  reader.readFile(this, fileName);
+}
+
+#ifdef ENABLE_RENDERING
+
+void MainSystem::initRender()
 {
   displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
 
@@ -30,6 +43,8 @@ void PhysicsSystem::initRender()
   optionFrame->addElement(new UIElement(RENDER_SYSTEM_BOUND_OPTION, true, "fa-brands-400", 0xF1CB));
   optionFrame->addElement(new UIElement(RENDER_GRID_HEATMAP_OPTION, true, "fa-solid-900", 0xF37F));
   optionFrame->addElement(new UIElement(RENDER_RESET_CAMERA_OPTION, RENDER_RESET_CAMERA_OPTION, "fa-solid-900", 0xF03D));
+
+  timeSliderFrame->addElement(new UIElement(REPLAY_SIM_OPTION, 0, 0, "fa-solid-900"));
 
   elapsedRenderTime = 0.f;
 
@@ -118,7 +133,7 @@ void PhysicsSystem::initRender()
   displayBackgroundVertex.unbind();
 }
 
-void PhysicsSystem::createSphere(float radius)
+void MainSystem::createSphere(float radius)
 {
   vector<float> sphereVertices;
   vector<float> sphereNormals;
@@ -192,7 +207,7 @@ void PhysicsSystem::createSphere(float radius)
   displayParticleVertex.unbind();
 }
 
-void PhysicsSystem::createUnitBox()
+void MainSystem::createUnitBox()
 {
   float boxVertices[] = {
     -1.0f, -1.0f, -1.0f,  +1.0f, -1.0f, -1.0f,  -1.0f, +1.0f, -1.0f,  +1.0f, +1.0f, -1.0f,
@@ -225,7 +240,7 @@ void PhysicsSystem::createUnitBox()
   displayGridElements.copyData(gridIndices, sizeof(gridIndices) / sizeof(uint));
 }
 
-void PhysicsSystem::createUnitCircle()
+void MainSystem::createUnitCircle()
 {
   const uint triangles = 8;
 
@@ -263,27 +278,31 @@ void PhysicsSystem::createUnitCircle()
   displayFlatVertex.unbind();
 }
 
-void PhysicsSystem::render()
+void MainSystem::render()
 {
   // sync all output buffers
-  for (uint solver = 0; solver < SOLVER_MAX; solver++)
+  for (uint s = 0; s < SOLVER_MAX; s++)
   {
-    if (solversUint[solver])
+    auto solver = physicsSystem.getSolver((SolverType)s);
+    if (solver)
     {
-      uint elements = solversUint[solver]->lastPartition().end();
+      uint elements = solver->lastPartition().end();
 
       if (!elements) continue;
 
       const uint hostOffset = ((frameCount + FRAME_BUFFERING_SIZE - 1) % FRAME_BUFFERING_SIZE) * elements;
-      solversUint[solver]->particles.syncHost(hostOffset, elements);
-      solversUint[solver]->particleCollisionData.syncHost(hostOffset, elements);
+      solver->getParticles().syncHost(hostOffset, elements);
+      solver->getParticleCollisionData().syncHost(hostOffset, elements);
 
-      if (solver == SOLVER_FLUID)
+      if (s == SOLVER_FLUID)
       {
-        ((FluidSolver*)solversUint[solver])->particlesDensity.syncHost(hostOffset, elements);
+        ((FluidSolver*)solver)->getParticlesDensity().syncHost(hostOffset, elements);
       }
     }
   }
+
+  const CollisionSolver* collisionSolver = physicsSystem.getCollisionSolver();
+  uint instanceNodeCount = physicsSystem.particleCount();
 
   if (optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
@@ -383,11 +402,11 @@ void PhysicsSystem::render()
   displayGridShader.set("projectionMatrix", this->projectionMatrix);
   displayGridShader.unbind();
 
-  if (cameraInterface && cameraInterface->isActive())
+  if (cameraInterface.isActive())
   {
     if (displayBackgroundBuffer.getComputeTexture() == NULL)
     {
-      uint cameraSize[2] = {cameraInterface->width(), cameraInterface->height()};
+      uint cameraSize[2] = {cameraInterface.width(), cameraInterface.height()};
       displayBackgroundBuffer = createSharedTexture(compute, cameraSize, SHARED_TEXTURE_FORMAT_UINT8x4);
       displayBackgroundShader.bind();
       displayBackgroundShader.set("frameDimensions", (float)width(), (float)height(),
@@ -396,14 +415,14 @@ void PhysicsSystem::render()
       displayBackgroundShader.unbind();
     }
 
-    if (cameraInterface->getCurrentFrame())
+    if (cameraInterface.getCurrentFrame())
     {
       GL_CHECK(glDisable(GL_DEPTH_TEST));
       GL_CHECK(glDisable(GL_BLEND));
       GL_CHECK(glDisable(GL_CULL_FACE));
 
       displayBackgroundShader.bind();
-      compute->copyTexture(cameraInterface->getCurrentFrame(), &displayBackgroundBuffer.getComputeTexture());
+      compute->copyTexture(cameraInterface.getCurrentFrame(), &displayBackgroundBuffer.getComputeTexture());
       displayBackgroundVertex.bind();
       displayBackgroundShader.activateTexture("backgroundTexture", 0, displayBackgroundBuffer.getGraphicsTexture());
       GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 6));
@@ -435,18 +454,19 @@ void PhysicsSystem::render()
   // just an easy way to keep track of particle offsets per solver
   uint instanceStartingOffset = 0;
 
-  for (uint solver = 0; solver < SOLVER_MAX; solver++)
+  for (uint s = 0; s < SOLVER_MAX; s++)
   {
-    if (solversUint[solver])
+    auto solver = physicsSystem.getSolver((SolverType)s);
+    if (solver)
     {
-      const uint elements = solversUint[solver]->lastPartition().end();
+      const uint elements = solver->lastPartition().end();
 
       if (!elements) continue;
 
       // copy particle position and collision data for display
       const uint hostOffset = (frameCount % FRAME_BUFFERING_SIZE) * elements;
-      ParticleCollisionData* collisionData = &(*(solversUint[solver]->particleCollisionData.host()))[hostOffset];
-      ParticleStruct* particles = &(*(solversUint[solver]->particles.host()))[hostOffset];
+      const ParticleCollisionData* collisionData = &(*(solver->getParticleCollisionData().host()))[hostOffset];
+      const ParticleStruct* particles = &(*(solver->getParticles().host()))[hostOffset];
 
       // only when running and not paused
       if (timeSliderFrame->isShrunk())
@@ -484,17 +504,17 @@ void PhysicsSystem::render()
         GL_CHECK(glDisable(GL_CULL_FACE));
       }
 
-      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && solver != SOLVER_FLUID)
+      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && s != SOLVER_FLUID)
       {
         displaySolidShader.bind();
         displaySolidVertex.bind();
 
-        for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
+        for (const PartitionInfo &partition : *(solver->getPartitions().host()))
         {
           GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 4, particles + partition.offset));
           GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 4, collisionData + 4 * partition.offset));
-          IdentityInfo identity = solversUint[solver]->particles.host()->at(partition.offset).identity;
-          PhysicsEntity* entity = entities[solver][getEntityId(identity)];
+          IdentityInfo identity = solver->getParticles().host()->at(partition.offset).identity;
+          const PhysicsEntity* entity = physicsSystem.getEntities((SolverType)s)[getEntityId(identity)];
 
           displaySolidShader.set("fillShader", 1.f);
           if (entity->displayElements.count())
@@ -516,10 +536,10 @@ void PhysicsSystem::render()
         displaySolidShader.unbind();
       }
 
-      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && solver == SOLVER_FLUID)
+      if (optionFrame->getElement(RENDER_SOLIDS_OPTION)->boolValue && s == SOLVER_FLUID)
       {
         displayFlatShader.bind();
-        float* density = &(*(((FluidSolver*)solversUint[solver])->particlesDensity.host()))[hostOffset];
+        const float* density = &(*(((FluidSolver*)solver)->getParticlesDensity().host()))[hostOffset];
 
         // copy particle position and collision data for display
         displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
@@ -528,9 +548,9 @@ void PhysicsSystem::render()
 
         GL_CHECK(glEnable(GL_BLEND));
         displayFlatVertex.bind();
-        float invRestDensity = ((FluidSolver*)solversUint[solver])->entitySharedData.host()->at(0).invRestDensity;
+        float invRestDensity = ((FluidSolver*)solver)->getEntitySharedData().host()->at(0).invRestDensity;
         displayFlatShader.set("invRestDensity", invRestDensity);
-        for (const PartitionInfo &partition : *(solversUint[solver]->partitions.host()))
+        for (const PartitionInfo &partition : *(solver->getPartitions().host()))
         {
           GL_CHECK(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, displayFlatVertex.count(), partition.count));
         }
@@ -552,7 +572,7 @@ void PhysicsSystem::render()
   // render boundign boxes if supplied by the colision solver
   if (optionFrame->getElement(RENDER_BOUNDING_BOXES_OPTION)->boolValue && collisionSolver->particleGroupBoundingBoxes.size())
   {
-    DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->particleGroupBoundingBoxes;
+    const DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->particleGroupBoundingBoxes;
     displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
 
     displayBoxBuffer.bind();
@@ -568,7 +588,7 @@ void PhysicsSystem::render()
   // render boundign boxes if supplied by the colision solver
   if (optionFrame->getElement(RENDER_SYSTEM_BOUND_OPTION)->boolValue && collisionSolver->systemBoundingBox.size())
   {
-    DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->systemBoundingBox;
+    const DeviceArray<XAB>* collisionBoundingBoxes = &collisionSolver->systemBoundingBox;
     displayBoxBuffer.copyData((float*)&((*collisionBoundingBoxes->host())[0]), (uint)collisionBoundingBoxes->host()->size() * sizeof(XAB));
 
     displayBoxBuffer.bind();
@@ -624,5 +644,50 @@ void PhysicsSystem::render()
     frameCount++;
   }
 }
-
 #endif
+
+void MainSystem::step()
+{
+  const float renderTime = physicsSystemClock.getTimeMilliseconds();
+  physicsSystemClock.reset();
+
+  // update gravity if
+  if (down.length() > 0.f)
+  {
+    down.normalize();
+    down *= Real3(physicsSystem.getSystemSettings().gravity).length();
+
+    // disable orientation with frame capture
+    if (!frameCaptureStart)
+      physicsSystem.setGravity(down);
+  }
+
+  // skip the below steps if simulation paused
+  if (!timeSliderFrame->isShrunk())
+  {
+    return;
+  }
+
+  physicsSystem.step();
+
+  if (frameCaptureStart)
+  {
+    if (frameCount == frameCaptureStart)
+    {
+      compute->sync(true);
+      compute->startCapture();
+    }
+    else if (frameCount == frameCaptureEnd)
+    {
+      compute->sync(true);
+      compute->endCapture();
+    }
+  }
+
+  elapsedSimTime += physicsSystemClock.getTimeMilliseconds();
+#ifdef ENABLE_RENDERING
+  elapsedRenderTime += renderTime;
+#endif
+
+  physicsSystemClock.reset();
+}

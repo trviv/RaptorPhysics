@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene>
   <settings>
-    <physics max-memory="131072">
+    <physics max-particles="131072">
       <bound-min xyz="-4.f, -2.f, -4.f"/>
       <bound-max xyz="4.f, 0.f, 4.f"/>
       <gravity xyz="0.f, -9.8f, 0.f"/>

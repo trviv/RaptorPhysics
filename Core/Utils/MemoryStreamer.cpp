@@ -74,13 +74,13 @@ void MemoryStreamer::addItem(uint sizeInBytes)
   allocatedMemory.push_back(newMemArray);
 }
 
-void MemoryStreamer::addItem(void* data, uint sizeInBytes)
+void MemoryStreamer::addItem(const void* data, uint sizeInBytes)
 {
   addItem(sizeInBytes);
   appendToLast(data, sizeInBytes);
 }
 
-void MemoryStreamer::appendToLast(void* data, uint sizeInBytes)
+void MemoryStreamer::appendToLast(const void* data, uint sizeInBytes)
 {
   if (maxSize == 0) return;
 

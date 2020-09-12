@@ -146,7 +146,7 @@ void Buffer::free()
   }
 }
 
-void Buffer::copyData(float data[], GLsizei size)
+void Buffer::copyData(const float data[], GLsizei size)
 {
   this->size = size;
   bind();

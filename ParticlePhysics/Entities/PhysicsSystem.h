@@ -5,18 +5,10 @@
 #include "PhysicsEntity.h"
 #include "../Solvers/Collision/CollisionSolver.h"
 
-const extern string REPLAY_SIM_OPTION;
-const extern string RENDER_PARTICLES_OPTION;
-const extern string RENDER_SOLIDS_OPTION;
-const extern string RENDER_BOUNDING_BOXES_OPTION;
-const extern string RENDER_SYSTEM_BOUND_OPTION;
-const extern string RENDER_GRID_HEATMAP_OPTION;
-const extern string RENDER_RESET_CAMERA_OPTION;
-
 /*!
 @class Class representing a system simulating physical entities.
 */
-class PhysicsSystem : protected ShaderEntity, public Window
+class PhysicsSystem : protected ShaderEntity
 {
   /*!@member Compute interface through which the system will operate.*/
   ComputeInterface*               compute;
@@ -52,25 +44,13 @@ class PhysicsSystem : protected ShaderEntity, public Window
   EntitySolver<ushort, real, Real3>*  solversUshort[SOLVER_MAX];
 
   /*!@member uint solvers in the system.*/
-  EntitySolver<uint, real, Real3>*    solversUint[SOLVER_MAX];
+  EntitySolverType*                   solversUint[SOLVER_MAX];
 
-  /*!@member Camera Interface.*/
-  CameraInterface*                cameraInterface;
+  /*!@function Take one simulation step using the time step.*/
+  void step(float timeStep);
 
-  float elapsedSimTime;
-  uint  frameCount;
-
-  void createSphere(float radius);
-
-  void createUnitBox();
-
-  void createUnitCircle();
-
-  /*!@function Take one simulation step.*/
-  void step();
-
-  /*!@function Get solver instance for a solver type.*/
-  void* getSolver(SolverType type);
+  /*!@function Get and Init if necessary solver instance for a solver type.*/
+  EntitySolverType* getAndInitSolver(SolverType type);
 
   /*!@function Perform integration and differentiation step.*/
   void positionUpdate(float timeStep);
@@ -83,11 +63,6 @@ class PhysicsSystem : protected ShaderEntity, public Window
 
   int simulationIterations;
   int solverIterations;
-  uint frameCaptureStart;
-  uint frameCaptureEnd;
-
-  /*!@member Memory streamer for particle positions.*/
-  MemoryStreamer particlePositionStream;
 
   friend class ReaderScene;
 public:
@@ -99,10 +74,23 @@ public:
   */
   void init(ComputeInterface* compute, const uint maxParticles);
 
-  void initRender();
-
   /*!@destructor Dellocate a physics system.*/
   ~PhysicsSystem();
+
+  /*!@function Get total number of particles in the system.*/
+  uint particleCount()const;
+
+  /*!@function Get collision solver for the system.*/
+  const CollisionSolver* getCollisionSolver()const;
+
+  /*!@function Get system physics system settings.*/
+  const PhySystemSettings& getSystemSettings()const;
+
+  /*!@function Get entities in a solver.*/
+  vector<PhysicsEntity*>& getEntities(SolverType type);
+
+  /*!@function Get solver instance for a solver type.*/
+  EntitySolverType* getSolver(SolverType type);
 
   /*!
   @function Register a physics entity to the system.
@@ -119,55 +107,14 @@ public:
   */
   void addEntityInstance(const PhysicsEntityId registeredEntityId, const ushort instanceCount, const Matrix4* instanceTransforms);
 
-#ifdef ENABLE_RENDERING
-
-  Buffer  displayPositionBuffer;
-  Buffer  displayCollisionBuffer;
-  Buffer  displayBoxBuffer;
-  Buffer  displayDensityBuffer;
-  Texture displayGridBuffer;
-  ComputeGraphicsSharedTexture displayBackgroundBuffer;
-
-  Vertex  displayParticleVertex;
-  Vertex  displaySolidVertex;
-  Vertex  displayFlatVertex;
-  Vertex  displayBoxVertex;
-  Vertex  displayLineVertex;
-  Vertex  displayBackgroundVertex;
-
-  Shader  displayParticleShader;
-  Shader  displaySolidShader;
-  Shader  displayFlatShader;
-  Shader  displayBoxShader;
-  Shader  displayGridShader;
-  Shader  displayLineShader;
-  Shader  displayBackgroundShader;
-
-  Face    displayParticleElements;
-  Face    displayBoxElements;
-  Face    displayGridElements;
-
-  float   elapsedRenderTime;
-
-  /*!@member Particle radius available for reuse.*/
-  vector<float> solverParticleRadius[SOLVER_MAX];
-
-  /*!@function Render all registered entities.*/
-  void render();
-
-#endif
-
-  /*!@function Take one simulation step using the time step.*/
-  void step(float timeStep);
+  /*!@function Take one simulation step.*/
+  void step();
 
   /*!@function Set acceleration due to gravity for the system.*/
   void setGravity(const Real3& gravity);
 
   /*!@function Set system bounding box of the system.*/
   void setSystemBoundary(const XAB& bound);
-
-  /*!@function Set camera interface for  the system.*/
-  void setCameraInterface(CameraInterface* cameraInterface);
 };
 
 #endif

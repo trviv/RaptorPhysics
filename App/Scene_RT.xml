@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene>
   <settings>
-    <physics max-memory="131072">
+    <physics max-particles="131072">
       <bound-min xyz="-4.f, -2.f, -4.f"/>
       <bound-max xyz="4.f, 0.f, 4.f"/>
       <gravity xyz="0.f, -9.8f, 0.f"/>
@@ -30,12 +30,12 @@
     <!-- <cloth id="cloth1">
       <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f"/>
     </cloth> -->
-    <!-- <rigidbody id="cube1">
+    <rigidbody id="cube1">
       <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f"/>
-    </rigidbody> -->
-    <fluid id="fluid1">
+    </rigidbody>
+    <!-- <fluid id="fluid1">
       <shape type="cuboid" dim="1.6f, 10.0f, 1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
-    </fluid>
+    </fluid> -->
   </entities>
 
   <instances>
@@ -46,15 +46,15 @@
         <scale xyz="1.f, 1.f, 1.f"/>
       </transform>
     </cloth1> -->
-    <!-- <cube1 count="1">
+    <cube1 count="1">
       <transform>
-        <translate xyz="0.f, 4.f, 1.f"/>
+        <translate xyz="0.f, 0.f, 1.f"/>
       </transform>
-    </cube1> -->
-    <fluid1 count="1">
+    </cube1>
+    <!-- <fluid1 count="1">
       <transform>
         <translate xyz="0.f, 20.f, 0.f"/>
       </transform>
-    </fluid1>
+    </fluid1> -->
   </instances>
 </scene>

@@ -34,10 +34,10 @@ public:
   void addItem(uint sizeInBytes);
 
   /*!@function Copy and insert memory as a new entry.*/
-  void addItem(void* data, uint sizeInBytes);
+  void addItem(const void* data, uint sizeInBytes);
 
   /*!@function Append data at the tail end of last item in the stream.*/
-  void appendToLast(void* data, uint sizeInBytes);
+  void appendToLast(const void* data, uint sizeInBytes);
 
   uint size()const { return (uint)allocatedMemory.size();}
 
