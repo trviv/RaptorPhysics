@@ -174,11 +174,17 @@ void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-position"), renderer->cameraPosition.end());
   renderer->cameraPosition.begin() = renderer->cameraPosition.end();
 
+  real scale = 1.f;
+  rayTracingSystem->init(compute, renderer->width() * renderer->height() * 2);
   if (rayTracing->FirstChildElement("simple-camera"))
   {
-    rayTracingSystem->camera = new CameraSimple(compute);
-    rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &rayTracingSystem->camera->scale);
+    rayTracingSystem->camera = new Camera(compute);
+    rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &scale);
   }
+
+  rayTracingSystem->camera->width  = renderer->width();
+  rayTracingSystem->camera->height = renderer->height();
+  rayTracingSystem->camera->setScale(scale);
 }
 
 struct ShapeData
@@ -273,10 +279,6 @@ void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
   for (const XMLElement* instance = instances->FirstChildElement(); instance; instance = instance->NextSiblingElement())
   {
     string identity(instance->Name());
-//    if (registeredEntities.find(identity) == registeredEntities.end())
-//    {
-//      logComputeError("Undefined entity id %s!", identity.c_str());
-//    }
 
     vector<Matrix4> matrixTransforms;
 

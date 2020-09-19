@@ -280,10 +280,33 @@ void MainSystem::createUnitCircle()
 
 void MainSystem::render()
 {
+  // initialize ray tracer if it has no primitives
+  if (rayTracingSystem.getPrimCount() == 0)
+  {
+    for (uint s = 0; s < SOLVER_MAX; s++)
+    {
+      const auto solver = physicsSystem.getSolver((SolverType)s);
+      if (solver)
+      {
+        uint elements = solver->lastPartition().end();
+
+        if (!elements) continue;
+
+        rayTracingSystem.registerSphereBuffer(solver->getParticles().device(), solver->getParticleCollisionData().device(), PackingInfo(4, 3), elements);
+      }
+    }
+  }
+
+  if (true)
+  {
+    rayTracingSystem.updateCamera(this->projectionMatrix, this->modelMatrix);
+    rayTracingSystem.render();
+  }
+
   // sync all output buffers
   for (uint s = 0; s < SOLVER_MAX; s++)
   {
-    auto solver = physicsSystem.getSolver((SolverType)s);
+    const auto solver = physicsSystem.getSolver((SolverType)s);
     if (solver)
     {
       uint elements = solver->lastPartition().end();
@@ -456,7 +479,7 @@ void MainSystem::render()
 
   for (uint s = 0; s < SOLVER_MAX; s++)
   {
-    auto solver = physicsSystem.getSolver((SolverType)s);
+    const auto solver = physicsSystem.getSolver((SolverType)s);
     if (solver)
     {
       const uint elements = solver->lastPartition().end();

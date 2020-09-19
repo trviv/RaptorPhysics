@@ -14,28 +14,44 @@ RayTracingSystem::~RayTracingSystem()
   }
 }
 
-void RayTracingSystem::init(ComputeInterface* compute)
+void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 {
   this->compute = compute;
   if (!allocator)
   {
     allocator = new RayTracingAllocator(compute);
+    allocator->create(maxRays);
   }
 
-  rays.create(compute);
+  rays.create(compute, allocator->getHeap(COMPUTE_HEAP_RAYS));
+  hits.create(compute);
+
+  accelerationStruct = new AccelerationDataStruct();
+  accelerationStruct->create(compute);
 }
 
-void RayTracingSystem::update()
+uint RayTracingSystem::getPrimCount()const
 {
+  return accelerationStruct->getPrimCount();
 }
 
-
-void RayTracingSystem::renderParticles(Window* window, ComputeMemory* particles, uint count)
+void RayTracingSystem::registerSphereBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count)
 {
-  // update the camera using window
-  camera->update(window->getCameraPosition(), window->getCameraUp(), window->getCameraFront());
+  accelerationStruct->registerSpheres(primitiveBuffer, radiusBuffer, radiusInfo, count);
+}
 
-  update();
+void RayTracingSystem::updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16])
+{
+  camera->update(projectionMatrix, modelviewMatrix);
+}
 
-  
+void RayTracingSystem::render()
+{
+  camera->emitPrimaryRays(rays, RayStructPositionDirection);
+
+  accelerationStruct->fullUpdate();
+
+  hits.resize(rays.size(), false);
+
+  accelerationStruct->intersectRays(hits.device(), HitStructDistanceIndex, rays.device(), RayStructPositionDirection);
 }

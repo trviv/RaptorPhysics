@@ -1,6 +1,6 @@
 #include "Camera.h"
 
-CameraSimple::CameraSimple(ComputeInterface* compute)
+Camera::Camera(ComputeInterface* compute)
   :RayTracingEntity(RayTracingEntityCamera, compute)
 {
   scale = 1.f;
@@ -9,15 +9,14 @@ CameraSimple::CameraSimple(ComputeInterface* compute)
 
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
+  includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("RayTracingStruct.h");
 
-  vector<string> newType = { "uint", "float", "float3" };
-  vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
-  registerShader(compute, "Camera.shader", &oldType, &newType);
+  registerShader(compute, "Camera.shader", NULL, NULL);
   kernels.push_back(programs[0].createKernel("emitPrimaryRays"));
 }
 
-CameraSimple::~CameraSimple()
+Camera::~Camera()
 {
   if(buffer)
   {
@@ -25,7 +24,7 @@ CameraSimple::~CameraSimple()
   }
 }
 
-void CameraSimple::calculateDelta(Real3& origin)
+void Camera::calculateDelta(Real3& origin)
 {
   const real w = width, h = height;
   sampleIntensity = 1.f / mSqr(samples);
@@ -61,40 +60,50 @@ void CameraSimple::calculateDelta(Real3& origin)
   deltaY = (Real3(deltaY) - topLeft) / h;
 }
 
-void CameraSimple::update()
+void Camera::update()
 {
   logComputeError("Camera update without arguments is not supported!");
 }
 
-void CameraSimple::update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront)
+void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[16])
 {
-  width  = ImGui::GetIO().DisplaySize.x * scale;
-  height = ImGui::GetIO().DisplaySize.y * scale;
-
+  const uint initWidth  = this->width;
+  const uint initHeight = this->height;
   const real w = width, h = height;
+
+  real invProjection[16], invModelview[16];
+  Matrix4::invert(invProjection, projectionMatrix);
+  Matrix4::invert(invModelview, modelviewMatrix);
+
+  const real frontVec[] = {0.f, 0.f, -1.f, 0.f};
+  Real3 cameraFront = Matrix4::transformVec(modelviewMatrix, frontVec);
+
+  const real upVec[] = {0.f, 1.f, 0.f, 0.f};
+  Real3 cameraUp = Matrix4::transformVec(modelviewMatrix, upVec);
 
   Real3 cross = cameraFront.cross(cameraUp);
   cross.normalize();
 
-  if (h < w)
-  {
-    this->topLeft = cross - (w / h) * cameraUp;
-  }
-  else
-  {
-    this->topLeft = cross * (h / w) - cameraUp;
-  }
+  const real posVec[] = {0.f, 0.f, 0.f, 1.f};
+  this->origin = Matrix4::transformVec(invModelview, posVec);
 
-  this->origin = origin;
-  this->deltaX = cameraUp;
-  this->deltaY = cross;
+  real topLeftVec[] = {-1.f, 1.f, 0.f, 1.f};
+  Matrix4::transformVec(topLeftVec, invProjection, topLeftVec);
+  topLeftVec[3] = 1.f;
+  this->topLeft = Matrix4::transformVec(invModelview, topLeftVec);
+
+  this->deltaX  = cross / w;
+  this->deltaY  = (Real3(0) - cameraUp) / h;
+  this->width   = initWidth;
+  this->height  = initHeight;
 }
 
-void CameraSimple::emitPrimaryRays(DeviceArray<Ray>& rays)
+void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
 {
-  rays.resize(width * height, false);
+  rays.resize(width * height * getRayStructSize(rayType) / 4, false);
 
-  { // get count for each grid cell
+  // create primary rays
+  {
     size_t workgroupSize[3], workgroupCount[3];
     uint size[3] = {width, height, 1};
     compute->configureSize(workgroupSize, workgroupCount, size);
@@ -107,5 +116,14 @@ void CameraSimple::emitPrimaryRays(DeviceArray<Ray>& rays)
     kernels[0].setArg<CameraStruct>(this, bufferCount);
 
     compute->execute(kernels[0], workgroupSize, workgroupCount);
+
+    rays.syncHost();
+    compute->sync(true);
   }
+}
+
+void Camera::setScale(real scale)
+{
+  width  = width * scale;
+  height = height * scale;
 }

@@ -493,6 +493,16 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
 #endif
 }
 
+void ComputeKernel::setArg(const ComputeMemory* buffer, uint index)
+{
+  ComputeMemoryIdentifier ident = *buffer;
+#ifdef USE_OPENCL_COMPUTE
+  setArg<ComputeMemoryIdentifier>(&ident, index);
+#else
+  [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+#endif
+}
+
 void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
 {
   ComputeMemoryIdentifier ident = *buffer;
@@ -1061,8 +1071,8 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   workgroupSize[1] = height;
   workgroupSize[2] = 1;
 
-  workgroupCount[0] = mAlignBy(width, workgroupSize[0]);
-  workgroupCount[1] = mAlignBy(height, workgroupSize[1]);
+  workgroupCount[0] = mAlignBy(threadCount[0], workgroupSize[0]);
+  workgroupCount[1] = mAlignBy(threadCount[1], workgroupSize[1]);
   workgroupCount[2] = 1;
 }
 

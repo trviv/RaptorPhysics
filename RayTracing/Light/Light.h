@@ -5,7 +5,7 @@
 #include <Entities/RayTracingEntity.h>
 
 /*!
-@class Base class represeting a light, implementing a point light.
+@class Base class for lights, implementing a point light.
 */
 class Light : public LightStruct, public RayTracingEntity
 {

@@ -90,7 +90,7 @@ public:
   vector<PhysicsEntity*>& getEntities(SolverType type);
 
   /*!@function Get solver instance for a solver type.*/
-  EntitySolverType* getSolver(SolverType type);
+  const EntitySolverType* getSolver(SolverType type)const;
 
   /*!
   @function Register a physics entity to the system.

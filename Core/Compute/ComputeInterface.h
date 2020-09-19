@@ -171,6 +171,8 @@ public:
 
   void setArg(ComputeMemory* buffer, uint index);
 
+  void setArg(const ComputeMemory* buffer, uint index);
+
   void setArgs(ComputeMemory* buffers[], const uint count, uint* indices = NULL);
 
   void setSharedMemArg(const size_t valueSize, uint index);

@@ -87,6 +87,29 @@ typedef struct XAB_t XAB;
 #define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
 #define reduceXAB(o, i) { o.min = simdMin(i.min); o.max = simdMax(i.max);}
 
+#define mergeFloat(a, b)  { *a = max(*a, *b);}
+#define reduceFloat(o, i) { o = simdMax(i);}
+
+
+/*!
+@struct Generic template structure to store position, and and some associated uint data.
+        Should serve as the basis for similar datatypes for individual projects.
+*/
+struct DEFAULT_ALIGN PositionStruct_t
+{
+  union
+  {
+    float3  position;
+    struct
+    {
+      uint  positionUint[3];
+      uint  dataId;
+    };
+  };
+};
+
+typedef struct PositionStruct_t PositionStruct;
+
 #pragma pack(pop)
 
 #endif

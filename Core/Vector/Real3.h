@@ -15,9 +15,15 @@ struct float3
 {
   real x, y, z, a;
 
-  operator Real3&()const;
+  operator Real3&()
+  {
+    return *((Real3*)&x);
+  }
 
-  operator Real3&();
+  operator Real3&()const
+  {
+    return *((Real3*)&x);
+  }
 };
 
 /// The vector class
@@ -364,16 +370,6 @@ static std::ostream& operator<<(std::ostream& prefix, const Real3& suffix)
 static Real3 operator*(const real& val1, const Real3& val2)
 {
   return Real3(val2)*val1;
-}
-
-float3::operator Real3&()const
-{
-  return *((Real3*)&x);
-}
-
-float3::operator Real3&()
-{
-  return *((Real3*)&x);
 }
 
 #endif

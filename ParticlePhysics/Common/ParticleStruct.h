@@ -97,6 +97,7 @@ typedef struct EntityLocation_t EntityLocation;
 
 /*!
 @struct Base data for a particle.
+@note   Should have same structure as PositionStruct. May cause issues otherwise.
 */
 struct DEFAULT_ALIGN ParticleStruct_t
 {
@@ -423,10 +424,6 @@ struct ALIGN(8) BVHNodeInfo_t
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
-
-
-#define mergeFloat(a, b)  { *a = max(*a, *b);}
-#define reduceFloat(o, i) { o = simdMax(i);}
 
 
 struct ALIGN(4) PhySystemSettings_t
