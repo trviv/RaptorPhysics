@@ -122,6 +122,198 @@ public:
     r1.set(m1.dot(c0), m1.dot(c1), m1.dot(c2));
     r2.set(m2.dot(c0), m2.dot(c1), m2.dot(c2));
   }
+
+  // multiply two matrix in the form of array
+  static void multiply(real result[16], const real matA[16], const real matB[16])
+  {
+    uint i, j, k;
+    for (i = 0; i < 4; i++)
+    {
+      for (j = 0; j < 4; j++)
+      {
+        result[i * 4 + j] = 0.f;
+        for (k = 0; k < 4; k++)
+        {
+          result[i * 4 + j] += matA[i * 4 + k] * matB[k * 4 + j];
+        }
+      }
+    }
+  }
+
+  // invert a matrix
+  static bool invert(real invMatrix[16], const real matrix[16])
+  {
+    real inv[16], det;
+
+    inv[0] = matrix[5]  * matrix[10] * matrix[15] -
+             matrix[5]  * matrix[11] * matrix[14] -
+             matrix[9]  * matrix[6]  * matrix[15] +
+             matrix[9]  * matrix[7]  * matrix[14] +
+             matrix[13] * matrix[6]  * matrix[11] -
+             matrix[13] * matrix[7]  * matrix[10];
+
+    inv[4] = -matrix[4]  * matrix[10] * matrix[15] +
+              matrix[4]  * matrix[11] * matrix[14] +
+              matrix[8]  * matrix[6]  * matrix[15] -
+              matrix[8]  * matrix[7]  * matrix[14] -
+              matrix[12] * matrix[6]  * matrix[11] +
+              matrix[12] * matrix[7]  * matrix[10];
+
+    inv[8] = matrix[4]  * matrix[9] * matrix[15] -
+             matrix[4]  * matrix[11] * matrix[13] -
+             matrix[8]  * matrix[5] * matrix[15] +
+             matrix[8]  * matrix[7] * matrix[13] +
+             matrix[12] * matrix[5] * matrix[11] -
+             matrix[12] * matrix[7] * matrix[9];
+
+    inv[12] = -matrix[4]  * matrix[9] * matrix[14] +
+               matrix[4]  * matrix[10] * matrix[13] +
+               matrix[8]  * matrix[5] * matrix[14] -
+               matrix[8]  * matrix[6] * matrix[13] -
+               matrix[12] * matrix[5] * matrix[10] +
+               matrix[12] * matrix[6] * matrix[9];
+
+    inv[1] = -matrix[1]  * matrix[10] * matrix[15] +
+              matrix[1]  * matrix[11] * matrix[14] +
+              matrix[9]  * matrix[2] * matrix[15] -
+              matrix[9]  * matrix[3] * matrix[14] -
+              matrix[13] * matrix[2] * matrix[11] +
+              matrix[13] * matrix[3] * matrix[10];
+
+    inv[5] = matrix[0]  * matrix[10] * matrix[15] -
+             matrix[0]  * matrix[11] * matrix[14] -
+             matrix[8]  * matrix[2] * matrix[15] +
+             matrix[8]  * matrix[3] * matrix[14] +
+             matrix[12] * matrix[2] * matrix[11] -
+             matrix[12] * matrix[3] * matrix[10];
+
+    inv[9] = -matrix[0]  * matrix[9] * matrix[15] +
+              matrix[0]  * matrix[11] * matrix[13] +
+              matrix[8]  * matrix[1] * matrix[15] -
+              matrix[8]  * matrix[3] * matrix[13] -
+              matrix[12] * matrix[1] * matrix[11] +
+              matrix[12] * matrix[3] * matrix[9];
+
+    inv[13] = matrix[0]  * matrix[9] * matrix[14] -
+              matrix[0]  * matrix[10] * matrix[13] -
+              matrix[8]  * matrix[1] * matrix[14] +
+              matrix[8]  * matrix[2] * matrix[13] +
+              matrix[12] * matrix[1] * matrix[10] -
+              matrix[12] * matrix[2] * matrix[9];
+
+    inv[2] = matrix[1]  * matrix[6] * matrix[15] -
+             matrix[1]  * matrix[7] * matrix[14] -
+             matrix[5]  * matrix[2] * matrix[15] +
+             matrix[5]  * matrix[3] * matrix[14] +
+             matrix[13] * matrix[2] * matrix[7] -
+             matrix[13] * matrix[3] * matrix[6];
+
+    inv[6] = -matrix[0]  * matrix[6] * matrix[15] +
+              matrix[0]  * matrix[7] * matrix[14] +
+              matrix[4]  * matrix[2] * matrix[15] -
+              matrix[4]  * matrix[3] * matrix[14] -
+              matrix[12] * matrix[2] * matrix[7] +
+              matrix[12] * matrix[3] * matrix[6];
+
+    inv[10] = matrix[0]  * matrix[5] * matrix[15] -
+              matrix[0]  * matrix[7] * matrix[13] -
+              matrix[4]  * matrix[1] * matrix[15] +
+              matrix[4]  * matrix[3] * matrix[13] +
+              matrix[12] * matrix[1] * matrix[7] -
+              matrix[12] * matrix[3] * matrix[5];
+
+    inv[14] = -matrix[0]  * matrix[5] * matrix[14] +
+               matrix[0]  * matrix[6] * matrix[13] +
+               matrix[4]  * matrix[1] * matrix[14] -
+               matrix[4]  * matrix[2] * matrix[13] -
+               matrix[12] * matrix[1] * matrix[6] +
+               matrix[12] * matrix[2] * matrix[5];
+
+    inv[3] = -matrix[1] * matrix[6] * matrix[11] +
+              matrix[1] * matrix[7] * matrix[10] +
+              matrix[5] * matrix[2] * matrix[11] -
+              matrix[5] * matrix[3] * matrix[10] -
+              matrix[9] * matrix[2] * matrix[7] +
+              matrix[9] * matrix[3] * matrix[6];
+
+    inv[7] = matrix[0] * matrix[6] * matrix[11] -
+             matrix[0] * matrix[7] * matrix[10] -
+             matrix[4] * matrix[2] * matrix[11] +
+             matrix[4] * matrix[3] * matrix[10] +
+             matrix[8] * matrix[2] * matrix[7] -
+             matrix[8] * matrix[3] * matrix[6];
+
+    inv[11] = -matrix[0] * matrix[5] * matrix[11] +
+               matrix[0] * matrix[7] * matrix[9] +
+               matrix[4] * matrix[1] * matrix[11] -
+               matrix[4] * matrix[3] * matrix[9] -
+               matrix[8] * matrix[1] * matrix[7] +
+               matrix[8] * matrix[3] * matrix[5];
+
+    inv[15] = matrix[0] * matrix[5] * matrix[10] -
+              matrix[0] * matrix[6] * matrix[9] -
+              matrix[4] * matrix[1] * matrix[10] +
+              matrix[4] * matrix[2] * matrix[9] +
+              matrix[8] * matrix[1] * matrix[6] -
+              matrix[8] * matrix[2] * matrix[5];
+
+    det = matrix[0] * inv[0] + matrix[1] * inv[4] + matrix[2] * inv[8] + matrix[3] * inv[12];
+
+    if (det == 0)
+    {
+      return false;
+    }
+
+    det = 1.0 / det;
+
+    for (int i = 0; i < 16; i++)
+    {
+      invMatrix[i] = inv[i] * det;
+    }
+
+    invMatrix[3] = inv[12];
+    invMatrix[7] = inv[13];
+    invMatrix[11] = inv[14];
+
+    invMatrix[12] = inv[3] * det;
+    invMatrix[13] = inv[7] * det;
+    invMatrix[14] = inv[11] * det;
+
+    return true;
+  }
+
+  // transform a 4 element vector and return a Real3 value
+  static Real3 transformVec(const real matrix[16], const real vector[4])
+  {
+    real ret[4];
+    for (int i = 0; i < 4; i++)
+    {
+      ret[i] = 0;
+      for (int j = 0; j < 4; j++)
+      {
+        ret[i] += matrix[i * 4 + j] * vector[j];
+      }
+    }
+    return Real3(ret[0], ret[1], ret[2]);
+  }
+
+  // transform a 4 element vector and modify a vector
+  static void transformVec(real result[4], const real matrix[16], const real vector[4])
+  {
+    real ret[4];
+    for (int i = 0; i < 4; i++)
+    {
+      ret[i] = 0;
+      for (int j = 0; j < 4; j++)
+      {
+        ret[i] += matrix[i * 4 + j] * vector[j];
+      }
+    }
+    for (int i = 0; i < 4; i++)
+    {
+      result[i] = ret[i];
+    }
+  }
 };
 
 #endif

@@ -4,6 +4,7 @@
 #include <Core.h>
 #include <Light/Light.h>
 #include <Camera/Camera.h>
+#include <Acceleration/AccelerationDataStruct.h>
 
 /*!
 @class Class representing a ray tracing system.
@@ -18,13 +19,19 @@ protected:
   RayTracingAllocator*  allocator;
 
   /*!@member Camera used in the scene.*/
-  CameraSimple*             camera;
+  Camera* camera;
 
   /*!@member Lights in the scene.*/
   DeviceArray<LightStruct>  lights;
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<Ray>          rays;
+  DeviceArray<uint>         rays;
+
+  /*!@member Ray hit information buffer for the scene.*/
+  DeviceArray<uint>         hits;
+
+  /*!@member Acceleration struct for the system.*/
+  AccelerationDataStruct*   accelerationStruct;
 
 public:
 
@@ -32,11 +39,22 @@ public:
 
   ~RayTracingSystem();
 
-  void init(ComputeInterface* compute);
+  /*!@function Initialize the system based on max number of rays.*/
+  void init(ComputeInterface* compute, const uint maxRays);
 
-  void update();
+  /*!@function Get primitives in ray tracing system.*/
+  uint getPrimCount()const;
 
-  void renderParticles(Window* window, ComputeMemory* particles, uint count);
+  /*!
+  @function Register sphere buffer to the system.
+  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
+  */
+  void registerSphereBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count);
+
+  /*!@function Update camera based on given matrices.*/
+  void updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16]);
+
+  void render();
 };
 
 #endif

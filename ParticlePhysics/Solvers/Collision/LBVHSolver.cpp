@@ -51,8 +51,6 @@ void LBVHSolver::init()
   kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   // create utility classes
-  const vector<string> utilInclude = {"ParticleStruct.h"};
-
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
   lbvhXABSetting[ComputeUtilStructType] = "XAB";
@@ -64,12 +62,12 @@ void LBVHSolver::init()
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
   lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
+  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, NULL);
 
   map<ComputeUtilKey, string> lbvhSortSetting;
   lbvhSortSetting[ComputeUtilStructType] = "uint";
   lbvhSortSetting[ComputeUtilStructTypeIntegral] = "1";
-  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, &utilInclude);
+  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, NULL);
 }
 
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer)

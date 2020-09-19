@@ -7,7 +7,7 @@
 /*!
 @class Base class for camera, implementing pinhole camera.
 */
-class CameraSimple : public CameraStruct, public RayTracingEntity
+class Camera : public CameraStruct, public RayTracingEntity
 {
   friend class ReaderScene;
 
@@ -28,23 +28,24 @@ protected:
 
 public:
 
-  CameraSimple(ComputeInterface* compute);
+  Camera(ComputeInterface* compute);
 
-  ~CameraSimple();
+  ~Camera();
 
-  /*!@function Update camera struct values using these window based values.*/
-  virtual void update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront);
+  /*!@function Update camera struct values using these matrices.*/
+  virtual void update(const real projectionMatrix[], const real modelviewMatrix[]);
 
-  virtual void emitPrimaryRays(DeviceArray<Ray>& rays);
+  virtual void emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType);
+
+  virtual void setScale(real scale);
 };
 
 
 /*!
 @class Class implementing lens camera.
 */
-class CameraDepth : public CameraSimple
+class CameraDepth : public Camera
 {
-
 protected:
 
   real focus;     // focus of lens
@@ -56,9 +57,9 @@ public:
 
   ~CameraDepth();
 
-  virtual void update(const Real3& origin, const Real3& cameraUp, const Real3& cameraFront);
+  virtual void update(const real projectionMatrix[16], const real modelviewMatrix[16]);
 
-  virtual void emitPrimaryRays(DeviceArray<Ray>& rays);
+  virtual void emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType);
 };
 
 #endif

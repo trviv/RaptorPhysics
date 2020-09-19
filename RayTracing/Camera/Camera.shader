@@ -19,19 +19,8 @@ Kernel void emitPrimaryRays(
   constantKernelInput(CameraStruct, camera)
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  // Since we aligned the thread count to the threadgroup size, the thread index may be out of bounds
-  // of the render target size.
-  if (threadIndexN(0) >= camera.width && threadIndexN(1) >= camera.height)
+  if (threadIndexN(0) >= camera.width || threadIndexN(1) >= camera.height)
     return;
-
-  // Pixel coordinates for this thread
-  float2 pixel = constructFloat2(threadIndexN(0), threadIndexN(1));
-
-  //pixel += r;
-
-  // Map pixel coordinates to -1..1
-  //float2 uv = (float2)pixel / float2(uniforms.width, uniforms.height);
-  //uv = uv * 2.0f - 1.0f;
 
   Ray ray = sampleCameraAtPixel(camera, threadIndexN(0), threadIndexN(1));
 

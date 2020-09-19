@@ -108,7 +108,7 @@ vector<PhysicsEntity*>& PhysicsSystem::getEntities(SolverType type)
   return entities[type];
 }
 
-EntitySolverType* PhysicsSystem::getSolver(SolverType type)
+const EntitySolverType* PhysicsSystem::getSolver(SolverType type)const
 {
   return solversUint[type];
 }

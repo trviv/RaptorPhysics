@@ -54,8 +54,6 @@ UniformGridCollisionSolver::~UniformGridCollisionSolver()
 void UniformGridCollisionSolver::createUtilities()
 {
   // create utility classes
-  const vector<string> utilInclude = {"ParticleStruct.h"};
-
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
   lbvhXABSetting[ComputeUtilStructType] = "XAB";
@@ -67,7 +65,7 @@ void UniformGridCollisionSolver::createUtilities()
   lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
   lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, &utilInclude);
+  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, NULL);
 
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilStructType] = "uint";
@@ -82,7 +80,7 @@ void UniformGridCollisionSolver::createUtilities()
   utilSetting[ComputeUtilCustomReduceFunction] = "reduceFloat";
   utilSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
-  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, &utilInclude);
+  gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, NULL);
 }
 
 void UniformGridCollisionSolver::init()

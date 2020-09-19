@@ -18,11 +18,13 @@
       <render-system-bound-option value="false"/>
       <render-grid-heatmap-option value="true"/>
       <reset-camera-up xyz="0.0f, 1.0f, 0.0f"/>
-      <reset-camera-front xyz="0.577350f, -0.577350f, -0.577350f"/>
-      <reset-camera-position xyz="-10.0f, 10.0f, 10.0f"/>
+      <!-- <reset-camera-front xyz="0.577350f, -0.577350f, -0.577350f"/>
+      <reset-camera-position xyz="-10.0f, 10.0f, 10.0f"/> -->
+      <reset-camera-front xyz="1.0f, -0.0f, -1.f"/>
+      <reset-camera-position xyz="-1.0f, 1.0f, 10.0f"/>
     </rendering>
     <ray-tracing>
-      <simple-camera scale=".5"/>
+      <simple-camera scale=".25" near-plane=""/>
     </ray-tracing>
   </settings>
   

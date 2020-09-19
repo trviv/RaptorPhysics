@@ -72,7 +72,7 @@ void setProjectionMatrix(float result[], float aspect)
 }
 
 // Custom implementation of the LookAt function
-void setLookAtMatrix(float view[], const Real3& position, const Real3& target, Real3 up)
+void setLookAtMatrix(float view[], const Real3& position, const Real3& target, Real3& up)
 {
   Real3 zaxis = position - target;
   zaxis.normalize();
