@@ -13,15 +13,26 @@ static uint deviceCount = 0;
 #ifndef DISABLE_PROFILING
 #define ALWAYS_END_ENCODERS
 #endif
+
+//#define COMPUTE_KERNEL_DEFER_SET_ARGS
+
+#if __has_feature(objc_arc)
+#define retainComputeObj(obj)
+#define releaseComputeObj(obj)  obj = nil;
+#else
+#define retainComputeObj(obj)   [obj retain];
+#define releaseComputeObj(obj)  [obj release];  obj = nil;
+#endif
+
 id<MTLCaptureScope> captureScope = nil;
 MTLCaptureManager *captureManager = nil;
 MTLCaptureDescriptor* captureDescriptor = nil;
 #define TEMP_BUFFER_OCCUPIED_FLAG 0x8000
 static vector<pair<ushort, id<MTLBuffer>>> tempBuffers;
-volatile id<MTLCommandQueue> commandQueue = nil;
-volatile id<MTLCommandBuffer> currentCommandBuffer          = nil;
-volatile id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
-volatile id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
+static id<MTLCommandQueue> commandQueue = nil;
+static id<MTLCommandBuffer> currentCommandBuffer          = nil;
+static id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
+static id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
 map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
 
 // 128 bytes aligned
@@ -31,7 +42,7 @@ uint alignAllocSize(uint minimumSize)
 }
 
 static id<MTLBuffer> getTempBuffer(uint minimumSize)
-{
+{ @autoreleasepool {
   // find a suitable candidate if available
   uint smallerSizeDifference = -1;
   uint biggerSizeDifference = -1;
@@ -57,6 +68,7 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
       tempBuffers[i].first++;
       if (tempBuffers[i].first == 0x3ff)
       {
+        releaseComputeObj(tempBuffers.begin()->second);
         tempBuffers.erase(tempBuffers.begin() + i);
         i--;
       }
@@ -111,10 +123,10 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
     return tempBuffers.front().second;
   }
   return nil;
-}
+}}
 
 static void freeTempBuffer(id<MTLBuffer> buffer)
-{
+{ @autoreleasepool {
   for (int i=0; i<tempBuffers.size(); i++)
   {
     // if not occupied
@@ -124,14 +136,14 @@ static void freeTempBuffer(id<MTLBuffer> buffer)
       return;
     }
   }
-}
+}}
 
 static id<MTLBlitCommandEncoder> getBlitEncoder()
-{
+{ @autoreleasepool {
   if (currentComputeEncoder != nil)
   {
     [currentComputeEncoder endEncoding];
-    currentComputeEncoder = nil;
+    releaseComputeObj(currentComputeEncoder);
   }
   if (currentBlitEncoder != nil)
   {
@@ -139,18 +151,20 @@ static id<MTLBlitCommandEncoder> getBlitEncoder()
   }
   if (currentCommandBuffer == nil)
   {
-    currentCommandBuffer = [commandQueue commandBuffer];
+    currentCommandBuffer = [commandQueue commandBufferWithUnretainedReferences];
+    retainComputeObj(currentCommandBuffer);
   }
   currentBlitEncoder = [currentCommandBuffer blitCommandEncoder];
+  retainComputeObj(currentBlitEncoder);
   return currentBlitEncoder;
-}
+}}
 
 static id<MTLComputeCommandEncoder> getComputeEncoder()
-{
+{ @autoreleasepool {
   if (currentBlitEncoder != nil)
   {
     [currentBlitEncoder endEncoding];
-    currentBlitEncoder = nil;
+    releaseComputeObj(currentBlitEncoder);
   }
   if (currentComputeEncoder != nil)
   {
@@ -158,25 +172,27 @@ static id<MTLComputeCommandEncoder> getComputeEncoder()
   }
   if (currentCommandBuffer == nil)
   {
-    currentCommandBuffer = [commandQueue commandBuffer];
+    currentCommandBuffer = [commandQueue commandBufferWithUnretainedReferences];
+    retainComputeObj(currentCommandBuffer);
   }
   currentComputeEncoder = [currentCommandBuffer computeCommandEncoder];
+  retainComputeObj(currentComputeEncoder);
   return currentComputeEncoder;
-}
+}}
 
 static void endEncoders()
-{
+{ @autoreleasepool {
   if (currentComputeEncoder != nil)
   {
     [currentComputeEncoder endEncoding];
-    currentComputeEncoder = nil;
+    releaseComputeObj(currentComputeEncoder);
   }
   if (currentBlitEncoder != nil)
   {
     [currentBlitEncoder endEncoding];
-    currentBlitEncoder = nil;
+    releaseComputeObj(currentBlitEncoder);
   }
-}
+}}
 
 #endif
 
@@ -489,7 +505,16 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
   ComputeStatus status = clSetKernelArg(ref, argIndex, valueSize, valuePtr);
   computeCheckError(status, 0);
 #else
-  [getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];
+#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
+  @autoreleasepool {[getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];}
+#else
+  ArgData data;
+  data.type = 1;
+  data.ptr = valuePtr;
+  data.size = (uint)valueSize;
+  data.index = argIndex;
+  args.push_back(data);
+#endif
 #endif
 }
 
@@ -499,7 +524,15 @@ void ComputeKernel::setArg(const ComputeMemory* buffer, uint index)
 #ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
 #else
-  [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
+  @autoreleasepool {[getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];}
+#else
+  ArgData data;
+  data.type = 2;
+  data.cptr = buffer;
+  data.index = index;
+  args.push_back(data);
+#endif
 #endif
 }
 
@@ -509,7 +542,15 @@ void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
 #ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
 #else
-  [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
+  @autoreleasepool {[getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];}
+#else
+  ArgData data;
+  data.type = 3;
+  data.ptr = buffer;
+  data.index = index;
+  args.push_back(data);
+#endif
 #endif
 }
 
@@ -521,7 +562,7 @@ void ComputeKernel::setArgs(ComputeMemory* buffers[], const uint count, uint* in
 #ifdef USE_OPENCL_COMPUTE
     setArg<ComputeMemoryIdentifier>(&ident, indices ? indices[i] : i);
 #else
-    [getComputeEncoder() setBuffer:ident offset:buffers[i]->getOffset() atIndex:(indices ? indices[i] : i)];
+    setArg(buffers[i], (indices ? indices[i] : i));
 #endif
   }
 }
@@ -532,9 +573,43 @@ void ComputeKernel::setSharedMemArg(const size_t valueSize, uint index)
   ComputeStatus status = clSetKernelArg(ref, index, valueSize, NULL);
   computeCheckError(status, 0);
 #else
-  [getComputeEncoder() setThreadgroupMemoryLength:valueSize atIndex:index];
+#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
+  @autoreleasepool {[getComputeEncoder() setThreadgroupMemoryLength:valueSize atIndex:index];}
+#else
+  ArgData data;
+  data.type = 4;
+  data.size = (uint)valueSize;
+  data.index = index;
+  args.push_back(data);
+#endif
 #endif
 }
+
+void ComputeKernel::setArgs()
+{ @autoreleasepool {
+  for (auto& i : args)
+  {
+    switch (i.type)
+    {
+      case 1:
+        [getComputeEncoder() setBytes:i.ptr length:i.size atIndex:i.index];
+        break;
+      case 2:
+        [getComputeEncoder() setBuffer:*((const ComputeMemory*)i.cptr) offset:((const ComputeMemory*)i.cptr)->getOffset() atIndex:i.index];
+        break;
+      case 3:
+        [getComputeEncoder() setBuffer:*((ComputeMemory*)i.ptr) offset:((ComputeMemory*)i.ptr)->getOffset() atIndex:i.index];
+        break;
+      case 4:
+        [getComputeEncoder() setThreadgroupMemoryLength:i.size atIndex:i.index];
+        break;
+      default:
+        logComputeError("Unknown Argument type!");
+        break;
+    }
+  }
+  args.clear();
+}}
 
 
 ComputeProgram::ComputeProgram()
@@ -555,12 +630,14 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   computeCheckError(status, 0);
   return kernel;
 #else
+  @autoreleasepool {
   // map the function to kernel so it can be retrived later
   id<MTLFunction> function = [ref newFunctionWithName:[NSString stringWithCString:kernelName encoding:NSASCIIStringEncoding]];
   NSError* error;
   ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
   kernelNameMap[ret] = function;
   return ret;
+  }
 #endif
 }
 
@@ -652,6 +729,7 @@ void ComputeInterface::create(int deviceIndex)
     {
       devices[i] = [localDevices objectAtIndex:i];
     }
+    releaseComputeObj(localDevices);
 #endif
 
     logComputeMessage("  Device info:");
@@ -759,17 +837,20 @@ void ComputeInterface::create(int deviceIndex)
   queue = clCreateCommandQueue(context, deviceId, prop, &status);
   computeCheckError(status, 0);
 #else
+  @autoreleasepool {
   // initialize metal objects
   queue = [deviceId newCommandQueue];
+  retainComputeObj(queue);
   tempBuffers.clear();
-  currentCommandBuffer = [queue commandBuffer];
+  currentCommandBuffer = [queue commandBufferWithUnretainedReferences];
+  retainComputeObj(currentCommandBuffer);
   commandQueue = queue;
   captureManager = [MTLCaptureManager sharedCaptureManager];
   captureScope = [captureManager newCaptureScopeWithCommandQueue:queue];
   captureDescriptor = [[MTLCaptureDescriptor alloc] init];
   captureDescriptor.captureObject = deviceId;
   context = deviceId;
-  getComputeEncoder();
+  }
 #endif
 }
 
@@ -791,15 +872,16 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   // Get the log
   clGetProgramBuildInfo(program, deviceId, CL_PROGRAM_BUILD_LOG, logSize, log, NULL);
 #else
+  ComputeProgram program;
+  char* log = new char[1];
+  log[0] = NULL;
+  @autoreleasepool {
   NSError *error = nil;
   NSString *source = @"#include <metal_stdlib>\nusing namespace metal;\n";
   source = [source stringByAppendingString:[NSString stringWithUTF8String:sourceCode]];
   ComputeProgramIdentifier programId = [deviceId newLibraryWithSource:source options:0 error:&error];
-  ComputeProgram program(programId);
-
+  program = ComputeProgram(programId);
   // Allocate memory for the log
-  char* log = new char[1];
-  log[0] = NULL;
   if (error != nil)
   {
     delete[] log;
@@ -807,6 +889,7 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
     strcpy(log, error.description.UTF8String);
   }
   status = (programId == nil);
+  }
 #endif
 
   string logs = log;
@@ -911,10 +994,12 @@ void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* de
   clReleaseEvent(localEvent);
 #endif
 #else
+  @autoreleasepool {
   [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
 #endif
+  }
 #endif
 }
 
@@ -923,6 +1008,7 @@ void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, Compute
 #ifdef USE_OPENCL_COMPUTE
   logComputeError("Function copyTextureToBuffer not implemented for OpenCL");
 #else
+  @autoreleasepool {
   [getBlitEncoder() copyFromTexture:*source
                         sourceSlice:sourceSlice
                         sourceLevel:sourceLevel
@@ -935,6 +1021,7 @@ void ComputeInterface::copyTextureToBuffer(const ComputeTexture* source, Compute
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
 #endif
+  }
 #endif
 }
 
@@ -943,6 +1030,7 @@ void ComputeInterface::copyBufferToTexture(const ComputeMemory* source, ComputeT
 #ifdef USE_OPENCL_COMPUTE
   logComputeError("Function copyTextureToBuffer not implemented for OpenCL");
 #else
+  @autoreleasepool {
   [getBlitEncoder() copyFromBuffer:*source
                       sourceOffset:sourceOffset
                  sourceBytesPerRow:destination->getSize()[0] * destination->getBytesPerPixel()
@@ -955,6 +1043,7 @@ void ComputeInterface::copyBufferToTexture(const ComputeMemory* source, ComputeT
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
 #endif
+  }
 #endif
 }
 
@@ -963,10 +1052,12 @@ void ComputeInterface::copyTexture(const ComputeTexture* source, ComputeTexture*
 #ifdef USE_OPENCL_COMPUTE
   logComputeError("Function copyTexture not implemented for OpenCL");
 #else
+  @autoreleasepool {
   [getBlitEncoder() copyFromTexture:*source toTexture:*destination];
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
 #endif
+  }
 #endif
 }
 
@@ -984,6 +1075,7 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
   ComputeStatus status = clEnqueueReadBuffer(queue, *source, waitForFinish, sourceOffset, sizeInBytes, hostPtr, 0, NULL, NULL);
   computeCheckError(status, 0);
 #else
+  @autoreleasepool {
   id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   [getBlitEncoder() copyFromBuffer:*source sourceOffset:(sourceOffset + source->getOffset()) toBuffer:tempBuffer destinationOffset:0 size:sizeInBytes];
   [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
@@ -998,7 +1090,7 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
   {
     sync();
     freeTempBuffer(tempBuffer);
-  }
+  }}
 #endif
 }
 
@@ -1009,6 +1101,7 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
   computeCheckError(status, 0);
 #else
 #if !TARGET_OS_IPHONE
+  @autoreleasepool {
   id<MTLBuffer> tempBuffer = getTempBuffer((uint)sizeInBytes);
   memcpy(tempBuffer.contents, hostPtr, sizeInBytes);
   [getBlitEncoder() copyFromBuffer:tempBuffer sourceOffset:0 toBuffer:*destination destinationOffset:(destinationOffset + destination->getOffset()) size:sizeInBytes];
@@ -1023,7 +1116,7 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
   {
     sync();
     freeTempBuffer(tempBuffer);
-  }
+  }}
 #else
   memcpy((char*)(id<MTLBuffer>(*destination)).contents + (destinationOffset + destination->getOffset()), hostPtr, sizeInBytes);
 #endif
@@ -1076,7 +1169,7 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
   workgroupCount[2] = 1;
 }
 
-void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
+void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize[3], const size_t workgroupCount[3])
 {
 #ifdef USE_OPENCL_COMPUTE
   const size_t workgroup[3] = {
@@ -1103,10 +1196,13 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   computeCheckError(status, 0);
 #endif
 #else
+  @autoreleasepool {
   // get kernel name
   NSString* kernelName = [kernelNameMap[kernel] name];
-  // get encoder
+
+  // populate encoder
   id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
+  kernel.setArgs();
   // set dispatch info
   [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName,
                      (int)(workgroupCount[0]*workgroupCount[1]*workgroupCount[2]*workgroupSize[0]*workgroupSize[1]*workgroupSize[2])]];
@@ -1115,12 +1211,12 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
           threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
-  getComputeEncoder();
 #endif
+  }
 #endif
 }
 
-void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
+void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
 {
 #ifdef USE_OPENCL_COMPUTE
   uint count = 0;
@@ -1152,10 +1248,13 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
   computeCheckError(status, 0);
 #endif
 #else
+  @autoreleasepool {
   // get kernel name
   NSString* kernelName = [kernelNameMap[kernel] name];
-  // get encoder
+
+  // populate encoder
   id<MTLComputeCommandEncoder> encoder = getComputeEncoder();
+  kernel.setArgs();
   // set dispatch info
   [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName, (int)(workgroupSize[0]*workgroupSize[1]*workgroupSize[2])]];
   [encoder setComputePipelineState:kernel];
@@ -1164,8 +1263,8 @@ void ComputeInterface::execute(ComputeKernel kernel, const size_t workgroupSize[
                             threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();
-  getComputeEncoder();
 #endif
+  }
 #endif
 }
 
@@ -1183,6 +1282,7 @@ void ComputeInterface::sync(bool waitOnFinish)
   }
   computeCheckError(status, 0);
 #else
+  @autoreleasepool {
   endEncoders();
   if (currentCommandBuffer)
   {
@@ -1191,8 +1291,8 @@ void ComputeInterface::sync(bool waitOnFinish)
     {
       [currentCommandBuffer waitUntilCompleted];
     }
-    currentCommandBuffer = nil;
-  }
+    releaseComputeObj(currentCommandBuffer);
+  }}
 #endif
 }
 
@@ -1222,6 +1322,7 @@ uint ComputeInterface::maxCores()const
 void ComputeInterface::startCapture()
 {
 #ifdef USE_METAL_COMPUTE
+  @autoreleasepool {
   endEncoders();
   [currentCommandBuffer commit];
 
@@ -1232,8 +1333,10 @@ void ComputeInterface::startCapture()
   }
 
   [captureScope beginScope];
-  currentCommandBuffer = [queue commandBuffer];
+  currentCommandBuffer = [queue commandBufferWithUnretainedReferences];
+  retainComputeObj(currentCommandBuffer);
   getComputeEncoder();
+  }
 #else
   logComputeError("Start captured only defined for Metal");
 #endif
@@ -1242,12 +1345,15 @@ void ComputeInterface::startCapture()
 void ComputeInterface::endCapture()
 {
 #ifdef USE_METAL_COMPUTE
+  @autoreleasepool {
   endEncoders();
   [currentCommandBuffer commit];
   [captureScope endScope];
   [captureManager stopCapture];
-  currentCommandBuffer = [queue commandBuffer];
+  currentCommandBuffer = [queue commandBufferWithUnretainedReferences];
+  retainComputeObj(currentCommandBuffer);
   getComputeEncoder();
+  }
 #else
   logComputeError("End captured only defined for Metal");
 #endif

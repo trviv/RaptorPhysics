@@ -156,6 +156,18 @@ class ComputeKernel
 {
   ComputeKernelIdentifier ref;
 
+  // argument data structure to defer setting argument
+  struct ArgData
+  {
+    uint type   = 0;
+    uint size   = 0;
+    uint index  = 0;
+    void* ptr   = NULL;
+    const void* cptr  = NULL;
+  };
+
+  vector<ArgData> args;
+
 public:
 
   ComputeKernel();
@@ -181,6 +193,8 @@ public:
   {
     return ref;
   }
+
+  void setArgs();
 };
 
 
@@ -259,9 +273,9 @@ public:
 
   void configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3], const uint maxThreadsPerThreadgroup);
 
-  void execute(ComputeKernel kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
+  void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
-  void execute(ComputeKernel kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
+  void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
 
   void sync(bool waitOnFinish = true);
 

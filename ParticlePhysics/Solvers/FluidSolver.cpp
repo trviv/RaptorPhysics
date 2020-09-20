@@ -28,8 +28,6 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
 
   particlesDensity.create(compute, solverHeap);
   particlesLambda.create(compute, solverHeap);
-  particlesTemp[0].create(compute, solverHeap);
-  particlesTemp[1].create(compute, solverHeap);
   boundaryGridParticleCellIndex.create(compute, solverHeap);
   boundaryGridCellParticleIndices.create(compute, solverHeap);
   boundaryGridCellParticleCount.create(compute, solverHeap);

@@ -65,6 +65,11 @@ public:
 
   void create(ComputeInterface* compute, ComputeHeap* heap = NULL)
   {
+    if (this->compute)
+    {
+      logComputeError("Trying to re create device array!");
+    }
+
     free();
     deviceBuffer = NULL;
     hostBuffer = NULL;

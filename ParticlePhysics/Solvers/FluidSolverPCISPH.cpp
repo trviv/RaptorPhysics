@@ -15,8 +15,6 @@ FluidSolverPCISPH::FluidSolverPCISPH(ComputeInterface* compute, SharedAllocator*
   iterations = 1;
   gridSize = 64;
   gridSizeExp = mCeilExpOf2(gridSize);
-
-  particlesPressure.create(compute, solverHeap);
 }
 
 void FluidSolverPCISPH::create(ComputeInterface* compute)
