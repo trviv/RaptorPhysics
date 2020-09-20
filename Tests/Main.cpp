@@ -839,5 +839,6 @@ int main(int argc, char** argv)
   test1DRadixSort32Bit(compute);
   //testEquation(compute);
 
+  delete compute;
   return 0;
 }

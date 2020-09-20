@@ -114,7 +114,7 @@ ComputeGraphicsSharedTexture::ComputeGraphicsSharedTexture(ComputeInterface* com
     (NSString*)kCVPixelBufferMetalCompatibilityKey: @YES
   };
 
-  CVReturn cvRet = CVPixelBufferCreate(kCFAllocatorDefault, size[0], size[1], format->cvPixelFormat, (CFDictionaryRef)cvBufferProperties, &cvPixelBuffer);
+  CVReturn cvRet = CVPixelBufferCreate(kCFAllocatorDefault, size[0], size[1], format->cvPixelFormat, (__bridge CFDictionaryRef)cvBufferProperties, &cvPixelBuffer);
 
   if (cvRet != kCVReturnSuccess)
   {

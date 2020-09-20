@@ -811,5 +811,5 @@ void Window::start()
 
 ComputeGraphicsSharedTexture Window::createSharedTexture(ComputeInterface* compute, uint textureSize[2], SharedTextureFormat textureFormat)
 {
-  return ComputeGraphicsSharedTexture(compute, (GLContext*)SDL_GL_GetCurrentContext(), textureFormat, textureSize);
+  return ComputeGraphicsSharedTexture(compute, (__bridge GLContext*)SDL_GL_GetCurrentContext(), textureFormat, textureSize);
 }
