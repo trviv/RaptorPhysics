@@ -12,8 +12,6 @@ class Camera : public CameraStruct, public RayTracingEntity
   friend class ReaderScene;
 
 protected:
-
-  float scale;
   uint  samples;        // samples per pixel
   real  nearPlane;
 
