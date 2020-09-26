@@ -8,16 +8,55 @@
 
 #pragma pack(push, 4)
 
+#define RAY_TRACING_TYPE_ID_MASK      0xF0000000
+#define RAY_TRACING_TYPE_ID_SHIFT     28
+#define RAY_TRACING_PRIM_OFFSET_MASK  0x0FFFFFFF
+
 #ifdef COMPUTE_SHADER_SCOPE
 
-//// also known as slabs method
-//inline bool isRayXABIntersecting(const XAB xab, const float3 rayOrigin, const float3 invRayDirection)
-//{
-//  const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
-//  const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
-//  const float3 tmin = min(t0, t1), tmax = max(t0, t1);
-//  return max_component(tmin) <= min_component(tmax);
-//}
+// also known as slabs method
+inline bool rayXABIntersectTest(const XAB xab, const float3 rayOrigin, const float3 invRayDirection)
+{
+  const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
+  const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
+  const float3 tmin = min(t0, t1), tmax = max(t0, t1);
+  return maxCompFloat3(tmin) <= minCompFloat3(tmax);
+}
+
+inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
+{
+  const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
+  const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
+  const float3 tmin = select(t0, t1, sign);
+  const float3 tmax = select(t1, t0, sign);
+  const float tmaxOut = minCompFloat3(tmax);
+  const float tminOut = maxCompFloat3(tmin);
+
+  if (tminOut <= tmaxOut)
+  {
+    *timeIn  = tminOut;
+    *timeOut = tmaxOut;
+    return true;
+  }
+  return false;
+}
+
+inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
+{
+  const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
+  const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
+  const float3 tmin = select(t0, t1, sign);
+  const float3 tmax = select(t1, t0, sign);
+  const float tmaxOut = minCompFloat3(tmax);
+  const float tminOut = maxCompFloat3(tmin);
+
+  if (tminOut <= tmaxOut && *timeIn > tminOut)
+  {
+    *timeIn  = tminOut;
+    return true;
+  }
+  return false;
+}
 
 
 // Returns the i'th element of the Halton sequence using the d'th prime number as a
@@ -84,31 +123,80 @@ struct DEFAULT_ALIGN PrimitiveStruct_t
 typedef struct PrimitiveStruct_t PrimitiveStruct;
 
 
+enum RTPrimitiveType
+{
+  PrimitiveSphere
+};
+
+/*!
+@struct Primitive offsets.
+*/
+struct ALIGN(4) RTPrimitiveOffset_t
+{
+  union
+  {
+    uint primTypeAndOffset;
+    uint count;
+  };
+};
+
+typedef struct RTPrimitiveOffset_t RTPrimitiveOffset;
+
+#ifndef COMPUTE_SHADER_SCOPE
+inline static void setSystemPrimType(RTPrimitiveOffset& sys, RTPrimitiveType type)
+{
+  sys.primTypeAndOffset = (sys.primTypeAndOffset & RAY_TRACING_PRIM_OFFSET_MASK) | (type << RAY_TRACING_TYPE_ID_SHIFT);
+}
+
+inline static void setSystemPrimOffset(RTPrimitiveOffset& sys, uint offset)
+{
+  sys.primTypeAndOffset = (sys.primTypeAndOffset & (-1 ^ RAY_TRACING_PRIM_OFFSET_MASK)) | (offset & RAY_TRACING_PRIM_OFFSET_MASK);
+}
+#endif
+
+#ifdef COMPUTE_SHADER_SCOPE
+inline static uint getSystemPrimOffset(const RTPrimitiveOffset sys)
+{
+  return (sys.primTypeAndOffset & RAY_TRACING_PRIM_OFFSET_MASK);
+}
+
+inline static ushort getSystemPrimType(Const RTPrimitiveOffset* primitiveOffsets, const uint index)
+{
+  // first element in the buffer is reserved for count
+  const ushort count = primitiveOffsets[0].count;
+  ushort ret = 0;
+  for (ushort i=1; i<=count; i++)
+  {
+    const uint offset = getSystemPrimOffset(primitiveOffsets[i]);
+    if (index < offset)
+    {
+      ret = (primitiveOffsets[i].primTypeAndOffset >> RAY_TRACING_TYPE_ID_SHIFT);
+      break;
+    }
+  }
+  return ret;
+}
+
+#endif
+
+
 /*!
 @struct Shared Camera information.
 */
 struct DEFAULT_ALIGN CameraStruct_t
 {
-  union
+  struct
   {
-    float3  deltaX;  // shift in x axis per pixel
-    struct
-    {
-      uint    reserved1[3];
-      uint    width;
-    };
+    uint  width;
+    uint  height;
+    float scale;
+    uint  padding;
   };
-  union
-  {
-    float3  deltaY;  // shift in y axis per pixel
-    struct
-    {
-      uint    reserved2[3];
-      uint    height;
-    };
-  };
-  float3 topLeft; // top left position
-  float3 origin;  // camera starting position
+#ifdef COMPUTE_SHADER_SCOPE
+  float4x4  viewMatrixInv;
+#else
+  float     viewMatrixInv[16];
+#endif
 };
 
 typedef struct CameraStruct_t CameraStruct;

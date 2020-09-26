@@ -2,9 +2,9 @@
 
 uint AccelerationDataStruct::accXABComputeUtilId = -1;
 
-#define DEBUG_ACCELERATION_DATA_STRUCT
+//#define DEBUG_ACCELERATION_DATA_STRUCT
 
-uint AccelerationDataStruct::PrimitiveAttributeInfo::bindToShader(ComputeKernel kernel, uint startIndex)
+uint AccelerationDataStruct::PrimitiveAttributeInfo::bindToShader(ComputeKernel& kernel, uint startIndex)
 {
   if (type == PrimitiveSphere)
   {
@@ -19,17 +19,11 @@ uint AccelerationDataStruct::PrimitiveAttributeInfo::bindToShader(ComputeKernel 
 
 AccelerationDataStruct::AccelerationDataStruct()
 {
-
-}
-
-string AccelerationDataStruct::createIntersectionKey(RayStructType rayType, HitStructType hitType)const
-{
-  return getRayStructName(rayType)+":"+getHitStructName(hitType);
 }
 
 AccelerationDataStruct::~AccelerationDataStruct()
 {
-  registeredPrimitives.clear();
+  primStartingOffset.free();
   boundingBoxes.free();
 }
 
@@ -39,8 +33,8 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayStructs.h");
-  includeFiles.push_back("RayTracingStruct.h");
   includeFiles.push_back("HitStructs.h");
+  includeFiles.push_back("RayTracingStruct.h");
 
   registerShader(compute, "AccelerationDataStructCreate.shader", NULL, NULL);
 
@@ -52,14 +46,13 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
     {
       const vector<string> oldType = {"RayStruct", "HitStruct"};
       const vector<string> newType = {getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
-      registerShader(compute, "AccelerationDataStructCreate.shader", &oldType, &newType);
-      string key = createIntersectionKey((RayStructType)r, (HitStructType)h);
-      intersectRayKernels[key] = programs.back().createKernel("createPrimitiveBoundingBoxes");
-//      registerShader(compute, "AccelerationDataStructTraverse.shader", &oldType, &newType);
+      registerShader(compute, "AccelerationDataStructTraverse.shader", &oldType, &newType);
+      intersectRayKernels[r][h] = programs.back().createKernel("intersectRays");
     }
   }
 
-  boundingBoxes.create(compute, NULL);
+  boundingBoxes.create(compute);
+  primStartingOffset.create(compute);
 
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
@@ -97,13 +90,24 @@ void AccelerationDataStruct::registerSpheres(const ComputeMemory* primitiveBuffe
   primitiveCount += count;
 }
 
-void AccelerationDataStruct::fullUpdate()
+void AccelerationDataStruct::commit()
 {
+  primStartingOffset.host()->clear();
+  primStartingOffset.host()->push_back((uint)registeredPrimitives.size());
+
+  uint primCount = 0;
+  for (const auto& p : registeredPrimitives)
+  {
+    primCount += p.count;
+    primStartingOffset.host()->push_back(primCount);
+  }
+
+  primStartingOffset.syncDevice();
   boundingBoxes.resize(primitiveCount, false);
+}
 
-  uint primitiveOffset = 0;
-
-  // TODO: Add offsetting into group bounding box buffer
+void AccelerationDataStruct::fullBuild()
+{
   for (auto& prim : registeredPrimitives)
   {
     uint primBatchSize = 8;
@@ -117,8 +121,7 @@ void AccelerationDataStruct::fullUpdate()
     uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 1);
     createPrimitiveBoundingBoxes.setArg(&primBatchSize, nextBindIndex);
     createPrimitiveBoundingBoxes.setArg(&prim.count, nextBindIndex+1);
-    createPrimitiveBoundingBoxes.setArg(&primitiveOffset, nextBindIndex+2);
-    primitiveOffset += prim.count;
+    createPrimitiveBoundingBoxes.setArg(primStartingOffset.device(), nextBindIndex+2);
 
     compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
@@ -129,7 +132,28 @@ void AccelerationDataStruct::fullUpdate()
   }
 }
 
-void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType)
+void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType, uint rayCount)
 {
+  {
+    ComputeKernel& intersectionKernel = intersectRayKernels[rayType][hitType];
 
+    // add to system bounding box
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, rayCount);
+
+    intersectionKernel.setArg(hits, 0);
+    intersectionKernel.setArg(rays, 1);
+    intersectionKernel.setArg(&rayCount, 2);
+    intersectionKernel.setArg(boundingBoxes.device(), 3);
+    uint nextBindIndex = registeredPrimitives[0].bindToShader(intersectionKernel, 4);
+    intersectionKernel.setArg(&registeredPrimitives[0].count, nextBindIndex);
+    intersectionKernel.setArg(primStartingOffset.device(), nextBindIndex+1);
+
+    compute->execute(intersectionKernel, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_ACCELERATION_DATA_STRUCT
+    boundingBoxes.syncHost();
+    compute->sync();
+#endif
+  }
 }

@@ -34,6 +34,7 @@ protected:
   Buffer  displayDensityBuffer;
   Texture displayGridBuffer;
   ComputeGraphicsSharedTexture displayBackgroundBuffer;
+  Texture rayTracingOutBuffer;
 
   Vertex  displayParticleVertex;
   Vertex  displaySolidVertex;
@@ -49,6 +50,7 @@ protected:
   Shader  displayGridShader;
   Shader  displayLineShader;
   Shader  displayBackgroundShader;
+  Shader  displayRayTraceShader;
 
   Face    displayParticleElements;
   Face    displayBoxElements;

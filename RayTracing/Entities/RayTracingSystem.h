@@ -18,6 +18,10 @@ protected:
   ComputeInterface*     compute;
   RayTracingAllocator*  allocator;
 
+  ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
+
+  DeviceArray<uint> colorOutputBuffer;
+
   /*!@member Camera used in the scene.*/
   Camera* camera;
 
@@ -42,8 +46,15 @@ public:
   /*!@function Initialize the system based on max number of rays.*/
   void init(ComputeInterface* compute, const uint maxRays);
 
+  /*!@function Process all registered entities and properties, commit to the device memory.*/
+  void commit();
+
   /*!@function Get primitives in ray tracing system.*/
   uint getPrimCount()const;
+
+  const Camera& getCameraStruct()const;
+
+  const DeviceArray<uint>& getColorOutputBuffer()const;
 
   /*!
   @function Register sphere buffer to the system.

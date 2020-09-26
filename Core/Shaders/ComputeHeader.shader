@@ -32,6 +32,8 @@
 #define constructUint3      (uint3)
 #define constructInt2       (int2)
 #define constructInt3       (int3)
+#define constructUchar3     (uchar3)
+#define constructUchar4     (uchar4)
 
 #define convertShort2(a)    convert_short2(a)
 #define convertUshort4(a)   convert_ushort4(a)
@@ -49,6 +51,8 @@
 #define selectInput2(x)     (uint2)x
 #define selectInput3(x)     (uint3)(x)
 #define lengthSq(x)         dot(x, x)
+#define minCompFloat3(vec)  min(min(vec.x, vec.y), vec.z)
+#define maxCompFloat3(vec)  max(max(vec.x, vec.y), vec.z)
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -108,6 +112,8 @@
 #define constructUint3      uint3
 #define constructInt2       int2
 #define constructInt3       int3
+#define constructUchar3     uchar3
+#define constructUchar4     uchar4
 
 #define convertShort2(a)    short2(a)
 #define convertUshort4(a)   ushort4(a)
@@ -125,6 +131,8 @@
 #define selectInput2(x)     bool2(x)
 #define selectInput3(x)     bool3(x)
 #define lengthSq(x)         length_squared(x)
+#define minCompFloat3(vec)  min3(vec.x, vec.y, vec.z)
+#define maxCompFloat3(vec)  max3(vec.x, vec.y, vec.z)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)

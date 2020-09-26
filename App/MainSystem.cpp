@@ -36,6 +36,7 @@ void MainSystem::createFromFile(const char fileName[])
 void MainSystem::initRender()
 {
   displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
+  rayTracingOutBuffer = Texture(TEXTURE_FORMAT_UBYTE);
 
   optionFrame->addElement(new UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
   optionFrame->addElement(new UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
@@ -76,6 +77,7 @@ void MainSystem::initRender()
   displayLineShader.init("LineVert.glsl", "PassthruFrag.glsl");
   displayGridShader.init("GridVert.glsl", "PassthruFrag.glsl");
   displayBackgroundShader.init("BGVert.glsl", "BGFrag.glsl");
+  displayRayTraceShader.init("BGVert.glsl", "BGFrag.glsl");
 
   displayParticleShader.linkPrograms();
   displaySolidShader.linkPrograms();
@@ -92,6 +94,12 @@ void MainSystem::initRender()
   displayFlatShader.set("screenAligned", (int)1);
   displayFlatShader.set("fillShader", 1.f);
   displayFlatShader.unbind();
+
+  displayRayTraceShader.linkPrograms();
+  displayRayTraceShader.bind();
+  displayRayTraceShader.set("flipY", (int)1);
+  displayRayTraceShader.set("fillScreen", (int)0);
+  displayRayTraceShader.unbind();
 
   createSphere(1.f);
 
@@ -129,7 +137,7 @@ void MainSystem::initRender()
   GL_CHECK(glEnableVertexAttribArray(0));
   GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
   GL_CHECK(glEnableVertexAttribArray(1));
-  GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0));
+  GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(4 * sizeof(float))));
   displayBackgroundVertex.unbind();
 }
 
@@ -295,12 +303,46 @@ void MainSystem::render()
         rayTracingSystem.registerSphereBuffer(solver->getParticles().device(), solver->getParticleCollisionData().device(), PackingInfo(4, 3), elements);
       }
     }
+
+    rayTracingSystem.commit();
   }
 
   if (true)
   {
     rayTracingSystem.updateCamera(this->projectionMatrix, this->modelMatrix);
     rayTracingSystem.render();
+
+    const uint camWidth  = rayTracingSystem.getCameraStruct().width;
+    const uint camHeight = rayTracingSystem.getCameraStruct().height;
+
+    // initialize ray tracing output buffer
+    if (rayTracingOutBuffer.get() == -1)
+    {
+      rayTracingOutBuffer.init(camWidth , camHeight);
+      rayTracingOutBuffer.gen();
+
+      displayRayTraceShader.bind();
+      displayRayTraceShader.set("frameDimensions", (float)width(), (float)height(),
+                                (float)camWidth,(float)camHeight);
+      displayRayTraceShader.unbind();
+    }
+
+    GL_CHECK(glDisable(GL_DEPTH_TEST));
+    GL_CHECK(glDisable(GL_BLEND));
+    GL_CHECK(glDisable(GL_CULL_FACE));
+
+    const uint hostOffset = ((frameCount + FRAME_BUFFERING_SIZE - 1) % FRAME_BUFFERING_SIZE) * camWidth * camHeight;
+    rayTracingSystem.getColorOutputBuffer().syncHost(hostOffset, camWidth * camHeight);
+
+    const uint* colorOutputBuffer = &(*(rayTracingSystem.getColorOutputBuffer().host()))[hostOffset];
+
+    displayRayTraceShader.bind();
+    rayTracingOutBuffer.copy((float*)colorOutputBuffer);
+    displayBackgroundVertex.bind();
+    displayRayTraceShader.activateTexture("backgroundTexture", 0, rayTracingOutBuffer);
+    GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 6));
+    displayBackgroundVertex.unbind();
+    displayRayTraceShader.unbind();
   }
 
   // sync all output buffers

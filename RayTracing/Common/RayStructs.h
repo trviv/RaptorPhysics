@@ -40,8 +40,10 @@ struct DEFAULT_ALIGN Ray_t
     struct
     {
       uint  reserved1[3];
+      uint  rayIndex;
     };
   };
+  float3  color;
 };
 
 typedef struct Ray_t Ray;

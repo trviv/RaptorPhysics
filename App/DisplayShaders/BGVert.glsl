@@ -23,14 +23,10 @@ void main()
     textureUV.x *= (displayAspect / textureAspect);
   }
   
-  textureUV *= inTexCoord;
+  texCoord = textureUV * inTexCoord;
   if (flipY > 0)
   {
-    texCoord = vec2(textureUV.x + 1.0f, 1.0f - textureUV.y) * 0.5f;
-  }
-  else
-  {
-    texCoord = vec2(textureUV.x + 1.0f, textureUV.y + 1.f) * 0.5f;
+    texCoord.y = 1.f - texCoord.y;
   }
   gl_Position = pos;
 }
