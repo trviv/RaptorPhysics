@@ -87,8 +87,12 @@ Kernel void radixSort32BitReduceKernel(
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> ComputeSimdWidthExp;
 
+#ifndef OneBlockPerGroup
   const uint maxBlocks = (length + ComputeSimdWidth - 1) / ComputeSimdWidth;
   const uint blocksPerGroup = (maxBlocks + FetchAlignmentExp * RadixBlockInstances * threadGroupCount() - 1) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount());
+#else
+  #define blocksPerGroup 1
+#endif
 
   uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << ComputeSimdWidthExp;
   const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << ComputeSimdWidthExp);
@@ -114,7 +118,11 @@ Kernel void radixSort32BitReduceKernel(
   }
 
   // for each sub block
+#ifndef OneBlockPerGroup
   for (uint index = startIndex; index < endIndex;)
+#else
+  uint index = startIndex;
+#endif
   {
 #ifdef UsePackedKeys
     uint localKeys = 0;
@@ -221,8 +229,12 @@ Kernel void radixSort32BitSortKernel(
   // lane instance id
   const uchar laneIndex = threadLocalIndex() >> ComputeSimdWidthExp;
 
+#ifndef OneBlockPerGroup
   const uint maxBlocks = (length + ComputeSimdWidth - 1) / ComputeSimdWidth;
   const uint blocksPerGroup = (maxBlocks + FetchAlignmentExp * RadixBlockInstances * threadGroupCount() - 1) / (FetchAlignmentExp * RadixBlockInstances * threadGroupCount());
+#else
+  #define blocksPerGroup 1
+#endif
 
   uint startIndex = ((laneIndex + threadGroupIndex() * RadixBlockInstances) * blocksPerGroup * FetchAlignmentExp) << ComputeSimdWidthExp;
   const uint endIndex = startIndex + ((FetchAlignmentExp * blocksPerGroup) << ComputeSimdWidthExp);
@@ -269,9 +281,17 @@ Kernel void radixSort32BitSortKernel(
   }
 
 #ifdef BusAlignedFetch
+#ifndef OneBlockPerGroup
   for (uint index = startIndex + (localIndexInLane << RadixPrefixScanPackingExp) - localIndexInLane; index < endIndex; index += (ComputeSimdWidth << RadixPrefixScanPackingExp))
 #else
+  const uint index = startIndex + (localIndexInLane << RadixPrefixScanPackingExp) - localIndexInLane;
+#endif
+#else
+#ifndef OneBlockPerGroup
   for (uint index = startIndex; index < endIndex; index += (ComputeSimdWidth << RadixPrefixScanPackingExp))
+#else
+  const uint index = startIndex;
+#endif
 #endif
   {
 

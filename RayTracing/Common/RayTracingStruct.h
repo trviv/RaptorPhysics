@@ -46,14 +46,17 @@ inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const f
   const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
   const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
   const float3 tmin = select(t0, t1, sign);
-  const float3 tmax = select(t1, t0, sign);
-  const float tmaxOut = minCompFloat3(tmax);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tminOut <= tmaxOut && *timeIn > tminOut)
+  if (*timeIn > tminOut)
   {
-    *timeIn  = tminOut;
-    return true;
+    const float3 tmax = select(t1, t0, sign);
+    const float tmaxOut = minCompFloat3(tmax);
+    if (tminOut <= tmaxOut)
+    {
+      *timeIn  = tminOut;
+      return true;
+    }
   }
   return false;
 }

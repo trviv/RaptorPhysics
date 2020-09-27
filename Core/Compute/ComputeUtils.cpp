@@ -32,6 +32,8 @@ enum UtilTemporaryBuffer
 #define RADIX_SORT_BIT_COUNT          4
 #define RADIX_REDUCTION_PACKING_EXP   2
 #define RADIX_PREFIX_SCAN_PACKING_EXP 2
+// one block per group seems to be optimal across devices
+#define RADIX_ONE_BLOCK_PER_GROUP     1
 
 string getKeyName(ComputeUtilKey key)
 {
@@ -302,6 +304,11 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
         oldType.push_back("BankConflictShift");
         newType.push_back(to_string(2));
+
+#if RADIX_ONE_BLOCK_PER_GROUP
+        oldType.push_back("OneBlockPerGroup");
+        newType.push_back("");
+#endif
 
         util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY] = (uint)kernelNames.size();
         kernelNames.push_back("compactSparseArray");
@@ -623,7 +630,11 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
     ((DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum])->create(compute, NULL);
   }
 
+#if RADIX_ONE_BLOCK_PER_GROUP
+  const uint groupFactor = 1024;
+#else
   const uint groupFactor = RADIX_SORT_BIT_COUNT * (RADIX_REDUCTION_PACKING_EXP << 1) * 256;
+#endif
   const uint groups = mAlignBy(length, groupFactor);
   DeviceArray<uint>* localSumBuffer = (DeviceArray<uint>*)localArrays[UtilTempRadixGroupSum];
 
