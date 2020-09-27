@@ -1,5 +1,5 @@
 #include "Clock.h"
-#include "Math.h"
+#include <Header/Math.h>
 
 #ifdef __CELLOS_LV2__
 #include <sys/sys_time.h>
@@ -32,7 +32,7 @@ struct ClockData
   LARGE_INTEGER mStartTime;
 #else
 #ifdef __CELLOS_LV2__
-  uint64_t	mStartTime;
+  uint64_t mStartTime;
 #else
   struct timeval mStartTime;
 #endif
