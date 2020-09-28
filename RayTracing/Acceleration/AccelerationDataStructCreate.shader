@@ -11,29 +11,6 @@ float extractPackedFloat(const Device float* buffer, const PackingInfo packingIn
   return buffer[index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes];
 }
 
-inline XAB createPrimitiveXAB(
-  const ushort                      primType,
-  const uint                        index,
-  const Device PrimitiveStruct*     primitiveBuffer,
-  const Device float*               attributeBuffer,
-  constantKernelInput(PackingInfo,  attributePackingInfo))
-{
-  const float3 position = primitiveBuffer[index].position;
-  const float radius    = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
-
-  XAB primitiveBoundingBox;
-  primitiveBoundingBox.min = position;
-  primitiveBoundingBox.max = position;
-
-  if (primType == PrimitiveSphere)
-  {
-    primitiveBoundingBox.min -= constructFloat3(radius);
-    primitiveBoundingBox.max += constructFloat3(radius);
-  }
-
-  return primitiveBoundingBox;
-}
-
 /*
 @kernel Calculate bounding box for individual spheres.
 @param boundingBoxes Bounding box for primitives.
@@ -45,21 +22,71 @@ inline XAB createPrimitiveXAB(
 @param primitiveOffsets Starting offsets and prim info for primitive buffer.
 */
 Kernel void createPrimitiveBoundingBoxes(
+  Device PrimitiveStruct*           finalPrimitiveArray,
   Device XAB*                       boundingBoxes,
   const Device PrimitiveStruct*     primitiveBuffer,
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
-  Const RTPrimitiveOffset*          primitiveOffsets
+  constantKernelInput(uint,         primType),
+  constantKernelInput(uint,         primitiveOffset)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
   {
-    const ushort primType = getSystemPrimType(primitiveOffsets, index);
-    boundingBoxes[index] = createPrimitiveXAB(primType, index, primitiveBuffer, attributeBuffer, attributePackingInfo);
+    XAB primitiveBoundingBox;
+
+    if (primType == PrimitiveSphere)
+    {
+      PrimitiveStruct outPrim  = primitiveBuffer[index];
+      primitiveBoundingBox.min = outPrim.position;
+      primitiveBoundingBox.max = outPrim.position;
+
+      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
+
+      primitiveBoundingBox.min -= constructFloat3(radius);
+      primitiveBoundingBox.max += constructFloat3(radius);
+
+      finalPrimitiveArray[index + primitiveOffset] = outPrim;
+    }
+
+    if (primType == PrimitiveTriangle)
+    {
+      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3;
+
+      // for indexed array a non zero stride is assumed
+      if (attributePackingInfo.strideIn4Bytes > 0)
+      {
+        vertIndices.x = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.x));
+        vertIndices.y = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.y));
+        vertIndices.z = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.z));
+      }
+
+      // get vertex zero and vertex position
+      PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
+      PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
+      const uint v1identity = vert1.identity;
+      PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
+      const uint v2identity = vert2.identity;
+
+      primitiveBoundingBox.min = min3(vert0.position, vert1.position, vert2.position);
+      primitiveBoundingBox.max = max3(vert0.position, vert1.position, vert2.position);
+
+      vert1.position = vert1.position - vert0.position;
+      vert1.identity = v1identity;
+      vert2.position = vert2.position - vert0.position;
+      vert2.identity = v2identity;
+
+      vertIndices = primitiveOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, attributePackingInfo.strideIn4Bytes == 0);
+      finalPrimitiveArray[vertIndices.x] = vert0;
+      finalPrimitiveArray[vertIndices.y] = vert1;
+      finalPrimitiveArray[vertIndices.z] = vert2;
+    }
+
+    boundingBoxes[index + primitiveOffset] = primitiveBoundingBox;
   }
 }
 

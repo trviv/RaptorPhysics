@@ -76,6 +76,11 @@ void RayTracingSystem::registerSphereBuffer(const ComputeMemory* primitiveBuffer
   accelerationStruct->registerSpheres(primitiveBuffer, radiusBuffer, radiusInfo, count);
 }
 
+void RayTracingSystem::registerTriangleBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count)
+{
+  accelerationStruct->registerTriangles(primitiveBuffer, indexBuffer, indexInfo, count);
+}
+
 void RayTracingSystem::updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16])
 {
   camera->update(projectionMatrix, modelviewMatrix);

@@ -119,8 +119,8 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
   }
   else
   {
-    tempBuffers.insert(tempBuffers.begin(), pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
-    return tempBuffers.front().second;
+    tempBuffers.push_back(pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
+    return tempBuffers.back().second;
   }
   return nil;
 }}
@@ -585,6 +585,7 @@ void ComputeKernel::setSharedMemArg(const size_t valueSize, uint index)
 #endif
 }
 
+#ifndef USE_OPENCL_COMPUTE
 void ComputeKernel::setArgs()
 { @autoreleasepool {
   for (auto& i : args)
@@ -610,6 +611,7 @@ void ComputeKernel::setArgs()
   }
   args.clear();
 }}
+#endif
 
 
 ComputeProgram::ComputeProgram()

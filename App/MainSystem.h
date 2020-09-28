@@ -82,6 +82,8 @@ protected:
 
   RayTracingSystem  rayTracingSystem;
 
+  DeviceArray<PrimitiveStruct> bottomSurface;
+
   friend class ReaderScene;
 
 public:

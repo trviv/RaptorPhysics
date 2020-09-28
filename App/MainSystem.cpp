@@ -304,6 +304,29 @@ void MainSystem::render()
       }
     }
 
+    {
+      bottomSurface.create(compute);
+
+      XAB systemBound = physicsSystem.getSystemSettings().systemBound;
+//      systemBound.min.x = -1000.f;
+//      systemBound.min.z = -1000.f;
+//
+//      systemBound.max.x = 1000.f;
+//      systemBound.max.z = 1000.f;
+
+      PrimitiveStruct pos;
+      pos.position = systemBound.min;     bottomSurface.host()->push_back(pos);
+      pos.position.z = systemBound.max.z; bottomSurface.host()->push_back(pos);
+      pos.position.x = systemBound.max.x; bottomSurface.host()->push_back(pos);
+
+      bottomSurface.host()->push_back(pos);
+      pos.position.z = systemBound.min.z; bottomSurface.host()->push_back(pos);
+      pos.position.x = systemBound.min.x; bottomSurface.host()->push_back(pos);
+
+      bottomSurface.syncDevice();
+      rayTracingSystem.registerTriangleBuffer(bottomSurface.device(), NULL, PackingInfo(), 2);
+    }
+
     rayTracingSystem.commit();
   }
 

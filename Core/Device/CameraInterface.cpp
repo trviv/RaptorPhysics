@@ -270,7 +270,7 @@ const ComputeTexture* CameraInterface::getCurrentFrame()const
 
 CameraInterface::CameraInterface(ComputeInterface* compute)
 {
-  logComputeError("CameraInterface is not supported with OpenCL");
+  logComputeMessage("CameraInterface is not supported with OpenCL");
 }
 
 CameraInterface::~CameraInterface()
