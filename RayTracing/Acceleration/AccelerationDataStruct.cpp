@@ -13,6 +13,21 @@ uint AccelerationDataStruct::PrimitiveAttributeInfo::bindToShader(ComputeKernel&
     kernel.setArg(&attributeInfo[PrimitiveAttributeRadius], startIndex+2);
     return startIndex+3;
   }
+  else
+  if (type == PrimitiveTriangle)
+  {
+    kernel.setArg(attributeBuffer[PrimitiveAttributePosition], startIndex);
+    if (attributeInfo[PrimitiveAttributeIndex].strideIn4Bytes)
+    {
+      kernel.setArg(attributeBuffer[PrimitiveAttributeIndex], startIndex+1);
+    }
+    else
+    {
+      kernel.setArg(attributeBuffer[PrimitiveAttributePosition], startIndex+1);
+    }
+    kernel.setArg(&attributeInfo[PrimitiveAttributeIndex], startIndex+2);
+    return startIndex+3;
+  }
 
   return startIndex;
 }
@@ -53,6 +68,7 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
 
   boundingBoxes.create(compute);
   primStartingOffset.create(compute);
+  primitiveArray.create(compute);
 
   map<ComputeUtilKey, string> lbvhXABSetting;
   lbvhXABSetting[ComputeUtilBatchSize] = "1";
@@ -90,6 +106,21 @@ void AccelerationDataStruct::registerSpheres(const ComputeMemory* primitiveBuffe
   primitiveCount += count;
 }
 
+void AccelerationDataStruct::registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count)
+{
+  PrimitiveAttributeInfo primInfo;
+
+  primInfo.attributeBuffer[PrimitiveAttributePosition]  = primitiveBuffer;
+  primInfo.attributeInfo[PrimitiveAttributePosition]    = PackingInfo();
+  primInfo.attributeBuffer[PrimitiveAttributeIndex]     = indexBuffer;
+  primInfo.attributeInfo[PrimitiveAttributeIndex]       = indexInfo;
+  primInfo.count                                        = count;
+  primInfo.type                                         = PrimitiveTriangle;
+
+  registeredPrimitives.push_back(primInfo);
+  primitiveCount += count;
+}
+
 void AccelerationDataStruct::commit()
 {
   primStartingOffset.host()->clear();
@@ -104,24 +135,30 @@ void AccelerationDataStruct::commit()
 
   primStartingOffset.syncDevice();
   boundingBoxes.resize(primitiveCount, false);
+  primitiveArray.resize(primitiveCount, false);
 }
 
 void AccelerationDataStruct::fullBuild()
 {
+  uint primitiveArrayOffset = 0;
+
   for (auto& prim : registeredPrimitives)
   {
     uint primBatchSize = 8;
     uint primBatchCount = mAlignBy(prim.count, primBatchSize);
+    uint primType = prim.type;
 
     // add to system bounding box
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
-    createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(), 0);
-    uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 1);
+    createPrimitiveBoundingBoxes.setArg(primitiveArray.device(), 0);
+    createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(), 1);
+    uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 2);
     createPrimitiveBoundingBoxes.setArg(&primBatchSize, nextBindIndex);
     createPrimitiveBoundingBoxes.setArg(&prim.count, nextBindIndex+1);
-    createPrimitiveBoundingBoxes.setArg(primStartingOffset.device(), nextBindIndex+2);
+    createPrimitiveBoundingBoxes.setArg(&primType, nextBindIndex+2);
+    createPrimitiveBoundingBoxes.setArg(&primitiveArrayOffset, nextBindIndex+3);
 
     compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
@@ -129,6 +166,8 @@ void AccelerationDataStruct::fullBuild()
     boundingBoxes.syncHost();
     compute->sync();
 #endif
+
+    primitiveArrayOffset += prim.count;
   }
 }
 
@@ -146,7 +185,7 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(&rayCount, 2);
     intersectionKernel.setArg(boundingBoxes.device(), 3);
     uint nextBindIndex = registeredPrimitives[0].bindToShader(intersectionKernel, 4);
-    intersectionKernel.setArg(&registeredPrimitives[0].count, nextBindIndex);
+    intersectionKernel.setArg(&primitiveCount, nextBindIndex);
     intersectionKernel.setArg(primStartingOffset.device(), nextBindIndex+1);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);

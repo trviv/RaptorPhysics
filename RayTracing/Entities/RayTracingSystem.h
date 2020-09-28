@@ -20,6 +20,7 @@ protected:
 
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
 
+  /*!@member Final color output.*/
   DeviceArray<uint> colorOutputBuffer;
 
   /*!@member Camera used in the scene.*/
@@ -52,6 +53,7 @@ public:
   /*!@function Get primitives in ray tracing system.*/
   uint getPrimCount()const;
 
+  /*!@function Get RT system's camera.*/
   const Camera& getCameraStruct()const;
 
   const DeviceArray<uint>& getColorOutputBuffer()const;
@@ -61,6 +63,12 @@ public:
   @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
   */
   void registerSphereBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count);
+
+  /*!
+  @function Register triangle buffer to the system.
+  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
+  */
+  void registerTriangleBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count);
 
   /*!@function Update camera based on given matrices.*/
   void updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16]);

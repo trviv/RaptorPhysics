@@ -30,8 +30,10 @@ Kernel void shadeIntersection(
   else
   {
     ray.color = constructFloat3(1.f/hit.distance);
+    //ray.color = constructFloat3(1.f);
   }
-  colorOut[ray.rayIndex] = asUint(constructUchar4(constructUchar3(255.f * clamp(ray.color, 0.f, 1.f)), 255));
+  const float3 finalColor = 255.f * clamp(ray.color, 0.f, 1.f);
+  colorOut[ray.rayIndex] = asUint(constructUchar4(constructUchar3(finalColor.x, finalColor.y, finalColor.z), 255));
 }
 
 #endif

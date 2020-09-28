@@ -31,7 +31,7 @@ Kernel void intersectRays(
     return;
 
   const float3 invRayDirection = 1.f / rays[index].direction;
-  const bool3 sign = invRayDirection < 0.f;
+  const bool3 sign = selectInput3(invRayDirection < 0.f);
   const float3 rayOrigin = rays[index].origin;
 
   HitStruct hit;

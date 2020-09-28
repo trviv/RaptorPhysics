@@ -20,6 +20,7 @@ protected:
   {
     PrimitiveAttributePosition,
     PrimitiveAttributeRadius,
+    PrimitiveAttributeIndex = PrimitiveAttributeRadius,
     PrimitiveAttributeMax
   };
 
@@ -35,11 +36,16 @@ protected:
 
   vector<PrimitiveAttributeInfo>  registeredPrimitives;
 
-  DeviceArray<uint> primStartingOffset;
+  DeviceArray<uint>               primStartingOffset;
 
-  DeviceArray<XAB>  boundingBoxes;
+  /*!@member Per primitive bounding box array.*/
+  DeviceArray<XAB>                boundingBoxes;
 
-  uint              primitiveCount;
+  /*!@member Composite array containing all positions.*/
+  DeviceArray<PrimitiveStruct>    primitiveArray;
+
+  /*!@member Total primitives in the system.*/
+  uint  primitiveCount;
 
 public:
 
@@ -55,6 +61,11 @@ public:
   @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
   */
   virtual void registerSpheres(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count);
+
+  /*!
+  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
+  */
+  virtual void registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count);
 
   virtual void commit();
 

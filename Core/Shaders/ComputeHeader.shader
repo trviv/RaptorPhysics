@@ -41,6 +41,7 @@
 #define asUchar4(x)         as_uchar4(x)
 #define asFloat(x)          as_float(x)
 #define asUint(x)           as_uint(x)
+#define asUint3(x)          as_uint3(x)
 #define simdAll(x)          assert
 #define simdFirst(x)        assert
 #define simdIsFirst()       assert
@@ -48,9 +49,12 @@
 #define simdScan(x)         assert
 #define simdMin(x)          assert
 #define simdMax(x)          assert
+#define bool3               uint3
 #define selectInput2(x)     (uint2)x
 #define selectInput3(x)     (uint3)(x)
 #define lengthSq(x)         dot(x, x)
+#define min3(v0, v1, v2)    min(min(v0, v1), v2)
+#define max3(v0, v1, v2)    max(max(v0, v1), v2)
 #define minCompFloat3(vec)  min(min(vec.x, vec.y), vec.z)
 #define maxCompFloat3(vec)  max(max(vec.x, vec.y), vec.z)
 
@@ -121,6 +125,7 @@
 #define asUchar4(x)         as_type<uchar4>(x)
 #define asFloat(x)          as_type<float>(x)
 #define asUint(x)           as_type<uint>(x)
+#define asUint3(x)          as_type<uint3>(x)
 #define simdAll(x)          simd_all(x)
 #define simdFirst(x)        simd_broadcast_first(x)
 #define simdIsFirst()       simd_is_first()

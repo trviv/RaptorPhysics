@@ -32,7 +32,7 @@ inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, co
   const float tmaxOut = minCompFloat3(tmax);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tminOut <= tmaxOut)
+  if (tminOut > 0.f && tminOut <= tmaxOut)
   {
     *timeIn  = tminOut;
     *timeOut = tmaxOut;
@@ -48,7 +48,7 @@ inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const f
   const float3 tmin = select(t0, t1, sign);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (*timeIn > tminOut)
+  if (tminOut > 0.f && *timeIn > tminOut)
   {
     const float3 tmax = select(t1, t0, sign);
     const float tmaxOut = minCompFloat3(tmax);
@@ -128,7 +128,8 @@ typedef struct PrimitiveStruct_t PrimitiveStruct;
 
 enum RTPrimitiveType
 {
-  PrimitiveSphere
+  PrimitiveSphere,
+  PrimitiveTriangle
 };
 
 /*!
@@ -195,7 +196,7 @@ struct DEFAULT_ALIGN CameraStruct_t
     float scale;
     uint  padding;
   };
-#ifdef COMPUTE_SHADER_SCOPE
+#if defined(COMPUTE_SHADER_SCOPE) && defined(USE_METAL_COMPUTE)
   float4x4  viewMatrixInv;
 #else
   float     viewMatrixInv[16];
