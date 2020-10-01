@@ -77,23 +77,8 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
     i.clear();
   }
 
-  map<ComputeUtilKey, string> lbvhXABSetting;
-  lbvhXABSetting[ComputeUtilBatchSize] = "1";
-  lbvhXABSetting[ComputeUtilStructType] = "XAB";
-  lbvhXABSetting[ComputeUtilStructSize] = "32";
-  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
-  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
-  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
-  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
-  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
-  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
-  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  accXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, NULL);
-
-  map<ComputeUtilKey, string> lbvhSortSetting;
-  lbvhSortSetting[ComputeUtilStructType] = "uint";
-  lbvhSortSetting[ComputeUtilStructTypeIntegral] = "1";
-  sortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, NULL);
+  accXABComputeUtilId = ComputeUtil::getXABUtil(compute);
+  sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
 
   primitiveCount = 0;
   vertexCount    = 0;

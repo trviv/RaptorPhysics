@@ -51,23 +51,8 @@ void LBVHSolver::init()
   kernels.push_back(programs[0].createKernel("applyCollisions"));
 
   // create utility classes
-  map<ComputeUtilKey, string> lbvhXABSetting;
-  lbvhXABSetting[ComputeUtilBatchSize] = "1";
-  lbvhXABSetting[ComputeUtilStructType] = "XAB";
-  lbvhXABSetting[ComputeUtilStructSize] = "32";
-  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
-  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
-  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
-  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
-  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
-  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
-  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  lbvhXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, NULL);
-
-  map<ComputeUtilKey, string> lbvhSortSetting;
-  lbvhSortSetting[ComputeUtilStructType] = "uint";
-  lbvhSortSetting[ComputeUtilStructTypeIntegral] = "1";
-  lbvhSortComputeUtilId = ComputeUtil::create(compute, lbvhSortSetting, NULL);
+  lbvhXABComputeUtilId  = ComputeUtil::getXABUtil(compute);
+  lbvhSortComputeUtilId = ComputeUtil::getUIntUtil(compute);
 }
 
 void LBVHSolver::build(uint instanceNodeCount, ComputeMemory* systemSettings, ComputeMemory* particleBuffer)
