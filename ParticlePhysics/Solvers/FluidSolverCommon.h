@@ -160,7 +160,7 @@ Kernel void reorderFluidParticles(
       const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
       const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
 //      const uint cellInternalSpatialIndex = encodeGridIndexInt3(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale), scale);
-      const uint cellInternalSpatialIndex = get32BitMortonCode(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale));
+      const uint cellInternalSpatialIndex = encode32BitMortonCode(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale));
 
       particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = constructUint3(cellInternalSpatialIndex, gridCellIndex, particleIndex);
     }

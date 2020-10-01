@@ -10,9 +10,11 @@ class AccelerationDataStruct : public ShaderEntity
 {
 protected:
   static uint accXABComputeUtilId;
+  static uint sortComputeUtilId;
 
   ComputeInterface* compute;
 
+  ComputeKernel assignMortonCode;
   ComputeKernel createPrimitiveBoundingBoxes;
   ComputeKernel intersectRayKernels[RayStructTypeMax][HitStructTypeMax];
 
@@ -26,26 +28,32 @@ protected:
 
   struct PrimitiveAttributeInfo
   {
-    RTPrimitiveType       type;
-    uint                  count;
+    DecodedPrimitiveInfo  primInfo;
     const ComputeMemory*  attributeBuffer[PrimitiveAttributeMax];
     PackingInfo           attributeInfo[PrimitiveAttributeMax];
 
     uint bindToShader(ComputeKernel& kernel, uint startIndex);
   };
 
-  vector<PrimitiveAttributeInfo>  registeredPrimitives;
+  vector<PrimitiveAttributeInfo>  registeredPrimitives[RTPrimitiveCount];
 
-  DeviceArray<uint>               primStartingOffset;
+  DeviceArray<RTSystemSettings> systemSettings;
 
   /*!@member Per primitive bounding box array.*/
-  DeviceArray<XAB>                boundingBoxes;
+  DeviceArray<XAB>              boundingBoxes;
 
   /*!@member Composite array containing all positions.*/
-  DeviceArray<PrimitiveStruct>    primitiveArray;
+  DeviceArray<PrimitiveStruct>  vertexArray;
+
+  DeviceArray<BVHLeafInfo>      primitiveLeafData;
+
+  DeviceArray<BVHLeafInfo>      primitiveLeafDataSorted;
 
   /*!@member Total primitives in the system.*/
   uint  primitiveCount;
+
+  /*!@member Total positions/vertex in the system.*/
+  uint  vertexCount;
 
 public:
 

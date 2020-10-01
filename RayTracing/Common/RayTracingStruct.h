@@ -129,55 +129,104 @@ typedef struct PrimitiveStruct_t PrimitiveStruct;
 enum RTPrimitiveType
 {
   PrimitiveSphere,
-  PrimitiveTriangle
+  PrimitiveTriangle,
+  RTPrimitiveCount
 };
 
+
 /*!
-@struct Primitive offsets.
+@struct Encoded primitive offsets.
 */
-struct ALIGN(4) RTPrimitiveOffset_t
+struct ALIGN(4) EncodedPrimitiveInfo_t
 {
   union
   {
-    uint primTypeAndOffset;
+    uint primTypeAndIndexOffset;
     uint count;
+  };
+  uint vertexOffset;
+};
+
+typedef struct EncodedPrimitiveInfo_t EncodedPrimitiveInfo;
+
+
+/*!
+@struct Decoded primitive offsets.
+*/
+struct DecodedPrimitiveInfo_t
+{
+  ushort primType;
+  union
+  {
+    uint indexOffset;
+    uint indexCount;
+  };
+  union
+  {
+    uint vertexOffset;
+    uint vertexCount;
   };
 };
 
-typedef struct RTPrimitiveOffset_t RTPrimitiveOffset;
+typedef struct DecodedPrimitiveInfo_t DecodedPrimitiveInfo;
+
+
+struct ALIGN(4) RTSystemSettings_t
+{
+  XAB systemBound;
+  EncodedPrimitiveInfo globalOffsets[RTPrimitiveCount];
+};
+
+typedef struct RTSystemSettings_t RTSystemSettings;
+
 
 #ifndef COMPUTE_SHADER_SCOPE
-inline static void setSystemPrimType(RTPrimitiveOffset& sys, RTPrimitiveType type)
+
+inline static void setPrimitiveType(EncodedPrimitiveInfo& sys, RTPrimitiveType type)
 {
-  sys.primTypeAndOffset = (sys.primTypeAndOffset & RAY_TRACING_PRIM_OFFSET_MASK) | (type << RAY_TRACING_TYPE_ID_SHIFT);
+  sys.primTypeAndIndexOffset = (sys.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK) | (type << RAY_TRACING_TYPE_ID_SHIFT);
 }
 
-inline static void setSystemPrimOffset(RTPrimitiveOffset& sys, uint offset)
+inline static void setPrimitiveIndexOffset(EncodedPrimitiveInfo& sys, uint offset)
 {
-  sys.primTypeAndOffset = (sys.primTypeAndOffset & (-1 ^ RAY_TRACING_PRIM_OFFSET_MASK)) | (offset & RAY_TRACING_PRIM_OFFSET_MASK);
+  sys.primTypeAndIndexOffset = (sys.primTypeAndIndexOffset & (-1 ^ RAY_TRACING_PRIM_OFFSET_MASK)) | (offset & RAY_TRACING_PRIM_OFFSET_MASK);
 }
+
+inline static void setPrimitiveVertexOffset(EncodedPrimitiveInfo& sys, uint offset)
+{
+  sys.vertexOffset = offset;
+}
+
 #endif
 
-#ifdef COMPUTE_SHADER_SCOPE
-inline static uint getSystemPrimOffset(const RTPrimitiveOffset sys)
+inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInfo primInfo)
 {
-  return (sys.primTypeAndOffset & RAY_TRACING_PRIM_OFFSET_MASK);
+  const DecodedPrimitiveInfo ret = {
+    (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_TYPE_ID_SHIFT),
+    primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK,
+    primInfo.vertexOffset
+  };
+  return ret;
 }
 
-inline static ushort getSystemPrimType(Const RTPrimitiveOffset* primitiveOffsets, const uint index)
+#ifdef COMPUTE_SHADER_SCOPE
+
+inline static DecodedPrimitiveInfo decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index)
 {
-  // first element in the buffer is reserved for count
-  const ushort count = primitiveOffsets[0].count;
-  ushort ret = 0;
-  for (ushort i=1; i<=count; i++)
+  DecodedPrimitiveInfo ret;
+
+  for (ushort i=0; i<RTPrimitiveCount; i++)
   {
-    const uint offset = getSystemPrimOffset(primitiveOffsets[i]);
-    if (index < offset)
+    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[ret.primType]);
+
+    if (index < primInfo.indexOffset)
     {
-      ret = (primitiveOffsets[i].primTypeAndOffset >> RAY_TRACING_TYPE_ID_SHIFT);
       break;
     }
+
+    ret = primInfo;
   }
+
   return ret;
 }
 
