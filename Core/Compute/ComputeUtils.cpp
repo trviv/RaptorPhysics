@@ -749,3 +749,29 @@ void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, C
   kernels[kernelIndex].setArg<uint>(&sizeInBytes, 4);
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
+
+uint ComputeUtil::getUIntUtil(ComputeInterface* compute)
+{
+  map<ComputeUtilKey, string> sortSetting;
+  sortSetting[ComputeUtilStructType] = "uint";
+  sortSetting[ComputeUtilStructTypeIntegral] = "1";
+
+  return ComputeUtil::create(compute, sortSetting, NULL);
+}
+
+uint ComputeUtil::getXABUtil(ComputeInterface* compute)
+{
+  map<ComputeUtilKey, string> xabSetting;
+  xabSetting[ComputeUtilBatchSize] = "1";
+  xabSetting[ComputeUtilStructType] = "XAB";
+  xabSetting[ComputeUtilStructSize] = "32";
+  xabSetting[ComputeUtilOnlyReduce] = "1";
+  xabSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
+  xabSetting[ComputeUtilCustomDivFunction] = "divXAB";
+  xabSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
+  xabSetting[ComputeUtilCustomClearFunction] = "clearXAB";
+  xabSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
+  xabSetting[ComputeUtilSkipParallelPrimitives] = "1";
+
+  return ComputeUtil::create(compute, xabSetting, NULL);
+}

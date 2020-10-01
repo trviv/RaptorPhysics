@@ -54,26 +54,10 @@ UniformGridCollisionSolver::~UniformGridCollisionSolver()
 void UniformGridCollisionSolver::createUtilities()
 {
   // create utility classes
-  map<ComputeUtilKey, string> lbvhXABSetting;
-  lbvhXABSetting[ComputeUtilBatchSize] = "1";
-  lbvhXABSetting[ComputeUtilStructType] = "XAB";
-  lbvhXABSetting[ComputeUtilStructSize] = "32";
-  lbvhXABSetting[ComputeUtilOnlyReduce] = "1";
-  lbvhXABSetting[ComputeUtilCustomAddFunction] = "mergeXAB";
-  lbvhXABSetting[ComputeUtilCustomDivFunction] = "divXAB";
-  lbvhXABSetting[ComputeUtilCustomCopyFunction] = "copyXAB";
-  lbvhXABSetting[ComputeUtilCustomClearFunction] = "clearXAB";
-  lbvhXABSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
-  lbvhXABSetting[ComputeUtilSkipParallelPrimitives] = "1";
-  gridXABComputeUtilId = ComputeUtil::create(compute, lbvhXABSetting, NULL);
+  gridXABComputeUtilId = ComputeUtil::getXABUtil(compute);
+  gridComputeUtilId = ComputeUtil::getUIntUtil(compute);
 
   map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
-
-  gridComputeUtilId = ComputeUtil::create(compute, utilSetting);
-
-  utilSetting.clear();
   utilSetting[ComputeUtilOnlyReduce] = "1";
   utilSetting[ComputeUtilStructType] = "float";
   utilSetting[ComputeUtilCustomAddFunction] = "mergeFloat";

@@ -125,9 +125,7 @@ void testCustomBandwidthRW(ComputeInterface* compute)
 
   data.syncDevice();
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  ComputeUtil::create(compute, utilSetting);
+  ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
@@ -173,9 +171,7 @@ void testSetBuffer(ComputeInterface* compute)
 
   data.resize(elements, false);
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  uint templateId = ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
@@ -559,9 +555,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   data.syncDevice();
   compute->copyBuffer(data.device(), backupData.device(), 0, 0, elements * sizeof(DataType));
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  uint templateId = ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
@@ -636,10 +630,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   selectionArray.syncDevice();
   compactIndexArray.resize(elements, false);
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  uint templateId = ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
@@ -756,10 +747,7 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   data.syncDevice();
   compute->sync();
 
-  map<ComputeUtilKey, string> utilSetting;
-  utilSetting[ComputeUtilStructType] = "uint";
-  utilSetting[ComputeUtilStructTypeIntegral] = "1";
-  uint templateId = ComputeUtil::create(compute, utilSetting, NULL);
+  uint templateId = ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
