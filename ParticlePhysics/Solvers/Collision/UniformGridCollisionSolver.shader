@@ -7,7 +7,7 @@
 inline uint encodeGridIndexInt3(const int3 relativeIndex, const ushort gridSizeExp)
 {
 #ifdef GRID_SOLVER_USE_Z_ORDER
-  return get32BitMortonCode(relativeIndex);
+  return encode32BitMortonCode(relativeIndex);
 #else
   return ((((relativeIndex.z << gridSizeExp) + relativeIndex.y) << gridSizeExp) + relativeIndex.x);
 #endif

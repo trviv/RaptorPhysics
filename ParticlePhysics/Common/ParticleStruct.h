@@ -403,29 +403,6 @@ struct ALIGN(4) PhySystemOffsets_t
 typedef struct PhySystemOffsets_t PhySystemOffsets;
 
 
-/*!
-@struct Bounding volume hierarchy leaf data.
-*/
-struct ALIGN(8) BVHLeafInfo_t
-{
-  uint mortonCode;
-  uint index;
-};
-
-typedef struct BVHLeafInfo_t BVHLeafInfo;
-
-
-/*!
-@struct Bounding volume hierarchy internal node data.
-*/
-struct ALIGN(8) BVHNodeInfo_t
-{
-  uint child[2];
-};
-
-typedef struct BVHNodeInfo_t BVHNodeInfo;
-
-
 struct ALIGN(4) PhySystemSettings_t
 {
   XAB     systemBound;

@@ -39,7 +39,7 @@ Kernel void assignMortonCode(
 
     //Interleave bits(assign a morton code, also known as a z-curve)
     BVHLeafInfo bvhLeaf;
-    bvhLeaf.mortonCode = get32BitMortonCode(quantizedPosition);
+    bvhLeaf.mortonCode = encode32BitMortonCode(quantizedPosition);
     bvhLeaf.index = index;
 
     bvhLeafs[index] = bvhLeaf;

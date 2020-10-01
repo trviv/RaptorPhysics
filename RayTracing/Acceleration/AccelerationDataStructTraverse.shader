@@ -7,22 +7,22 @@
 @param rays Ray buffer.
 @param rayCount Ray count.
 @param boundingBoxes Bounding box for primitives.
-@param primitiveBuffer Buffer containing primitive positions.
+@param vertexArray Buffer containing primitive positions.
 @param attributeBuffer Buffer containing attribute inside a structure.
 @param attributePackingInfo Packing information for attribute in primitive structure.
 @param primitiveCount Total primitives in the buffer.
-@param primitiveOffsets Starting offsets and prim info for primitive buffer.
+@param systemSettings Settings for the ray tracing system.
 */
 Kernel void intersectRays(
   Device HitStruct*                 hits,
   const Device RayStruct*           rays,
   constantKernelInput(uint,         rayCount),
   const Device XAB*                 boundingBoxes,
-  const Device PrimitiveStruct*     primitiveBuffer,
+  const Device PrimitiveStruct*     vertexArray,
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
   constantKernelInput(uint,         primitiveCount),
-  Const RTPrimitiveOffset*          primitiveOffsets
+  Const RTSystemSettings*           systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();
