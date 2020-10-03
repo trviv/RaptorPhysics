@@ -8,8 +8,7 @@
 @param rayCount Ray count.
 @param boundingBoxes Bounding box for primitives.
 @param vertexArray Buffer containing primitive positions.
-@param attributeBuffer Buffer containing attribute inside a structure.
-@param attributePackingInfo Packing information for attribute in primitive structure.
+@param attributeArray Buffer containing primitive attribute data.
 @param primitiveCount Total primitives in the buffer.
 @param systemSettings Settings for the ray tracing system.
 */
@@ -19,8 +18,7 @@ Kernel void intersectRays(
   constantKernelInput(uint,         rayCount),
   const Device XAB*                 boundingBoxes,
   const Device PrimitiveStruct*     vertexArray,
-  const Device float*               attributeBuffer,
-  constantKernelInput(PackingInfo,  attributePackingInfo),
+  const Device PrimitiveAttrib*     attributeArray,
   constantKernelInput(uint,         primitiveCount),
   Const RTSystemSettings*           systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
@@ -30,19 +28,59 @@ Kernel void intersectRays(
   if (index >= rayCount)
     return;
 
-  const float3 invRayDirection = 1.f / rays[index].direction;
-  const bool3 sign = selectInput3(invRayDirection < 0.f);
   const float3 rayOrigin = rays[index].origin;
+  const float3 rayDirection = rays[index].direction;
+  const float3 invRayDirection = 1.f / rayDirection;
+  const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   HitStruct hit;
   hit.distance = INFINITY;
   hit.primitiveIndex = -1;
 
+  float currentTime = INFINITY;
+
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {
-    if (rayXABIntersectEarliest(&hit.distance, boundingBoxes[primIndex], rayOrigin, invRayDirection, sign))
+    if (rayXABIntersectEarliest(&currentTime, boundingBoxes[primIndex], rayOrigin, invRayDirection, sign))
     {
-      hit.primitiveIndex = primIndex;
+      const DecodedPrimitiveInfo primInfo = decodePrimitiveInfoFromSystemSettings(systemSettings, primIndex);
+
+      if (primInfo.primType == PrimitiveSphere)
+      {
+        const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + primIndex - primInfo.indexOffset];
+        const float radius = attributeArray[primIndex].radius;
+
+        const float3 pvec = rayOrigin - sphere.position;
+        const float b = dot(pvec, rayDirection);
+        const float c = lengthSq(pvec) - sqr(radius);
+        float d = b * b - c;
+
+        if (d >= 0)
+        {
+          d = sqrt(b * b - c);
+          float time = -(b + d);
+          if (time > MIN_TIME && time < hit.distance)
+          {
+            hit.distance = time;
+            hit.primitiveIndex = primIndex;
+          }
+
+          time = -(b - d);
+          if (time > MIN_TIME && time < hit.distance)
+          {
+            hit.distance = time;
+            hit.primitiveIndex = primIndex;
+          }
+        }
+      }
+
+      if (primInfo.primType == PrimitiveTriangle)
+      {
+        hit.distance = currentTime;
+        hit.primitiveIndex = primIndex;
+      }
+
+      currentTime = hit.distance;
     }
   }
 

@@ -45,6 +45,8 @@ protected:
   /*!@member Composite array containing all positions.*/
   DeviceArray<PrimitiveStruct>  vertexArray;
 
+  DeviceArray<PrimitiveAttrib>  attributeArray;
+
   DeviceArray<BVHLeafInfo>      primitiveLeafData;
 
   DeviceArray<BVHLeafInfo>      primitiveLeafDataSorted;
