@@ -14,6 +14,8 @@
 
 #ifdef COMPUTE_SHADER_SCOPE
 
+#define MIN_TIME COMPUTE_EPSILON
+
 // also known as slabs method
 inline bool rayXABIntersectTest(const XAB xab, const float3 rayOrigin, const float3 invRayDirection)
 {
@@ -32,7 +34,7 @@ inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, co
   const float tmaxOut = minCompFloat3(tmax);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tminOut > 0.f && tminOut <= tmaxOut)
+  if (tminOut > MIN_TIME && tminOut <= tmaxOut)
   {
     *timeIn  = tminOut;
     *timeOut = tmaxOut;
@@ -48,7 +50,7 @@ inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const f
   const float3 tmin = select(t0, t1, sign);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tminOut > 0.f && *timeIn > tminOut)
+  if (tminOut > MIN_TIME && *timeIn > tminOut)
   {
     const float3 tmax = select(t1, t0, sign);
     const float tmaxOut = minCompFloat3(tmax);
@@ -126,6 +128,14 @@ struct DEFAULT_ALIGN PrimitiveStruct_t
 typedef struct PrimitiveStruct_t PrimitiveStruct;
 
 
+struct ALIGN(4) PrimitiveAttrib_t
+{
+  float radius;
+};
+
+typedef struct PrimitiveAttrib_t PrimitiveAttrib;
+
+
 enum RTPrimitiveType
 {
   PrimitiveSphere,
@@ -171,7 +181,7 @@ struct DecodedPrimitiveInfo_t
 typedef struct DecodedPrimitiveInfo_t DecodedPrimitiveInfo;
 
 
-struct ALIGN(4) RTSystemSettings_t
+struct DEFAULT_ALIGN RTSystemSettings_t
 {
   XAB systemBound;
   EncodedPrimitiveInfo globalOffsets[RTPrimitiveCount];
@@ -211,22 +221,32 @@ inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInf
 
 #ifdef COMPUTE_SHADER_SCOPE
 
+float3 extractPackedFloat3(const Device float* buffer, const PackingInfo packingInfo, const uint index)
+{
+  return *((Device float3*)(buffer + index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes));
+}
+
+float extractPackedFloat(const Device float* buffer, const PackingInfo packingInfo, const uint index)
+{
+  return buffer[index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes];
+}
+
 inline static DecodedPrimitiveInfo decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index)
 {
-  DecodedPrimitiveInfo ret;
-
   for (ushort i=0; i<RTPrimitiveCount; i++)
   {
-    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[ret.primType]);
+    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[i]);
 
     if (index < primInfo.indexOffset)
     {
-      break;
+      return primInfo;
     }
-
-    ret = primInfo;
   }
 
+  DecodedPrimitiveInfo ret;
+  ret.primType     = -1;
+  ret.indexOffset  = -1;
+  ret.vertexOffset = -1;
   return ret;
 }
 

@@ -69,6 +69,7 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   systemSettings.create(compute);
   boundingBoxes.create(compute);
   vertexArray.create(compute);
+  attributeArray.create(compute);
   primitiveLeafData.create(compute);
   primitiveLeafDataSorted.create(compute);
 
@@ -128,30 +129,30 @@ void AccelerationDataStruct::commit()
 
   for (uint i=0; i<RTPrimitiveCount; i++)
   {
+    for (const auto& p : registeredPrimitives[i])
+    {
+      indexOffset  += p.primInfo.indexOffset;
+      vertexOffset += p.primInfo.vertexOffset;
+    }
+
     EncodedPrimitiveInfo primInfo;
 
     setPrimitiveType(primInfo,         (RTPrimitiveType)i);
     setPrimitiveIndexOffset(primInfo,  indexOffset);
     setPrimitiveVertexOffset(primInfo, vertexOffset);
     systemSettings.host()->at(0).globalOffsets[i] = primInfo;
-
-    for (const auto& p : registeredPrimitives[i])
-    {
-      indexOffset  += p.primInfo.indexCount;
-      vertexOffset += p.primInfo.vertexCount;
-    }
   }
 
   primitiveCount = indexOffset;
   vertexCount    = vertexOffset;
 
-  systemSettings.resize(1, false);
-  vertexArray.resize(vertexCount, false);
   boundingBoxes.resize(primitiveCount, false);
+  vertexArray.resize(vertexCount, false);
+  attributeArray.resize(primitiveCount, false);
   primitiveLeafData.resize(primitiveCount, false);
   primitiveLeafDataSorted.resize(primitiveCount, false);
 
-  systemSettings.syncHost();
+  systemSettings.syncDevice();
 }
 
 void AccelerationDataStruct::fullBuild()
@@ -172,8 +173,9 @@ void AccelerationDataStruct::fullBuild()
       compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
       createPrimitiveBoundingBoxes.setArg(vertexArray.device(), 0);
-      createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(), 1);
-      uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 2);
+      createPrimitiveBoundingBoxes.setArg(attributeArray.device(), 1);
+      createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(), 2);
+      uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 3);
       createPrimitiveBoundingBoxes.setArg(&primBatchSize, nextBindIndex);
       createPrimitiveBoundingBoxes.setArg(&prim.primInfo.indexCount, nextBindIndex+1);
       createPrimitiveBoundingBoxes.setArg(&primType, nextBindIndex+2);
@@ -201,8 +203,9 @@ void AccelerationDataStruct::fullBuild()
 #endif
 
   {
+    uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
+    compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
     // assign morton code to the particle bounding boxes
     ComputeMemory* buffers[] = {
@@ -243,10 +246,11 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
-    intersectionKernel.setArg(boundingBoxes.device(), 3);
-    uint nextBindIndex = registeredPrimitives[0][0].bindToShader(intersectionKernel, 4);
-    intersectionKernel.setArg(&primitiveCount, nextBindIndex);
-    intersectionKernel.setArg(systemSettings.device(), nextBindIndex+1);
+    intersectionKernel.setArg(boundingBoxes.device(),  3);
+    intersectionKernel.setArg(vertexArray.device(),    4);
+    intersectionKernel.setArg(attributeArray.device(), 5);
+    intersectionKernel.setArg(&primitiveCount,         6);
+    intersectionKernel.setArg(systemSettings.device(), 7);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 

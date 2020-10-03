@@ -1,19 +1,10 @@
 #ifndef ACCELERATION_DATA_STRUCT_CREATE_SHADER
 #define ACCELERATION_DATA_STRUCT_CREATE_SHADER
 
-float3 extractPackedFloat3(const Device float* buffer, const PackingInfo packingInfo, const uint index)
-{
-  return *((Device float3*)(buffer + index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes));
-}
-
-float extractPackedFloat(const Device float* buffer, const PackingInfo packingInfo, const uint index)
-{
-  return buffer[index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes];
-}
-
 /*
 @kernel Calculate bounding box for individual spheres.
 @param finalVertexArray Buffer containing all positions.
+@param finalAttributeArray Buffer containing primitive attribute data.
 @param boundingBoxes Bounding box for primitives.
 @param primitiveBuffer Buffer containing primitive positions.
 @param attributeBuffer Buffer containing attribute inside a structure.
@@ -26,6 +17,7 @@ float extractPackedFloat(const Device float* buffer, const PackingInfo packingIn
 */
 Kernel void createPrimitiveBoundingBoxes(
   Device PrimitiveStruct*           finalVertexArray,
+  Device PrimitiveAttrib*           finalAttributeArray,
   Device XAB*                       boundingBoxes,
   const Device PrimitiveStruct*     primitiveBuffer,
   const Device float*               attributeBuffer,
@@ -55,6 +47,7 @@ Kernel void createPrimitiveBoundingBoxes(
       primitiveBoundingBox.max += constructFloat3(radius);
 
       finalVertexArray[index + vertexOffset] = outPrim;
+      finalAttributeArray[index + vertexOffset].radius = radius;
     }
 
     if (primType == PrimitiveTriangle)
