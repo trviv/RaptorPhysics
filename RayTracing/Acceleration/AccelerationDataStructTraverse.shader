@@ -76,8 +76,28 @@ Kernel void intersectRays(
 
       if (primInfo.primType == PrimitiveTriangle)
       {
-        hit.distance = currentTime;
-        hit.primitiveIndex = primIndex;
+        const uint triIndex = primInfo.vertexOffset + (primIndex - primInfo.indexOffset)*3;
+
+        const PrimitiveStruct vert0 = vertexArray[triIndex];
+        const PrimitiveStruct edge1 = vertexArray[triIndex+1];
+        const PrimitiveStruct edge2 = vertexArray[triIndex+2];
+
+        const float3 tvec = rayOrigin - vert0.position;
+        const float3 pvec = cross(rayDirection, edge2.position);
+        const float det   = 1.f/dot(edge1.position, pvec);
+        const float u     = dot(tvec, pvec) * det;
+
+        if (u >= 0.0f && u <= 1.0f)
+        {
+          const float3 qvec = cross(tvec, edge1.position);
+          const float v = dot(rayDirection, qvec) * det;
+
+          if (v >= 0.0f && (u + v) <= 1.0f)
+          {
+            hit.distance = dot(edge2.position, qvec) * det;
+            hit.primitiveIndex = primIndex;
+          }
+        }
       }
 
       currentTime = hit.distance;
