@@ -288,7 +288,7 @@ typedef struct ALIGN(4)
   *((Device float4*)(dst)) = *((Thread float4*)(src));
 
 #define readFromDevice4x(dst, src) \
-  *((Thread float4*)(vec)) = *((Device float4*)(src));
+  *((Thread float4*)(dst)) = *((Device float4*)(src));
 
 #define readFromDevice2x(dst, src) \
   *((Thread float2*)(dst)) = *((Device float2*)(src));
