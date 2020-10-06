@@ -77,7 +77,7 @@ Kernel void createPrimitiveBoundingBoxes(
       vert2.position = vert2.position - vert0.position;
       vert2.identity = v2identity;
 
-      vertIndices = vertexOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, attributePackingInfo.strideIn4Bytes == 0);
+      vertIndices = vertexOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, selectInput3(attributePackingInfo.strideIn4Bytes == 0));
       finalVertexArray[vertIndices.x] = vert0;
       finalVertexArray[vertIndices.y] = vert1;
       finalVertexArray[vertIndices.z] = vert2;

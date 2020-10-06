@@ -109,6 +109,7 @@ typedef float real;
 
 #else
 typedef uint8_t   uchar;
+typedef uint8_t   Byte;
 typedef uint16_t  ushort;
 typedef uint32_t  uint;
 typedef uint64_t  ulong;

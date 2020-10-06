@@ -18,8 +18,8 @@ inline Ray sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), float 
   const float x = (2.f * (pixelX + 0.5f) / cW - 1.f) * camera.scale * aspectRatio;
   const float y = (1.f - 2.f * (pixelY + 0.5f) / cH) * camera.scale;
 
-  worldRay.origin    = (constructFloat4(0.f, 0.f, 0.f, 1.f) * mat).xyz;
-  worldRay.direction = normalize((mat * constructFloat4(x, y, -1.f, 0.f)).xyz);
+  worldRay.origin    = mulVecMatrix(constructFloat4(0.f, 0.f, 0.f, 1.f), mat).xyz;
+  worldRay.direction = normalize(mulMatrixVec(mat, constructFloat4(x, y, -1.f, 0.f)).xyz);
 
   return worldRay;
 }

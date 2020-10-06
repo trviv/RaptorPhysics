@@ -71,10 +71,12 @@ Kernel void distanceSolverSpring(
         iteration = ((i - 1) & 3);
         if (iteration == 0)
         {
-          ((Thread uint4*)cachedIndices)[0] = ((Device uint4*)(indexArray + commonConnectionIndex + i))[0];
-          ((Thread float4*)cachedCoefficients)[0] = ((Device float4*)(coefficients + commonConnectionIndex + i))[0];
-
-          ((Thread uint4*)cachedIndices)[0] += nodeLocator.absoluteNodeOffset;
+          readFromDevice4x(cachedIndices, indexArray + commonConnectionIndex + i);
+          readFromDevice4x(cachedCoefficients, coefficients + commonConnectionIndex + i);
+          for (ushort i=0; i<4; i++)
+          {
+            cachedIndices[i] += nodeLocator.absoluteNodeOffset;
+          }
         }
 
         sum += getDelta(oldValue.position,

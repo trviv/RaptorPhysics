@@ -375,10 +375,12 @@ inline short3 decodeCellVector(uchar encodedOffset)
 #define GRID_SOLVER_NEIGHBOUR_LOOP_END }
 
 // function to get previous and current offset, previous will be the starting and current will be the end index
-uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, const uint gridCellIndex)
+uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, uint gridCellIndex)
 {
-  const uint2 ret = *((const Device uint2*)(gridCellParticleOffsets + gridCellIndex + select(0, -1, gridCellIndex)));
-  return select(constructUint2(0, ret.x), ret, selectInput2(gridCellIndex));
+  uint ret[2];
+  gridCellParticleOffsets += (gridCellIndex - select(0, 1, gridCellIndex));
+  readFromDevice2x(ret, gridCellParticleOffsets);
+  return select(constructUint2(0, ret[0]), constructUint2(ret[0], ret[1]), selectInput2(gridCellIndex));
 }
 
 /*
