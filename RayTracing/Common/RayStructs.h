@@ -26,7 +26,10 @@ struct DEFAULT_ALIGN Ray_t
 {
   union
   {
-    float3  origin;
+    struct
+    {
+      float3  origin;
+    };
     struct
     {
       uint  reserved[3];
@@ -36,7 +39,10 @@ struct DEFAULT_ALIGN Ray_t
 
   union
   {
-    float3  direction;
+    struct
+    {
+      float3  direction;
+    };
     struct
     {
       uint  reserved1[3];

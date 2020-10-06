@@ -985,7 +985,7 @@ void ComputeInterface::copyBuffer(const ComputeMemory* source, ComputeMemory* de
 #ifdef CREATE_SUB_BUFFER
   ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destination, sourceOffset, destinationOffset, sizeInBytes, 0, NULL, &localEvent);
 #else
-  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destination, sourceOffset + source->getOffset(), destinationOffset + destin->getOffset(), sizeInBytes, 0, NULL, &localEvent);
+  ComputeStatus status = clEnqueueCopyBuffer(queue, *source, *destination, sourceOffset + source->getOffset(), destinationOffset + destination->getOffset(), sizeInBytes, 0, NULL, &localEvent);
 #endif
   computeCheckError(status, 0);
 

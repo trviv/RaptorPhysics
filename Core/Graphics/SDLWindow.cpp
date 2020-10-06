@@ -811,5 +811,9 @@ void Window::start()
 
 ComputeGraphicsSharedTexture Window::createSharedTexture(ComputeInterface* compute, uint textureSize[2], SharedTextureFormat textureFormat)
 {
+#if ENV_APPLE
   return ComputeGraphicsSharedTexture(compute, (__bridge GLContext*)SDL_GL_GetCurrentContext(), textureFormat, textureSize);
+#else
+  return ComputeGraphicsSharedTexture(compute, (GLContext*)SDL_GL_GetCurrentContext(), textureFormat, textureSize);
+#endif
 }

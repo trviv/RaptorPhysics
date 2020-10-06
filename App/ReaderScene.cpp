@@ -298,7 +298,7 @@ void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
 
 bool ReaderScene::readFile(MainSystem* system, const char fileName[])
 {
-  XMLDocument document;
+  tinyxml2::XMLDocument document;
   string xmlContents = IOInterface::readFile(fileName);
   document.Parse(xmlContents.c_str());
 

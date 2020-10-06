@@ -4,6 +4,7 @@
 #include "IOInterface.h"
 #include "MemoryManager.h"
 #include <deque>
+#include <stack>
 
 /*!
 @class Class to allocate and recycle memory based on a fixed max size.

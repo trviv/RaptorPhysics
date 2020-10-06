@@ -105,6 +105,7 @@ void MainSystem::initRender()
 
   displaySolidVertex.bind();
   GL_CHECK(glEnableVertexAttribArray(0));
+  GL_CHECK(glEnableVertexAttribArray(1));
   displaySolidVertex.unbind();
 
   createUnitCircle();
@@ -597,10 +598,16 @@ void MainSystem::render()
         displaySolidShader.bind();
         displaySolidVertex.bind();
 
+        displayPositionBuffer.copyData((float*)particles, elements * sizeof(ParticleStruct));
+        displayCollisionBuffer.copyData((float*)collisionData, elements * sizeof(ParticleCollisionData));
+
         for (const PartitionInfo &partition : *(solver->getPartitions().host()))
         {
-          GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 4, particles + partition.offset));
-          GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 4, collisionData + 4 * partition.offset));
+          displayPositionBuffer.bind();
+          GL_CHECK(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleStruct), (void*)(sizeof(ParticleStruct) * partition.offset)));
+          displayCollisionBuffer.bind();
+          GL_CHECK(glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleCollisionData), (void*)(sizeof(ParticleCollisionData) * partition.offset)));
+
           IdentityInfo identity = solver->getParticles().host()->at(partition.offset).identity;
           const PhysicsEntity* entity = physicsSystem.getEntities((SolverType)s)[getEntityId(identity)];
 

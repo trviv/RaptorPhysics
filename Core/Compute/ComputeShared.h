@@ -99,7 +99,10 @@ struct DEFAULT_ALIGN PositionStruct_t
 {
   union
   {
-    float3  position;
+    struct
+    {
+      float3  position;
+    };
     struct
     {
       uint  positionUint[3];

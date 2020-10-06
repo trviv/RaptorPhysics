@@ -49,14 +49,16 @@
 #define simdScan(x)         assert
 #define simdMin(x)          assert
 #define simdMax(x)          assert
-#define bool3               uint3
-#define selectInput2(x)     (uint2)x
-#define selectInput3(x)     (uint3)(x)
+#define bool3               int3
+#define selectInput2(x)     (int2)(x)
+#define selectInput3(x)     (int3)(x)
 #define lengthSq(x)         dot(x, x)
 #define min3(v0, v1, v2)    min(min(v0, v1), v2)
 #define max3(v0, v1, v2)    max(max(v0, v1), v2)
 #define minCompFloat3(vec)  min(min(vec.x, vec.y), vec.z)
 #define maxCompFloat3(vec)  max(max(vec.x, vec.y), vec.z)
+#define mulVecMatrix(vec, mat) (constructFloat4(dot(vec, mat.lo.lo), dot(vec, mat.lo.hi), dot(vec, mat.hi.lo), dot(vec, mat.hi.hi)))
+#define mulMatrixVec(mat, vec) (constructFloat4(dot(vec, mat.s048c), dot(vec, mat.s159d), dot(vec, mat.s26ae), dot(vec, mat.s37bf)))
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -85,7 +87,11 @@
 #define commonUint16  uint16
 #define commonFloat16 float16
 
+#define float4x4      float16
+
 #else
+
+#define ASSUME_FLEXIBLE_VECTOR_ALIGNMENT
 
 #define constantKernelInput(type, variableName) Const type& variableName
 #define atomicKernelInput(type, variableName) Device atomic_##type *variableName
@@ -138,6 +144,8 @@
 #define lengthSq(x)         length_squared(x)
 #define minCompFloat3(vec)  min3(vec.x, vec.y, vec.z)
 #define maxCompFloat3(vec)  max3(vec.x, vec.y, vec.z)
+#define mulVecMatrix(vec, mat) (vec * mat)
+#define mulMatrixVec(mat, vec) (mat * vec)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
@@ -246,5 +254,45 @@ typedef struct ALIGN(4)
 #define INIT_POLL()     short poll_count = 0;
 #define POLL_TIMEOUT()  (poll_count++ >= 20000)
 #define RESET_POLL()    poll_count = 0
+
+#ifndef ASSUME_FLEXIBLE_VECTOR_ALIGNMENT
+
+#define writeFloat4ToDeviceFloat(vec, scaAddr) \
+  (scaAddr)[0] = (vec).x; \
+  (scaAddr)[1] = (vec).y; \
+  (scaAddr)[2] = (vec).z; \
+  (scaAddr)[3] = (vec).w;
+
+#define writeToDevice4x(dst, src) \
+  (dst)[0] = (src)[0]; \
+  (dst)[1] = (src)[1]; \
+  (dst)[2] = (src)[2]; \
+  (dst)[3] = (src)[3];
+
+#define readFromDevice4x(dst, src) \
+  (dst)[0] = (src)[0]; \
+  (dst)[1] = (src)[1]; \
+  (dst)[2] = (src)[2]; \
+  (dst)[3] = (src)[3];
+
+#define readFromDevice2x(dst, src) \
+  (dst)[0] = (src)[0]; \
+  (dst)[1] = (src)[1];
+
+#else
+
+#define writeFloat4ToDeviceFloat(vec, scaAddr) \
+  *((Device float4*)(scaAddr)) = (vec);
+
+#define writeToDevice4x(dst, src) \
+  *((Device float4*)(dst)) = *((Thread float4*)(src));
+
+#define readFromDevice4x(dst, src) \
+  *((Thread float4*)(vec)) = *((Device float4*)(src));
+
+#define readFromDevice2x(dst, src) \
+  *((Thread float2*)(dst)) = *((Device float2*)(src));
+
+#endif
 
 #endif

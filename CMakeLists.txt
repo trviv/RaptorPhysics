@@ -169,7 +169,11 @@ endmacro(CREATE_LIB_AND_EXE)
 
 if (WIN32)
   include_directories("${CMAKE_SOURCE_DIR}/External/GLEW/include/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/SDL2/")
-  link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x86" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x64")
+  if (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
+    link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/x64/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x64")
+  else (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
+    link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x86")
+  endif (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
   set(ADDITIONAL_LIBRARY SDL2 SDL2main glew32 opengl32)
 endif (WIN32)
 

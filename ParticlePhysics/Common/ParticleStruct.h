@@ -103,7 +103,10 @@ struct DEFAULT_ALIGN ParticleStruct_t
 {
   union
   {
-    float3  position;
+    struct
+    {
+      float3  position;
+    };
     struct
     {
       uint          reserved[3];

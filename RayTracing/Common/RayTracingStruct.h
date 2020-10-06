@@ -116,7 +116,10 @@ struct DEFAULT_ALIGN PrimitiveStruct_t
 {
   union
   {
-    float3  position;
+    struct
+    {
+      float3  position;
+    };
     struct
     {
       uint  reserved[3];
@@ -211,11 +214,10 @@ inline static void setPrimitiveVertexOffset(EncodedPrimitiveInfo& sys, uint offs
 
 inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInfo primInfo)
 {
-  const DecodedPrimitiveInfo ret = {
-    (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_TYPE_ID_SHIFT),
-    primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK,
-    primInfo.vertexOffset
-  };
+  DecodedPrimitiveInfo ret;
+  ret.primType     = (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_TYPE_ID_SHIFT);
+  ret.indexOffset  = primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK;
+  ret.vertexOffset = primInfo.vertexOffset;
   return ret;
 }
 
@@ -265,7 +267,7 @@ struct DEFAULT_ALIGN CameraStruct_t
     float scale;
     uint  padding;
   };
-#if defined(COMPUTE_SHADER_SCOPE) && defined(USE_METAL_COMPUTE)
+#if defined(COMPUTE_SHADER_SCOPE)
   float4x4  viewMatrixInv;
 #else
   float     viewMatrixInv[16];
