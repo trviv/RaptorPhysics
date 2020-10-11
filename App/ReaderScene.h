@@ -2,6 +2,7 @@
 #define READER_SCENE_H
 
 #include <UnifiedPhysics.h>
+#include <RayTracing.h>
 
 using namespace tinyxml2;
 
@@ -12,7 +13,8 @@ class MainSystem;
 */
 class ReaderScene
 {
-  unordered_map<string, PhysicsEntityId>  registeredEntities;
+  unordered_map<string, PhysicsEntityId>    registeredEntities;
+  unordered_map<string, RayTracingEntityId> registeredRTEntities;
 
   /*!@function Read settings for physics and renderer.*/
   void readSettings(MainSystem* system, XMLElement* settings);

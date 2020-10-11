@@ -1,7 +1,28 @@
 #include "Light.h"
 
-Light::Light()
-  :RayTracingEntity(RayTracingEntityLight)
+Light::Light(RayTracingEntityType type)
 {
-  Real3(color).setNull();
+  setRayTracingEntityId(this->identity, type, 0);
+  ((Real3*)&color)->setNull();
+  ((Real3*)&normal)->setNull();
+  ((Real3*)&position)->setNull();
+}
+
+RayTracingEntity* Light::createCopy()const
+{
+  Light *newLight = new Light((RayTracingEntityType)getRayTracingEntityType(this->identity));
+  *newLight = *this;
+  return newLight;
+}
+
+RayTracingEntityId Light::getIdentity()const
+{
+  return identity;
+}
+
+void Light::update()
+{
+  const auto id = this->identity;
+  transform.transformPos(position);
+  this->identity = id;
 }

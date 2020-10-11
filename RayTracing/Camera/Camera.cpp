@@ -3,18 +3,21 @@
 //#define DEBUG_RT_CAMERA
 
 Camera::Camera(ComputeInterface* compute)
-  :RayTracingEntity(RayTracingEntityCamera, compute)
+  :RayTracingEntity(compute)
 {
   scale = 1.f;
   samples = 1;
   buffer = NULL;
+  setRayTracingEntityId(identity, RayTracingEntityCamera, 0);
 
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("RayTracingStruct.h");
 
-  registerShader(compute, "Camera.shader", NULL, NULL);
+  vector<string> oldType = { "RayStruct"};
+  vector<string> newType = { getRayStructName(RayStructPositionDirectionColor) };
+  registerShader(compute, "Camera.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("emitPrimaryRays"));
 }
 
@@ -24,6 +27,18 @@ Camera::~Camera()
   {
     delete buffer;
   }
+}
+
+RayTracingEntity* Camera::createCopy()const
+{
+  Camera *newCamera = new Camera(this->compute);
+  *newCamera = *this;
+  return newCamera;
+}
+
+RayTracingEntityId Camera::getIdentity()const
+{
+  return identity;
 }
 
 void Camera::update()

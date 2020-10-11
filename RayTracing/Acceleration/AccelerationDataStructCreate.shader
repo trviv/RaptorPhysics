@@ -65,9 +65,9 @@ Kernel void createPrimitiveBoundingBoxes(
       // get vertex zero and vertex position
       PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
       PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
-      const uint v1identity = vert1.identity;
+      const IdentityInfo v1identity = vert1.identity;
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
-      const uint v2identity = vert2.identity;
+      const IdentityInfo v2identity = vert2.identity;
 
       primitiveBoundingBox.min = min3(vert0.position, vert1.position, vert2.position);
       primitiveBoundingBox.max = max3(vert0.position, vert1.position, vert2.position);

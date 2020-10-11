@@ -1,9 +1,9 @@
 #ifndef CAMERA_SHADER
 #define CAMERA_SHADER
 
-inline Ray sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), float pixelX, float pixelY)
+inline RayStruct sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), float pixelX, float pixelY)
 {
-  Ray worldRay;
+  RayStruct worldRay;
   const float cW = camera.width;
   const float cH = camera.height;
   const float aspectRatio = cW / cH;
@@ -30,14 +30,14 @@ inline Ray sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), float 
 @param camera Camera to emit rays from.
 */
 Kernel void emitPrimaryRays(
-  Device Ray*                       rays,
+  Device RayStruct*                 rays,
   constantKernelInput(CameraStruct, camera)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   if (threadIndexN(0) >= camera.width || threadIndexN(1) >= camera.height)
     return;
 
-  Ray ray = sampleCameraAtPixel(camera, threadIndexN(0), threadIndexN(1));
+  RayStruct ray = sampleCameraAtPixel(camera, threadIndexN(0), threadIndexN(1));
 
   // The camera emits primary rays
   ray.type = RayTypePrimary;

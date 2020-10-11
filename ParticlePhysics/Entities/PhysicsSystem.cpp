@@ -168,7 +168,7 @@ PhysicsEntityId PhysicsSystem::registerEntity(PhysicsEntity* entity)
   // update information
   systemUpdateInfo.node.offset = nodeCount;
 
-  setEntityId(entityId, entity->solver, solver->newEntityId());
+  setPhysicsEntityId(entityId, entity->solver, solver->newEntityId());
 
   // append data
   solver->rawConstrainConnections.insert(solver->rawConstrainConnections.end(),
@@ -210,7 +210,7 @@ void PhysicsSystem::addEntityInstance(const PhysicsEntityId registeredEntityId, 
   for (uint instance = 0; instance < instanceCount; instance++)
   {
     PhysicsEntityId entityInstanceId = registeredEntityId;
-    setInstanceId(entityInstanceId, solver->newEntityInstanceId());
+    setPhysicsInstanceId(entityInstanceId, solver->newEntityInstanceId());
 
     for (uint i = 0; i < entityPositions->size(); i++)
     {

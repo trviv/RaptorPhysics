@@ -23,8 +23,9 @@ public:
 
 enum RayTracingEntityType
 {
-  RayTracingEntityLight = 0x1,
-  RayTracingEntityCamera = 0x2,
+  RayTracingEntityCamera      = 0x1,
+  RayTracingEntityLight       = 0x2,
+  RayTracingEntityLightPoint  = 0x2
 };
 
 /*!
@@ -37,22 +38,23 @@ class RayTracingEntity : protected ShaderEntity
 protected:
 
   ComputeInterface*     compute;
-  Matrix                affine; // the transformations related to entity
-  RayTracingEntityType  type;
+  Matrix4               transform; // the transformations related to entity
 
 public:
 
-  RayTracingEntity(RayTracingEntityType type, ComputeInterface* compute = NULL);
+  RayTracingEntity(ComputeInterface* compute = NULL);
 
   virtual ~RayTracingEntity(){}
+
+  /*!@function Create a Copy of the current object.*/
+  virtual RayTracingEntity* createCopy()const = 0;
+
+  virtual RayTracingEntityId getIdentity()const = 0;
 
   // Should be called while initializing, after transformations are done.
   virtual void update() = 0;
 
-  Matrix& getAffine()
-  {
-    return affine;
-  }
+  Matrix4& getTransform();
 };
 
 #endif

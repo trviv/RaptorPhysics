@@ -7,7 +7,7 @@
 /*!
 @class Base class for camera, implementing pinhole camera.
 */
-class Camera : public CameraStruct, public RayTracingEntity
+class Camera : virtual public CameraStruct, public RayTracingEntity
 {
   friend class ReaderScene;
 
@@ -29,6 +29,10 @@ public:
   Camera(ComputeInterface* compute);
 
   ~Camera();
+
+  RayTracingEntity* createCopy()const;
+
+  RayTracingEntityId getIdentity()const;
 
   /*!@function Update camera struct values using these matrices.*/
   virtual void update(const real projectionMatrix[], const real modelviewMatrix[]);

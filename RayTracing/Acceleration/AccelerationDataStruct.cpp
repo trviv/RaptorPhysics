@@ -46,14 +46,15 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   this->compute = compute;
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("RayStructs.h");
-  includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("RayTracingStruct.h");
 
   registerShader(compute, "AccelerationDataStructCreate.shader", NULL, NULL);
 
   createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
   assignMortonCode = programs[0].createKernel("assignMortonCode");
+
+  includeFiles.push_back("RayStructs.h");
+  includeFiles.push_back("HitStructs.h");
 
   for (int r=0; r<RayStructTypeMax; r++)
   {
@@ -239,7 +240,6 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
   {
     ComputeKernel& intersectionKernel = intersectRayKernels[rayType][hitType];
 
-    // add to system bounding box
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, rayCount);
 

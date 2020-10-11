@@ -19,8 +19,13 @@ ComputeHeap* RayTracingAllocator::getHeap(RayTracingHeapEnum type)
   return NULL;
 }
 
-RayTracingEntity::RayTracingEntity(RayTracingEntityType type, ComputeInterface* compute)
-  :compute(compute), type(type)
+RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
+  :compute(compute)
 {
-  affine.setIdentity();
+  transform.setIdentity();
+}
+
+Matrix4& RayTracingEntity::getTransform()
+{
+  return transform;
 }
