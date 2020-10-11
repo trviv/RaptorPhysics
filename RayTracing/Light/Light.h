@@ -7,13 +7,17 @@
 /*!
 @class Base class for lights, implementing a point light.
 */
-class Light : public LightStruct, public RayTracingEntity
+class Light : virtual public LightStruct, public RayTracingEntity
 {
 public:
 
-  Light();
+  Light(RayTracingEntityType type);
 
-  virtual void update()=0;
+  RayTracingEntity* createCopy()const;
+
+  RayTracingEntityId getIdentity()const;
+
+  void update();
 };
 
 #endif

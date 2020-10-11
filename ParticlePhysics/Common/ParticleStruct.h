@@ -25,31 +25,17 @@ enum SolverType
 };
 
 
-/*!
-@struct Structor to uniquely represent a physical entity.
-*/
-struct ALIGN(4) IdentityInfo_t
-{
-  uint identity;
-};
-
-typedef struct IdentityInfo_t IdentityInfo;
 typedef struct IdentityInfo_t PhysicsEntityId;
 
 #ifndef COMPUTE_SHADER_SCOPE
-inline static void resetIdentity(IdentityInfo& identity)
-{
-  identity.identity = -1;
-}
-
-inline static void setEntityId(IdentityInfo& identity, uint solver, uint entityId)
+inline static void setPhysicsEntityId(IdentityInfo& identity, uint solver, uint entityId)
 {
   identity.identity = (identity.identity & PHYSICS_INSTANCE_ID_MASK) |
     ((solver << PHYSICS_SOLVER_ID_SHIFT) & PHYSICS_SOLVER_ID_MASK) |
     ((entityId << PHYSICS_ENTITY_ID_SHIFT) & PHYSICS_ENTITY_ID_MASK);
 }
 
-inline static void setInstanceId(IdentityInfo& identity, uint instanceId)
+inline static void setPhysicsInstanceId(IdentityInfo& identity, uint instanceId)
 {
   identity.identity = (identity.identity & (-1 ^ PHYSICS_INSTANCE_ID_MASK)) | (instanceId & PHYSICS_INSTANCE_ID_MASK);
 }

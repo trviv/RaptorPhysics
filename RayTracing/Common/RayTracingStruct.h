@@ -8,9 +8,14 @@
 
 #pragma pack(push, 4)
 
-#define RAY_TRACING_TYPE_ID_MASK      0xF0000000
-#define RAY_TRACING_TYPE_ID_SHIFT     28
-#define RAY_TRACING_PRIM_OFFSET_MASK  0x0FFFFFFF
+#define RAY_TRACING_PRIM_TYPE_ID_SHIFT    28
+#define RAY_TRACING_PRIM_OFFSET_MASK      0x0FFFFFFF
+
+#define RAY_TRACING_ENTITY_TYPE_ID_MASK   0xF0000000
+#define RAY_TRACING_ENTITY_TYPE_ID_SHIFT  28
+#define RAY_TRACING_ENTITY_ID_MASK        0x0FFF0000
+#define RAY_TRACING_ENTITY_ID_SHIFT       16
+#define RAY_TRACING_INSTANCE_ID_MASK      0x0000FFFF
 
 #ifdef COMPUTE_SHADER_SCOPE
 
@@ -108,6 +113,9 @@ struct PackingInfo_t
 typedef struct PackingInfo_t PackingInfo;
 
 
+typedef struct IdentityInfo_t RayTracingEntityId;
+
+
 /*!
 @struct Base data for a ray traced primitive.
 @note   Should have same structure as PositionStruct. May cause issues otherwise.
@@ -122,13 +130,42 @@ struct DEFAULT_ALIGN PrimitiveStruct_t
     };
     struct
     {
-      uint  reserved[3];
-      uint  identity;
+      uint          reserved[3];
+      IdentityInfo  identity;
     };
   };
 };
 
 typedef struct PrimitiveStruct_t PrimitiveStruct;
+
+#ifndef COMPUTE_SHADER_SCOPE
+inline static void setRayTracingEntityId(IdentityInfo& identity, uint entityType, uint entityId)
+{
+  identity.identity = (identity.identity & RAY_TRACING_INSTANCE_ID_MASK) |
+    ((entityType << RAY_TRACING_ENTITY_TYPE_ID_SHIFT) & RAY_TRACING_ENTITY_TYPE_ID_MASK) |
+    ((entityId << RAY_TRACING_ENTITY_ID_SHIFT) & RAY_TRACING_ENTITY_ID_MASK);
+}
+
+inline static void setRayTracingInstanceId(IdentityInfo& identity, uint instanceId)
+{
+  identity.identity = (identity.identity & (-1 ^ RAY_TRACING_INSTANCE_ID_MASK)) | (instanceId & RAY_TRACING_INSTANCE_ID_MASK);
+}
+#endif
+
+inline static uint getRayTracingInstanceId(const IdentityInfo identity)
+{
+  return identity.identity & RAY_TRACING_INSTANCE_ID_MASK;
+}
+
+inline static ushort getRayTracingEntityId(const IdentityInfo identity)
+{
+  return (identity.identity & RAY_TRACING_ENTITY_ID_MASK) >> RAY_TRACING_ENTITY_ID_SHIFT;
+}
+
+inline static ushort getRayTracingEntityType(const IdentityInfo identity)
+{
+  return (identity.identity & RAY_TRACING_ENTITY_TYPE_ID_MASK) >> RAY_TRACING_ENTITY_TYPE_ID_SHIFT;
+}
 
 
 struct ALIGN(4) PrimitiveAttrib_t
@@ -197,7 +234,7 @@ typedef struct RTSystemSettings_t RTSystemSettings;
 
 inline static void setPrimitiveType(EncodedPrimitiveInfo& sys, RTPrimitiveType type)
 {
-  sys.primTypeAndIndexOffset = (sys.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK) | (type << RAY_TRACING_TYPE_ID_SHIFT);
+  sys.primTypeAndIndexOffset = (sys.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK) | (type << RAY_TRACING_PRIM_TYPE_ID_SHIFT);
 }
 
 inline static void setPrimitiveIndexOffset(EncodedPrimitiveInfo& sys, uint offset)
@@ -215,7 +252,7 @@ inline static void setPrimitiveVertexOffset(EncodedPrimitiveInfo& sys, uint offs
 inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInfo primInfo)
 {
   DecodedPrimitiveInfo ret;
-  ret.primType     = (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_TYPE_ID_SHIFT);
+  ret.primType     = (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_PRIM_TYPE_ID_SHIFT);
   ret.indexOffset  = primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK;
   ret.vertexOffset = primInfo.vertexOffset;
   return ret;
@@ -265,7 +302,7 @@ struct DEFAULT_ALIGN CameraStruct_t
     uint  width;
     uint  height;
     float scale;
-    uint  padding;
+    IdentityInfo identity;
   };
 #if defined(COMPUTE_SHADER_SCOPE)
   float4x4  viewMatrixInv;
@@ -282,7 +319,40 @@ typedef struct CameraStruct_t CameraStruct;
 */
 struct DEFAULT_ALIGN LightStruct_t
 {
-  Color3 color;
+  union
+  {
+    struct
+    {
+      float3 position;
+    };
+    struct
+    {
+      uint res1[3];
+      IdentityInfo identity;
+    };
+  };
+  union
+  {
+    struct
+    {
+      float3 color;
+    };
+    struct
+    {
+      float res2[4];
+    };
+  };
+  union
+  {
+    struct
+    {
+      float3 normal;
+    };
+    struct
+    {
+      float res3[4];
+    };
+  };
 };
 
 typedef struct LightStruct_t LightStruct;

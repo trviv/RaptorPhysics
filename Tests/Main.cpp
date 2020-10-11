@@ -399,7 +399,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
     IdentityInfo particleIdentity;
     resetIdentity(particleIdentity);
-    setInstanceId(particleIdentity, sectionIndex);
+    setPhysicsInstanceId(particleIdentity, sectionIndex);
     particle.identity = particleIdentity;
 
     particlesHost.push_back(particle);

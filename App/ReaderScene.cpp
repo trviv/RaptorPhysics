@@ -225,6 +225,7 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
   for (const XMLElement* entity = entities->FirstChildElement(); entity; entity = entity->NextSiblingElement())
   {
     PhysicsEntity* newEntity = NULL;
+    RayTracingEntity* newRTEntity = NULL;
     XMLConstHandle shapeHandle = XMLConstHandle(entity).FirstChildElement("shape");
     ShapeData shape = readShape(XMLConstHandle(entity).FirstChildElement("shape"));
 
@@ -258,6 +259,11 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
         newEntity = fluid;
       }
     }
+    else if (strcmp(entity->Name(), "point-light") == 0)
+    {
+      Light* light = new Light(RayTracingEntityLightPoint);
+      newRTEntity = light;
+    }
 
     string identity(entity->Attribute("id"));
     if (identity.size() == 0)
@@ -270,7 +276,14 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
       logComputeError("Duplicate id %s, not allowed!", identity.c_str());
     }
 
-    registeredEntities[identity] = system->physicsSystem.registerEntity(newEntity);
+    if (newEntity)
+    {
+      registeredEntities[identity] = system->physicsSystem.registerEntity(newEntity);
+    }
+    else if (newRTEntity)
+    {
+      registeredRTEntities[identity] = system->rayTracingSystem.registerEntity(newRTEntity);
+    }
   }
 }
 
@@ -292,7 +305,15 @@ void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
       matrixTransforms.push_back(matrix[TRANS]);
     }
 
-    system->physicsSystem.addEntityInstance(registeredEntities[identity], count, &matrixTransforms[0]);
+    if (registeredEntities.find(identity) != registeredEntities.end())
+    {
+      system->physicsSystem.addEntityInstance(registeredEntities[identity], count, &matrixTransforms[0]);
+    }
+
+    if (registeredRTEntities.find(identity) != registeredRTEntities.end())
+    {
+      system->rayTracingSystem.addEntityInstance(registeredRTEntities[identity], count, &matrixTransforms[0]);
+    }
   }
 }
 

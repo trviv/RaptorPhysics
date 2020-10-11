@@ -7,8 +7,6 @@
 
 #pragma pack(push, 4)
 
-typedef float3 Color3;
-
 /*!
 @struct Data describing an array sub-part.
 */
@@ -198,6 +196,26 @@ struct ALIGN(8) BVHNodeInfo_t
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;
+
+
+/*!
+@struct Structor to uniquely represent an entity.
+*/
+struct ALIGN(4) IdentityInfo_t
+{
+  uint identity;
+};
+
+typedef struct IdentityInfo_t IdentityInfo;
+
+#ifndef COMPUTE_SHADER_SCOPE
+
+inline static void resetIdentity(IdentityInfo& identity)
+{
+  identity.identity = -1;
+}
+
+#endif
 
 #pragma pack(pop)
 
