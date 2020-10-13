@@ -1,10 +1,10 @@
 #ifndef LIGHT_SHADER
 #define LIGHT_SHADER
 
-void sampleLight(
-  constantKernelInput(LightStruct, light)
-  KERNEL_GLOBAL_ARGUMENTS)
+void sampleLight(Thread float3* position, Thread float3* color, const LightStruct light)
 {
+  *position = light.position;
+  *color    = light.color;
 }
 
 #endif

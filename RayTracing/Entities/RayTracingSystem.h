@@ -19,6 +19,7 @@ protected:
   RayTracingAllocator*  allocator;
 
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
+  ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
 
   vector<vector<RayTracingEntity*>> entities;
 

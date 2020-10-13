@@ -157,7 +157,8 @@ Kernel void intersectRays(
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
   constantKernelInput(uint,     primitiveCount),
-  Const RTSystemSettings*       systemSettings
+  Const RTSystemSettings*       systemSettings,
+  constantKernelInput(ushort,   initHit)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();
@@ -171,19 +172,43 @@ Kernel void intersectRays(
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   HitStruct hit;
-  initializeHit(&hit);
+
+  if (initHit)
+  {
+    initializeHit(&hit);
+  }
+  else
+  {
+    hit = hits[index];
+    hit.primitiveIndex = -1;
+  }
+
   float currentTime = hit.distance;
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {
     if (rayXABIntersectEarliest(&currentTime, boundingBoxes[primIndex], rayOrigin, invRayDirection, sign))
     {
+#ifdef IntersectionTypeClosest
       earliestIntersection(&hit, primIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
       currentTime = hit.distance;
+#endif
+#ifdef IntersectionTypeAny
+      if (anyIntersection(&hit, primIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+      {
+        hit.primitiveIndex = 0;
+        break;
+      }
+#endif
     }
   }
 
+#ifdef IntersectionTypeClosest
   hits[index] = hit;
+#endif
+#ifdef IntersectionTypeAny
+  hits[index].primitiveIndex = hit.primitiveIndex;
+#endif
 }
 
 #endif

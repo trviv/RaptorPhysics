@@ -3,6 +3,15 @@
 
 #include <Common/RayTracingStruct.h>
 
+enum IntersectionType
+{
+  IntersectionTypeClosest,
+  IntersectionTypeAny,
+  IntersectionTypeMax
+};
+
+extern string getIntersectionTypeName(IntersectionType type);
+
 /*!
 @class Base class for all acceleration structures.
 */
@@ -16,7 +25,7 @@ protected:
 
   ComputeKernel assignMortonCode;
   ComputeKernel createPrimitiveBoundingBoxes;
-  ComputeKernel intersectRayKernels[RayStructTypeMax][HitStructTypeMax];
+  ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
   enum PrimitiveAttributeType
   {
@@ -81,7 +90,8 @@ public:
 
   virtual void fullBuild();
 
-  virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType, uint rayCount);
+  virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+                             uint rayCount, IntersectionType intersectionType, bool initializeHit);
 };
 
 #endif
