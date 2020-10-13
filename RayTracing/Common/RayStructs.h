@@ -86,54 +86,11 @@ typedef struct RayColor_t RayColor;
 
 #ifndef COMPUTE_SHADER_SCOPE
 
-static uint getRayStructSize(RayStructType type)
-{
-  switch (type)
-  {
-    case RayStructPositionDirection:
-      return sizeof(Ray);
-      break;
-    case RayStructPositionDirectionColor:
-      return sizeof(RayColor);
-      break;
-    default:
-      return 0;
-      break;
-  }
+extern uint getRayStructSize(RayStructType type);
 
-  return 0;
-}
+extern string getRayStructName(RayStructType type);
 
-static string getRayStructName(RayStructType type)
-{
-  switch (type)
-  {
-    case RayStructPositionDirection:
-      return "Ray";
-      break;
-    case RayStructPositionDirectionColor:
-      return "RayColor";
-      break;
-    default:
-      return "";
-      break;
-  }
-
-  return "";
-}
-
-static void getRayStructDefines(vector<string>& oldType, vector<string>& newType, RayStructType type)
-{
-  switch (type)
-  {
-  case RayStructPositionDirectionColor:
-    oldType.push_back("RayStructColor");
-    newType.push_back("");
-    break;
-  default:
-    break;
-  }
-}
+extern void getRayStructDefines(vector<string>& oldType, vector<string>& newType, RayStructType type);
 
 #endif
 

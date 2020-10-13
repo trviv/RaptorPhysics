@@ -1,5 +1,23 @@
 #include "AccelerationDataStruct.h"
 
+string getIntersectionTypeName(IntersectionType type)
+{
+  switch (type)
+  {
+    case IntersectionTypeClosest:
+      return "IntersectionTypeClosest";
+      break;
+    case IntersectionTypeAny:
+      return "IntersectionTypeAny";
+      break;
+    default:
+      return "";
+      break;
+  }
+
+  return "";
+}
+
 uint AccelerationDataStruct::accXABComputeUtilId = -1;
 uint AccelerationDataStruct::sortComputeUtilId   = -1;
 
@@ -56,14 +74,17 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
 
-  for (int r=0; r<RayStructTypeMax; r++)
+  for (int i=0; i<IntersectionTypeMax; i++)
   {
-    for (int h=0; h<HitStructTypeMax; h++)
+    for (int r=0; r<RayStructTypeMax; r++)
     {
-      const vector<string> oldType = {"RayStruct", "HitStruct"};
-      const vector<string> newType = {getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
-      registerShader(compute, "AccelerationDataStructTraverse.shader", &oldType, &newType);
-      intersectRayKernels[r][h] = programs.back().createKernel("intersectRays");
+      for (int h=0; h<HitStructTypeMax; h++)
+      {
+        const vector<string> oldType = {getIntersectionTypeName((IntersectionType)i), "RayStruct", "HitStruct"};
+        const vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
+        registerShader(compute, "AccelerationDataStructTraverse.shader", &oldType, &newType);
+        intersectRayKernels[i][r][h] = programs.back().createKernel("intersectRays");
+      }
     }
   }
 
@@ -235,10 +256,11 @@ void AccelerationDataStruct::fullBuild()
 #endif
 }
 
-void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType, uint rayCount)
+void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+                                           uint rayCount, IntersectionType intersectionType, bool initializeHit)
 {
   {
-    ComputeKernel& intersectionKernel = intersectRayKernels[rayType][hitType];
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, rayCount);
@@ -251,6 +273,8 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(attributeArray.device(), 5);
     intersectionKernel.setArg(&primitiveCount,         6);
     intersectionKernel.setArg(systemSettings.device(), 7);
+    ushort initHit = initializeHit;
+    intersectionKernel.setArg(&initHit,                8);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 

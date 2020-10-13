@@ -51,54 +51,11 @@ inline void initializeHit(Thread HitStruct* hit)
 
 #else
 
-static uint getHitStructSize(HitStructType type)
-{
-  switch (type)
-  {
-    case HitStructDistanceIndex:
-      return sizeof(HitInfoDistance);
-      break;
-    case HitStructDistanceIndexNormal:
-      return sizeof(HitInfoDistanceIndexNormal);
-      break;
-    default:
-      return 0;
-      break;
-  }
+extern uint getHitStructSize(HitStructType type);
 
-  return 0;
-}
+extern string getHitStructName(HitStructType type);
 
-static string getHitStructName(HitStructType type)
-{
-  switch (type)
-  {
-    case HitStructDistanceIndex:
-      return "HitInfoDistance";
-      break;
-    case HitStructDistanceIndexNormal:
-      return "HitInfoDistanceIndexNormal";
-      break;
-    default:
-      return "";
-      break;
-  }
-
-  return "";
-}
-
-static void getHitStructDefines(vector<string>& oldType, vector<string>& newType, HitStructType type)
-{
-  switch (type)
-  {
-  case HitStructDistanceIndexNormal:
-    oldType.push_back("HitStructNormal");
-    newType.push_back("");
-    break;
-  default:
-    break;
-  }
-}
+extern void getHitStructDefines(vector<string>& oldType, vector<string>& newType, HitStructType type);
 
 #endif
 

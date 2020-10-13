@@ -263,6 +263,12 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
     {
       Light* light = new Light(RayTracingEntityLightPoint);
       newRTEntity = light;
+
+      XMLConstHandle emissiveHandle = XMLConstHandle(entity).FirstChildElement("emissive-color");
+      if (emissiveHandle.ToElement())
+      {
+        QueryFloat3Attribute(emissiveHandle.ToElement(), light->color);
+      }
     }
 
     string identity(entity->Attribute("id"));

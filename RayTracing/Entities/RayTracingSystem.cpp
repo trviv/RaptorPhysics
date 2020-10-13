@@ -38,6 +38,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("RayTracingStruct.h");
+  includeFiles.push_back("Light.shader");
 
   for (int r=0; r<RayStructTypeMax; r++)
   {
@@ -49,6 +50,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
       getHitStructDefines(oldType, newType, (HitStructType)h);
       registerShader(compute, "RayTracingSystem.shader", &oldType, &newType);
       shadeIntersectionKernels[r][h] = programs.back().createKernel("shadeIntersection");
+      processShadowRaysKernels[r][h] = programs.back().createKernel("processShadowRays");
     }
   }
 
@@ -151,27 +153,31 @@ void RayTracingSystem::render()
 {
   RayStructType rayType   = RayStructPositionDirectionColor;
   HitStructType hitStruct = HitStructDistanceIndex;
-  RayStructType shadowRayType = RayStructPositionDirectionColor;
+  RayStructType shadowRayType   = RayStructPositionDirectionColor;
+  HitStructType shadowHitStruct = HitStructDistanceIndex;
 
   camera->emitPrimaryRays(rays, rayType);
   colorOutputBuffer.resize(camera->width * camera->height, false);
 
   uint rayCount = (rays.size() * 4) / getRayStructSize(rayType);
-  uint lightCount = lights.size();
 
   accelerationStruct->fullBuild();
 
   hits.resize(rayCount * getHitStructSize(hitStruct) / 4, false);
   shadowRays.resize(lights.size() * rayCount * getRayStructSize(shadowRayType) / 4, false);
 
-  accelerationStruct->intersectRays(hits.device(), hitStruct, rays.device(), rayType, rayCount);
+  accelerationStruct->intersectRays(hits.device(), hitStruct, rays.device(), rayType, rayCount, IntersectionTypeClosest, true);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
   hits.syncHost();
   compute->sync();
 #endif
 
+  
   {
+    ushort lightOffset = 0;
+    ushort lightCount = lights.size();
+
     ComputeKernel& shadeIntersectionKernel = shadeIntersectionKernels[rayType][hitStruct];
 
     // add to system bounding box
@@ -188,12 +194,39 @@ void RayTracingSystem::render()
     shadeIntersectionKernel.setArgs(buffers, bufferCount);
     shadeIntersectionKernel.setArg(&rayCount, bufferCount);
     shadeIntersectionKernel.setArg(lights.device(), bufferCount+1);
-    shadeIntersectionKernel.setArg(&lightCount, bufferCount+2);
+    shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
+    shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
 
     compute->execute(shadeIntersectionKernel, workgroupSize, workgroupCount);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
     rays.syncHost();
+    shadowRays.syncHost();
+    compute->sync();
+#endif
+  }
+
+  accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, rayCount, IntersectionTypeAny, false);
+
+  {
+    ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][hitStruct];
+
+    // add to system bounding box
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, rayCount);
+
+    ComputeMemory* buffers[] = {
+      colorOutputBuffer.device(),
+      shadowRays.device(),
+      hits.device()
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    processShadowRaysKernel.setArgs(buffers, bufferCount);
+    processShadowRaysKernel.setArg(&rayCount, bufferCount);
+
+    compute->execute(processShadowRaysKernel, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
     compute->sync();
 #endif
   }
