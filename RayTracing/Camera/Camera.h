@@ -7,7 +7,7 @@
 /*!
 @class Base class for camera, implementing pinhole camera.
 */
-class Camera : virtual public CameraStruct, public RayTracingEntity
+class Camera : virtual public CameraStruct, protected ShaderEntity, public RayTracingEntity
 {
   friend class ReaderScene;
 
@@ -23,6 +23,8 @@ protected:
   void calculateDelta(Real3& origin);
 
   void update();
+
+  DeviceArray<CameraStruct> deviceData;
 
 public:
 

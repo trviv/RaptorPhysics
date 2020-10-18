@@ -2,6 +2,7 @@
 #define ACCELERATION_DATA_STRUCT_H
 
 #include <Common/RayTracingStruct.h>
+#include <Entities/RayTracingEntity.h>
 
 enum IntersectionType
 {
@@ -27,24 +28,7 @@ protected:
   ComputeKernel createPrimitiveBoundingBoxes;
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
-  enum PrimitiveAttributeType
-  {
-    PrimitiveAttributePosition,
-    PrimitiveAttributeRadius,
-    PrimitiveAttributeIndex = PrimitiveAttributeRadius,
-    PrimitiveAttributeMax
-  };
-
-  struct PrimitiveAttributeInfo
-  {
-    DecodedPrimitiveInfo  primInfo;
-    const ComputeMemory*  attributeBuffer[PrimitiveAttributeMax];
-    PackingInfo           attributeInfo[PrimitiveAttributeMax];
-
-    uint bindToShader(ComputeKernel& kernel, uint startIndex);
-  };
-
-  vector<PrimitiveAttributeInfo>  registeredPrimitives[RTPrimitiveCount];
+  vector<EntityPrimAttributes>  registeredPrimitives[RTPrimitiveCount];
 
   DeviceArray<RTSystemSettings> systemSettings;
 
@@ -85,6 +69,9 @@ public:
   @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
   */
   virtual void registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count);
+
+  /*!@function Register primitive from entity attributes.*/
+  virtual void registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count);
 
   virtual void commit();
 

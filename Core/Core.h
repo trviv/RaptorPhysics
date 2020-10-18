@@ -14,6 +14,7 @@
 #include "Device/CameraInterface.h"
 
 #include "Vector/Real3.h"
+#include "Vector/Half4.h"
 #include "Vector/Matrix.h"
 
 #include "Graphics/GLClass.h"

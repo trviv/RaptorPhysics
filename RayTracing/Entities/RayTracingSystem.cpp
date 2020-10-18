@@ -69,6 +69,19 @@ uint RayTracingSystem::newEntityInstanceId(uint entityIndex)
 
 void RayTracingSystem::commit()
 {
+  for (auto& instances : entities)
+  {
+    for (uint i=1; i<instances.size(); i++)
+    {
+      RayTracingEntity* entity = instances[i];
+      const RayTracingEntityType entityType = getRayTracingEntityCategory(getRayTracingEntityType(entity->getIdentity()));
+      if (entityType == RayTracingEntityPrimArray)
+      {
+        accelerationStruct->registerPrimitive((RayTracingEntityType)getRayTracingEntityType(entity->getIdentity()), *entity, ((PrimitiveArrayEntity*)entity)->getPrimCount());
+      }
+    }
+  }
+
   accelerationStruct->commit();
 
   lights.host()->clear();
@@ -78,8 +91,8 @@ void RayTracingSystem::commit()
     for (uint i=1; i<instances.size(); i++)
     {
       RayTracingEntity* entity = instances[i];
-      const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
-      if (entityType & RayTracingEntityLight)
+      const RayTracingEntityType entityType = getRayTracingEntityCategory(getRayTracingEntityType(entity->getIdentity()));
+      if (entityType == RayTracingEntityLight)
       {
         Light* light = (Light*)entity;
         light->update();
@@ -106,14 +119,12 @@ const DeviceArray<uint>& RayTracingSystem::getColorOutputBuffer()const
   return colorOutputBuffer;
 }
 
-void RayTracingSystem::registerSphereBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count)
+MaterialId RayTracingSystem::registerMaterial(Material* material)
 {
-  accelerationStruct->registerSpheres(primitiveBuffer, radiusBuffer, radiusInfo, count);
-}
-
-void RayTracingSystem::registerTriangleBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count)
-{
-  accelerationStruct->registerTriangles(primitiveBuffer, indexBuffer, indexInfo, count);
+  MaterialId ret;
+  ret.identity = (uint)materials.host()->size();
+  materials.host()->push_back(*material);
+  return ret;
 }
 
 RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
@@ -127,7 +138,7 @@ RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
   return entityId;
 }
 
-void RayTracingSystem::addEntityInstance(const RayTracingEntityId registeredEntityId, const ushort instanceCount, const Matrix4* instanceTransforms)
+void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEntityId, ushort instanceCount, const Matrix4* instanceTransforms)
 {
   // get entity
   const uint entityId = getRayTracingEntityId(registeredEntityId);
@@ -139,9 +150,24 @@ void RayTracingSystem::addEntityInstance(const RayTracingEntityId registeredEnti
     setRayTracingInstanceId(entityInstanceId, newEntityInstanceId(entityId));
 
     RayTracingEntity* newEntity = entities[entityId][0]->createCopy();
-    newEntity->getTransform() = instanceTransforms[instance];
+    if (instanceTransforms)
+    {
+      newEntity->getTransform() = instanceTransforms[instance];
+    }
+    else
+    {
+      newEntity->getTransform().setIdentity();
+    }
     entities[entityId].push_back(newEntity);
   }
+}
+
+RayTracingEntityId RayTracingSystem::registerAndInstantiateEntity(RayTracingEntity* entity, ushort instanceCount, const Matrix4* instanceTransforms)
+{
+  RayTracingEntityId entityId = registerEntity(entity);
+  addEntityInstance(entityId, instanceCount, instanceTransforms);
+
+  return entityId;
 }
 
 void RayTracingSystem::updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16])

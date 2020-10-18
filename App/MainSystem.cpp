@@ -301,7 +301,10 @@ void MainSystem::render()
 
         if (!elements) continue;
 
-        rayTracingSystem.registerSphereBuffer(solver->getParticles().device(), solver->getParticleCollisionData().device(), PackingInfo(4, 3), elements);
+        PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntitySpheres, elements);
+        entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo());
+        entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(4, 3));
+        rayTracingSystem.registerAndInstantiateEntity(entity);
       }
     }
 
@@ -325,7 +328,9 @@ void MainSystem::render()
       pos.position.x = systemBound.min.x; bottomSurface.host()->push_back(pos);
 
       bottomSurface.syncDevice();
-      rayTracingSystem.registerTriangleBuffer(bottomSurface.device(), NULL, PackingInfo(), 2);
+      PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 2);
+      entity->setAttribute(EntityPrimitiveAttributePosition, bottomSurface.device(), PackingInfo());
+      rayTracingSystem.registerAndInstantiateEntity(entity);
     }
 
     rayTracingSystem.commit();

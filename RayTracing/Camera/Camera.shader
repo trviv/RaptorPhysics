@@ -30,18 +30,18 @@ inline RayStruct sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), 
 @param camera Camera to emit rays from.
 */
 Kernel void emitPrimaryRays(
-  Device RayStruct*                 rays,
-  constantKernelInput(CameraStruct, camera)
+  Device RayStruct*   rays,
+  Const CameraStruct* camera
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  if (threadIndexN(0) >= camera.width || threadIndexN(1) >= camera.height)
+  if (threadIndexN(0) >= camera->width || threadIndexN(1) >= camera->height)
     return;
 
-  RayStruct ray = sampleCameraAtPixel(camera, threadIndexN(0), threadIndexN(1));
+  RayStruct ray = sampleCameraAtPixel(*camera, threadIndexN(0), threadIndexN(1));
 
   // The camera emits primary rays
   ray.type = RayTypePrimary;
-  ray.rayIndex = threadIndexN(0) + camera.width * threadIndexN(1);
+  ray.rayIndex = threadIndexN(0) + camera->width * threadIndexN(1);
   ray.color = constructFloat3(1.f, 1.f, 1.f);
   rays[ray.rayIndex] = ray;
 }
