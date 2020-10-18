@@ -5,6 +5,7 @@
 Camera::Camera(ComputeInterface* compute)
   :RayTracingEntity(compute)
 {
+  setRayTracingEntityId(this->identity, RayTracingEntityCamera, 0);
   scale = 1.f;
   samples = 1;
   buffer = NULL;
@@ -19,6 +20,9 @@ Camera::Camera(ComputeInterface* compute)
   vector<string> newType = { getRayStructName(RayStructPositionDirectionColor) };
   registerShader(compute, "Camera.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("emitPrimaryRays"));
+
+  deviceData.create(compute);
+  deviceData.resize(1, false);
 }
 
 Camera::~Camera()
@@ -50,6 +54,7 @@ void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[
 {
   this->scale = tan(60.f * 0.5f * M_PI / 180.f);
   Matrix4::invert(this->viewMatrixInv, modelviewMatrix);
+  compute->copyFromHost(deviceData.device(), 0, sizeof(CameraStruct), (CameraStruct*)this, true);
 }
 
 void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
@@ -67,7 +72,7 @@ void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[0].setArgs(buffers, bufferCount);
-    kernels[0].setArg<CameraStruct>(this, bufferCount);
+    kernels[0].setArg(deviceData.device(), bufferCount);
 
     compute->execute(kernels[0], workgroupSize, workgroupCount);
 

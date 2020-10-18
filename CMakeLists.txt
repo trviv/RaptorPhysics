@@ -191,6 +191,8 @@ if (APPLE)
   set(APPLE_RESOURCES "${APPLE_RESOURCES}" "${CMAKE_SOURCE_DIR}/Shared/Resources/LaunchScreen.png" "${CMAKE_SOURCE_DIR}/Shared/Resources/AppIcon.xcassets")
 endif (APPLE)
 
+set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Half/")
+
 find_package(Vulkan)
 if (Vulkan_FOUND)
   include_directories("${Vulkan_INCLUDE_DIR}")

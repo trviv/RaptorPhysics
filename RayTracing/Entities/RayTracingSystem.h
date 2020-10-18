@@ -5,6 +5,7 @@
 #include <Light/Light.h>
 #include <Camera/Camera.h>
 #include <Acceleration/AccelerationDataStruct.h>
+#include <Material/Material.h>
 
 /*!
 @class Class representing a ray tracing system.
@@ -31,6 +32,9 @@ protected:
 
   /*!@member Lights in the scene.*/
   DeviceArray<LightStruct>  lights;
+
+  /*!@member Materials in the scene.*/
+  DeviceArray<MaterialStruct> materials;
 
   /*!@member Ray buffer for the scene.*/
   DeviceArray<uint>         rays;
@@ -68,22 +72,17 @@ public:
 
   const DeviceArray<uint>& getColorOutputBuffer()const;
 
-  /*!
-  @function Register sphere buffer to the system.
-  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
-  */
-  void registerSphereBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count);
-
-  /*!
-  @function Register triangle buffer to the system.
-  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
-  */
-  void registerTriangleBuffer(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count);
+  /*!@function Register a Material to the system.*/
+  MaterialId registerMaterial(Material* material);
 
   /*!@function Register a Ray Tracing entity to the system.*/
   RayTracingEntityId registerEntity(RayTracingEntity* entity);
 
-  void addEntityInstance(const RayTracingEntityId registeredEntityId, const ushort instanceCount, const Matrix4* instanceTransforms);
+  /*!@function Instantiate an entity registered within the system.*/
+  void addEntityInstance(const RayTracingEntityId& registeredEntityId, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
+
+  /*!@function Register a Ray Tracing entity and instantiate.*/
+  RayTracingEntityId registerAndInstantiateEntity(RayTracingEntity* entity, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
 
   /*!@function Update camera based on given matrices.*/
   void updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16]);

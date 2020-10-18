@@ -24,35 +24,57 @@
       <reset-camera-position xyz="-1.0f, 1.0f, 10.0f"/>
     </rendering>
     <ray-tracing>
-      <simple-camera scale=".25" near-plane=""/>
+      <simple-camera scale=".125" near-plane=""/>
     </ray-tracing>
   </settings>
   
   <entities>
-    <!-- <cloth id="cloth1">
+    <cloth id="cloth1">
       <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f"/>
-    </cloth> -->
+    </cloth>
     <rigidbody id="cube1">
       <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f"/>
     </rigidbody>
     <!-- <fluid id="fluid1">
-      <shape type="cuboid" dim="1.6f, 10.0f, 1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
+      <shape type="cuboid" dim="1.6f, 10.0f,  1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
     </fluid> -->
+    <point-light id="light1">
+      <shape type="void"/>
+      <emissive-color xyz="1.f, 1.f, 1.f"/>
+    </point-light>
   </entities>
 
+  <materials>
+    <plastic id="mat1">
+      <diffuse-color  rgba="1.f, 1.f, 1.f, 1.f"/>
+      <specular-color rgba="1.f, 1.f, 1.f, 1.f"/>
+      <emissive-color rgba="1.f, 1.f, 1.f, 1.f"/>
+    </plastic>
+  </materials>
+
   <instances>
-    <!-- <cloth1 count="1">
+    <cloth1 count="1">
       <transform>
         <translate xyz="0.f, 1.f, -1.f"/>
         <rotate xyz="0.f, 1.f, -1.f"/>
         <scale xyz="1.f, 1.f, 1.f"/>
       </transform>
-    </cloth1> -->
+    </cloth1>
     <cube1 count="1">
       <transform>
         <translate xyz="0.f, 0.f, 1.f"/>
       </transform>
     </cube1>
+    <cube1 count="1">
+      <transform>
+        <translate xyz="2.f, 0.f, 1.f"/>
+      </transform>
+    </cube1>
+    <light1 count="1">
+      <transform>
+        <translate xyz="0.f, 100.f, 0.f"/>
+      </transform>
+    </light1>
     <!-- <fluid1 count="1">
       <transform>
         <translate xyz="0.f, 20.f, 0.f"/>

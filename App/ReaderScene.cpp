@@ -48,6 +48,45 @@ void QueryFloat3Attribute(const XMLElement* element, Real3& value, const char* a
   QueryFloat3Attribute(element, &value.x, attributeName);
 }
 
+void QueryHalf4Attribute(const XMLElement* element, Half4 value, const char* attributeName="rgba")
+{
+  if (!element)
+  {
+    return;
+  }
+
+  Half4 val(0.f, 0.f, 0.f, 0.f);
+
+  const XMLAttribute* attr = element->FindAttribute(attributeName);
+  if (attr)
+  {
+    std::stringstream ss(attr->Value());
+    std::string token;
+    int i=0;
+    while (std::getline(ss, token, ',') && i<4)
+    {
+      val[i] = atof(token.c_str());
+      i++;
+    }
+    value[0] = val[0];
+    value[1] = val[1];
+    value[2] = val[2];
+    value[3] = val[3];
+    return;
+  }
+
+  float v[4] = {value[0], value[1], value[2], value[3]};
+  element->QueryFloatAttribute("r", &v[0]);
+  element->QueryFloatAttribute("g", &v[1]);
+  element->QueryFloatAttribute("b", &v[2]);
+  element->QueryFloatAttribute("a", &v[3]);
+
+  value[0] = v[0];
+  value[1] = v[1];
+  value[2] = v[2];
+  value[3] = v[3];
+}
+
 void QueryTransformElement(const XMLElement* element, Matrix& matrix)
 {
   matrix.setIdentity();
@@ -220,6 +259,52 @@ ShapeData readShape(XMLConstHandle shapeHandle)
   return shape;
 }
 
+void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
+{
+  for (const XMLElement* material = materials->FirstChildElement(); material; material = material->NextSiblingElement())
+  {
+    const string identity(material->Attribute("id"));
+    if (identity.size() == 0)
+    {
+      logComputeError("Material attribute id required!");
+    }
+
+    if (registeredMaterials.find(identity) != registeredMaterials.end())
+    {
+      logComputeError("Duplicate id %s, not allowed!", identity.c_str());
+    }
+
+    Material* newMaterial;
+
+    if (strcmp(material->Name(), "plastic") == 0)
+    {
+      newMaterial = new Material(MaterialTypePlastic);
+    }
+
+    XMLConstHandle color(NULL);
+
+    color = XMLConstHandle(material).FirstChildElement("diffuse-color");
+    if (color.ToElement())
+    {
+      QueryHalf4Attribute(color.ToElement(), (Half4&)newMaterial->diffuse);
+    }
+
+    color = XMLConstHandle(material).FirstChildElement("specular-color");
+    if (color.ToElement())
+    {
+      QueryHalf4Attribute(color.ToElement(), (Half4&)newMaterial->specular);
+    }
+
+    color = XMLConstHandle(material).FirstChildElement("emissive-color");
+    if (color.ToElement())
+    {
+      QueryHalf4Attribute(color.ToElement(), (Half4&)newMaterial->emissive);
+    }
+
+    registeredMaterials[identity] = system->rayTracingSystem.registerMaterial(newMaterial);
+  }
+}
+
 void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
 {
   for (const XMLElement* entity = entities->FirstChildElement(); entity; entity = entity->NextSiblingElement())
@@ -271,7 +356,7 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
       }
     }
 
-    string identity(entity->Attribute("id"));
+    const string identity(entity->Attribute("id"));
     if (identity.size() == 0)
     {
       logComputeError("Entity attribute id required!");
@@ -297,7 +382,7 @@ void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
 {
   for (const XMLElement* instance = instances->FirstChildElement(); instance; instance = instance->NextSiblingElement())
   {
-    string identity(instance->Name());
+    const string identity(instance->Name());
 
     vector<Matrix4> matrixTransforms;
 
@@ -326,7 +411,7 @@ void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
 bool ReaderScene::readFile(MainSystem* system, const char fileName[])
 {
   tinyxml2::XMLDocument document;
-  string xmlContents = IOInterface::readFile(fileName);
+  const string xmlContents = IOInterface::readFile(fileName);
   document.Parse(xmlContents.c_str());
 
   if (document.Error())
@@ -344,6 +429,9 @@ bool ReaderScene::readFile(MainSystem* system, const char fileName[])
 
   // read settings first
   readSettings(system, scene->FirstChildElement("settings"));
+
+  // then read materials
+  readMaterials(system, scene->FirstChildElement("materials"));
 
   // then read entities
   readEntities(system, scene->FirstChildElement("entities"));

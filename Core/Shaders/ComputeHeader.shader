@@ -42,6 +42,7 @@
 #define asFloat(x)          as_float(x)
 #define asUint(x)           as_uint(x)
 #define asUint3(x)          as_uint3(x)
+#define asUshort(x)         as_ushort(x)
 #define simdAll(x)          assert
 #define simdFirst(x)        assert
 #define simdIsFirst()       assert
@@ -132,6 +133,7 @@
 #define asFloat(x)          as_type<float>(x)
 #define asUint(x)           as_type<uint>(x)
 #define asUint3(x)          as_type<uint3>(x)
+#define asUshort(x)         as_type<ushort>(x)
 #define simdAll(x)          simd_all(x)
 #define simdFirst(x)        simd_broadcast_first(x)
 #define simdIsFirst()       simd_is_first()

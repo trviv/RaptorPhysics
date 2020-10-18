@@ -23,6 +23,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Common/RayTracingStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Common/RayStructs.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Common/HitStructs.h"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Common/MaterialStruct.h"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Camera/Camera.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Acceleration/AccelerationDataStructCreate.shader"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../RayTracing/Acceleration/AccelerationDataStructTraverse.shader"

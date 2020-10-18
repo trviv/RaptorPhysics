@@ -23,34 +23,6 @@ uint AccelerationDataStruct::sortComputeUtilId   = -1;
 
 //#define DEBUG_ACCELERATION_DATA_STRUCT
 
-uint AccelerationDataStruct::PrimitiveAttributeInfo::bindToShader(ComputeKernel& kernel, uint startIndex)
-{
-  if (primInfo.primType == PrimitiveSphere)
-  {
-    kernel.setArg(attributeBuffer[PrimitiveAttributePosition], startIndex);
-    kernel.setArg(attributeBuffer[PrimitiveAttributeRadius], startIndex+1);
-    kernel.setArg(&attributeInfo[PrimitiveAttributeRadius], startIndex+2);
-    return startIndex+3;
-  }
-  else
-  if (primInfo.primType == PrimitiveTriangle)
-  {
-    kernel.setArg(attributeBuffer[PrimitiveAttributePosition], startIndex);
-    if (attributeInfo[PrimitiveAttributeIndex].strideIn4Bytes)
-    {
-      kernel.setArg(attributeBuffer[PrimitiveAttributeIndex], startIndex+1);
-    }
-    else
-    {
-      kernel.setArg(attributeBuffer[PrimitiveAttributePosition], startIndex+1);
-    }
-    kernel.setArg(&attributeInfo[PrimitiveAttributeIndex], startIndex+2);
-    return startIndex+3;
-  }
-
-  return startIndex;
-}
-
 AccelerationDataStruct::AccelerationDataStruct()
 {
 }
@@ -114,12 +86,12 @@ uint AccelerationDataStruct::getPrimCount()const
 
 void AccelerationDataStruct::registerSpheres(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count)
 {
-  PrimitiveAttributeInfo primInfo;
+  EntityPrimAttributes primInfo;
 
-  primInfo.attributeBuffer[PrimitiveAttributePosition]  = primitiveBuffer;
-  primInfo.attributeInfo[PrimitiveAttributePosition]    = PackingInfo();
-  primInfo.attributeBuffer[PrimitiveAttributeRadius]    = radiusBuffer;
-  primInfo.attributeInfo[PrimitiveAttributeRadius]      = radiusInfo;
+  primInfo.attributeBuffer[EntityPrimitiveAttributePosition]  = primitiveBuffer;
+  primInfo.attributeInfo[EntityPrimitiveAttributePosition]    = PackingInfo();
+  primInfo.attributeBuffer[EntityPrimitiveAttributeRadius]    = radiusBuffer;
+  primInfo.attributeInfo[EntityPrimitiveAttributeRadius]      = radiusInfo;
   primInfo.primInfo.primType    = PrimitiveSphere;
   primInfo.primInfo.indexCount  = count;
   primInfo.primInfo.vertexCount = count;
@@ -129,17 +101,39 @@ void AccelerationDataStruct::registerSpheres(const ComputeMemory* primitiveBuffe
 
 void AccelerationDataStruct::registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count)
 {
-  PrimitiveAttributeInfo primInfo;
+  EntityPrimAttributes primInfo;
 
-  primInfo.attributeBuffer[PrimitiveAttributePosition]  = primitiveBuffer;
-  primInfo.attributeInfo[PrimitiveAttributePosition]    = PackingInfo();
-  primInfo.attributeBuffer[PrimitiveAttributeIndex]     = indexBuffer;
-  primInfo.attributeInfo[PrimitiveAttributeIndex]       = indexInfo;
+  primInfo.attributeBuffer[EntityPrimitiveAttributePosition]  = primitiveBuffer;
+  primInfo.attributeInfo[EntityPrimitiveAttributePosition]    = PackingInfo();
+  primInfo.attributeBuffer[EntityPrimitiveAttributeIndex]     = indexBuffer;
+  primInfo.attributeInfo[EntityPrimitiveAttributeIndex]       = indexInfo;
   primInfo.primInfo.primType    = PrimitiveTriangle;
   primInfo.primInfo.indexCount  = count;
   primInfo.primInfo.vertexCount = count * 3;
 
   registeredPrimitives[PrimitiveTriangle].push_back(primInfo);
+}
+
+void AccelerationDataStruct::registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count)
+{
+  primitiveInfo.primInfo.indexCount  = count;
+  primitiveInfo.primInfo.vertexCount = count;
+
+  ushort primType = 0;
+  switch (type)
+  {
+    case RayTracingEntitySpheres:
+      primType = PrimitiveSphere;
+      break;
+    case RayTracingEntityTriangles:
+      primType = PrimitiveTriangle;
+      primitiveInfo.primInfo.vertexCount *= 3;
+      break;
+    default:
+      logComputeError("Invalid entity type sent for registration!");
+  }
+  primitiveInfo.primInfo.primType = primType;
+  registeredPrimitives[primType].push_back(primitiveInfo);
 }
 
 void AccelerationDataStruct::commit()
