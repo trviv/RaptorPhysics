@@ -16,8 +16,7 @@ Kernel void shadeIntersection(
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
   constantKernelInput(ushort,   lightOffset),
-  constantKernelInput(ushort,   lightCount),
-  const Device PrimitiveAttrib* attributeArray
+  constantKernelInput(ushort,   lightCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();

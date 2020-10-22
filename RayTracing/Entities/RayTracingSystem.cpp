@@ -69,21 +69,6 @@ uint RayTracingSystem::newEntityInstanceId(uint entityIndex)
 
 void RayTracingSystem::commit()
 {
-  for (auto& instances : entities)
-  {
-    for (uint i=1; i<instances.size(); i++)
-    {
-      RayTracingEntity* entity = instances[i];
-      const RayTracingEntityType entityType = getRayTracingEntityCategory(getRayTracingEntityType(entity->getIdentity()));
-      if (entityType == RayTracingEntityPrimArray)
-      {
-        accelerationStruct->registerPrimitive((RayTracingEntityType)getRayTracingEntityType(entity->getIdentity()), *entity, ((PrimitiveArrayEntity*)entity)->getPrimCount());
-      }
-    }
-  }
-
-  accelerationStruct->commit();
-
   lights.host()->clear();
 
   for (auto& instances : entities)
@@ -91,16 +76,28 @@ void RayTracingSystem::commit()
     for (uint i=1; i<instances.size(); i++)
     {
       RayTracingEntity* entity = instances[i];
-      const RayTracingEntityType entityType = getRayTracingEntityCategory(getRayTracingEntityType(entity->getIdentity()));
-      if (entityType == RayTracingEntityLight)
+      const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
+      const RayTracingEntityType entityCategory = getRayTracingEntityCategory(entityType);
+
+      switch (entityCategory)
       {
-        Light* light = (Light*)entity;
-        light->update();
-        lights.host()->push_back(*light);
+        case RayTracingEntityPrimArray:
+          accelerationStruct->registerPrimitive(entityType, *entity, ((PrimitiveArrayEntity*)entity)->getPrimCount());
+          break;
+        case RayTracingEntityLight:
+        {
+          Light* light = (Light*)entity;
+          light->update();
+          lights.host()->push_back(*light);
+        }
+          break;
+        default:
+          break;
       }
     }
   }
 
+  accelerationStruct->commit();
   lights.syncDevice();
 }
 
