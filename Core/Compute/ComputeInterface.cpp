@@ -1154,7 +1154,7 @@ void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCo
 
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3])
 {
-  configureSize(workgroupSize, workgroupCount, threadCount, 1024);
+  configureSize(workgroupSize, workgroupCount, threadCount, maxThreadsPerGroup());
 }
 
 void ComputeInterface::configureSize(size_t workgroupSize[3], size_t workgroupCount[3], const uint threadCount[3], const uint maxThreadsPerThreadgroup)

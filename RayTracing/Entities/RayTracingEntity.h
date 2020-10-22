@@ -28,6 +28,7 @@ enum EntityPrimitiveAttributeType
   EntityPrimitiveAttributePosition,
   EntityPrimitiveAttributeRadius,
   EntityPrimitiveAttributeIndex = EntityPrimitiveAttributeRadius,
+  EntityPrimitiveAttributeMatrialId,
   EntityPrimitiveAttributeMax
 };
 
