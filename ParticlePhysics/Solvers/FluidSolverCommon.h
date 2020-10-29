@@ -318,6 +318,7 @@ inline float calculateBoundaryParticleDensity(
 @param gridSizeExp Grid size in power of 2.
 @param nodeCount Total nodes in the solver.
 */
+//#autoArgumentBuffer
 Kernel void calculateDensity(
   Device float*                       particlesDensity,
   const Device uint*                  gridCellParticleOffsets,
@@ -391,6 +392,7 @@ Kernel void calculateCouplingData(
   boundaryParticleCouplingData[particleIndex].volume = 1.f/calculateParticleDensity(selfParticle, 1.f, fluidSolverData, gridCellParticleOffsets, particles, gridCellIndex, gridSize, gridSizeExp);
 }
 
+//#autoArgumentBuffer
 Kernel void createBoundaryGridCellHistogram(
   atomicKernelInput(uint,       boundaryGridCellIndexCount),
   Device uint*                  boundaryGridParticleCellIndex,
@@ -440,6 +442,7 @@ Kernel void createBoundaryGridCellHistogram(
   }
 }
 
+//#autoArgumentBuffer
 Kernel void createBoundaryGridCellArrays(
   Device uint*                  boundaryGridCellParticleIndices,
   atomicKernelInput(uint,       systemGridCellParticleOffsets),
@@ -460,6 +463,7 @@ Kernel void createBoundaryGridCellArrays(
   }
 }
 
+//#autoArgumentBuffer
 Kernel void reorderBoundaryParticles(
   Device ParticleStruct*              particlesNew,
   const Device ParticleStruct*        particlesOld,

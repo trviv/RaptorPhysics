@@ -9,12 +9,147 @@ static uint platformCount = 0;
 static ComputeDeviceId devices[8];
 static uint deviceCount = 0;
 
+typedef pair<uint, uint>  uintPair;
+typedef vector<uintPair>  uintPairList;
+typedef vector<string>    stringList;
+
+inline string trim(const string& str, const char* delim = " ") //" \t\r\n"
+{
+  size_t first = str.find_first_not_of(delim);
+  if (string::npos == first)
+  {
+    return str;
+  }
+  return str.substr(first, (str.find_last_not_of(delim) - first + 1));
+}
+
+inline bool isComment(const string& input, const size_t startIndex)
+{
+  // returns true when / is succeeded by / or *
+  return input[startIndex] == '/' && (startIndex+1) < input.size() && (input[startIndex+1] == '/' || input[startIndex+1] == '*');
+}
+
+inline size_t skipComment(const string& input, size_t startIndex)
+{
+  startIndex++;
+  if (input[startIndex] == '/')
+  {
+    // go till next line in case of //
+    while (startIndex < input.size() && input[startIndex] != '\n')
+    {
+      startIndex++;
+    }
+  }
+  if (input[startIndex] == '*')
+  {
+    // find first */ in case of /*
+    while ((startIndex < input.size() && input[startIndex] != '*') || ((startIndex+1) < input.size() && input[startIndex+1] != '/'))
+    {
+      startIndex++;
+    }
+  }
+  return startIndex;
+}
+
+inline size_t findEndOfFunction(const string& input, const size_t startIndex, const char item)
+{
+  vector<char> bracketStack;
+  const string openBrackets   = "({[";
+  const string closeBrackets  = ")}]";
+
+  for (size_t curr=startIndex; curr<input.size(); curr++)
+  {
+    const char c = input[curr];
+
+    if (item == c)
+    {
+      if (bracketStack.size() == 0)
+      {
+        return curr;
+      }
+    }
+
+    if (isComment(input, curr))
+    {
+      curr = skipComment(input, curr);
+      continue;
+    }
+
+    const size_t openIndex = openBrackets.find(c);
+    if (openIndex != openBrackets.npos)
+    {
+      bracketStack.push_back(closeBrackets[openIndex]);
+    }
+    else if (closeBrackets.find(c) != openBrackets.npos)
+    {
+      if (!bracketStack.empty() && bracketStack.back() == c)
+      {
+        bracketStack.pop_back();
+      }
+    }
+  }
+
+  return input.npos;
+}
+
+inline stringList tokenize(const string& input, const string delimiter = " \t\r\n")
+{
+  stringList tokens;
+  string temp;
+  size_t curr = 0;
+  size_t prev = 0;
+  vector<char> bracketStack;
+  const string openBrackets   = "({[";
+  const string closeBrackets  = ")}]";
+
+  for (uint curr=0; curr<input.size(); curr++)
+  {
+    const char c = input[curr];
+
+    if (delimiter.find(c) != delimiter.npos)
+    {
+      if (bracketStack.size())
+      {
+        continue;
+      }
+
+      temp = trim(input.substr(prev, curr - prev));
+      if (!temp.empty())
+      {
+        tokens.push_back(temp);
+      }
+      prev = curr+1;
+    }
+
+    size_t openIndex = openBrackets.find(c);
+    if (openIndex != openBrackets.npos)
+    {
+      bracketStack.push_back(closeBrackets[openIndex]);
+    }
+    else if (closeBrackets.find(c) != openBrackets.npos)
+    {
+      if (!bracketStack.empty() && bracketStack.back() == c)
+      {
+        bracketStack.pop_back();
+      }
+    }
+  }
+
+  temp = trim(input.substr(prev, curr - prev));
+  if (!temp.empty())
+  {
+    tokens.push_back(temp);
+  }
+
+  return tokens;
+}
+
 #ifdef USE_METAL_COMPUTE
 #ifndef DISABLE_PROFILING
 #define ALWAYS_END_ENCODERS
 #endif
 
-//#define COMPUTE_KERNEL_DEFER_SET_ARGS
+#define USE_ARGUMENT_BUFFERS
 
 #if __has_feature(objc_arc)
 #define retainComputeObj(obj)
@@ -33,7 +168,8 @@ static id<MTLCommandQueue> commandQueue = nil;
 static id<MTLCommandBuffer> currentCommandBuffer          = nil;
 static id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
 static id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
-map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
+unordered_map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
+unordered_map<string, uintPairList> kernelNameArgumentBufferMap;
 
 // 128 bytes aligned
 uint alignAllocSize(uint minimumSize)
@@ -193,6 +329,267 @@ static void endEncoders()
     releaseComputeObj(currentBlitEncoder);
   }
 }}
+
+inline string generateNewKernelHeader(const string& oldKernelHeader,
+                                      const vector<pair<string, stringList>>& structData,
+                                      const uintPairList& structPos,
+                                      bool useDefines = true)
+{
+  string newKernelHeader;
+
+  // declare structure before kernel declaration
+  for (const auto &s : structData)
+  {
+    newKernelHeader.append("typedef struct "+s.first+"{\n");
+    for (uint i=0; i<s.second.size(); i++)
+    {
+      newKernelHeader.append("  "+s.second[i]+" [[ id ("+to_string(i)+") ]];\n");
+    }
+    newKernelHeader.append("} "+s.first+";\n\n");
+  }
+
+  // copy kernel arguments before arg buffer
+  newKernelHeader.append(oldKernelHeader, 0, structPos[0].first);
+
+  // place argument buffer struct and members in kernel declaration
+  for (uint i=0; i<structPos.size(); i++)
+  {
+    newKernelHeader.append("Const "+structData[i].first+" *"+structData[i].first+"_args,\n");
+  }
+  newKernelHeader.pop_back();
+  newKernelHeader.pop_back();
+
+  // copy kernel arguments after arg buffer
+  newKernelHeader.append(oldKernelHeader, structPos.back().second, oldKernelHeader.size() - structPos.back().second);
+
+  // create local variables using argument buffer members
+  for (const auto &s : structData)
+  {
+    newKernelHeader.append("\n");
+    for (const auto& m : s.second)
+    {
+      string memberName = m.substr(m.rfind(' ')+1, m.size() - m.find(' '));
+      if (useDefines)
+      {
+        newKernelHeader.append("#define "+memberName+" "+s.first+"_args->"+memberName+" \n");
+      }
+      else
+      {
+        newKernelHeader.append(m+" = "+s.first+"_args->"+memberName+"; \n");
+      }
+    }
+  }
+
+  return newKernelHeader;
+}
+
+inline string generateKernelEnding(const vector<pair<string, stringList>>& structData,
+                                   const uintPairList& structPos)
+{
+  string newKernelEnding;
+
+  // create local variables using argument buffer members
+  for (const auto &s : structData)
+  {
+    newKernelEnding.append("\n");
+    for (const auto& m : s.second)
+    {
+      newKernelEnding.append("#undef "+m.substr(m.rfind(' ')+1, m.size() - m.find(' '))+"\n");
+    }
+  }
+
+  return newKernelEnding;
+}
+
+inline string processArgumentBuffers(string source, bool useDefines = true)
+{
+  const string argBufferToken = "argumentStructMember";
+
+  size_t kernelDecl = 0;
+  do
+  {
+    // find the occurrence
+    size_t pos = source.find(argBufferToken, kernelDecl);
+    if (pos == source.npos)
+    {
+      break;
+    }
+
+    // find kernel declaration
+    kernelDecl = source.rfind("Kernel ", pos);
+    // find kernel definition
+    size_t kernelDef  = source.find("{", pos);
+
+    string kernelHeader = source.substr(kernelDecl, kernelDef - kernelDecl + 1);
+    string newKernelHeader;
+    vector<pair<string, stringList>> structData;
+    uintPairList structPos;
+
+    size_t argOffset = 0;
+    do
+    {
+      // find argument buffer token
+      size_t tokenPos = kernelHeader.find(argBufferToken, argOffset);
+      if (tokenPos == kernelHeader.npos)
+      {
+        break;
+      }
+
+      // argument buffer member declaration begin and end
+      size_t argBegin = kernelHeader.find('(', tokenPos + argBufferToken.size());
+      size_t argEnd   = kernelHeader.find(')', argBegin+1);
+
+      // tokenize declaration
+      string argDecl  = kernelHeader.substr(argBegin + 1, argEnd - argBegin - 1);
+      stringList tokens = tokenize(argDecl, ",");
+
+      // add new structure if not already declared
+      if (structData.empty() || structData.back().first != tokens[0])
+      {
+        structData.push_back(pair<string, stringList>(tokens[0], stringList()));
+        structPos.push_back(uintPair(tokenPos, 0));
+      }
+      argOffset = argEnd+1;
+      structPos.back().second = (uint)argOffset;
+      structData.back().second.push_back(tokens[1]+" "+tokens[2]);
+    }
+    while (true);
+
+    if (useDefines)
+    {
+      size_t end = findEndOfFunction(source, kernelDef + 1, '}');
+      if (end != source.npos)
+      {
+        string ending = generateKernelEnding(structData, structPos);
+        source.insert(end+1, ending);
+      }
+    }
+    source.replace(kernelDecl, kernelDef - kernelDecl + 1, generateNewKernelHeader(kernelHeader, structData, structPos, useDefines));
+  }
+  while (true);
+
+  return source;
+}
+
+inline string processAutoArgumentBuffers(string source)
+{
+  const string autoArgBufferToken = "#autoArgumentBuffer";
+
+  // find the first occurrence
+  size_t autoArgTokenPos = source.find(autoArgBufferToken);
+
+  while (autoArgTokenPos != source.npos)
+  {
+    source.replace(autoArgTokenPos, autoArgBufferToken.size(), "");
+
+    // find kernel declaration for the tag
+    // go to the kernel declaration
+    size_t kernelDecl   = source.find("Kernel ", autoArgTokenPos);
+    // go till the beginning of kernel definitions
+    size_t kernelDef    = source.find("{", autoArgTokenPos);
+    string kernelHeader = source.substr(kernelDecl, kernelDef - kernelDecl + 1);
+
+    // arguments declaration begin and end
+    size_t argsBegin    = kernelHeader.find('(');
+    size_t argsEnd      = kernelHeader.rfind(')');
+    string kernelName   = tokenize(kernelHeader.substr(0, argsBegin)).back();
+
+    stringList args = tokenize(kernelHeader.substr(argsBegin + 1, argsEnd - argsBegin - 1), ",");
+
+    // find continuous constant arguments
+    uint startIndex = -1;
+    uintPairList argRanges;
+    for (uint i=0; i<args.size(); i++)
+    {
+      const auto &arg = args[i];
+      if (arg.find("const ") != arg.npos || arg.find("Const ") != arg.npos || arg.find("constantKernelInput") != arg.npos)
+      {
+        if (startIndex == -1)
+        {
+          startIndex = i;
+        }
+      }
+      else
+      {
+        if (startIndex != -1)
+        {
+          argRanges.push_back(uintPair(startIndex, i-1));
+          startIndex = -1;
+        }
+      }
+    }
+
+    if (startIndex != -1)
+    {
+      argRanges.push_back(uintPair(startIndex, (uint)args.size()-1));
+    }
+
+    // eleminate arguments with < 4 consecutive items
+    for (uint i=0; i<argRanges.size(); i++)
+    {
+      if ((argRanges[i].second - argRanges[i].first) < 3)
+      {
+        argRanges.erase(argRanges.begin()+i);
+        i--;
+      }
+    }
+
+    kernelNameArgumentBufferMap[kernelName] = argRanges;
+
+    vector<pair<string, stringList>> structData;
+    uintPairList structPos;
+
+    for (const auto& range : argRanges)
+    {
+      for (uint i=range.first; i<=range.second; i++)
+      {
+        auto &arg = args[i];
+        size_t pos = -1;
+        stringList parts;
+        if (arg.find("constantKernelInput") != arg.npos)
+        {
+          pos = arg.find("constantKernelInput");
+          arg.replace(pos, sizeof("constantKernelInput")-1, "");
+          const size_t argsBegin = arg.find('(');
+          parts = tokenize(arg.substr(argsBegin + 1, arg.size() - argsBegin - 1), ",");
+        }
+        else
+        {
+          pos = arg.find("const ");
+          if (pos == arg.npos)
+          {
+            pos = arg.find("Const ");
+          }
+          const stringList tokens = tokenize(arg.substr(pos, arg.size() - pos));
+          parts.push_back("");
+          for (uint t=0; t<tokens.size()-1; t++)
+          {
+            parts.back().append(tokens[t]+" ");
+          }
+          parts.push_back(tokens.back());
+          parts[1] += ")";
+        }
+        args[i] = arg.substr(0, pos)+"argumentStructMember("+kernelName+"_"+to_string(range.first)+"_"+to_string(range.second)+", const "+parts[0]+", "+parts[1];
+      }
+    }
+
+    string newHeader;
+    for (const auto& s : args)
+    {
+      newHeader += s+",";
+    }
+    newHeader.pop_back();
+
+    size_t kernelEnd = findEndOfFunction(source, kernelDef + 1, '}');
+    string kernelSource = source.substr(kernelDecl, kernelEnd - kernelDecl + 1);
+    source.replace(kernelDecl, kernelEnd - kernelDecl + 1, processArgumentBuffers(kernelSource.replace(argsBegin + 1, argsEnd - argsBegin - 1, newHeader), true));
+
+//    printf("%s", source.c_str());
+    autoArgTokenPos = source.find(autoArgBufferToken, kernelDecl);
+  }
+
+  return source;
+}
 
 #endif
 
@@ -492,11 +889,39 @@ void ComputeHeap::free(ComputeMemory* memory)
 ComputeKernel::ComputeKernel()
 {
   ref = NULL;
+  setArgumentBuffer = false;
 }
 
 ComputeKernel::ComputeKernel(ComputeKernelIdentifier ref)
 {
   this->ref = ref;
+  setArgumentBuffer = false;
+}
+
+uint ComputeKernel::mapArgumentIndex(uint index)const
+{
+  uint ret = index;
+
+  for (const auto& range : argumentBufferRange)
+  {
+    if (index >= range.second)
+    {
+      ret -= range.second - range.first;
+      continue;
+    }
+    break;
+  }
+
+  return ret;
+}
+
+void ComputeKernel::addArgumentBufferRange(uint startIndex, uint inclusiveEndIndex)
+{
+#ifdef USE_METAL_COMPUTE
+  argumentBufferRange.push_back(uintPair(startIndex, inclusiveEndIndex));
+  setArgumentBuffer = true;
+#else
+#endif
 }
 
 void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
@@ -505,16 +930,19 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
   ComputeStatus status = clSetKernelArg(ref, argIndex, valueSize, valuePtr);
   computeCheckError(status, 0);
 #else
-#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
-  @autoreleasepool {[getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];}
-#else
-  ArgData data;
-  data.type = 1;
-  data.ptr = valuePtr;
-  data.size = (uint)valueSize;
-  data.index = argIndex;
-  args.push_back(data);
-#endif
+  if (!setArgumentBuffer) @autoreleasepool
+  {
+    [getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];
+  }
+  else
+  {
+    ArgData data;
+    data.type = 1;
+    data.ptr = valuePtr;
+    data.size = (uint)valueSize;
+    data.index = argIndex;
+    args.push_back(data);
+  }
 #endif
 }
 
@@ -524,15 +952,18 @@ void ComputeKernel::setArg(const ComputeMemory* buffer, uint index)
 #ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
 #else
-#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
-  @autoreleasepool {[getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];}
-#else
-  ArgData data;
-  data.type = 2;
-  data.cptr = buffer;
-  data.index = index;
-  args.push_back(data);
-#endif
+  if (!setArgumentBuffer) @autoreleasepool
+  {
+    [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+  }
+  else
+  {
+    ArgData data;
+    data.type = 2;
+    data.cptr = buffer;
+    data.index = index;
+    args.push_back(data);
+  }
 #endif
 }
 
@@ -542,15 +973,18 @@ void ComputeKernel::setArg(ComputeMemory* buffer, uint index)
 #ifdef USE_OPENCL_COMPUTE
   setArg<ComputeMemoryIdentifier>(&ident, index);
 #else
-#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
-  @autoreleasepool {[getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];}
-#else
-  ArgData data;
-  data.type = 3;
-  data.ptr = buffer;
-  data.index = index;
-  args.push_back(data);
-#endif
+  if (!setArgumentBuffer) @autoreleasepool
+  {
+    [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+  }
+  else
+  {
+    ArgData data;
+    data.type = 3;
+    data.ptr = buffer;
+    data.index = index;
+    args.push_back(data);
+  }
 #endif
 }
 
@@ -573,23 +1007,79 @@ void ComputeKernel::setSharedMemArg(const size_t valueSize, uint index)
   ComputeStatus status = clSetKernelArg(ref, index, valueSize, NULL);
   computeCheckError(status, 0);
 #else
-#ifndef COMPUTE_KERNEL_DEFER_SET_ARGS
-  @autoreleasepool {[getComputeEncoder() setThreadgroupMemoryLength:valueSize atIndex:index];}
-#else
-  ArgData data;
-  data.type = 4;
-  data.size = (uint)valueSize;
-  data.index = index;
-  args.push_back(data);
-#endif
+  if (!setArgumentBuffer) @autoreleasepool
+  {
+    [getComputeEncoder() setThreadgroupMemoryLength:valueSize atIndex:index];
+  }
+  else
+  {
+    ArgData data;
+    data.type = 4;
+    data.size = (uint)valueSize;
+    data.index = index;
+    args.push_back(data);
+  }
 #endif
 }
 
 #ifndef USE_OPENCL_COMPUTE
 void ComputeKernel::setArgs()
-{ @autoreleasepool {
+{
+  if (setArgumentBuffer)
+  @autoreleasepool {
+  for (uint r=0; r<argumentBufferRange.size(); r++)
+  {
+    const auto& range = argumentBufferRange[r];
+    id <MTLArgumentEncoder> argumentEncoder = [kernelNameMap[ref] newArgumentEncoderWithBufferIndex:range.first];
+    id <MTLBuffer>          argumentBuffer  = [ref.device newBufferWithLength:argumentEncoder.encodedLength options:0];
+
+    [argumentEncoder setArgumentBuffer:argumentBuffer offset:0];
+    argumentBuffers[mapArgumentIndex(range.first)] = argumentBuffer;
+
+    for (uint i=0; i<args.size(); i++)
+    {
+      auto &arg = args[i];
+      if (arg.index >= range.first && arg.index <= range.second)
+      {
+        uint index = (arg.index - range.first);
+        switch (arg.type)
+        {
+          case 1:
+            memcpy([argumentEncoder constantDataAtIndex:index], arg.ptr, arg.size);
+            break;
+          case 2:
+            [argumentEncoder setBuffer:*((const ComputeMemory*)arg.cptr) offset:((const ComputeMemory*)arg.cptr)->getOffset() atIndex:index];
+            break;
+          case 3:
+            [argumentEncoder setBuffer:*((ComputeMemory*)arg.ptr) offset:((ComputeMemory*)arg.ptr)->getOffset() atIndex:index];
+            break;
+          default:
+            logComputeError("Unknown Argument type!");
+            break;
+        }
+      }
+    }
+  }
+  setArgumentBuffer = false;
+  }
+  for (auto& range : argumentBufferRange)
+  @autoreleasepool {
+    [getComputeEncoder() setBuffer:argumentBuffers[mapArgumentIndex(range.first)] offset:0 atIndex:range.first];
+  }
+  @autoreleasepool {
   for (auto& i : args)
   {
+    bool skip = false;
+    for (const auto& range : argumentBufferRange)
+    {
+      if (i.index >= range.first && i.index <= range.second)
+      {
+        skip = true;
+      }
+    }
+
+    if (skip) continue;
+
     switch (i.type)
     {
       case 1:
@@ -638,6 +1128,13 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   NSError* error;
   ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
   kernelNameMap[ret] = function;
+  if (kernelNameArgumentBufferMap.find(kernelName) != kernelNameArgumentBufferMap.end())
+  {
+    for (const auto& r : kernelNameArgumentBufferMap[kernelName])
+    {
+      ret.addArgumentBufferRange(r.first, r.second);
+    }
+  }
   return ret;
   }
 #endif
@@ -880,7 +1377,11 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   @autoreleasepool {
   NSError *error = nil;
   NSString *source = @"#include <metal_stdlib>\nusing namespace metal;\n";
+#ifdef USE_ARGUMENT_BUFFERS
+  source = [source stringByAppendingString:[NSString stringWithUTF8String:processAutoArgumentBuffers(sourceCode).c_str()]];
+#else
   source = [source stringByAppendingString:[NSString stringWithUTF8String:sourceCode]];
+#endif
   ComputeProgramIdentifier programId = [deviceId newLibraryWithSource:source options:0 error:&error];
   program = ComputeProgram(programId);
   // Allocate memory for the log

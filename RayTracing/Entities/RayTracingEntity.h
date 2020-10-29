@@ -60,7 +60,7 @@ enum RayTracingEntityType
 
 #ifndef COMPUTE_SHADER_SCOPE
 
-RayTracingEntityType getRayTracingEntityCategory(ushort type)
+static RayTracingEntityType getRayTracingEntityCategory(ushort type)
 {
   if (type < RayTracingEntityLight)
     return RayTracingEntityCamera;

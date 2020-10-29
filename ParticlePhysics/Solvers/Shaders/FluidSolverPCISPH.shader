@@ -8,6 +8,7 @@
 @param particlesPosition Integrated particle position.
 @param nodeCount Total nodes in the solver.
 */
+//#autoArgumentBuffer
 Kernel void predictionStep(
   Device ParticleStruct*              particlesNextPosition,
   Device ParticleDifferential*        particlesNextVelocity,
@@ -53,6 +54,7 @@ Kernel void predictionStep(
 @param gridSizeExp Grid size in power of 2.
 @param nodeCount Total nodes in the solver.
 */
+//#autoArgumentBuffer
 Kernel void calculatePressure(
   Device float*                     particlesPressure,
   const Device float*               particlesDensity,
@@ -133,6 +135,7 @@ Kernel void calculatePressure(
 @param nodeCount Total nodes in the solver.
 @param occupiedCellCount Total active grid cells.
 */
+//#autoArgumentBuffer
 Kernel void calculateForces(
   Device ParticleForce*               particlesPressureForce,
   const Device float*                 particlesDensity,
@@ -247,6 +250,7 @@ Kernel void calculateForces(
 @param nodeCount Total nodes in the solver.
 @param occupiedCellCount Total active grid cells.
 */
+//#autoArgumentBuffer
 Kernel void calculateBoundaryForces(
   Device ParticleForce*               boundaryParticlesForce,
   const Device float*                 particlesDensity,
