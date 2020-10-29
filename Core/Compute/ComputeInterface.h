@@ -167,12 +167,19 @@ class ComputeKernel
   };
 
   vector<ArgData> args;
+  bool setArgumentBuffer;
+  vector<pair<uint, uint>> argumentBufferRange;
+  unordered_map<uint, ComputeMemoryIdentifier> argumentBuffers;
+
+  uint mapArgumentIndex(uint index)const;
 
 public:
 
   ComputeKernel();
 
   ComputeKernel(ComputeKernelIdentifier ref);
+
+  void addArgumentBufferRange(uint startIndex, uint inclusiveEndIndex);
 
   void setArg(void* valuePtr, const size_t valueSize, uint index);
 

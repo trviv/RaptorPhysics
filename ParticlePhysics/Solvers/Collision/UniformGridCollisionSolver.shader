@@ -303,7 +303,8 @@ inline short3 decodeCellVector(uchar encodedOffset)
     { j++; i -= 3;} \
     if (j == maxY) \
     { k++; j -= 3;} \
-    if ((i < 0 | i >= gridSize) | (j < 0 | j >= gridSize) | (k < 0 | k >= gridSize))  \
+    const bool skip = (i < 0 || i >= gridSize) || (j < 0 || j >= gridSize) || (k < 0 || k >= gridSize); \
+    if (skip)  \
     { \
       continue; \
     } \
@@ -349,7 +350,8 @@ inline short3 decodeCellVector(uchar encodedOffset)
       { j++; i -= 3;} \
       if (j == maxY) \
       { k++; j -= 3;} \
-      if ((i < 0 | i >= gridSize) | (j < 0 | j >= gridSize) | (k < 0 | k >= gridSize))  \
+      const bool skip = (i < 0 || i >= gridSize) || (j < 0 || j >= gridSize) || (k < 0 || k >= gridSize); \
+      if (skip)  \
       { \
         n++; \
         continue; \
@@ -381,6 +383,109 @@ uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, uint gridCe
   gridCellParticleOffsets += (gridCellIndex - select(0, 1, gridCellIndex));
   readFromDevice2x(ret, gridCellParticleOffsets);
   return select(constructUint2(0, ret[0]), constructUint2(ret[0], ret[1]), selectInput2(gridCellIndex));
+}
+
+#define offsetCacheXElements 28
+#define offsetCacheYElements 3
+
+#define declareBufferCaching \
+  short3 firstGridCellIndex;  \
+  Shared uint gridCellParticleOffsetsCached[256]; \
+  Shared uint firstGridCellIndexShared; \
+  if (threadLocalIndex() == 0)  \
+  { \
+    firstGridCellIndexShared = gridParticleCellIndex[particleIndex];  \
+  } \
+  localMemBarrier();  \
+  cacheGridParticleOffsets(&firstGridCellIndex, gridCellParticleOffsetsCached, gridCellParticleOffsets, firstGridCellIndexShared, gridSize, gridSizeExp, threadLocalIndex());
+
+inline void cacheGridParticleOffsets(Thread short3 *firstGridCellIndices, Shared uint* gridCellParticleOffsetsCached,
+  const Device uint* gridCellParticleOffsets, const uint firstGridCellIndex,
+  const ushort gridSize, const ushort gridSizeExp, const ushort localIndex)
+{
+  *firstGridCellIndices = constructShort3(firstGridCellIndex & (gridSize-1),
+    (firstGridCellIndex >> gridSizeExp) & (gridSize-1),
+    firstGridCellIndex >> (2*gridSizeExp));
+
+  firstGridCellIndices->x = firstGridCellIndices->x - 1;
+  firstGridCellIndices->y = firstGridCellIndices->y - offsetCacheYElements / 2;
+  firstGridCellIndices->z = firstGridCellIndices->z - offsetCacheYElements / 2;
+
+  *firstGridCellIndices &= (gridSize-1);
+
+  if (localIndex < offsetCacheXElements * offsetCacheYElements * offsetCacheYElements)
+  {
+    short3 gridIndex = *firstGridCellIndices;
+    gridIndex += constructShort3(localIndex % offsetCacheXElements,
+    (localIndex / offsetCacheXElements ) % offsetCacheYElements,
+    localIndex / (offsetCacheXElements * offsetCacheYElements));
+
+    gridIndex &= (gridSize-1);
+
+    //if (gridIndex.x < gridSize && gridIndex.y < gridSize && gridIndex.z < gridSize)
+    {
+      const uint fetchIndex = gridIndex.x + ((gridIndex.y + (gridIndex.z << gridSizeExp)) << gridSizeExp);
+      //if (fetchIndex < gridSize * gridSize * gridSize)
+      {
+        //gridCellParticleOffsets += (gridCellIndex - select(0, 1, gridCellIndex));
+        //readFromDevice2x(ret, gridCellParticleOffsets);
+        gridCellParticleOffsetsCached[localIndex] = gridCellParticleOffsets[fetchIndex];
+      }
+    }
+  }
+
+  localMemBarrier();
+}
+
+inline uint getCachedOffset(const Device uint* gridCellParticleOffsets, uint gridCellIndex,
+  short3 gridIndex, const short3 firstGridCellIndices,
+  Shared uint* gridCellParticleOffsetsCached, const ushort gridSize, const ushort gridSizeExp)
+{
+  gridIndex = gridIndex - firstGridCellIndices;
+  const bool useCachedValue = gridIndex.x >= 0 && gridIndex.x < offsetCacheXElements && gridIndex.y >= 0 && gridIndex.y < offsetCacheYElements && gridIndex.z >= 0 && gridIndex.z < offsetCacheYElements;
+  if (useCachedValue)
+  {
+    return gridCellParticleOffsetsCached[gridIndex.x + (gridIndex.y + gridIndex.z * offsetCacheYElements) * offsetCacheXElements];
+  }
+
+  return gridCellParticleOffsets[gridCellIndex];
+}
+
+inline uint2 getRangeFromOffsetCached(const Device uint* gridCellParticleOffsets, uint gridCellIndex, short3 gridIndex, short3 firstGridCellIndices, Shared uint* gridCellParticleOffsetsCached, const ushort gridSize, const ushort gridSizeExp)
+{
+  uint2 ret;
+  ret.y = getCachedOffset(gridCellParticleOffsets, gridCellIndex, gridIndex, firstGridCellIndices, gridCellParticleOffsetsCached, gridSize, gridSizeExp);
+
+  if (gridCellIndex)
+  {
+    if (gridIndex.x == 0)
+    {
+      gridIndex.x = gridSize-1;
+      if (gridIndex.y == 0)
+      {
+        gridIndex.y = gridSize-1;
+        if (gridIndex.z == 0)
+        {
+          gridIndex.z = gridSize-1;
+        }
+        else
+        {
+          gridIndex.z--;
+        }
+      }
+      else
+      {
+        gridIndex.y--;
+      }
+    }
+    else
+    {
+      gridIndex.x--;
+    }
+  }
+  ret.x = getCachedOffset(gridCellParticleOffsets, gridCellIndex - select(0, 1, gridCellIndex), gridIndex, firstGridCellIndices, gridCellParticleOffsetsCached, gridSize, gridSizeExp);
+
+  return select(constructUint2(0, ret.x), constructUint2(ret.x, ret.y), selectInput2(gridCellIndex));
 }
 
 /*

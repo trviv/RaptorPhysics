@@ -13,6 +13,7 @@
 @param particleSharedData Particle entity shared data.
 @param nodeCount Total nodes in the solver.
 */
+//#autoArgumentBuffer
 Kernel void calculateForces(
   Device ParticleForce*               particleForce,
   const Device float*                 particlesDensity,
