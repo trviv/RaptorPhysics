@@ -149,7 +149,6 @@ inline bool anyIntersection(
 @param primitiveCount Total primitives in the buffer.
 @param systemSettings Settings for the ray tracing system.
 */
-//#autoArgumentBuffer
 Kernel void intersectRays(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,

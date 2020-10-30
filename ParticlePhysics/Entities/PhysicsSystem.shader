@@ -5,8 +5,6 @@
 #define PHYSICS_SYSTEM_EULER
 //#define PHYSICS_SYSTEM_LEAP_FROG
 //#define PHYSICS_SYSTEM_VERLET
-
-//#autoArgumentBuffer
 Kernel void integrateDifferentiateStep(
   Device ParticleStruct*              particles,
   Device ParticleStruct*              particlesPredicted,
@@ -67,7 +65,6 @@ Kernel void integrateDifferentiateStep(
   }
 }
 
-//#autoArgumentBuffer
 Kernel void startStep(
   const Device ParticleStruct*        particles,
   Device ParticleStruct*              particlesPredicted,
@@ -145,7 +142,6 @@ Kernel void startStep(
   }
 }
 
-//#autoArgumentBuffer
 Kernel void endStep(
   Device ParticleStruct*              particles,
   const Device ParticleStruct*        particlesPredicted,
