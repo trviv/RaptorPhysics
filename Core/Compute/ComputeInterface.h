@@ -284,6 +284,8 @@ public:
 
   void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
 
+  void execute(ComputeKernel& kernel, const size_t threadCount);
+
   void sync(bool waitOnFinish = true);
 
   uint simdSize()const;

@@ -68,7 +68,7 @@ void DistanceSolver::solve(float timeStep)
 
   if ((iterations & 1) == 1)
   {
-    ComputeUtil::get(0)->copyBuffer(compute, particlesTemp[0].device(), particlesPredicted.device(), 0, 0, count * sizeof(ParticleStruct));
+    ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particlesTemp[0].device(), particlesPredicted.device(), 0, 0, count * sizeof(ParticleStruct));
   }
 #if defined(DEBUG_DISTANCE_SOLVER) && defined(DEBUG_SOLVERS)
   compute->sync();

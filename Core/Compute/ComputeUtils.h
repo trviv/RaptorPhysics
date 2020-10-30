@@ -58,6 +58,8 @@ public:
 
   static uint getUIntUtil(ComputeInterface* compute);
 
+  static uint getUInt4Util(ComputeInterface* compute);
+
   static uint getXABUtil(ComputeInterface* compute);
 
   void sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean = false);

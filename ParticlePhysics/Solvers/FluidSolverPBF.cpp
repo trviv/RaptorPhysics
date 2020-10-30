@@ -62,7 +62,7 @@ void FluidSolverPBF::solve(float timeStep)
 
   for (int i=0; i<iterations; i++)
   {
-    ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+    ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
 
     {
       ComputeMemory* buffers[] = {

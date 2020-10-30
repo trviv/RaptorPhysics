@@ -295,14 +295,14 @@ void UniformGridCollisionSolver::solve(uint instanceNodeCount, ComputeMemory* sy
 #ifndef GRID_COLLISION_SOLVE_PAIR_ONCE
     if (stablizationPass)
     {
-      ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+      ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
     }
     else
     {
-      ComputeUtil::get(0)->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
+      ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_PREDICTED)->get(), particlesBufferTemp.device(), 0, 0, sizeof(ParticleStruct)*instanceNodeCount);
     }
 #else
-    ComputeUtil::get(0)->clearBuffer(compute, particlesBufferTemp.device(), instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint), 0);
+    ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, particlesBufferTemp.device(), instanceNodeCount * sizeof(ParticleStruct)/sizeof(uint), 0);
 #endif
 
     size_t workgroupSize[3] = {1, 1, 1};

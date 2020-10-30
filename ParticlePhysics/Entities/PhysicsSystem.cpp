@@ -364,8 +364,8 @@ void PhysicsSystem::step(float timeStep)
     ProfileBlock("Physics system update");
     SharedAllocator* allocator = allocators[0];
 
-    ComputeUtil::get(0)->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(), instanceNodeCount * sizeof(ParticleDifferential)/sizeof(uint), 0);
-    ComputeUtil::get(0)->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(), instanceNodeCount * sizeof(ParticleForce)/sizeof(uint), 0);
+    ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_DIFF)->get(), instanceNodeCount * sizeof(ParticleDifferential)/sizeof(uint), 0);
+    ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, allocator->getHeap(COMPUTE_HEAP_PARTICLE_FORCE)->get(), instanceNodeCount * sizeof(ParticleForce)/sizeof(uint), 0);
 
     updates.clear();
 

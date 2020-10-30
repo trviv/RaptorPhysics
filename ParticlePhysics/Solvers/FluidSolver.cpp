@@ -121,10 +121,10 @@ void FluidSolver::rearrangeParticles(uint particleCount)
 
   compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, multiplier));
 
-  ComputeUtil::get(0)->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-  ComputeUtil::get(0)->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
-  ComputeUtil::get(0)->copyBuffer(compute, particleDifferential.device(), particleDifferentialCopy.device(), 0, 0, sizeof(ParticleDifferential)*particleCount);
-  ComputeUtil::get(0)->copyBuffer(compute, gridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*particleCount);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particleDifferential.device(), particleDifferentialCopy.device(), 0, 0, sizeof(ParticleDifferential)*particleCount);
+  ComputeUtil::get(ComputeUtil::getUIntUtil(compute))->copyBuffer(compute, gridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*particleCount);
 
   ComputeMemory* buffers[] = {
     particles.device(),
@@ -481,7 +481,7 @@ void FluidSolver::constructBoundaryGrid()
   compute->sync();
 #endif
 
-  ComputeUtil::get(0)->copyBuffer(compute, boundaryGridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*systemNonFluidParticleCount);
+  ComputeUtil::get(ComputeUtil::getUIntUtil(compute))->copyBuffer(compute, boundaryGridParticleCellIndex.device(), particlesLambda.device(), 0, 0, sizeof(uint)*systemNonFluidParticleCount);
 
   {
     size_t workgroupSize[3], workgroupCount[3];
