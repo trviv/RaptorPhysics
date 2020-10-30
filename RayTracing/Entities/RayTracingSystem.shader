@@ -8,7 +8,6 @@
 @param hits Hit info buffer.
 @param rayCount Ray count.
 */
-//#autoArgumentBuffer
 Kernel void shadeIntersection(
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
@@ -54,7 +53,6 @@ Kernel void shadeIntersection(
   }
 }
 
-//#autoArgumentBuffer
 Kernel void processShadowRays(
   Device uint*              colorOut,
   const Device RayStruct*   shadowRays,
