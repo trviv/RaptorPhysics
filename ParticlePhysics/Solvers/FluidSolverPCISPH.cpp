@@ -57,9 +57,9 @@ void FluidSolverPCISPH::solve(float timeStep)
 
   allocateBuffers(particleCount);
 
-  ComputeUtil::get(0)->clearBuffer(compute, particlesNextPosition.device(), particleCount * 4);
-  ComputeUtil::get(0)->clearBuffer(compute, particlesNextVelocity.device(), particleCount * 4);
-  ComputeUtil::get(0)->clearBuffer(compute, particlesPressure.device(), particleCount);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, particlesNextPosition.device(), particleCount * 4);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, particlesNextVelocity.device(), particleCount * 4);
+  ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->clearBuffer(compute, particlesPressure.device(), particleCount);
 
   constructGrid();
 

@@ -125,11 +125,11 @@ void testCustomBandwidthRW(ComputeInterface* compute)
 
   data.syncDevice();
 
-  ComputeUtil::getUIntUtil(compute);
+  uint templateId = ComputeUtil::getUIntUtil(compute);
 
   //--------------------------------------------------------------------------------
   // warm up run
-  ComputeUtil::get(0)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
+  ComputeUtil::get(templateId)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
   compute->sync();
 
   //--------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ void testCustomBandwidthRW(ComputeInterface* compute)
     ProfileBlock("R/W Custom Bandwidth");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(0)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
+      ComputeUtil::get(templateId)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
     }
   }
   compute->sync();

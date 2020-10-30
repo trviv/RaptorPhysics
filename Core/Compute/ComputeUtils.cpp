@@ -682,7 +682,7 @@ void ComputeUtil::radixSort32Bit(ComputeInterface* compute, ComputeMemory* desti
 
   if ((i & RADIX_SORT_BIT_COUNT) == 0)
   {
-    ComputeUtil::get(0)->copyBuffer(compute, source, destination, 0, 0, length * sizeof(SortNode32));
+    ComputeUtil::get(getUIntUtil(compute))->copyBuffer(compute, source, destination, 0, 0, length * sizeof(SortNode32));
   }
 }
 
@@ -757,6 +757,16 @@ uint ComputeUtil::getUIntUtil(ComputeInterface* compute)
   sortSetting[ComputeUtilStructTypeIntegral] = "1";
 
   return ComputeUtil::create(compute, sortSetting, NULL);
+}
+
+uint ComputeUtil::getUInt4Util(ComputeInterface* compute)
+{
+  map<ComputeUtilKey, string> uint4Setting;
+  uint4Setting[ComputeUtilBatchSize] = "4";
+  uint4Setting[ComputeUtilStructType] = "uint";
+  uint4Setting[ComputeUtilStructTypeIntegral] = "1";
+
+  return ComputeUtil::create(compute, uint4Setting, NULL);
 }
 
 uint ComputeUtil::getXABUtil(ComputeInterface* compute)

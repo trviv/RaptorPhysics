@@ -1126,14 +1126,22 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   // map the function to kernel so it can be retrived later
   id<MTLFunction> function = [ref newFunctionWithName:[NSString stringWithCString:kernelName encoding:NSASCIIStringEncoding]];
   NSError* error;
-  ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithFunction:function error:&error]);
-  kernelNameMap[ret] = function;
-  if (kernelNameArgumentBufferMap.find(kernelName) != kernelNameArgumentBufferMap.end())
+
+  MTLComputePipelineDescriptor* pipelineDesc = [MTLComputePipelineDescriptor new];
+  pipelineDesc.computeFunction = function;
+  pipelineDesc.threadGroupSizeIsMultipleOfThreadExecutionWidth = true;
+  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && kernelNameArgumentBufferMap[kernelName].size(); i++)
   {
-    for (const auto& r : kernelNameArgumentBufferMap[kernelName])
-    {
-      ret.addArgumentBufferRange(r.first, r.second);
-    }
+    pipelineDesc.buffers[kernelNameArgumentBufferMap[kernelName][i].first].mutability = MTLMutabilityImmutable;
+  }
+
+  ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithDescriptor:pipelineDesc options:0 reflection:0 error:&error]);
+  kernelNameMap[ret] = function;
+
+  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && kernelNameArgumentBufferMap[kernelName].size(); i++)
+  {
+    const auto& r = kernelNameArgumentBufferMap[kernelName][i];
+    ret.addArgumentBufferRange(r.first, r.second);
   }
   return ret;
   }
@@ -1769,6 +1777,14 @@ void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize
 #endif
   }
 #endif
+}
+
+void ComputeInterface::execute(ComputeKernel& kernel, const size_t threadCount)
+{
+  size_t workgroupSize[3];
+  size_t workgroupCount[3];
+  configureSize(workgroupSize, workgroupCount, (uint)threadCount);
+  execute(kernel, workgroupSize, workgroupCount);
 }
 
 void ComputeInterface::sync(bool waitOnFinish)
