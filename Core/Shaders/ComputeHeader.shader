@@ -25,6 +25,7 @@
 
 #define constructUshort4    (ushort4)
 #define constructShort3     (short3)
+#define constructShort2     (short2)
 #define constructFloat2     (float2)
 #define constructFloat3     (float3)
 #define constructFloat4     (float4)
@@ -65,6 +66,7 @@
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
 #define atomicAdd(location, value)    atomic_add (location, value)
 #define atomicMax(location, value)    atomic_max (location, value)
+#define atomicMin(location, value)    atomic_min (location, value)
 #define atomicCmpXchg(location, existingValue, desiredValue) \
   ((existingValue == atomic_cmpxchg((Device uint*)location, asUint(existingValue), asUint(desiredValue))) || (existingValue = atomicLoad(location) | true))
 
@@ -116,6 +118,7 @@
 
 #define constructUshort4    ushort4
 #define constructShort3     short3
+#define constructShort2     short2
 #define constructFloat2     float2
 #define constructFloat3     float3
 #define constructFloat4     float4
@@ -153,6 +156,7 @@
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
 #define atomicAdd(location, value)    atomic_fetch_add_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
 #define atomicMax(location, value)    atomic_fetch_max_explicit((Shared atomic_uint*)location, value, memory_order_relaxed)
+#define atomicMin(location, value)    atomic_fetch_min_explicit((Shared atomic_uint*)location, value, memory_order_relaxed)
 #define atomicCmpXchg(location, existingValue, desiredValue) \
   atomic_compare_exchange_weak_explicit((Device atomic_uint*)location, ((Thread uint*)&existingValue), asUint(desiredValue), memory_order_relaxed, memory_order_relaxed)
 

@@ -1130,7 +1130,7 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   MTLComputePipelineDescriptor* pipelineDesc = [MTLComputePipelineDescriptor new];
   pipelineDesc.computeFunction = function;
   pipelineDesc.threadGroupSizeIsMultipleOfThreadExecutionWidth = true;
-  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && kernelNameArgumentBufferMap[kernelName].size(); i++)
+  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && i<kernelNameArgumentBufferMap[kernelName].size(); i++)
   {
     pipelineDesc.buffers[kernelNameArgumentBufferMap[kernelName][i].first].mutability = MTLMutabilityImmutable;
   }
@@ -1138,7 +1138,7 @@ ComputeKernel ComputeProgram::createKernel(const char* kernelName)
   ComputeKernel ret = ComputeKernel([ref.device newComputePipelineStateWithDescriptor:pipelineDesc options:0 reflection:0 error:&error]);
   kernelNameMap[ret] = function;
 
-  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && kernelNameArgumentBufferMap[kernelName].size(); i++)
+  for (uint i=0 ; kernelNameArgumentBufferMap.count(kernelName) && i<kernelNameArgumentBufferMap[kernelName].size(); i++)
   {
     const auto& r = kernelNameArgumentBufferMap[kernelName][i];
     ret.addArgumentBufferRange(r.first, r.second);

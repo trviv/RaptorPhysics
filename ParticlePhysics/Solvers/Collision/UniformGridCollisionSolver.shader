@@ -376,6 +376,95 @@ inline short3 decodeCellVector(uchar encodedOffset)
 
 #define GRID_SOLVER_NEIGHBOUR_LOOP_END }
 
+inline void bitonicSortSharedShort2(
+  Shared short2*  localNodes,
+  const short     maxDepth,
+  const short     localThreadCount,
+  const short     localIndex)
+{
+  localMemBarrier();
+
+  for (short mergeSize = 2; mergeSize <= (1 << maxDepth); mergeSize <<= 1)
+  {
+    //short indexLow  = localIndex & (mergeSize - 1);
+    for (short mergeSubSize = mergeSize>>1; mergeSubSize > 0; mergeSubSize >>= 1)
+    {
+      const short indexLow  = localIndex & (mergeSubSize - 1);
+      //indexLow >>= 1;
+      const short indexHigh = (localIndex - indexLow) << 1;
+      const short index     = indexHigh + indexLow;
+      const short nSwapElem = indexHigh + select(mergeSubSize + indexLow, 2 * mergeSubSize - 1 - indexLow, mergeSubSize == (mergeSize >> 1));
+
+      if (nSwapElem < localThreadCount && index < localThreadCount)
+      {
+        /*if (localNodes[index].x < localNodes[nSwapElem].x)
+        {
+          short2 uTemp = localNodes[index];
+          localNodes[index] = localNodes[nSwapElem];
+          localNodes[nSwapElem] = uTemp;
+        }*/
+        const short2 node1 = localNodes[index];
+        const short2 node2 = localNodes[nSwapElem];
+        if (node1.x < node2.x)
+        {
+          localNodes[index] = node2;
+          localNodes[nSwapElem] = node1;
+        }
+      }
+      localMemBarrier();
+    }
+  }
+}
+
+#define REARRANGE_PARTICLE_INDEX_BY_NEIGHBOUR_COUNT(particleIndex, nodeCount) \
+  Shared uint min, max; \
+  Shared short2 particleSpatialData[512]; \
+  { \
+    const short localIndex = threadLocalIndex(); \
+    if (localIndex == 0) \
+    { \
+      min = 0x7FFF; \
+      max = 0; \
+    } \
+    localMemBarrier(); \
+    short count = 0; \
+    if (particleIndex < nodeCount) \
+    { \
+      const short3 particleGridCellIndex = decodeGridIndexShort3(gridParticleCellIndex[particleIndex], gridSize, gridSizeExp); \
+      short i = particleGridCellIndex.x - 2; \
+      short j = particleGridCellIndex.y - 1; \
+      short k = particleGridCellIndex.z - 1; \
+      const short maxX = particleGridCellIndex.x + 2; \
+      const short maxY = particleGridCellIndex.y + 2; \
+      for (short n=0; n<27; n++) \
+      { \
+        i++; \
+        if (i == maxX) \
+        { j++; i -= 3;} \
+        if (j == maxY) \
+        { k++; j -= 3;} \
+        const bool skip = (i < 0 | i >= gridSize) | (j < 0 | j >= gridSize) | (k < 0 | k >= gridSize); \
+        if (skip) \
+        { \
+          continue; \
+        } \
+        const int gridCellIndex = encodeGridIndexInt3(constructInt3(i, j, k), gridSizeExp); \
+        const uint2 indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex); \
+        count += indexRange.y - indexRange.x; \
+      } \
+      atomicMax(&max, count); \
+      atomicMin(&min, count); \
+    } \
+    localMemBarrier(); \
+    if ((max - min) > 300) \
+    { \
+      const short tgSizePowOf2 = 32 - clz((int)threadGroupSize()) - 1; \
+      particleSpatialData[localIndex] = constructShort2(count, localIndex); \
+      bitonicSortSharedShort2(particleSpatialData, tgSizePowOf2, threadGroupSize(), localIndex); \
+      particleIndex = particleIndex - localIndex + particleSpatialData[localIndex].y; \
+    } \
+  }
+
 // function to get previous and current offset, previous will be the starting and current will be the end index
 uint2 getRangeFromOffset(const Device uint* gridCellParticleOffsets, uint gridCellIndex)
 {
