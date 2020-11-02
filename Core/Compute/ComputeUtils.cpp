@@ -90,6 +90,7 @@ string getKeyName(ComputeUtilKey key)
   return "";
 }
 
+uint staticUtils[3] = {static_cast<uint>(-1), static_cast<uint>(-1), static_cast<uint>(-1)};
 uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>& dataMap, const vector<string>* includeFiles)
 {
   ComputeUtil util;
@@ -752,25 +753,30 @@ void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, C
 
 uint ComputeUtil::getUIntUtil(ComputeInterface* compute)
 {
+  if (staticUtils[0] != -1) return staticUtils[0];
   map<ComputeUtilKey, string> sortSetting;
   sortSetting[ComputeUtilStructType] = "uint";
   sortSetting[ComputeUtilStructTypeIntegral] = "1";
 
-  return ComputeUtil::create(compute, sortSetting, NULL);
+  staticUtils[0] = ComputeUtil::create(compute, sortSetting, NULL);
+  return staticUtils[0];
 }
 
 uint ComputeUtil::getUInt4Util(ComputeInterface* compute)
 {
+  if (staticUtils[1] != -1) return staticUtils[1];
   map<ComputeUtilKey, string> uint4Setting;
   uint4Setting[ComputeUtilBatchSize] = "4";
   uint4Setting[ComputeUtilStructType] = "uint";
   uint4Setting[ComputeUtilStructTypeIntegral] = "1";
 
-  return ComputeUtil::create(compute, uint4Setting, NULL);
+  staticUtils[1] = ComputeUtil::create(compute, uint4Setting, NULL);
+  return staticUtils[1];
 }
 
 uint ComputeUtil::getXABUtil(ComputeInterface* compute)
 {
+  if (staticUtils[2] != -1) return staticUtils[2];
   map<ComputeUtilKey, string> xabSetting;
   xabSetting[ComputeUtilBatchSize] = "1";
   xabSetting[ComputeUtilStructType] = "XAB";
@@ -783,5 +789,6 @@ uint ComputeUtil::getXABUtil(ComputeInterface* compute)
   xabSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   xabSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
-  return ComputeUtil::create(compute, xabSetting, NULL);
+  staticUtils[2] = ComputeUtil::create(compute, xabSetting, NULL);
+  return staticUtils[2];
 }
