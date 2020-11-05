@@ -116,10 +116,10 @@ void FluidSolver::rearrangeParticles(uint particleCount)
 
   uint multiplier = 1;
 #ifdef FLUID_SOLVER_SORTED_REARRANGE
-  multiplier = 2;
+  multiplier = FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER;
 #endif
 
-  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, multiplier));
+  compute->configureSize(workgroupSize, workgroupCount, mAlignBy(particleCount, multiplier), compute->maxThreadsPerGroup() / multiplier);
 
   ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particles.device(), particlesCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
   ComputeUtil::get(ComputeUtil::getUInt4Util(compute))->copyBuffer(compute, particlesPredicted.device(), particlesPredictedCopy.device(), 0, 0, sizeof(ParticleStruct)*particleCount);
@@ -143,11 +143,10 @@ void FluidSolver::rearrangeParticles(uint particleCount)
   };
   uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
   reorderFluidParticles.setArgs(buffers, bufferCount);
-  reorderFluidParticles.setArg<uint>(&particleCount, bufferCount);
+  reorderFluidParticles.setArg(ComputeUtil::get16BitMortonCodeMap(compute)->device(), bufferCount);
+  reorderFluidParticles.setArg<uint>(&particleCount, bufferCount+1);
 #ifdef FLUID_SOLVER_SORTED_REARRANGE
-  reorderFluidParticles.setArg<ushort>(&gridSize, bufferCount + 1);
-  reorderFluidParticles.setArg<ushort>(&gridSizeExp, bufferCount + 2);
-  reorderFluidParticles.setSharedMemArg(sizeof(uint)*4*workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier, bufferCount + 3);
+  reorderFluidParticles.setSharedMemArg(sizeof(uint)*4*(workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier+1), bufferCount + 2);
 #endif
 
   compute->execute(reorderFluidParticles, workgroupSize, workgroupCount);

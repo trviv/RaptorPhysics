@@ -1,7 +1,8 @@
 #ifndef FLUID_SOLVER_COMMON_SHADER
 #define FLUID_SOLVER_COMMON_SHADER
 
-//#define FLUID_SOLVER_SORTED_REARRANGE
+#define FLUID_SOLVER_SORTED_REARRANGE
+#define FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER 2
 
 inline float poly6FunctionConstant(const float h)
 {
@@ -77,7 +78,7 @@ inline float viscosityFunctionLaplacianVariable(const float r, const float h)
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-void bitonicSortSharedUint3(
+inline void bitonicSortSharedUint3(
   Shared uint3* localNodes,
   const short   maxDepth,
   const short   localThreadCount,
@@ -85,30 +86,30 @@ void bitonicSortSharedUint3(
 {
   localMemBarrier();
 
-  for (short i=0; i<maxDepth; i++)
+  for (short mergeSize = 2; mergeSize <= (1 << maxDepth); mergeSize <<= 1)
   {
-    for (short j=i; j>=0; j--)
+    for (short mergeSubSize = mergeSize>>1; mergeSubSize > 0; mergeSubSize >>= 1)
     {
-      const short stride = (1 << j);
-      const short index1 = localIndex << (j + 1);
-      const short index2 = index1 + stride;
-
-      uint3 node1;
-      uint3 node2;
-
-      if (index2 < localThreadCount)
+      for (short m=0; m<FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER; m++)
       {
-        node1 = localNodes[index1];
-        node2 = localNodes[index2];
-      }
-      localMemBarrier();
+        const short indexLow  = (localIndex + localThreadCount * m) & (mergeSubSize - 1);
+        const short indexHigh = (localIndex + localThreadCount * m - indexLow) << 1;
+        const short index     = indexHigh + indexLow;
+        const short swapIndex = indexHigh + select(mergeSubSize + indexLow, 2 * mergeSubSize - 1 - indexLow, mergeSubSize == (mergeSize >> 1));
 
-      if (index2 < localThreadCount)
-      {
-        if (node1.x > node2.x && node1.y == node2.y)
+        if (swapIndex < localThreadCount * FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER && index < localThreadCount * FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER)
         {
-          localNodes[index1] = node2;
-          localNodes[index2] = node1;
+          if (localNodes[index].z == localNodes[swapIndex].z)
+          {
+            const uint2 node1 = localNodes[index].xy;
+            const uint2 node2 = localNodes[swapIndex].xy;
+
+            if (node1.x < node2.x)
+            {
+              localNodes[index].xy     = node2;
+              localNodes[swapIndex].xy = node1;
+            }
+          }
         }
       }
       localMemBarrier();
@@ -134,53 +135,45 @@ Kernel void reorderFluidParticles(
 #ifdef FLUID_SOLVER_SORTED_REARRANGE
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
+  Const short*                        mortonCodeMap,
   constantKernelInput(uint,           nodeCount),
-  constantKernelInput(ushort,         gridSize),
-  constantKernelInput(ushort,         gridSizeExp),
-  sharedMemKernelInput(uint3,         particleSpatialData,  14)
+  sharedMemKernelInput(uint3,         particleSpatialData,  13)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  const short elements = 2;
-  const short scale = 8;
+  const float scale = 32.f;
 
-  for (short i=0; i<elements; i++)
+  for (short i=0; i<FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER; i++)
   {
-    particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = constructUint3(-1);
-  }
-
-  for (short i=0; i<elements; i++)
-  {
-    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * elements);
+    uint3 particleData = constructUint3(-1);
+    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER);
     if (threadGlobalIndex < nodeCount)
     {
       const uint particleIndex = gridCellParticleIndices[threadGlobalIndex];
-      const uint gridCellIndex = gridParticleCellIndexOld[particleIndex];
       const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-      const float3 particleCellPosition = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
-//      const uint cellInternalSpatialIndex = encodeGridIndexInt3(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale), scale);
-      const uint cellInternalSpatialIndex = encode32BitMortonCode(constructInt3((invRadius[0] * selfParticle.position - floor(particleCellPosition)) * scale));
+//      const uint cellInternalSpatialIndex = encode16BitMortonCode(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale));
+      const uint cellInternalSpatialIndex = encode16BitMortonCodeFromMap(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale), mortonCodeMap);
 
-      particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = constructUint3(cellInternalSpatialIndex, gridCellIndex, particleIndex);
+      particleData = constructUint3(cellInternalSpatialIndex, particleIndex, gridParticleCellIndexOld[particleIndex]);
     }
+    particleSpatialData[threadLocalIndex() + i * threadGroupSize()] = particleData;
   }
 
-  const short tgSizePowOf2 = sizeof(threadGroupSize()) * 8 - clz(threadGroupSize()) - 1;
+  const short tgSizePowOf2 = 32 - clz((int)threadGroupSize() * FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER) - 1;
+  bitonicSortSharedUint3(particleSpatialData, tgSizePowOf2 / 2, threadGroupSize(), threadLocalIndex());
 
-  bitonicSortSharedUint3(particleSpatialData, tgSizePowOf2, threadGroupSize()*elements, threadLocalIndex());
-
-  for (short i=0; i<elements; i++)
+  for (short i=0; i<FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER; i++)
   {
-    const uint2 particleData = particleSpatialData[threadLocalIndex() + i * threadGroupSize()].yz;
-    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * elements);
+    const uint particleIndex = particleSpatialData[threadLocalIndex() + i * threadGroupSize()].y;
+    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * FLUID_SOLVER_SORTED_REARRANGE_MULTIPLIER);
 
-    if (particleData.y != -1)
+    if (particleIndex != -1)
     {
-      gridParticleCellIndexNew[threadGlobalIndex] = particleData.x;
-      particlesNew[threadGlobalIndex] = particlesOld[particleData.y];
-      particlesPredictedNew[threadGlobalIndex] = particlesPredictedOld[particleData.y];
-      particleDiffNew[threadGlobalIndex] = particleDiffOld[particleData.y];
+      gridParticleCellIndexNew[threadGlobalIndex] = particleSpatialData[threadLocalIndex() + i * threadGroupSize()].z;
+      particlesNew[threadGlobalIndex]             = particlesOld[particleIndex];
+      particlesPredictedNew[threadGlobalIndex]    = particlesPredictedOld[particleIndex];
+      particleDiffNew[threadGlobalIndex]          = particleDiffOld[particleIndex];
     }
   }
 #else

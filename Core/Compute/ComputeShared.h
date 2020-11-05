@@ -112,8 +112,6 @@ struct DEFAULT_ALIGN PositionStruct_t
 typedef struct PositionStruct_t PositionStruct;
 
 
-#ifdef COMPUTE_SHADER_SCOPE
-
 inline uint encode32Bits(uint x)
 {
   //........ ........ ......12 3456789A  //x
@@ -145,13 +143,32 @@ inline uint encode32Bits(uint x)
   return x;
 }
 
-#define MORTON_CODE_MASK 1023
+inline ushort encode16Bits(ushort x)
+{
+  x = (x ^ (x << 8)) & 0x100F;
+  x = (x ^ (x << 4)) & 0x10C3;
+  x = (x ^ (x << 2)) & 0x1249;
+
+  return x;
+}
+
+#ifdef COMPUTE_SHADER_SCOPE
+
+inline ushort encode16BitMortonCode(const short3 quantizedPosition)
+{
+  return encode16Bits(quantizedPosition.x & 31) | (encode16Bits(quantizedPosition.y & 31) << 1) | (encode16Bits(quantizedPosition.z & 31) << 2);
+}
+
+inline ushort encode16BitMortonCodeFromMap(const short3 quantizedPosition, Const short* mortonCodeMap)
+{
+  return mortonCodeMap[quantizedPosition.x & 31] | (mortonCodeMap[quantizedPosition.y & 31] << 1) | (mortonCodeMap[quantizedPosition.z & 31] << 2);
+}
 
 inline uint encode32BitMortonCode(const int3 quantizedPosition)
 {
-  const uint x = quantizedPosition.x & MORTON_CODE_MASK;
-  const uint y = quantizedPosition.y & MORTON_CODE_MASK;
-  const uint z = quantizedPosition.z & MORTON_CODE_MASK;
+  const uint x = quantizedPosition.x & 1023;
+  const uint y = quantizedPosition.y & 1023;
+  const uint z = quantizedPosition.z & 1023;
 
   return encode32Bits(x) | (encode32Bits(y) << 1) | (encode32Bits(z) << 2);
 }
