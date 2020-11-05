@@ -4,6 +4,9 @@
 vector<ComputeUtil> computeUtils;
 vector<string>      computeConfig;
 
+unordered_map<ComputeInterface*, uint[3]>                 staticUtils;
+unordered_map<ComputeInterface*, DeviceArray<short>*[1]>  staticBuffers;
+
 #define COMPUTE_UTIL_SUM_1D_KERNEL                    0
 #define COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL            1
 #define COMPUTE_UTIL_SUM_IRREGULAR_2D_KERNEL          2
@@ -90,7 +93,6 @@ string getKeyName(ComputeUtilKey key)
   return "";
 }
 
-uint staticUtils[3] = {static_cast<uint>(-1), static_cast<uint>(-1), static_cast<uint>(-1)};
 uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>& dataMap, const vector<string>* includeFiles)
 {
   ComputeUtil util;
@@ -753,30 +755,57 @@ void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, C
 
 uint ComputeUtil::getUIntUtil(ComputeInterface* compute)
 {
-  if (staticUtils[0] != -1) return staticUtils[0];
+  if (staticUtils.count(compute) == 0)
+  {
+    staticUtils[compute][0] = -1;
+    staticUtils[compute][1] = -1;
+    staticUtils[compute][2] = -1;
+  }
+  else if (staticUtils[compute][0] != -1)
+  {
+    return staticUtils[compute][0];
+  }
   map<ComputeUtilKey, string> sortSetting;
   sortSetting[ComputeUtilStructType] = "uint";
   sortSetting[ComputeUtilStructTypeIntegral] = "1";
 
-  staticUtils[0] = ComputeUtil::create(compute, sortSetting, NULL);
-  return staticUtils[0];
+  staticUtils[compute][0] = ComputeUtil::create(compute, sortSetting, NULL);
+  return staticUtils[compute][0];
 }
 
 uint ComputeUtil::getUInt4Util(ComputeInterface* compute)
 {
-  if (staticUtils[1] != -1) return staticUtils[1];
+  if (staticUtils.count(compute) == 0)
+  {
+    staticUtils[compute][0] = -1;
+    staticUtils[compute][1] = -1;
+    staticUtils[compute][2] = -1;
+  }
+  else if (staticUtils[compute][1] != -1)
+  {
+    return staticUtils[compute][1];
+  }
   map<ComputeUtilKey, string> uint4Setting;
   uint4Setting[ComputeUtilBatchSize] = "4";
   uint4Setting[ComputeUtilStructType] = "uint";
   uint4Setting[ComputeUtilStructTypeIntegral] = "1";
 
-  staticUtils[1] = ComputeUtil::create(compute, uint4Setting, NULL);
-  return staticUtils[1];
+  staticUtils[compute][1] = ComputeUtil::create(compute, uint4Setting, NULL);
+  return staticUtils[compute][1];
 }
 
 uint ComputeUtil::getXABUtil(ComputeInterface* compute)
 {
-  if (staticUtils[2] != -1) return staticUtils[2];
+  if (staticUtils.count(compute) == 0)
+  {
+    staticUtils[compute][0] = -1;
+    staticUtils[compute][1] = -1;
+    staticUtils[compute][2] = -1;
+  }
+  else if (staticUtils[compute][2] != -1)
+  {
+    return staticUtils[compute][2];
+  }
   map<ComputeUtilKey, string> xabSetting;
   xabSetting[ComputeUtilBatchSize] = "1";
   xabSetting[ComputeUtilStructType] = "XAB";
@@ -789,6 +818,28 @@ uint ComputeUtil::getXABUtil(ComputeInterface* compute)
   xabSetting[ComputeUtilCustomReduceFunction] = "reduceXAB";
   xabSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
-  staticUtils[2] = ComputeUtil::create(compute, xabSetting, NULL);
-  return staticUtils[2];
+  staticUtils[compute][2] = ComputeUtil::create(compute, xabSetting, NULL);
+  return staticUtils[compute][2];
+}
+
+const DeviceArray<short>* ComputeUtil::get16BitMortonCodeMap(ComputeInterface* compute)
+{
+  if (staticBuffers.count(compute) == 0)
+  {
+    staticBuffers[compute][0] = NULL;
+  }
+  else if (staticBuffers[compute][0] != NULL)
+  {
+    return staticBuffers[compute][0];
+  }
+  DeviceArray<short>* newBuffer = new DeviceArray<short>(compute);
+  newBuffer->host()->resize(32);
+  for (short i=0; i<32; i++)
+  {
+    (*newBuffer->host())[i] = encode16Bits(i);
+  }
+  newBuffer->syncDevice();
+
+  staticBuffers[compute][0] = newBuffer;
+  return newBuffer;
 }
