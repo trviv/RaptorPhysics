@@ -135,9 +135,8 @@ Kernel void reorderFluidParticles(
 #ifdef FLUID_SOLVER_SORTED_REARRANGE
   Const XAB*                          systemBoundingBox,
   Const float*                        invRadius,
-  Const short*                        mortonCodeMap,
   constantKernelInput(uint,           nodeCount),
-  sharedMemKernelInput(uint3,         particleSpatialData,  13)
+  sharedMemKernelInput(uint3,         particleSpatialData,  12)
   KERNEL_GLOBAL_ARGUMENTS
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
@@ -152,8 +151,7 @@ Kernel void reorderFluidParticles(
     {
       const uint particleIndex = gridCellParticleIndices[threadGlobalIndex];
       const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-//      const uint cellInternalSpatialIndex = encode16BitMortonCode(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale));
-      const uint cellInternalSpatialIndex = encode16BitMortonCodeFromMap(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale), mortonCodeMap);
+      const uint cellInternalSpatialIndex = encode16BitMortonCode(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale));
 
       particleData = constructUint3(cellInternalSpatialIndex, particleIndex, gridParticleCellIndexOld[particleIndex]);
     }

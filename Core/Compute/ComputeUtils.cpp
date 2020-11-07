@@ -4,8 +4,7 @@
 vector<ComputeUtil> computeUtils;
 vector<string>      computeConfig;
 
-unordered_map<ComputeInterface*, uint[3]>                 staticUtils;
-unordered_map<ComputeInterface*, DeviceArray<short>*[1]>  staticBuffers;
+unordered_map<ComputeInterface*, uint[3]>  staticUtils;
 
 #define COMPUTE_UTIL_SUM_1D_KERNEL                    0
 #define COMPUTE_UTIL_SUM_REGULAR_2D_KERNEL            1
@@ -820,26 +819,4 @@ uint ComputeUtil::getXABUtil(ComputeInterface* compute)
 
   staticUtils[compute][2] = ComputeUtil::create(compute, xabSetting, NULL);
   return staticUtils[compute][2];
-}
-
-const DeviceArray<short>* ComputeUtil::get16BitMortonCodeMap(ComputeInterface* compute)
-{
-  if (staticBuffers.count(compute) == 0)
-  {
-    staticBuffers[compute][0] = NULL;
-  }
-  else if (staticBuffers[compute][0] != NULL)
-  {
-    return staticBuffers[compute][0];
-  }
-  DeviceArray<short>* newBuffer = new DeviceArray<short>(compute);
-  newBuffer->host()->resize(32);
-  for (short i=0; i<32; i++)
-  {
-    (*newBuffer->host())[i] = encode16Bits(i);
-  }
-  newBuffer->syncDevice();
-
-  staticBuffers[compute][0] = newBuffer;
-  return newBuffer;
 }
