@@ -62,8 +62,6 @@ public:
 
   static uint getXABUtil(ComputeInterface* compute);
 
-  static const DeviceArray<short>* get16BitMortonCodeMap(ComputeInterface* compute);
-
   void sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean = false);
 
   void sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean = false);
