@@ -31,6 +31,7 @@
 #define constructFloat4     (float4)
 #define constructUint2      (uint2)
 #define constructUint3      (uint3)
+#define constructUint4      (uint4)
 #define constructInt2       (int2)
 #define constructInt3       (int3)
 #define constructUchar3     (uchar3)
@@ -124,6 +125,7 @@
 #define constructFloat4     float4
 #define constructUint2      uint2
 #define constructUint3      uint3
+#define constructUint4      uint4
 #define constructInt2       int2
 #define constructInt3       int3
 #define constructUchar3     uchar3
