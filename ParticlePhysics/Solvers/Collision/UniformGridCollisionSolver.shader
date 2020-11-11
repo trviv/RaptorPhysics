@@ -35,6 +35,14 @@ inline int3 positionHashFunction(const float3 position, const ushort gridSize, c
   return mad24(mad24(multiplier.zxy, 3, multiplier.yzx), 5, quantizedPosition) & constructInt3(gridSize - 1);
 }
 
+inline int3 positionHashFunctionInt3(const int3 position, const ushort gridSize, const ushort gridSizeExp)
+{
+  const int3 quantizedPosition = position + gridSize - 1;
+  const int3 multiplier = (quantizedPosition >> gridSizeExp);
+  // TODO: Find a hash function which does not have a possbility of collision
+  return mad24(mad24(multiplier.zxy, 3, multiplier.yzx), 5, quantizedPosition) & constructInt3(gridSize - 1);
+}
+
 inline uint encodeScatterCellIndex(const uint cellIndex, const ushort serialIndex)
 {
 #ifdef DEBUG_GRID_SOLVER_SCATTER
@@ -268,6 +276,49 @@ inline short3 decodeCellVector(uchar encodedOffset)
     { z++; y = -1;} \
     const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
     const int gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
+
+#define GRID_SOLVER_BOUNDARY_NEIGHBOUR_LOOP_BEGIN \
+  short x = -2; \
+  short y = -1; \
+  short z = -1; \
+  for (short n=0; n<27; n++) \
+  { \
+    x++; \
+    if (x == 2) \
+    { y++; x = -1;} \
+    if (y == 2) \
+    { z++; y = -1;} \
+    const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
+    const int gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp);
+
+#define GRID_SOLVER_PACKED_NEIGHBOUR_LOOP_BEGIN \
+  short x = -2; \
+  short y = -1; \
+  short z = -1; \
+  for (short n=0; n<27; n++) \
+  { \
+    int gridCellIndex;\
+    uint2 indexRange; \
+    while (n<27) \
+    { \
+      x++; \
+      if (x == 2) \
+      { y++; x = -1;} \
+      if (y == 2) \
+      { z++; y = -1;} \
+      const int3 quantizedPosition = positionHashFunction(particleCellPosition + constructFloat3(x, y, z), gridSize, gridSizeExp); \
+      gridCellIndex = encodeGridIndexInt3(quantizedPosition, gridSizeExp); \
+      indexRange = getRangeFromOffset(gridCellParticleOffsets, gridCellIndex); \
+      if (indexRange.x != indexRange.y) \
+      { \
+        break; \
+      } \
+      n++; \
+    } \
+    if (n >= 27) \
+    { \
+      break; \
+    }
 
 #else
 

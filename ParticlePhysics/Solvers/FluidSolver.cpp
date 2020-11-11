@@ -640,7 +640,9 @@ void FluidSolver::calculateParticleCouplingData(DeviceArray<ParticleCouplingData
       gridCellParticleOffsets.device(),
       particlesLambda.device(),
       gridCellParticleIndices.device(),
-      particlesCopy.device()
+      particlesCopy.device(),
+      systemBoundingBox.device(),
+      invMaxRadius.device()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     calculateCouplingData.setArgs(buffers, bufferCount);
