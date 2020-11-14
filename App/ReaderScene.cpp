@@ -48,7 +48,7 @@ void QueryFloat3Attribute(const XMLElement* element, Real3& value, const char* a
   QueryFloat3Attribute(element, &value.x, attributeName);
 }
 
-void QueryHalf4Attribute(const XMLElement* element, Half4 value, const char* attributeName="rgba")
+void QueryHalf4Attribute(const XMLElement* element, Half4& value, const char* attributeName="rgba")
 {
   if (!element)
   {
@@ -233,6 +233,7 @@ struct ShapeData
   real size = 0.f;
   real kernelSize = 0.f;
   real mass = 0.f;
+  string materialName;
 };
 
 ShapeData readShape(XMLConstHandle shapeHandle)
@@ -254,6 +255,10 @@ ShapeData readShape(XMLConstHandle shapeHandle)
     {
       shape.mass *= shape.dim[2];
     }
+  }
+  if (shapeHandle.ToElement()->Attribute("material"))
+  {
+    shape.materialName = shapeHandle.ToElement()->Attribute("material");
   }
 
   return shape;
@@ -367,13 +372,27 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
       logComputeError("Duplicate id %s, not allowed!", identity.c_str());
     }
 
+    MaterialId material;
+    material.identity = -1;
+    if (shape.materialName.size())
+    {
+      if (registeredMaterials.count(shape.materialName.c_str()) == 0)
+      {
+        logComputeError("Material %s, not found in entity %s!", shape.materialName.c_str(), identity.c_str());
+      }
+      material = registeredMaterials[shape.materialName];
+    }
+
     if (newEntity)
     {
-      registeredEntities[identity] = system->physicsSystem.registerEntity(newEntity);
+      PhysicsEntityId entityId = system->physicsSystem.registerEntity(newEntity);
+      registeredEntities[identity] = entityId;
+      system->entityMaterialMap[entityId.identity] = material;
     }
     else if (newRTEntity)
     {
       registeredRTEntities[identity] = system->rayTracingSystem.registerEntity(newRTEntity);
+      newRTEntity->setMaterialId(material);
     }
   }
 }

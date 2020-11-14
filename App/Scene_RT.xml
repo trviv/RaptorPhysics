@@ -28,12 +28,20 @@
     </ray-tracing>
   </settings>
   
+  <materials>
+    <plastic id="mat1">
+      <diffuse-color  rgba="1.f, 1.f, 1.f, 1.f"/>
+      <specular-color rgba="1.f, 1.f, 1.f, 1.f"/>
+      <emissive-color rgba="1.f, 1.f, 1.f, 1.f"/>
+    </plastic>
+  </materials>
+
   <entities>
     <cloth id="cloth1">
-      <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f"/>
+      <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f" material="mat1"/>
     </cloth>
     <rigidbody id="cube1">
-      <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f"/>
+      <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f" material="mat1"/>
     </rigidbody>
     <!-- <fluid id="fluid1">
       <shape type="cuboid" dim="1.6f, 10.0f,  1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
@@ -43,14 +51,6 @@
       <emissive-color xyz="1.f, 1.f, 1.f"/>
     </point-light>
   </entities>
-
-  <materials>
-    <plastic id="mat1">
-      <diffuse-color  rgba="1.f, 1.f, 1.f, 1.f"/>
-      <specular-color rgba="1.f, 1.f, 1.f, 1.f"/>
-      <emissive-color rgba="1.f, 1.f, 1.f, 1.f"/>
-    </plastic>
-  </materials>
 
   <instances>
     <cloth1 count="1">
