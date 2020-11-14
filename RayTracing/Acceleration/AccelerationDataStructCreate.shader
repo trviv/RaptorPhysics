@@ -2,20 +2,58 @@
 #define ACCELERATION_DATA_STRUCT_CREATE_SHADER
 
 /*
-@kernel Calculate bounding box for individual spheres.
-@param finalVertexArray Buffer containing all positions.
-@param finalAttributeArray Buffer containing primitive attribute data.
+@kernel Calculate bounding box for individual primitives.
 @param boundingBoxes Bounding box for primitives.
-@param primitiveBuffer Buffer containing primitive positions.
-@param attributeBuffer Buffer containing attribute inside a structure.
-@param attributePackingInfo Packing information for attribute in primitive structure.
+@param vertexArray Buffer containing all positions.
+@param attributeArray Buffer containing primitive attribute data.
+@param systemSettings Settings for the ray tracing system.
 @param primitiveBatchSize Primitives processed per thread.
 @param primitiveCount Total primitives in the buffer.
-@param primType Primitive type for the dispatch.
-@param primitiveOffset Starting offset for storing primitive data.
-@param vertexOffset Starting offset for storing vertex data.
 */
 Kernel void createPrimitiveBoundingBoxes(
+  Device XAB*                   boundingBoxes,
+  const Device PrimitiveStruct* vertexArray,
+  const Device PrimitiveAttrib* attributeArray,
+  Const RTSystemSettings*       systemSettings,
+  constantKernelInput(uint,     primitiveBatchSize),
+  constantKernelInput(uint,     primitiveCount)
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
+  for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
+  {
+    XAB primitiveBoundingBox;
+
+    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfoFromSystemSettings(systemSettings, index);
+
+    if (primInfo.primType == PrimitiveSphere)
+    {
+      const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + index - primInfo.indexOffset];
+      const float radius = attributeArray[index].radius;
+
+      primitiveBoundingBox.min = sphere.position - radius;
+      primitiveBoundingBox.max = sphere.position + radius;
+    }
+
+    if (primInfo.primType == PrimitiveTriangle)
+    {
+      const uint triIndex = primInfo.vertexOffset + (index - primInfo.indexOffset)*3;
+
+      const float3 vert0 = vertexArray[triIndex].position;
+      const float3 vert1 = vertexArray[triIndex+1].position + vert0;
+      const float3 vert2 = vertexArray[triIndex+2].position + vert0;
+
+      primitiveBoundingBox.min = min3(vert0, vert1, vert2);
+      primitiveBoundingBox.max = max3(vert0, vert1, vert2);
+    }
+
+    boundingBoxes[index] = primitiveBoundingBox;
+  }
+}
+
+// TODO: Remove if not want to keep it around
+/*Kernel void createPrimitiveBoundingBoxesLegacy(
   Device PrimitiveStruct*           finalVertexArray,
   Device PrimitiveAttrib*           finalAttributeArray,
   Device XAB*                       boundingBoxes,
@@ -85,7 +123,7 @@ Kernel void createPrimitiveBoundingBoxes(
 
     boundingBoxes[index + primitiveOffset] = primitiveBoundingBox;
   }
-}
+}*/
 
 /*
 @kernel Compute and store morton code for each primitive.

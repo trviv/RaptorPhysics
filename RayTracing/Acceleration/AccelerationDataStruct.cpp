@@ -60,17 +60,9 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
     }
   }
 
-  systemSettings.create(compute);
   boundingBoxes.create(compute);
-  vertexArray.create(compute);
-  attributeArray.create(compute);
   primitiveLeafData.create(compute);
   primitiveLeafDataSorted.create(compute);
-
-  for (auto& i : registeredPrimitives)
-  {
-    i.clear();
-  }
 
   accXABComputeUtilId = ComputeUtil::getXABUtil(compute);
   sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
@@ -84,134 +76,48 @@ uint AccelerationDataStruct::getPrimCount()const
   return primitiveCount;
 }
 
-void AccelerationDataStruct::registerSpheres(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count)
+void AccelerationDataStruct::commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
+                                    DeviceArray<RTSystemSettings>* systemSettings)
 {
-  EntityPrimAttributes primInfo;
+  this->vertexArray     = vertexArray;
+  this->attributeArray  = attributeArray;
+  this->systemSettings  = systemSettings;
 
-  primInfo.attributeBuffer[EntityPrimitiveAttributePosition]  = primitiveBuffer;
-  primInfo.attributeInfo[EntityPrimitiveAttributePosition]    = PackingInfo();
-  primInfo.attributeBuffer[EntityPrimitiveAttributeRadius]    = radiusBuffer;
-  primInfo.attributeInfo[EntityPrimitiveAttributeRadius]      = radiusInfo;
-  primInfo.primInfo.primType    = PrimitiveSphere;
-  primInfo.primInfo.indexCount  = count;
-  primInfo.primInfo.vertexCount = count;
-
-  registeredPrimitives[PrimitiveSphere].push_back(primInfo);
-}
-
-void AccelerationDataStruct::registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count)
-{
-  EntityPrimAttributes primInfo;
-
-  primInfo.attributeBuffer[EntityPrimitiveAttributePosition]  = primitiveBuffer;
-  primInfo.attributeInfo[EntityPrimitiveAttributePosition]    = PackingInfo();
-  primInfo.attributeBuffer[EntityPrimitiveAttributeIndex]     = indexBuffer;
-  primInfo.attributeInfo[EntityPrimitiveAttributeIndex]       = indexInfo;
-  primInfo.primInfo.primType    = PrimitiveTriangle;
-  primInfo.primInfo.indexCount  = count;
-  primInfo.primInfo.vertexCount = count * 3;
-
-  registeredPrimitives[PrimitiveTriangle].push_back(primInfo);
-}
-
-void AccelerationDataStruct::registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count)
-{
-  primitiveInfo.primInfo.indexCount  = count;
-  primitiveInfo.primInfo.vertexCount = count;
-
-  ushort primType = 0;
-  switch (type)
-  {
-    case RayTracingEntitySpheres:
-      primType = PrimitiveSphere;
-      break;
-    case RayTracingEntityTriangles:
-      primType = PrimitiveTriangle;
-      primitiveInfo.primInfo.vertexCount *= 3;
-      break;
-    default:
-      logComputeError("Invalid entity type sent for registration!");
-  }
-  primitiveInfo.primInfo.primType = primType;
-  registeredPrimitives[primType].push_back(primitiveInfo);
-}
-
-void AccelerationDataStruct::commit()
-{
-  systemSettings.host()->resize(1);
-
-  uint indexOffset  = 0;
-  uint vertexOffset = 0;
-
-  for (uint i=0; i<RTPrimitiveCount; i++)
-  {
-    for (const auto& p : registeredPrimitives[i])
-    {
-      indexOffset  += p.primInfo.indexOffset;
-      vertexOffset += p.primInfo.vertexOffset;
-    }
-
-    EncodedPrimitiveInfo primInfo;
-
-    setPrimitiveType(primInfo,         (RTPrimitiveType)i);
-    setPrimitiveIndexOffset(primInfo,  indexOffset);
-    setPrimitiveVertexOffset(primInfo, vertexOffset);
-    systemSettings.host()->at(0).globalOffsets[i] = primInfo;
-  }
-
-  primitiveCount = indexOffset;
-  vertexCount    = vertexOffset;
+  primitiveCount = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).indexOffset;
+  vertexCount    = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).vertexOffset;
 
   boundingBoxes.resize(primitiveCount, false);
-  vertexArray.resize(vertexCount, false);
-  attributeArray.resize(primitiveCount, false);
   primitiveLeafData.resize(primitiveCount, false);
   primitiveLeafDataSorted.resize(primitiveCount, false);
-
-  systemSettings.syncDevice();
 }
 
 void AccelerationDataStruct::fullBuild()
 {
-  uint indexOffset = 0;
-  uint vertexOffset = 0;
   uint primBatchSize = 8;
 
-  for (auto& rp : registeredPrimitives)
   {
-    for (uint i=0; i<rp.size(); i++)
-    {
-      auto& prim = rp[i];
-      uint primBatchCount = mAlignBy(prim.primInfo.indexCount, primBatchSize);
-      uint primType = prim.primInfo.primType;
+    uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
 
-      size_t workgroupSize[3], workgroupCount[3];
-      compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
-      createPrimitiveBoundingBoxes.setArg(vertexArray.device(), 0);
-      createPrimitiveBoundingBoxes.setArg(attributeArray.device(), 1);
-      createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(), 2);
-      uint nextBindIndex = prim.bindToShader(createPrimitiveBoundingBoxes, 3);
-      createPrimitiveBoundingBoxes.setArg(&primBatchSize, nextBindIndex);
-      createPrimitiveBoundingBoxes.setArg(&prim.primInfo.indexCount, nextBindIndex+1);
-      createPrimitiveBoundingBoxes.setArg(&primType, nextBindIndex+2);
-      createPrimitiveBoundingBoxes.setArg(&indexOffset, nextBindIndex+3);
-      createPrimitiveBoundingBoxes.setArg(&vertexOffset, nextBindIndex+4);
+    createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(),   0);
+    createPrimitiveBoundingBoxes.setArg(vertexArray->device(),    1);
+    createPrimitiveBoundingBoxes.setArg(attributeArray->device(), 2);
+    createPrimitiveBoundingBoxes.setArg(systemSettings->device(), 3);
+    createPrimitiveBoundingBoxes.setArg(&primBatchSize,           4);
+    createPrimitiveBoundingBoxes.setArg(&primitiveCount,          5);
 
-      compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
+    compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
 #ifdef DEBUG_ACCELERATION_DATA_STRUCT
-      boundingBoxes.syncHost();
-      compute->sync();
+    boundingBoxes.syncHost();
+    compute->sync();
 #endif
-
-      indexOffset += prim.primInfo.indexCount;
-      vertexOffset += prim.primInfo.vertexCount;
-    }
   }
 
   // find bounding box for the simulation space
-  ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, systemSettings.device(), boundingBoxes.device(), primitiveCount);
+  ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, systemSettings->device(), boundingBoxes.device(), primitiveCount);
 
 #ifdef DEBUG_ACCELERATION_DATA_STRUCT
   systemSettings.syncHost();
@@ -224,15 +130,11 @@ void AccelerationDataStruct::fullBuild()
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
     // assign morton code to the particle bounding boxes
-    ComputeMemory* buffers[] = {
-      primitiveLeafData.device(),
-      vertexArray.device(),
-      systemSettings.device()
-    };
-    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    assignMortonCode.setArgs(buffers, bufferCount);
-    assignMortonCode.setArg(&primBatchSize, bufferCount);
-    assignMortonCode.setArg(&primitiveCount, bufferCount+1);
+    assignMortonCode.setArg(primitiveLeafData.device(), 0);
+    assignMortonCode.setArg(vertexArray->device(),      1);
+    assignMortonCode.setArg(systemSettings->device(),   2);
+    assignMortonCode.setArg(&primBatchSize,  3);
+    assignMortonCode.setArg(&primitiveCount, 4);
 
     compute->execute(assignMortonCode, workgroupSize, workgroupCount);
   }
@@ -262,13 +164,13 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
-    intersectionKernel.setArg(boundingBoxes.device(),  3);
-    intersectionKernel.setArg(vertexArray.device(),    4);
-    intersectionKernel.setArg(attributeArray.device(), 5);
-    intersectionKernel.setArg(&primitiveCount,         6);
-    intersectionKernel.setArg(systemSettings.device(), 7);
+    intersectionKernel.setArg(boundingBoxes.device(),   3);
+    intersectionKernel.setArg(vertexArray->device(),    4);
+    intersectionKernel.setArg(attributeArray->device(), 5);
+    intersectionKernel.setArg(&primitiveCount,          6);
+    intersectionKernel.setArg(systemSettings->device(), 7);
     ushort initHit = initializeHit;
-    intersectionKernel.setArg(&initHit,                8);
+    intersectionKernel.setArg(&initHit, 8);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 

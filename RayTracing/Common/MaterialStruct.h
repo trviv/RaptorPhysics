@@ -52,6 +52,16 @@ inline ushort getMaterialType(const MaterialStruct mat)
   return asUshort(mat.components.x);
 }
 
+inline half4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const HitStruct hit)
+{
+  half4 color = material.emissive;
+#ifdef HitStructNormal
+  color += material.diffuse * dot(lightDirection, hit.normal);
+#endif
+
+  return color;
+}
+
 #endif
 
 #endif

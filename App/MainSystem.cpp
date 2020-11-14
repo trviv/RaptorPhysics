@@ -304,6 +304,8 @@ void MainSystem::render()
         PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntitySpheres, elements);
         entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo());
         entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(4, 3));
+        // TODO: Register material shader per entity here
+        entity->setMaterialId(entityMaterialMap[0]);
         rayTracingSystem.registerAndInstantiateEntity(entity);
       }
     }

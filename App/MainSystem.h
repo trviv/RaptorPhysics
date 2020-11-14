@@ -82,6 +82,8 @@ protected:
 
   RayTracingSystem  rayTracingSystem;
 
+  unordered_map<uint, MaterialId> entityMaterialMap;
+
   DeviceArray<PrimitiveStruct> bottomSurface;
 
   friend class ReaderScene;

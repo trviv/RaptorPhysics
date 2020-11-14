@@ -19,10 +19,13 @@ protected:
   ComputeInterface*     compute;
   RayTracingAllocator*  allocator;
 
+  ComputeKernel collectPrimitives;
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
 
   vector<vector<RayTracingEntity*>> entities;
+
+  vector<EntityPrimAttributes>      registeredPrimitives[RTPrimitiveCount];
 
   /*!@member Final color output.*/
   DeviceArray<uint> colorOutputBuffer;
@@ -45,12 +48,25 @@ protected:
   /*!@member Ray hit information buffer for the scene.*/
   DeviceArray<uint>         hits;
 
+  /*!@member Composite array containing all positions.*/
+  DeviceArray<PrimitiveStruct>  vertexArray;
+
+  /*!@member Composite array containing all attributes.*/
+  DeviceArray<PrimitiveAttrib>  attributeArray;
+
+  DeviceArray<RTSystemSettings> systemSettings;
+
   /*!@member Acceleration struct for the system.*/
   AccelerationDataStruct*   accelerationStruct;
 
   uint newEntityId();
 
   uint newEntityInstanceId(uint entityIndex);
+
+  /*!@function Register primitive from entity attributes.*/
+  void registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count);
+
+  void composePrimitiveArray();
 
 public:
 

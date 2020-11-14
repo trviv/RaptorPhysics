@@ -28,21 +28,20 @@ protected:
   ComputeKernel createPrimitiveBoundingBoxes;
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
-  vector<EntityPrimAttributes>  registeredPrimitives[RTPrimitiveCount];
+  /*!@member Composite array containing all positions.*/
+  const DeviceArray<PrimitiveStruct>* vertexArray;
 
-  DeviceArray<RTSystemSettings> systemSettings;
+  /*!@member Composite array containing all attributes.*/
+  const DeviceArray<PrimitiveAttrib>* attributeArray;
+
+  DeviceArray<RTSystemSettings>*      systemSettings;
 
   /*!@member Per primitive bounding box array.*/
-  DeviceArray<XAB>              boundingBoxes;
+  DeviceArray<XAB>          boundingBoxes;
 
-  /*!@member Composite array containing all positions.*/
-  DeviceArray<PrimitiveStruct>  vertexArray;
+  DeviceArray<BVHLeafInfo>  primitiveLeafData;
 
-  DeviceArray<PrimitiveAttrib>  attributeArray;
-
-  DeviceArray<BVHLeafInfo>      primitiveLeafData;
-
-  DeviceArray<BVHLeafInfo>      primitiveLeafDataSorted;
+  DeviceArray<BVHLeafInfo>  primitiveLeafDataSorted;
 
   /*!@member Total primitives in the system.*/
   uint  primitiveCount;
@@ -60,20 +59,8 @@ public:
 
   uint getPrimCount()const;
 
-  /*!
-  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
-  */
-  virtual void registerSpheres(const ComputeMemory* primitiveBuffer, const ComputeMemory* radiusBuffer, PackingInfo radiusInfo, uint count);
-
-  /*!
-  @param primitiveBuffer Should be a device array similar to or of type PositionStruct_t.
-  */
-  virtual void registerTriangles(const ComputeMemory* primitiveBuffer, const ComputeMemory* indexBuffer, PackingInfo indexInfo, uint count);
-
-  /*!@function Register primitive from entity attributes.*/
-  virtual void registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count);
-
-  virtual void commit();
+  virtual void commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
+                      DeviceArray<RTSystemSettings>* systemSettings);
 
   virtual void fullBuild();
 
