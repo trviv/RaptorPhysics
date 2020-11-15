@@ -301,12 +301,33 @@ void MainSystem::render()
 
         if (!elements) continue;
 
-        PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntitySpheres, elements);
-        entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo());
-        entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(4, 3));
-        // TODO: Register material shader per entity here
-        entity->setMaterialId(entityMaterialMap[0]);
-        rayTracingSystem.registerAndInstantiateEntity(entity);
+        vector<pair<uint, pair<uint, uint>>> entityCounts;
+
+        uint prevEntityId = -1;
+
+        // loop through partitions and add unique entities with offset and count
+        for (const auto& partition : *solver->getPartitions().host())
+        {
+          const IdentityInfo entityIdentity = solver->getParticles().host()->at(partition.offset).identity;
+          uint entityId = entityIdentity.identity^getInstanceId(entityIdentity);
+          if (prevEntityId == entityId)
+          {
+            entityCounts.back().second.second += partition.count;
+          }
+          else
+          {
+            entityCounts.push_back(pair<uint, pair<uint, uint>>(entityId, pair<uint, uint>(partition.offset, partition.count)));
+          }
+        }
+
+        for (const auto& entityCount : entityCounts)
+        {
+          PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntitySpheres, entityCount.second.second);
+          entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo(entityCount.second.first));
+          entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(entityCount.second.first, 4, 3));
+          entity->setMaterialId(entityMaterialMap[entityCount.first]);
+          rayTracingSystem.registerAndInstantiateEntity(entity);
+        }
       }
     }
 
@@ -332,6 +353,7 @@ void MainSystem::render()
       bottomSurface.syncDevice();
       PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 2);
       entity->setAttribute(EntityPrimitiveAttributePosition, bottomSurface.device(), PackingInfo());
+      entity->setMaterialId((*entityMaterialMap.begin()).second);
       rayTracingSystem.registerAndInstantiateEntity(entity);
     }
 

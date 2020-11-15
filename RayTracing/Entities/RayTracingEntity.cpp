@@ -25,6 +25,7 @@ EntityPrimAttributes::EntityPrimAttributes()
   {
     attributeBuffer[i]  = 0;
   }
+  materialId.identity = -1;
 }
 
 uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
@@ -32,24 +33,26 @@ uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
   if (primInfo.primType == PrimitiveSphere)
   {
     kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex);
-    kernel.setArg(attributeBuffer[EntityPrimitiveAttributeRadius], startIndex+1);
-    kernel.setArg(&attributeInfo[EntityPrimitiveAttributeRadius], startIndex+2);
-    return startIndex+3;
+    kernel.setArg(&attributeInfo[EntityPrimitiveAttributePosition], startIndex+1);
+    kernel.setArg(attributeBuffer[EntityPrimitiveAttributeRadius], startIndex+2);
+    kernel.setArg(&attributeInfo[EntityPrimitiveAttributeRadius], startIndex+3);
+    return startIndex+4;
   }
   else
   if (primInfo.primType == PrimitiveTriangle)
   {
     kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex);
+    kernel.setArg(&attributeInfo[EntityPrimitiveAttributePosition], startIndex+1);
     if (attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
     {
-      kernel.setArg(attributeBuffer[EntityPrimitiveAttributeIndex], startIndex+1);
+      kernel.setArg(attributeBuffer[EntityPrimitiveAttributeIndex], startIndex+2);
     }
     else
     {
-      kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex+1);
+      kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex+2);
     }
-    kernel.setArg(&attributeInfo[EntityPrimitiveAttributeIndex], startIndex+2);
-    return startIndex+3;
+    kernel.setArg(&attributeInfo[EntityPrimitiveAttributeIndex], startIndex+3);
+    return startIndex+4;
   }
 
   return startIndex;

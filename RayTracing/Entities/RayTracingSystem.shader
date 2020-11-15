@@ -18,6 +18,7 @@ Kernel void collectPrimitives(
   Device PrimitiveStruct*           finalVertexArray,
   Device PrimitiveAttrib*           finalAttributeArray,
   const Device PrimitiveStruct*     primitiveBuffer,
+  constantKernelInput(PackingInfo,  primitivePackingInfo),
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
   constantKernelInput(IdentityInfo, primitiveIdentity),
@@ -34,8 +35,8 @@ Kernel void collectPrimitives(
   {
     if (primType == PrimitiveSphere)
     {
-      PrimitiveStruct outPrim  = primitiveBuffer[index];
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
+      PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
+      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + primitivePackingInfo.elementOffset);
 
       outPrim.identity = primitiveIdentity;
       finalVertexArray[index + vertexOffset] = outPrim;
@@ -44,7 +45,7 @@ Kernel void collectPrimitives(
 
     if (primType == PrimitiveTriangle)
     {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3;
+      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + primitivePackingInfo.elementOffset;
 
       // for indexed array a non zero stride is assumed
       if (attributePackingInfo.strideIn4Bytes > 0)

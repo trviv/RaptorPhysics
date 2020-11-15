@@ -385,9 +385,9 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
 
     if (newEntity)
     {
-      PhysicsEntityId entityId = system->physicsSystem.registerEntity(newEntity);
+      const PhysicsEntityId entityId = system->physicsSystem.registerEntity(newEntity);
       registeredEntities[identity] = entityId;
-      system->entityMaterialMap[entityId.identity] = material;
+      system->entityMaterialMap[entityId.identity^getInstanceId(entityId)] = material;
     }
     else if (newRTEntity)
     {
