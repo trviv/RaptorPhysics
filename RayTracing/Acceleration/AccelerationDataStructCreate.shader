@@ -58,6 +58,7 @@ Kernel void createPrimitiveBoundingBoxes(
   Device PrimitiveAttrib*           finalAttributeArray,
   Device XAB*                       boundingBoxes,
   const Device PrimitiveStruct*     primitiveBuffer,
+  constantKernelInput(PackingInfo,  primitivePackingInfo),
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
   constantKernelInput(uint,         primitiveBatchSize),
@@ -75,11 +76,11 @@ Kernel void createPrimitiveBoundingBoxes(
 
     if (primType == PrimitiveSphere)
     {
-      PrimitiveStruct outPrim  = primitiveBuffer[index];
+      PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
       primitiveBoundingBox.min = outPrim.position;
       primitiveBoundingBox.max = outPrim.position;
 
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
+      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + primitivePackingInfo.elementOffset);
 
       primitiveBoundingBox.min -= constructFloat3(radius);
       primitiveBoundingBox.max += constructFloat3(radius);
@@ -90,7 +91,7 @@ Kernel void createPrimitiveBoundingBoxes(
 
     if (primType == PrimitiveTriangle)
     {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3;
+      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + primitivePackingInfo.elementOffset;
 
       // for indexed array a non zero stride is assumed
       if (attributePackingInfo.strideIn4Bytes > 0)

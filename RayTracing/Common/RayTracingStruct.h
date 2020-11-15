@@ -72,14 +72,16 @@ inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const f
 #endif
 
 
-struct PackingInfo_t
+struct ALIGN(8) PackingInfo_t
 {
+  uint   elementOffset;
   ushort strideIn4Bytes;
   ushort offsetIn4Bytes;
 
 #ifndef COMPUTE_SHADER_SCOPE
-  PackingInfo_t(ushort strideIn4Bytes = 0, ushort offsetIn4Bytes = 0)
+  PackingInfo_t(uint elementOffset = 0, ushort strideIn4Bytes = 0, ushort offsetIn4Bytes = 0)
   {
+    this->elementOffset  = elementOffset;
     this->strideIn4Bytes = strideIn4Bytes;
     this->offsetIn4Bytes = offsetIn4Bytes;
   }

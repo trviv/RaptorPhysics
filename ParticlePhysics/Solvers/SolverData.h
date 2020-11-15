@@ -81,6 +81,8 @@ public:
 
   const DeviceArray<PartitionInfo>& getPartitions()const {return partitions;}
 
+  const DeviceArray<uint>& getPartitionsCount()const {return partitionsCount;}
+
   const DeviceArray<ParticleSharedData>& getEntitySharedData()const {return entitySharedData;}
 
   const DeviceArray<ParticleCollisionData>& getParticleCollisionData()const {return particleCollisionData;}
