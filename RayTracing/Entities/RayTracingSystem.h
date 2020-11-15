@@ -64,7 +64,7 @@ protected:
   uint newEntityInstanceId(uint entityIndex);
 
   /*!@function Register primitive from entity attributes.*/
-  void registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count);
+  void registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity);
 
   void composePrimitiveArray();
 

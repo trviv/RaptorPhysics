@@ -20,6 +20,7 @@ Kernel void collectPrimitives(
   const Device PrimitiveStruct*     primitiveBuffer,
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
+  constantKernelInput(IdentityInfo, primitiveIdentity),
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
   constantKernelInput(uint,         primType),
@@ -36,6 +37,7 @@ Kernel void collectPrimitives(
       PrimitiveStruct outPrim  = primitiveBuffer[index];
       const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
 
+      outPrim.identity = primitiveIdentity;
       finalVertexArray[index + vertexOffset] = outPrim;
       finalAttributeArray[index + vertexOffset].radius = radius;
     }
@@ -55,14 +57,17 @@ Kernel void collectPrimitives(
       // get vertex zero and vertex position
       PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
       PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
-      const IdentityInfo v1identity = vert1.identity;
+      //const IdentityInfo v1identity = vert1.identity;
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
-      const IdentityInfo v2identity = vert2.identity;
+      //const IdentityInfo v2identity = vert2.identity;
 
+      vert0.identity = primitiveIdentity;
       vert1.position = vert1.position - vert0.position;
-      vert1.identity = v1identity;
+      //vert1.identity = v1identity;
+      vert1.identity = primitiveIdentity;
       vert2.position = vert2.position - vert0.position;
-      vert2.identity = v2identity;
+      //vert2.identity = v2identity;
+      vert2.identity = primitiveIdentity;
 
       vertIndices = vertexOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, selectInput3(attributePackingInfo.strideIn4Bytes == 0));
       finalVertexArray[vertIndices.x] = vert0;
@@ -102,6 +107,9 @@ Kernel void shadeIntersection(
 
   for (ushort i=lightOffset; i<lightCount; i++)
   {
+#ifdef RayStructColor
+    shadowRay.color = constructColor4(0.f);
+#endif
     if (hit.distance != INFINITY)
     {
       shadowRay.origin = ray.origin + ray.direction * hit.distance;
@@ -114,10 +122,12 @@ Kernel void shadeIntersection(
       if (dot(direction, hit.normal) >= 0.f)
 #endif
       {
-        shadowRay.direction = normalize(direction);
+        shadowRay.maxDistance = length(direction);
+        direction /= shadowRay.maxDistance;
+        shadowRay.direction = direction;
 #ifdef RayStructColor
-        shadowRay.color     = lightColor * ray.color;
-        //shadowRay.color = lightColor * ray.color * shadeMaterialAtIntersection(material, direction, hit);
+        const MaterialId materialId = hit.primitiveIdentity;
+        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(materials[materialId.identity], direction, hit).xyz;
 #endif
       }
     }
@@ -138,19 +148,17 @@ Kernel void processShadowRays(
   if (index >= rayCount)
     return;
 
-  const HitStruct hit = hits[index];
+  const HitStruct shadowHit = hits[index];
 
 #ifdef RayStructColor
   RayStruct shadowRay = shadowRays[index];
-  float3 finalColor = constructFloat3(0.f);
-
-  if (hit.primitiveIndex == -1)
+  if (shadowHit.primitiveIndex != -1)
   {
-    shadowRay.color = constructFloat3(1.f/hit.distance);
-    finalColor = 255.f * clamp(shadowRay.color, 0.f, 1.f);
+    shadowRay.color.xyz = 0.f;
   }
+  colorType3 finalColor = 255.f * clamp(shadowRay.color.xyz, 0.f, 1.f);
 
-  colorOut[shadowRay.rayIndex] = asUint(constructUchar4(constructUchar3(finalColor.x, finalColor.y, finalColor.z), 255));
+  colorOut[shadowRay.rayIndex] = asUint(constructUchar4(constructUchar3(finalColor.xyz), 255));
 #endif
 }
 

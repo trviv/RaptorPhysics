@@ -40,9 +40,9 @@ Kernel void emitPrimaryRays(
   RayStruct ray = sampleCameraAtPixel(*camera, threadIndexN(0), threadIndexN(1));
 
   // The camera emits primary rays
-  ray.type = RayTypePrimary;
+  ray.maxDistance = INFINITY;
   ray.rayIndex = threadIndexN(0) + camera->width * threadIndexN(1);
-  ray.color = constructFloat3(1.f, 1.f, 1.f);
+  ray.color = constructColor4(1.f);
   rays[ray.rayIndex] = ray;
 }
 

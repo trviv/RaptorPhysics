@@ -29,6 +29,8 @@
 #define constructFloat2     (float2)
 #define constructFloat3     (float3)
 #define constructFloat4     (float4)
+#define constructColor3     (colorType3)
+#define constructColor4     (colorType4)
 #define constructUint2      (uint2)
 #define constructUint3      (uint3)
 #define constructUint4      (uint4)
@@ -123,6 +125,8 @@
 #define constructFloat2     float2
 #define constructFloat3     float3
 #define constructFloat4     float4
+#define constructColor3     colorType3
+#define constructColor4     colorType4
 #define constructUint2      uint2
 #define constructUint3      uint3
 #define constructUint4      uint4

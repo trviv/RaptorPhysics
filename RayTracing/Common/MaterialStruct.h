@@ -12,16 +12,7 @@ enum MaterialTypes
   MaterialTypeMax
 };
 
-
-/*!
-@struct Structor to uniquely represent a material.
-*/
-struct ALIGN(4) MaterialId_t
-{
-  uint identity;
-};
-
-typedef struct MaterialId_t MaterialId;
+typedef struct IdentityInfo_t MaterialId;
 
 
 /*!

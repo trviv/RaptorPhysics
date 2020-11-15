@@ -34,6 +34,7 @@ enum EntityPrimitiveAttributeType
 struct EntityPrimAttributes
 {
   DecodedPrimitiveInfo  primInfo;
+  MaterialId            materialId;
   const ComputeMemory*  attributeBuffer[EntityPrimitiveAttributeMax];
   PackingInfo           attributeInfo[EntityPrimitiveAttributeMax];
 
@@ -91,7 +92,7 @@ public:
   /*!@function Create a Copy of the current object.*/
   virtual RayTracingEntity* createCopy()const = 0;
 
-  virtual void setMaterialId(MaterialId materialId){}
+  void setMaterialId(MaterialId materialId);
 
   virtual RayTracingEntityId getIdentity()const = 0;
 
@@ -109,7 +110,6 @@ class PrimitiveArrayEntity : public RayTracingEntity
 {
   friend class ReaderScene;
 
-  MaterialId          material;
   RayTracingEntityId  identity;
   uint                primitiveCount;
 
@@ -120,8 +120,6 @@ public:
   ~PrimitiveArrayEntity();
 
   RayTracingEntity* createCopy()const;
-
-  void setMaterialId(MaterialId materialId);
 
   RayTracingEntityId getIdentity()const;
 

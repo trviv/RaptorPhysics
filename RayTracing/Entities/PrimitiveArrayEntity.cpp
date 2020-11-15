@@ -19,11 +19,6 @@ RayTracingEntity* PrimitiveArrayEntity::createCopy()const
   return newEntity;
 }
 
-void PrimitiveArrayEntity::setMaterialId(MaterialId materialId)
-{
-  this->material = materialId;
-}
-
 RayTracingEntityId PrimitiveArrayEntity::getIdentity()const
 {
   return identity;
