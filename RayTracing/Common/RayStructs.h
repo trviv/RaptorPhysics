@@ -7,11 +7,6 @@
 
 #pragma pack(push, 4)
 
-enum RayType
-{
-  RayTypePrimary  = 1
-};
-
 enum RayStructType
 {
   RayStructPositionDirection,
@@ -34,7 +29,7 @@ struct DEFAULT_ALIGN Ray_t
     struct
     {
       uint  reserved[3];
-      uint  type;
+      float maxDistance;
     };
   };
 
@@ -65,7 +60,7 @@ struct DEFAULT_ALIGN RayColor_t
     struct
     {
       uint  reserved[3];
-      uint  type;
+      float maxDistance;
     };
   };
 
@@ -78,7 +73,7 @@ struct DEFAULT_ALIGN RayColor_t
       uint  rayIndex;
     };
   };
-  float3  color;
+  colorType4 color;
 };
 
 typedef struct RayColor_t RayColor;

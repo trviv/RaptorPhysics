@@ -20,8 +20,10 @@ enum HitStructType
 */
 struct DEFAULT_ALIGN HitInfoDistance_t
 {
-  float distance;
-  uint  primitiveIndex;
+  float         distance;
+  uint          primitiveIndex;
+  IdentityInfo  primitiveIdentity;
+  uint          padding;
 };
 
 typedef struct HitInfoDistance_t HitInfoDistance;
@@ -32,10 +34,11 @@ typedef struct HitInfoDistance_t HitInfoDistance;
 */
 struct DEFAULT_ALIGN HitInfoDistanceIndexNormal_t
 {
-  float distance;
-  uint  primitiveIndex;
-  uint  padding[2];
-  float3 normal;
+  float         distance;
+  uint          primitiveIndex;
+  IdentityInfo  primitiveIdentity;
+  uint          padding;
+  float3        normal;
 };
 
 typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
@@ -47,6 +50,7 @@ inline void initializeHit(Thread HitStruct* hit)
 {
   hit->distance       = INFINITY;
   hit->primitiveIndex = -1;
+  hit->primitiveIdentity.identity = -1;
 }
 
 #else

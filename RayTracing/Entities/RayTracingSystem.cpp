@@ -16,8 +16,11 @@ RayTracingSystem::~RayTracingSystem()
   }
 }
 
-void RayTracingSystem::registerPrimitive(RayTracingEntityType type, EntityPrimAttributes primitiveInfo, uint count)
+void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity)
 {
+  EntityPrimAttributes primitiveInfo = *entity;
+  const uint count = ((PrimitiveArrayEntity*)entity)->getPrimCount();
+
   primitiveInfo.primInfo.indexCount  = count;
   primitiveInfo.primInfo.vertexCount = count;
 
@@ -58,11 +61,12 @@ void RayTracingSystem::composePrimitiveArray()
       collectPrimitives.setArg(vertexArray.device(), 0);
       collectPrimitives.setArg(attributeArray.device(), 1);
       uint nextBindIndex = prim.bindToShader(collectPrimitives, 2);
-      collectPrimitives.setArg(&primBatchSize, nextBindIndex);
-      collectPrimitives.setArg(&prim.primInfo.indexCount, nextBindIndex+1);
-      collectPrimitives.setArg(&primType, nextBindIndex+2);
-      collectPrimitives.setArg(&indexOffset, nextBindIndex+3);
-      collectPrimitives.setArg(&vertexOffset, nextBindIndex+4);
+      collectPrimitives.setArg(&prim.materialId, nextBindIndex);
+      collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
+      collectPrimitives.setArg(&prim.primInfo.indexCount, nextBindIndex+2);
+      collectPrimitives.setArg(&primType, nextBindIndex+3);
+      collectPrimitives.setArg(&indexOffset, nextBindIndex+4);
+      collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
@@ -156,7 +160,7 @@ void RayTracingSystem::commit()
       switch (entityCategory)
       {
         case RayTracingEntityPrimArray:
-          registerPrimitive(entityType, *entity, ((PrimitiveArrayEntity*)entity)->getPrimCount());
+          registerPrimitive(entityType, entity);
           break;
         case RayTracingEntityLight:
         {
@@ -278,9 +282,9 @@ void RayTracingSystem::render()
   composePrimitiveArray();
 
   RayStructType rayType   = RayStructPositionDirectionColor;
-  HitStructType hitStruct = HitStructDistanceIndex;
+  HitStructType hitStruct = HitStructDistanceIndexNormal;
   RayStructType shadowRayType   = RayStructPositionDirectionColor;
-  HitStructType shadowHitStruct = HitStructDistanceIndex;
+  HitStructType shadowHitStruct = HitStructDistanceIndexNormal;
 
   camera->emitPrimaryRays(rays, rayType);
   colorOutputBuffer.resize(camera->width * camera->height, false);
@@ -292,7 +296,7 @@ void RayTracingSystem::render()
   hits.resize(rayCount * getHitStructSize(hitStruct) / 4, false);
   shadowRays.resize(lights.size() * rayCount * getRayStructSize(shadowRayType) / 4, false);
 
-  accelerationStruct->intersectRays(hits.device(), hitStruct, rays.device(), rayType, rayCount, IntersectionTypeClosest, true);
+  accelerationStruct->intersectRays(hits.device(), hitStruct, rays.device(), rayType, rayCount, IntersectionTypeClosest);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
   hits.syncHost();
@@ -332,7 +336,7 @@ void RayTracingSystem::render()
 #endif
   }
 
-  accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, rayCount, IntersectionTypeAny, false);
+  accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, rayCount, IntersectionTypeAny);
 
   {
     ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][hitStruct];

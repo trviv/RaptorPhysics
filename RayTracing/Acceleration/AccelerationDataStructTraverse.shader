@@ -32,6 +32,10 @@ inline void earliestIntersection(
       {
         hit->distance = time;
         hit->primitiveIndex = primIndex;
+        hit->primitiveIdentity = sphere.identity;
+#ifdef HitStructNormal
+        hit->normal = pvec + rayDirection * time;
+#endif
       }
 
       time = -(b - d);
@@ -39,6 +43,10 @@ inline void earliestIntersection(
       {
         hit->distance = time;
         hit->primitiveIndex = primIndex;
+        hit->primitiveIdentity = sphere.identity;
+#ifdef HitStructNormal
+        hit->normal = pvec + rayDirection * time;
+#endif
       }
     }
   }
@@ -65,6 +73,10 @@ inline void earliestIntersection(
       {
         hit->distance = dot(edge2.position, qvec) * invDet;
         hit->primitiveIndex = primIndex;
+        hit->primitiveIdentity = vert0.identity;
+#ifdef HitStructNormal
+        hit->normal = cross(edge1.position, edge2.position);
+#endif
       }
     }
   }
@@ -157,8 +169,7 @@ Kernel void intersectRays(
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
   constantKernelInput(uint,     primitiveCount),
-  Const RTSystemSettings*       systemSettings,
-  constantKernelInput(ushort,   initHit)
+  Const RTSystemSettings*       systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
 {
   uint index = threadIndex();
@@ -172,18 +183,9 @@ Kernel void intersectRays(
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   HitStruct hit;
+  initializeHit(&hit);
 
-  if (initHit)
-  {
-    initializeHit(&hit);
-  }
-  else
-  {
-    hit = hits[index];
-    hit.primitiveIndex = -1;
-  }
-
-  float currentTime = hit.distance;
+  float currentTime = rays[index].maxDistance;
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {
@@ -204,6 +206,12 @@ Kernel void intersectRays(
   }
 
 #ifdef IntersectionTypeClosest
+#ifdef HitStructNormal
+  if (hit.primitiveIndex != -1)
+  {
+    hit.normal = normalize(hit.normal);
+  }
+#endif
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny

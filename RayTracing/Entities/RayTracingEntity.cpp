@@ -67,6 +67,11 @@ RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
   transform.setIdentity();
 }
 
+void RayTracingEntity::setMaterialId(MaterialId materialId)
+{
+  this->materialId = materialId;
+}
+
 Matrix4& RayTracingEntity::getTransform()
 {
   return transform;
