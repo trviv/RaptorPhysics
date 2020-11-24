@@ -5,6 +5,7 @@
 #include <Light/Light.h>
 #include <Camera/Camera.h>
 #include <Acceleration/AccelerationDataStruct.h>
+#include <Acceleration/BoundingVolumeHierarchyADS.h>
 #include <Material/Material.h>
 
 /*!

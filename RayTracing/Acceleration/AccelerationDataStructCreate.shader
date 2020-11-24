@@ -48,6 +48,8 @@ Kernel void createPrimitiveBoundingBoxes(
       primitiveBoundingBox.max = max3(vert0, vert1, vert2);
     }
 
+    primitiveBoundingBox.min -= MIN_TIME;
+    primitiveBoundingBox.max += MIN_TIME;
     boundingBoxes[index] = primitiveBoundingBox;
   }
 }
@@ -165,7 +167,7 @@ Kernel void assignMortonCode(
       const float3 edge1 = vertexArray[triIndex+1].position;
       const float3 edge2 = vertexArray[triIndex+2].position;
 
-      center = vert0 + (edge1 + edge2) * 0.333f;
+      center = vert0 + (edge1 + edge2) * 1.f/3.f;
     }
 
     // Quantize into integer coordinates

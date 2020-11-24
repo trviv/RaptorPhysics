@@ -334,7 +334,18 @@ typedef struct BVHLeafInfo_t BVHLeafInfo;
 */
 struct ALIGN(8) BVHNodeInfo_t
 {
-  uint child[2];
+  union
+  {
+    struct
+    {
+      uint child[2];
+    };
+    struct
+    {
+      uint childLeft;
+      uint childRight;
+    };
+  };
 };
 
 typedef struct BVHNodeInfo_t BVHNodeInfo;

@@ -123,8 +123,9 @@ Kernel void shadeIntersection(
       if (dot(direction, hit.normal) >= 0.f)
 #endif
       {
-        shadowRay.maxDistance = length(direction);
-        direction /= shadowRay.maxDistance;
+        const float maxDistance = length(direction);
+        direction /= maxDistance;
+        shadowRay.maxDistance = maxDistance;
         shadowRay.direction = direction;
 #ifdef RayStructColor
         const MaterialId materialId = hit.primitiveIdentity;
