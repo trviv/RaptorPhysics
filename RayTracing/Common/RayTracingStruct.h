@@ -20,15 +20,22 @@
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-#define MIN_TIME COMPUTE_EPSILON
+#define MIN_TIME 0.001f
 
 // also known as slabs method
-inline bool rayXABIntersectTest(const XAB xab, const float3 rayOrigin, const float3 invRayDirection)
+inline bool rayXABIntersectTest(const float timeIn, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
 {
   const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
   const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
-  const float3 tmin = min(t0, t1), tmax = max(t0, t1);
-  return maxCompFloat3(tmin) <= minCompFloat3(tmax);
+  const float3 tmin = select(t0, t1, sign);
+  const float tminOut = maxCompFloat3(tmin);
+
+  if (tminOut >= timeIn)
+  {
+    return false;
+  }
+
+  return tminOut < minCompFloat3(select(t1, t0, sign));
 }
 
 inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)

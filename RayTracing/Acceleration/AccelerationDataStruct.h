@@ -24,7 +24,6 @@ protected:
 
   ComputeInterface* compute;
 
-  ComputeKernel assignMortonCode;
   ComputeKernel createPrimitiveBoundingBoxes;
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
@@ -38,10 +37,6 @@ protected:
 
   /*!@member Per primitive bounding box array.*/
   DeviceArray<XAB>          boundingBoxes;
-
-  DeviceArray<BVHLeafInfo>  primitiveLeafData;
-
-  DeviceArray<BVHLeafInfo>  primitiveLeafDataSorted;
 
   /*!@member Total primitives in the system.*/
   uint  primitiveCount;

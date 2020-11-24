@@ -41,7 +41,6 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   registerShader(compute, "AccelerationDataStructCreate.shader", NULL, NULL);
 
   createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
-  assignMortonCode = programs[0].createKernel("assignMortonCode");
 
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
@@ -63,8 +62,6 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   }
 
   boundingBoxes.create(compute);
-  primitiveLeafData.create(compute);
-  primitiveLeafDataSorted.create(compute);
 
   accXABComputeUtilId = ComputeUtil::getXABUtil(compute);
   sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
@@ -89,8 +86,6 @@ void AccelerationDataStruct::commit(const DeviceArray<PrimitiveStruct>* vertexAr
   vertexCount    = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).vertexOffset;
 
   boundingBoxes.resize(primitiveCount, false);
-  primitiveLeafData.resize(primitiveCount, false);
-  primitiveLeafDataSorted.resize(primitiveCount, false);
 }
 
 void AccelerationDataStruct::fullBuild()
@@ -117,41 +112,6 @@ void AccelerationDataStruct::fullBuild()
     compute->sync();
 #endif
   }
-
-  // find bounding box for the simulation space
-  ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, systemSettings->device(), boundingBoxes.device(), primitiveCount);
-
-#ifdef DEBUG_ACCELERATION_DATA_STRUCT
-  systemSettings.syncHost();
-  compute->sync();
-#endif
-
-  {
-    uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
-
-    // assign morton code to the particle bounding boxes
-    assignMortonCode.setArg(primitiveLeafData.device(), 0);
-    assignMortonCode.setArg(vertexArray->device(),      1);
-    assignMortonCode.setArg(systemSettings->device(),   2);
-    assignMortonCode.setArg(&primBatchSize,  3);
-    assignMortonCode.setArg(&primitiveCount, 4);
-
-    compute->execute(assignMortonCode, workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_ACCELERATION_DATA_STRUCT
-  primitiveLeafData.syncHost();
-  compute->sync();
-#endif
-
-  ComputeUtil::get(sortComputeUtilId)->radixSort32Bit(compute, primitiveLeafDataSorted.device(), primitiveLeafData.device(), primitiveCount);
-
-#ifdef DEBUG_ACCELERATION_DATA_STRUCT
-  primitiveLeafDataSorted.syncHost();
-  compute->sync();
-#endif
 }
 
 void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
