@@ -8,6 +8,8 @@
 
 #pragma pack(push, 4)
 
+#ifdef USE_METAL_COMPUTE
+
 typedef half  colorType;
 typedef half4 colorType4;
 
@@ -15,6 +17,16 @@ typedef half4 colorType4;
 typedef half3 colorType3;
 #endif
 
+#else
+
+typedef float  colorType;
+typedef float4 colorType4;
+
+#ifdef COMPUTE_SHADER_SCOPE
+typedef float3 colorType3;
+#endif
+
+#endif
 
 /*!
 @struct Data describing an array sub-part.

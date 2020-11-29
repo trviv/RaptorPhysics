@@ -34,7 +34,6 @@ inline bool rayXABIntersectTest(const float timeIn, const XAB xab, const float3 
   {
     return false;
   }
-
   return tminOut < minCompFloat3(select(t1, t0, sign));
 }
 
@@ -63,11 +62,11 @@ inline bool rayXABIntersectEarliest(Thread float* timeIn, const XAB xab, const f
   const float3 tmin = select(t0, t1, sign);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tminOut > MIN_TIME && *timeIn > tminOut)
+  if (*timeIn > tminOut)
   {
     const float3 tmax = select(t1, t0, sign);
     const float tmaxOut = minCompFloat3(tmax);
-    if (tminOut <= tmaxOut)
+    if (tminOut < tmaxOut)
     {
       *timeIn  = tminOut;
       return true;

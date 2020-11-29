@@ -97,7 +97,8 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   materials.create(compute);
   shadowRays.create(compute);
 
-  accelerationStruct = new AccelerationDataStruct();
+//  accelerationStruct = new AccelerationDataStruct();
+  accelerationStruct = new BoundingVolumeHierarchyADS();
   accelerationStruct->create(compute);
 
   includeFiles.push_back("ComputeHeader.shader");

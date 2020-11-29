@@ -25,7 +25,12 @@ struct half4
   }
 };
 
-class Half4 : public half4
+class Half4
+#ifdef USE_METAL_COMPUTE
+  : public half4
+#else
+  : public float4
+#endif
 {
 public:
 
@@ -65,6 +70,7 @@ public:
     a = ref.a;
   }
 
+#ifdef USE_METAL_COMPUTE
   const half& operator[](const int& index)const
   {
     return (&this->x)[index];
@@ -74,6 +80,17 @@ public:
   {
     return (&this->x)[index];
   }
+#else
+  const float& operator[](const int& index)const
+  {
+    return (&this->x)[index];
+  }
+
+  float& operator[](const int& index)
+  {
+    return (&this->x)[index];
+  }
+#endif
 };
 
 #endif

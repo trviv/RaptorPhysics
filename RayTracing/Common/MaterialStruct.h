@@ -20,10 +20,10 @@ typedef struct IdentityInfo_t MaterialId;
 */
 struct MaterialStruct_t
 {
-  half4 diffuse;
-  half4 specular;
-  half4 emissive;
-  half4 components;
+  colorType4 diffuse;
+  colorType4 specular;
+  colorType4 emissive;
+  colorType4 components;
 };
 
 typedef struct MaterialStruct_t MaterialStruct;
@@ -43,9 +43,9 @@ inline ushort getMaterialType(const MaterialStruct mat)
   return asUshort(mat.components.x);
 }
 
-inline half4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const HitStruct hit)
+inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const HitStruct hit)
 {
-  half4 color = material.emissive;
+  colorType4 color = material.emissive;
 #ifdef HitStructNormal
   color += material.diffuse * dot(lightDirection, hit.normal);
 #endif

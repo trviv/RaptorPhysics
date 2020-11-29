@@ -26,6 +26,11 @@ struct float3
   }
 };
 
+struct float4
+{
+  real x, y, z, a;
+};
+
 /// The vector class
 class Real3 : public float3
 {

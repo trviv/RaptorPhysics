@@ -158,9 +158,8 @@ Kernel void processShadowRays(
   {
     shadowRay.color.xyz = 0.f;
   }
-  colorType3 finalColor = 255.f * clamp(shadowRay.color.xyz, 0.f, 1.f);
-
-  colorOut[shadowRay.rayIndex] = asUint(constructUchar4(constructUchar3(finalColor.xyz), 255));
+  colorType4 finalColor = 255.f * constructColor4(clamp(shadowRay.color.xyz, 0.f, 1.f), 1.f);
+  colorOut[shadowRay.rayIndex] = asUint(constructUchar4(finalColor.x, finalColor.y, finalColor.z, finalColor.w));
 #endif
 }
 

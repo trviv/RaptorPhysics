@@ -551,7 +551,7 @@ inline void cacheGridParticleOffsets(Thread short3 *firstGridCellIndices, Shared
   firstGridCellIndices->y = firstGridCellIndices->y - offsetCacheYElements / 2;
   firstGridCellIndices->z = firstGridCellIndices->z - offsetCacheYElements / 2;
 
-  *firstGridCellIndices &= (gridSize-1);
+  *firstGridCellIndices &= constructShort3(gridSize-1);
 
   if (localIndex < offsetCacheXElements * offsetCacheYElements * offsetCacheYElements)
   {
@@ -560,7 +560,7 @@ inline void cacheGridParticleOffsets(Thread short3 *firstGridCellIndices, Shared
     (localIndex / offsetCacheXElements ) % offsetCacheYElements,
     localIndex / (offsetCacheXElements * offsetCacheYElements));
 
-    gridIndex &= (gridSize-1);
+    gridIndex &= constructShort3(gridSize-1);
 
     //if (gridIndex.x < gridSize && gridIndex.y < gridSize && gridIndex.z < gridSize)
     {
