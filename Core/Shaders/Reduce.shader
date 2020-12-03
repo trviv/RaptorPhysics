@@ -136,7 +136,7 @@ Kernel void reduce(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
+  Shared MemberStructType localArray[REDUCE_SHARED_SIZE];
 
   MemberStructType originalValues[BatchSize];
   batchRead(originalValues, source, index, length);

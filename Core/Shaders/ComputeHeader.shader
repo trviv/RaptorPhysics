@@ -232,10 +232,12 @@ struct commonFloat16
 #define COMPUTE_EPSILON_SQ 0.00000001f
 #define DEFAULT_ALIGN   ALIGN(16)
 
-#define NUM_BANKS       16
-#define LOG_NUM_BANKS   4
+#define NUM_BANKS       8
+#define LOG_NUM_BANKS   3
 
 #define paddedIndex(x) x
+//#define paddedIndex(x) (x + (x >> NUM_BANKS) + (x >> (2*LOG_NUM_BANKS)))
+//#define paddedIndex(x) (x + (x >> (LOG_NUM_BANKS)))
 /*inline const uint paddedIndex(const uint n)
 {
   //return n + (((n >> NUM_BANKS) + n) >> (LOG_NUM_BANKS << 1));

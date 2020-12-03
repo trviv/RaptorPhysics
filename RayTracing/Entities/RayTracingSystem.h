@@ -16,6 +16,7 @@ class RayTracingSystem : protected ShaderEntity
   friend class ReaderScene;
 
 protected:
+  static uint rayComputeUtilId[RayStructTypeMax];
 
   ComputeInterface*     compute;
   RayTracingAllocator*  allocator;
@@ -59,6 +60,8 @@ protected:
 
   /*!@member Acceleration struct for the system.*/
   AccelerationDataStruct*   accelerationStruct;
+
+  DeviceArray<uint>         validRayCount;
 
   uint newEntityId();
 

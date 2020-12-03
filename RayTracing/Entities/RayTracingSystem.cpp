@@ -2,6 +2,8 @@
 
 //#define DEBUG_RAY_TRACING_SYSTEM
 
+uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
+
 RayTracingSystem::RayTracingSystem()
   :allocator(NULL), camera(NULL)
 {
@@ -109,6 +111,8 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   includeFiles.push_back("RayTracingStruct.h");
   includeFiles.push_back("Light.shader");
 
+  const vector<string> rayUtilIncludeFiles = {"RayStructs.h"};
+
   for (int r=0; r<RayStructTypeMax; r++)
   {
     for (int h=0; h<HitStructTypeMax; h++)
@@ -121,6 +125,17 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
       shadeIntersectionKernels[r][h] = programs.back().createKernel("shadeIntersection");
       processShadowRaysKernels[r][h] = programs.back().createKernel("processShadowRays");
     }
+
+    map<ComputeUtilKey, string> rayUtilSetting;
+    rayUtilSetting[ComputeUtilStructType]         = getRayStructName((RayStructType)r);
+    rayUtilSetting[ComputeUtilStructMember]       = "maxDistance";
+    rayUtilSetting[ComputeUtilStructMemberType]   = "uint";
+    rayUtilSetting[ComputeUtilStructMemberSize]   = "4";
+    rayUtilSetting[ComputeUtilOnlyCompaction]     = "1";
+    rayUtilSetting[ComputeUtilStructTypeIntegral] = "1";
+    rayUtilSetting[ComputeUtilSkipParallelPrimitives] = "1";
+
+    rayComputeUtilId[r] = ComputeUtil::create(compute, rayUtilSetting, &rayUtilIncludeFiles);
   }
 
   collectPrimitives = programs[0].createKernel("collectPrimitives");
@@ -134,6 +149,9 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   {
     i.clear();
   }
+
+  validRayCount.create(compute);
+  validRayCount.resize(4, false);
 }
 
 uint RayTracingSystem::newEntityId()
@@ -337,14 +355,17 @@ void RayTracingSystem::render()
 #endif
   }
 
-  accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, rayCount, IntersectionTypeAny);
+  ComputeUtil::get(ComputeUtil::getUIntUtil(compute))->clearBuffer(compute, colorOutputBuffer.device(), camera->width * camera->height);
+
+  ComputeUtil::get(rayComputeUtilId[shadowRayType])->compactSparseArrayAndCopy(compute, validRayCount.device(), shadowRays.device(), shadowRays.device(), rayCount);
+
+  accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, validRayCount.device(), IntersectionTypeAny);
 
   {
     ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][hitStruct];
 
     // add to system bounding box
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, rayCount);
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
 
     ComputeMemory* buffers[] = {
       colorOutputBuffer.device(),
@@ -353,9 +374,9 @@ void RayTracingSystem::render()
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     processShadowRaysKernel.setArgs(buffers, bufferCount);
-    processShadowRaysKernel.setArg(&rayCount, bufferCount);
+    processShadowRaysKernel.setArg(validRayCount.device(), bufferCount);
 
-    compute->execute(processShadowRaysKernel, workgroupSize, workgroupCount);
+    compute->execute(processShadowRaysKernel, workgroupSize, validRayCount.device(), 0);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
     compute->sync();

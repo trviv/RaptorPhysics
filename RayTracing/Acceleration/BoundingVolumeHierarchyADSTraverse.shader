@@ -1,8 +1,6 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_ADS_TRAVERSE_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_ADS_TRAVERSE_SHADER_H
 
-//#define BOUNDING_VOLUME_HIERARCHY_ADS_DEBUG_TREE_TRAVERSAL
-
 #define BVH_TRAVERSAL_FROM_PARENT   1
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
@@ -213,7 +211,11 @@ inline HitStruct stacklessTraverseBinaryTree(
   ushort traverseState   = BVH_TRAVERSAL_FROM_PARENT;
   BVHNodeInfo parentNode = treeInternalNodes[0];
 
-  uint currNodeIndex     = parentNode.childLeft;
+  const short3 signBits  = select(constructShort3(0), constructShort3(1), sign);
+  // flip near plane if 2 or more negatives are in the ray direction
+  // a simple approach to possible get an intersection sooner
+  const ushort nearPlane = 0;//(signBits.x + signBits.y + signBits.z) > 1;
+  uint currNodeIndex     = parentNode.child[nearPlane];
   uint parentNodeIndex   = rootNode;
 
   // main intersection loop
@@ -241,9 +243,9 @@ inline HitStruct stacklessTraverseBinaryTree(
         parentNode = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
 
         // if near is processed
-        const bool stateIsLeft = (currNodeIndex == parentNode.childLeft);
+        const bool stateIsLeft = (currNodeIndex == parentNode.child[nearPlane]);
         traverseState = select(BVH_TRAVERSAL_FROM_CHILD, BVH_TRAVERSAL_FROM_SIBLING, stateIsLeft);
-        currNodeIndex = select(parentNodeIndex, parentNode.childRight, stateIsLeft);
+        currNodeIndex = select(parentNodeIndex, parentNode.child[nearPlane^1], stateIsLeft);
         continue;
       }
 
@@ -255,7 +257,7 @@ inline HitStruct stacklessTraverseBinaryTree(
       if (isBVHLeafNode(currNodeIndex))
       {
         leafNodeIndex = currNodeIndex;
-        currNodeIndex = select(parentNode.childRight, parentNodeIndex, stateIsSibling);
+        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
         break;
       }
 
@@ -264,13 +266,13 @@ inline HitStruct stacklessTraverseBinaryTree(
       if (!rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign))
       {
         // switch to parent or sibling when internal node is not intersecting
-        currNodeIndex = select(parentNode.childRight, parentNodeIndex, stateIsSibling);
+        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
         continue;
       }
 
       parentNode      = treeInternalNodes[removeBVHInternalNodeMarker(currNodeIndex)];
       parentNodeIndex = currNodeIndex;
-      currNodeIndex   = parentNode.childLeft;
+      currNodeIndex   = parentNode.child[nearPlane];
       traverseState   = BVH_TRAVERSAL_FROM_PARENT;
     }
 
@@ -386,7 +388,7 @@ inline HitStruct stackTraverseBinaryTree(
 Kernel void intersectRaysBVH(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,
-  constantKernelInput(uint,     rayCount),
+  Const uint*                   rayCount,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
   const Device BVHNodeInfo*     treeInternalNodes,
@@ -399,7 +401,7 @@ Kernel void intersectRaysBVH(
 {
   const uint index = threadIndex();
 
-  if (index >= rayCount)
+  if (index >= rayCount[0])
     return;
 
   const float3 rayOrigin = rays[index].origin;
@@ -407,16 +409,8 @@ Kernel void intersectRaysBVH(
   const float3 invRayDirection = 1.f / rayDirection;
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
-  HitStruct hit;
-
-  // within valid grid cell bounds
-#ifdef BOUNDING_VOLUME_HIERARCHY_ADS_DEBUG_TREE_TRAVERSAL
-  if (index == 0)
-#endif
-  {
-    //hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-    hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-  }
+  //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
+  HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
 
 #ifdef IntersectionTypeClosest
 #ifdef HitStructNormal

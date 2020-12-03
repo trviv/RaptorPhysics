@@ -72,10 +72,10 @@ Kernel void sumIrregular2DKernel(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray[REDUCE_COMPUTE_THREADS];
-  Shared uchar isValid[REDUCE_COMPUTE_THREADS];
+  Shared MemberStructType localArray[REDUCE_SHARED_SIZE];
+  Shared uchar isValid[REDUCE_SHARED_SIZE];
   Shared uint prevIdentity;
-  Shared uint identityArray[REDUCE_COMPUTE_THREADS+1];
+  Shared uint identityArray[REDUCE_SHARED_SIZE+1];
   Shared uint lastValidIndex;
 
   uint identity;

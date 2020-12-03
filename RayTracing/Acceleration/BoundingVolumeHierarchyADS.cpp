@@ -190,7 +190,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
 #endif
 }
 
-void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                                uint rayCount, IntersectionType intersectionType)
 {
   {
@@ -212,6 +212,35 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(&primitiveCount,          10);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+    boundingBoxes.syncHost();
+    compute->sync();
+#endif
+  }
+}
+
+void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
+                                               const ComputeMemory* rayCount, IntersectionType intersectionType)
+{
+  {
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
+
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
+
+    intersectionKernel.setArg(hits, 0);
+    intersectionKernel.setArg(rays, 1);
+    intersectionKernel.setArg(rayCount, 2);
+    intersectionKernel.setArg(vertexArray->device(),    3);
+    intersectionKernel.setArg(attributeArray->device(), 4);
+    intersectionKernel.setArg(treeInternalNodes.device(),     5);
+    intersectionKernel.setArg(leafParentNodeIndices.device(), 6);
+    intersectionKernel.setArg(nodeParentNodeIndices.device(), 7);
+    intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
+    intersectionKernel.setArg(systemSettings->device(), 9);
+    intersectionKernel.setArg(&primitiveCount,          10);
+
+    compute->execute(intersectionKernel, workgroupSize, rayCount, 0);
 
 #ifdef DEBUG_BVH_ADS
     boundingBoxes.syncHost();

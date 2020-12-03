@@ -1,7 +1,7 @@
 #ifndef COMPUTE_UTILS_PREFIX_SCAN_H
 #define COMPUTE_UTILS_PREFIX_SCAN_H
 
-#if !defined(SkipParallelPrimitives) && defined(StructType)
+#if (!defined(SkipParallelPrimitives) || defined(OnlyCompaction)) && defined(StructType)
 
 #ifndef USE_SIMD_COMPUTE
 
@@ -121,6 +121,9 @@ void localExclusiveScan(Thread MemberStructType *elements, MemberStructType prev
   }
 }
 
+#endif
+
+#if !defined(SkipParallelPrimitives) && defined(StructType)
 
 /*
 @kernel Parallel prefix scan array of elements.
@@ -143,7 +146,7 @@ Kernel void prefixGroupScanKernel(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
+  Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -234,25 +237,24 @@ Kernel void compactSparseArray(
   const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
-  Shared MemberStructType localArray1D[PREFIX_SCAN_COMPUTE_THREADS];
+  Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
 
   // read the values
   MemberStructType originalValues[BatchSize];
-  uint statusFlag = 0;
+  ushort statusFlag = 0;
   batchRead(originalValues, selectionArray, index, length);
 
   // make values binary
-  for (uint i = 0; i < BatchSize; i++)
+  for (ushort i = 0; i < BatchSize; i++)
   {
-    originalValues[i] = originalValues[i] > 0;
-    statusFlag <<= 1;
-    statusFlag |= originalValues[i];
+    originalValues[i] = (originalValues[i] != 0);
+    statusFlag |= originalValues[i] << i;
   }
 
   const MemberStructType reduceSum = localReduce(originalValues);
 
 #ifndef USE_SIMD_COMPUTE
-  localArray1D[localIndex] = reduceSum;
+  localArray1D[paddedIndex(localIndex)] = reduceSum;
   // calculate prefix sum for the threadgroup
   MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
   localMemBarrier();
@@ -318,12 +320,10 @@ Kernel void compactSparseArray(
   localExclusiveScan(originalValues, prefixSum);
 
   const uint indexOffset = (index << BatchSizeExp);
-  const uint writeCount = min(select((uint)0, length - indexOffset, length > indexOffset), (uint)BatchSize);
 
-  uint mask = (1 << (BatchSize - 1));
-  for (uint i = 0; i < writeCount; i++, mask >>= 1)
+  for (ushort i = 0; statusFlag; i++, statusFlag >>= 1)
   {
-    if (statusFlag & mask)
+    if (statusFlag & 1)
     {
       compactIndexArray[originalValues[i]] = indexOffset + i;
     }
@@ -331,6 +331,117 @@ Kernel void compactSparseArray(
 }
 
 #endif
+
+#endif
+
+#if (!defined(SkipParallelPrimitives) || defined(OnlyCompaction)) && defined(StructType) && defined(StructTypeIntegral)
+
+Kernel void compactSparseArrayAndCopy(
+  Device uint3*                     compactArrayCount,
+  Device StructType*                outputArray,
+  const Device StructType*          selectionArray,
+  volatile Device MemberStructType* sumBuffer,
+  atomicKernelInput(uint,           statusBuffer),
+  constantKernelInput(uint,         length)
+  KERNEL_GLOBAL_ARGUMENTS
+  KERNEL_THREAD_ARGUMENTS
+  KERNEL_THREADGROUP_ARGUMENTS)
+{
+  const uint index = threadIndex();
+  const ushort localIndex = threadLocalIndex();
+
+  Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
+
+  // read the values
+  MemberStructType originalValues[BatchSize];
+  ushort statusFlag = 0;
+  batchRead(originalValues, selectionArray, index, length);
+
+  // make values binary
+  for (ushort i = 0; i < BatchSize; i++)
+  {
+    originalValues[i] = (originalValues[i] != 0);
+    statusFlag |= originalValues[i] << i;
+  }
+
+  const MemberStructType reduceSum = localReduce(originalValues);
+
+#ifndef USE_SIMD_COMPUTE
+  localArray1D[paddedIndex(localIndex)] = reduceSum;
+  // calculate prefix sum for the threadgroup
+  MemberStructType prefixSum = groupPrefixScan(localArray1D, localIndex, PREFIX_SCAN_COMPUTE_THREADS);
+  localMemBarrier();
+#else
+  MemberStructType prefixSum = simdGroupPrefixScan(reduceSum, localArray1D, localIndex);
+#endif
+
+  // for last thread in the threadgroup
+  if (localIndex == (PREFIX_SCAN_COMPUTE_THREADS - 1))
+  {
+    localArray1D[0] = 0;
+
+    // save current value as partial sum, or final sum for the first threadgroup
+    if (threadGroupIndex())
+    {
+      writeAndWait(&sumBuffer[threadGroupIndex() << 1], prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_PARTIAL);
+    }
+    else
+    {
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+    }
+
+    int prevGroupIndex = threadGroupIndex() - 1;
+    INIT_POLL();
+    // get prefix sum from previous threadgroups
+    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
+    {
+      const uint status = atomicLoad(statusBuffer + prevGroupIndex);
+      if (status == PREFIX_SCAN_STATUS_PARTIAL)
+      {
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[prevGroupIndex << 1]));
+        prevGroupIndex--;
+        RESET_POLL();
+      }
+      else if (status == PREFIX_SCAN_STATUS_FINAL)
+      {
+        ADD_FUNCTION(localArray1D[0], ATOMIC_LOAD_FUNCTION(&sumBuffer[(prevGroupIndex << 1) + 1]));
+        break;
+      }
+    }
+
+    // save final sum for this threadgroup, if not first or very last
+    if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
+    {
+      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], localArray1D[0] + prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+    }
+
+    // save the sum from last threadgroup to the output array
+    if (threadGroupIndex() == (threadGroupCount() - 1))
+    {
+      compactArrayCount[0] = constructUint3(localArray1D[0] + prefixSum, 1, 1);
+    }
+  }
+
+  localMemBarrier();
+
+  ADD_FUNCTION(prefixSum, -reduceSum);
+  ADD_FUNCTION(prefixSum, localArray1D[0]);
+
+  localExclusiveScan(originalValues, prefixSum);
+
+  const uint indexOffset = (index << BatchSizeExp);
+
+  for (ushort i = 0; statusFlag; i++, statusFlag >>= 1)
+  {
+    if (statusFlag & 1)
+    {
+      outputArray[originalValues[i]] = selectionArray[indexOffset + i];
+    }
+  }
+}
 
 #endif
 

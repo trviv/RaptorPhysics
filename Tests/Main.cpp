@@ -654,7 +654,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
 
   float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
 
-  printStats(mean, elements, 2, sizeof(uint));
+  printStats(mean, elements+(uint)statusOutput.size(), 1, sizeof(uint));
 
   //--------------------------------------------------------------------------------
   // functional run
@@ -675,6 +675,81 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   }
 
   logComputeMessage("Compact 1D sparse array test passed!");
+}
+
+template<class DataType> void test1DCompactionAndCopy(ComputeInterface* compute)
+{
+  logComputeMessage("Testing 1D compaction and copy pass:");
+
+  DeviceArray<DataType> count(compute, NULL);
+  DeviceArray<DataType> compactArray(compute, NULL);
+  DeviceArray<DataType> selectionArray(compute, NULL);
+  vector<uint> statusOutput;
+
+  const int elements = roughElements;
+  const uint iterations = runOnlyFunctional?0:10;
+
+  selectionArray.host()->reserve(elements);
+  statusOutput.reserve(elements);
+  for (uint i = 0; i < elements; i++)
+  {
+    int value = rand() & 1;
+    selectionArray.host()->push_back(value);
+    if (value)
+    {
+      statusOutput.push_back(value);
+    }
+  }
+
+  count.resize(4, false);
+  selectionArray.syncDevice();
+  compactArray.resize(elements, false);
+
+  uint templateId = ComputeUtil::getUIntUtil(compute);
+
+  //--------------------------------------------------------------------------------
+  // warm up run
+  if (!runOnlyFunctional)
+  {
+    ComputeUtil::get(templateId)->compactSparseArrayAndCopy(compute, count.device(), compactArray.device(), selectionArray.device(), elements);
+    compute->sync();
+  }
+
+  //--------------------------------------------------------------------------------
+  // performance run
+  ProfileManager::Reset();
+  {
+    ProfileBlock("Compact sparse array");
+    for (uint i = 0; i < iterations; i++)
+    {
+      ComputeUtil::get(templateId)->compactSparseArrayAndCopy(compute, count.device(), compactArray.device(), selectionArray.device(), elements);
+    }
+  }
+  compute->sync();
+
+  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+
+  printStats(mean, elements+2*(uint)statusOutput.size(), 1, sizeof(uint));
+
+  //--------------------------------------------------------------------------------
+  // functional run
+  ComputeUtil::get(templateId)->compactSparseArrayAndCopy(compute, count.device(), compactArray.device(), selectionArray.device(), elements);
+  count.syncHost();
+  compactArray.syncHost();
+  compute->sync();
+
+  assert(count.host()->at(0) == statusOutput.size());
+
+  for (uint i = 0; i < statusOutput.size(); i++)
+  {
+    if (statusOutput[i] != compactArray.host()->at(i))
+    {
+      std::cout << i << " " << statusOutput[i] << " " << compactArray.host()->at(i) << "\n";
+      assert(0);
+    }
+  }
+
+  logComputeMessage("Compact 1D sparse array and copy test passed!");
 }
 
 bool sortFunction(SortNode32 i, SortNode32 j)
@@ -823,6 +898,7 @@ int main(int argc, char** argv)
   testIrregular2DMean(compute);
   test1DPrefixScan<uint>(compute);
   test1DCompaction<uint>(compute);
+  test1DCompactionAndCopy<uint>(compute);
   //test1DBitonicSort32Bit(compute);
   test1DRadixSort32Bit(compute);
   //testEquation(compute);
