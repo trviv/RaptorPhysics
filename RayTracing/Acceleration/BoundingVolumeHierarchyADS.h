@@ -36,8 +36,11 @@ public:
 
   void fullBuild();
 
-  void intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+  void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                      uint rayCount, IntersectionType intersectionType);
+
+  void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
+                     const ComputeMemory* rayCount, IntersectionType intersectionType);
 };
 
 #endif

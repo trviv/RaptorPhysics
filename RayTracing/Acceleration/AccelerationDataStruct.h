@@ -59,8 +59,11 @@ public:
 
   virtual void fullBuild();
 
-  virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+  virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                              uint rayCount, IntersectionType intersectionType);
+
+  virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
+                             const ComputeMemory* rayCount, IntersectionType intersectionType);
 };
 
 #endif

@@ -99,7 +99,9 @@ inline void atomicStoreN(volatile Device MemberStructType* x, const MemberStruct
 
 #define COMPUTE_MAX_THREADS         MaxWorkgroupSize
 #define REDUCE_COMPUTE_THREADS      MaxWorkgroupSize
+#define REDUCE_SHARED_SIZE          paddedIndex(MaxWorkgroupSize)
 #define PREFIX_SCAN_COMPUTE_THREADS MaxWorkgroupSize
+#define PREFIX_SCAN_SHARED_SIZE     paddedIndex(MaxWorkgroupSize)
 
 // function to write to a memory and wait until the written data is visible
 // this helps to get consistent write memory ordering on AMD GPU
@@ -253,11 +255,14 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 #else
 
 #pragma message ("Using Loop Read")
-  CLEAR_FUNCTION(*elements, 0);
-
-  if (readCount)
+  for (ushort i=0; i<BatchSize; i++)
   {
-    *elements = array1D[indexOffset]STRUCT_MEMBER;
+    CLEAR_FUNCTION(elements[i], 0);
+  }
+
+  for (ushort i=0; i<readCount; i++)
+  {
+    elements[i] = array1D[indexOffset+i]STRUCT_MEMBER;
   }
 
 #endif

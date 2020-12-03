@@ -114,7 +114,7 @@ void AccelerationDataStruct::fullBuild()
   }
 }
 
-void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, ComputeMemory* rays, RayStructType rayType,
+void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                            uint rayCount, IntersectionType intersectionType)
 {
   {
@@ -133,6 +133,32 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(systemSettings->device(), 7);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_ACCELERATION_DATA_STRUCT
+    boundingBoxes.syncHost();
+    compute->sync();
+#endif
+  }
+}
+
+void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
+                                           const ComputeMemory* rayCount, IntersectionType intersectionType)
+{
+  {
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
+
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
+
+    intersectionKernel.setArg(hits, 0);
+    intersectionKernel.setArg(rays, 1);
+    intersectionKernel.setArg(rayCount, 2);
+    intersectionKernel.setArg(boundingBoxes.device(),   3);
+    intersectionKernel.setArg(vertexArray->device(),    4);
+    intersectionKernel.setArg(attributeArray->device(), 5);
+    intersectionKernel.setArg(&primitiveCount,          6);
+    intersectionKernel.setArg(systemSettings->device(), 7);
+
+    compute->execute(intersectionKernel, workgroupSize, rayCount, 0);
 
 #ifdef DEBUG_ACCELERATION_DATA_STRUCT
     boundingBoxes.syncHost();

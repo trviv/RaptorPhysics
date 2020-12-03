@@ -19,6 +19,7 @@ unordered_map<ComputeInterface*, uint[3]>  staticUtils;
 #define COMPUTE_UTIL_BITONIC_SORT                     10
 #define COMPUTE_UTIL_CLEAR_BUFFER                     11
 #define COMPUTE_UTIL_COPY_BUFFER                      12
+#define COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY        13
 
 enum UtilTemporaryBuffer
 {
@@ -82,6 +83,9 @@ string getKeyName(ComputeUtilKey key)
 
   case ComputeUtilOnlyReduce:
     return "OnlyReduce";
+
+  case ComputeUtilOnlyCompaction:
+    return "OnlyCompaction";
 
   case ComputeUtilMaxWorkgroupSize:
     return "MaxWorkgroupSize";
@@ -211,7 +215,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     oldType.push_back("MemberStructType4");
     oldType.push_back("MemberStructType2");
 
-    if (dataMap[ComputeUtilStructType] == "float")
+    if (dataMap[ComputeUtilStructType] == "float" || dataMap[ComputeUtilStructMemberType] == "float")
     {
       newType.push_back("asFloat(atomicLoad((x)))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
@@ -220,7 +224,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       newType.push_back("float4");
       newType.push_back("float2");
     }
-    else if (dataMap[ComputeUtilStructType] == "int")
+    else if (dataMap[ComputeUtilStructType] == "int" || dataMap[ComputeUtilStructMemberType] == "int")
     {
       newType.push_back("atomicLoad((x))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
@@ -229,7 +233,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       newType.push_back("int4");
       newType.push_back("int2");
     }
-    else if (dataMap[ComputeUtilStructType] == "uint")
+    else if (dataMap[ComputeUtilStructType] == "uint" || dataMap[ComputeUtilStructMemberType] == "uint")
     {
       newType.push_back("atomicLoad((x))");
       newType.push_back("atomicStore((x), *((Thread uint*)&(y)))");
@@ -238,7 +242,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       newType.push_back("uint4");
       newType.push_back("uint2");
     }
-    else if (dataMap[ComputeUtilStructType] == "XAB")
+    else if (dataMap[ComputeUtilStructType] == "XAB" || dataMap[ComputeUtilStructMemberType] == "XAB")
     {
       newType.push_back("atomicLoadN((x))");
       newType.push_back("atomicStoreN((x), y)");
@@ -247,7 +251,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       newType.push_back("assert");
       newType.push_back("assert");
     }
-    else if (dataMap[ComputeUtilStructType] == "ParticleStruct")
+    else if (dataMap[ComputeUtilStructType] == "ParticleStruct" || dataMap[ComputeUtilStructMemberType] == "ParticleStruct")
     {
       newType.push_back("atomicLoadN((x))");
       newType.push_back("atomicStoreN((x), y)");
@@ -256,7 +260,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       newType.push_back("assert");
       newType.push_back("assert");
     }
-    else if (dataMap[ComputeUtilStructType] == "Matrix3x3")
+    else if (dataMap[ComputeUtilStructType] == "Matrix3x3" || dataMap[ComputeUtilStructMemberType] == "Matrix3x3")
     {
       newType.push_back("atomicLoadN((x))");
       newType.push_back("atomicStoreN((x), y)");
@@ -314,14 +318,23 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
         util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY] = (uint)kernelNames.size();
         kernelNames.push_back("compactSparseArray");
+
+        util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY] = (uint)kernelNames.size();
+        kernelNames.push_back("compactSparseArrayAndCopy");
       }
     }
     else
-      if (dataMap.find(ComputeUtilOnlyReduce) != dataMap.end())
-      {
-        util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = (uint)kernelNames.size();
-        kernelNames.push_back("reduce");
-      }
+    if (dataMap.find(ComputeUtilOnlyReduce) != dataMap.end())
+    {
+      util.kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL] = (uint)kernelNames.size();
+      kernelNames.push_back("reduce");
+    }
+    else
+    if (dataMap.find(ComputeUtilOnlyCompaction) != dataMap.end())
+    {
+      util.kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY] = (uint)kernelNames.size();
+      kernelNames.push_back("compactSparseArrayAndCopy");
+    }
 
     util.localArrays.clear();
     util.localArrays.reserve(UtilTempBufferMax);
@@ -531,6 +544,47 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   ComputeMemory* buffers[] = { compactArrayCount, compactIndexArray, selectionArray, groupSum->device(), groupStatus->device() };
 
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY];
+
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&statusArrayLength, sizeof(buffers) / sizeof(ComputeMemory*));
+
+  size_t workgroupSize[3] = { 1, 1, 1 };
+  size_t workgroupCount[3] = { 1, 1, 1 };
+  workgroupSize[0] = this->maxWorkgroupSize;
+  workgroupCount[0] = groupCount;
+
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PREFIX_SCAN
+  groupSum->syncHost();
+  compute->sync();
+#endif
+}
+
+void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactArray, ComputeMemory* selectionArray, uint statusArrayLength)
+{
+  if (!localArrays[UtilTempPrefixGroupSum])
+  {
+    localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL);
+
+    localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
+
+  uint groupCount = mAlignBy(statusArrayLength, this->maxWorkgroupSize * batchSize);
+
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
+  groupStatus->resize(groupCount, false);
+
+  clearBuffer(compute, groupStatus->device(), groupCount);
+
+  ComputeMemory* buffers[] = { compactArrayCount, compactArray, selectionArray, groupSum->device(), groupStatus->device() };
+
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY];
 
   kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
   kernels[kernelIndex].setArg<uint>(&statusArrayLength, sizeof(buffers) / sizeof(ComputeMemory*));

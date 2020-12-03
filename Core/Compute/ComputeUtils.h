@@ -33,6 +33,7 @@ enum ComputeUtilKey
   ComputeUtilBatchSize,
   ComputeUtilSkipParallelPrimitives,
   ComputeUtilOnlyReduce,
+  ComputeUtilOnlyCompaction,
   ComputeUtilMaxWorkgroupSize,
 
   ComputeUtilMaxKey
@@ -43,7 +44,7 @@ enum ComputeUtilKey
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[13];
+  uint kernelIndices[14];
   vector<void*> localArrays;
   uint batchSize;
   uint maxWorkgroupSize;
@@ -71,6 +72,8 @@ public:
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* identity, ComputeMemory* partitions, uint length, bool doMean = false);
 
   void compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength);
+
+  void compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactArray, ComputeMemory* selectionArray, uint statusArrayLength);
 
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 

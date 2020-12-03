@@ -111,7 +111,7 @@ inline bool earliestIntersection(
 Kernel void intersectRays(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,
-  constantKernelInput(uint,     rayCount),
+  Const uint*                   rayCount,
   const Device XAB*             boundingBoxes,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
@@ -119,9 +119,9 @@ Kernel void intersectRays(
   Const RTSystemSettings*       systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint index = threadIndex();
+  const uint index = threadIndex();
 
-  if (index >= rayCount)
+  if (index >= rayCount[0])
     return;
 
   const float3 rayOrigin = rays[index].origin;

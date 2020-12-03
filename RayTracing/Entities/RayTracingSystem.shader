@@ -97,7 +97,7 @@ Kernel void shadeIntersection(
   const Device MaterialStruct*  materials
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint index = threadIndex();
+  const uint index = threadIndex();
 
   if (index >= rayCount)
     return;
@@ -111,6 +111,7 @@ Kernel void shadeIntersection(
 #ifdef RayStructColor
     shadowRay.color = constructColor4(0.f);
 #endif
+    shadowRay.maxDistance = 0.f;
     if (hit.distance != INFINITY)
     {
       shadowRay.origin = ray.origin + ray.direction * hit.distance;
@@ -139,15 +140,15 @@ Kernel void shadeIntersection(
 }
 
 Kernel void processShadowRays(
-  Device uint*              colorOut,
-  const Device RayStruct*   shadowRays,
-  const Device HitStruct*   hits,
-  constantKernelInput(uint, rayCount)
+  Device uint*            colorOut,
+  const Device RayStruct* shadowRays,
+  const Device HitStruct* hits,
+  Const uint*             rayCount
   KERNEL_GLOBAL_ARGUMENTS)
 {
-  uint index = threadIndex();
+  const uint index = threadIndex();
 
-  if (index >= rayCount)
+  if (index >= rayCount[0])
     return;
 
   const HitStruct shadowHit = hits[index];
