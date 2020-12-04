@@ -128,7 +128,7 @@ Kernel void shadeIntersection(
         direction /= maxDistance;
         shadowRay.maxDistance = maxDistance;
         shadowRay.direction = direction;
-#ifdef RayStructColor
+#if defined(RayStructColor) && !defined(HitStructIndex)
         const MaterialId materialId = hit.primitiveIdentity;
         shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(materials[materialId.identity], direction, hit).xyz;
 #endif
@@ -154,12 +154,8 @@ Kernel void processShadowRays(
   const HitStruct shadowHit = hits[index];
 
 #ifdef RayStructColor
-  RayStruct shadowRay = shadowRays[index];
-  if (shadowHit.primitiveIndex != -1)
-  {
-    shadowRay.color.xyz = 0.f;
-  }
-  colorType4 finalColor = 255.f * constructColor4(clamp(shadowRay.color.xyz, 0.f, 1.f), 1.f);
+  const RayStruct shadowRay = shadowRays[index];
+  colorType4 finalColor = 255.f * constructColor4(select(clamp(shadowRay.color.xyz, 0.f, 1.f), 0.f, hits[index].primitiveIndex != -1), 1.f);
   colorOut[shadowRay.rayIndex] = asUint(constructUchar4(finalColor.x, finalColor.y, finalColor.z, finalColor.w));
 #endif
 }

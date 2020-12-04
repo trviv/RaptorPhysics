@@ -31,13 +31,9 @@ inline bool earliestIntersection(
       if (time > MIN_TIME && time < hit->distance)
       {
         hit->primitiveIndex = primIndex;
-#ifdef IntersectionTypeClosest
-        hit->distance = time;
-        hit->primitiveIdentity = sphere.identity;
-#ifdef HitStructNormal
-        hit->normal = pvec + rayDirection * time;
-#endif
-#endif
+        setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
+        setHitNormal(hit->normal, pvec + rayDirection * time);
+        setHitDistance(hit->distance, time);
         return true;
       }
 
@@ -45,13 +41,9 @@ inline bool earliestIntersection(
       if (time > MIN_TIME && time < hit->distance)
       {
         hit->primitiveIndex = primIndex;
-#ifdef IntersectionTypeClosest
-        hit->distance = time;
-        hit->primitiveIdentity = sphere.identity;
-#ifdef HitStructNormal
-        hit->normal = pvec + rayDirection * time;
-#endif
-#endif
+        setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
+        setHitNormal(hit->normal, pvec + rayDirection * time);
+        setHitDistance(hit->distance, time);
         return true;
       }
     }
@@ -81,13 +73,9 @@ inline bool earliestIntersection(
         if (time > MIN_TIME && time < hit->distance)
         {
           hit->primitiveIndex = primIndex;
-#ifdef IntersectionTypeClosest
-          hit->distance = time;
-          hit->primitiveIdentity = vert0.identity;
-#ifdef HitStructNormal
-          hit->normal = cross(edge1.position, edge2.position);
-#endif
-#endif
+          setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
+          setHitNormal(hit->normal, cross(edge1.position, edge2.position));
+          setHitDistance(hit->distance, time);
           return true;
         }
       }
@@ -148,12 +136,7 @@ Kernel void intersectRays(
   }
 
 #ifdef IntersectionTypeClosest
-#ifdef HitStructNormal
-  if (hit.primitiveIndex != -1)
-  {
-    hit.normal = normalize(hit.normal);
-  }
-#endif
+  setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny
