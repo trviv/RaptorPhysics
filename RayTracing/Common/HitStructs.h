@@ -10,9 +10,20 @@
 enum HitStructType
 {
   HitStructDistanceIndex,
+  HitStructDistanceIdentity,
   HitStructDistanceIndexNormal,
   HitStructTypeMax
 };
+
+
+/*!
+@struct Hit Info containing distance information.
+*/
+typedef struct ALIGN(8)
+{
+  float distance;
+  uint  primitiveIndex;
+} HitInfoIndex;
 
 
 /*!
@@ -50,8 +61,28 @@ inline void initializeHit(Thread HitStruct* hit)
 {
   hit->distance       = INFINITY;
   hit->primitiveIndex = -1;
+#ifndef HitStructIndex
   hit->primitiveIdentity.identity = -1;
+#endif
 }
+
+#ifdef IntersectionTypeClosest
+#define setHitDistance(hitDistance, time) hitDistance = time
+#else
+#define setHitDistance(hitDistance, time)
+#endif
+
+#ifndef HitStructIndex
+#define setHitPrimitiveIdentity(hitPrimitiveIdentity, identity) hitPrimitiveIdentity = identity
+#else
+#define setHitPrimitiveIdentity(hitPrimitiveIdentity, identity)
+#endif
+
+#ifdef HitStructNormal
+#define setHitNormal(hitNormal, normal) hitNormal = normal
+#else
+#define setHitNormal(hitNormal, normal)
+#endif
 
 #else
 

@@ -413,12 +413,7 @@ Kernel void intersectRaysBVH(
   HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
 
 #ifdef IntersectionTypeClosest
-#ifdef HitStructNormal
-  if (hit.primitiveIndex != -1)
-  {
-    hit.normal = normalize(hit.normal);
-  }
-#endif
+  setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny

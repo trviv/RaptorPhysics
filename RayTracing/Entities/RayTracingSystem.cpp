@@ -303,7 +303,7 @@ void RayTracingSystem::render()
   RayStructType rayType   = RayStructPositionDirectionColor;
   HitStructType hitStruct = HitStructDistanceIndexNormal;
   RayStructType shadowRayType   = RayStructPositionDirectionColor;
-  HitStructType shadowHitStruct = HitStructDistanceIndexNormal;
+  HitStructType shadowHitStruct = HitStructDistanceIndex;
 
   camera->emitPrimaryRays(rays, rayType);
   colorOutputBuffer.resize(camera->width * camera->height, false);
@@ -362,7 +362,7 @@ void RayTracingSystem::render()
   accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays.device(), shadowRayType, validRayCount.device(), IntersectionTypeAny);
 
   {
-    ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][hitStruct];
+    ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][shadowHitStruct];
 
     // add to system bounding box
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
