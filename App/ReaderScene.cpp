@@ -286,6 +286,20 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
       newMaterial = new Material(MaterialTypePlastic);
     }
 
+    if (material->Attribute("specular-exponent"))
+    {
+      float value = 1.f;
+      material->QueryFloatAttribute("specular-exponent", &value);
+      setMaterialSpecularExponent(*newMaterial, value);
+    }
+
+    if      (material->Attribute("diffuse-shader") == string("Lambert")) setMaterialShader(*newMaterial, MaterialShaderLambert);
+    else    logComputeError("Diffuse shader %s, not found!", material->Attribute("diffuse-shader"));
+
+    if      (material->Attribute("specular-shader") == string("Phong"))      setMaterialShader(*newMaterial, MaterialShaderPhong);
+    else if (material->Attribute("specular-shader") == string("BlinnPhong")) setMaterialShader(*newMaterial, MaterialShaderBlinnPhong);
+    else    logComputeError("Specular shader %s, not found!", material->Attribute("specular-shader"));
+
     XMLConstHandle color(NULL);
 
     color = XMLConstHandle(material).FirstChildElement("diffuse-color");
