@@ -2,9 +2,6 @@
 
 //#define DEBUG_BVH_ADS
 
-static uint lbvhXABComputeUtilId;
-static uint lbvhSortComputeUtilId;
-
 BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS()
 {
 }
