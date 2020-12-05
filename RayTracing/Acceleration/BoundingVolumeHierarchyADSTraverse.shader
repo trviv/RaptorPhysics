@@ -5,6 +5,8 @@
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
 
+#define BVH_MAX_LEAFS 4
+
 short Const int16ComplementaryMasks[16] = {
   ~(1 << 0),  ~(1 << 1),  ~(1 << 2),  ~(1 << 3),  ~(1 << 4),  ~(1 << 5),  ~(1 << 6),  ~(1 << 7),
   ~(1 << 8),  ~(1 << 9),  ~(1 << 10), ~(1 << 11), ~(1 << 12), ~(1 << 13), ~(1 << 14), (short)~(1 << 15)
@@ -218,11 +220,12 @@ inline HitStruct stacklessTraverseBinaryTree(
   uint currNodeIndex     = parentNode.child[nearPlane];
   uint parentNodeIndex   = rootNode;
 
+  ushort leafCount = 0;
+  uint leafNodeIndex[BVH_MAX_LEAFS];
+
   // main intersection loop
   while (currNodeIndex != rootNode)
   {
-    uint leafNodeIndex;
-
     // traverse while a leaf node is found
     while (currNodeIndex != rootNode)
     {
@@ -256,8 +259,12 @@ inline HitStruct stacklessTraverseBinaryTree(
       // if current node is leaf, mark for test
       if (isBVHLeafNode(currNodeIndex))
       {
-        leafNodeIndex = currNodeIndex;
+        leafNodeIndex[leafCount++] = currNodeIndex;
         currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
+        if (leafCount != BVH_MAX_LEAFS)
+        {
+          continue;
+        }
         break;
       }
 
@@ -276,13 +283,17 @@ inline HitStruct stacklessTraverseBinaryTree(
       traverseState   = BVH_TRAVERSAL_FROM_PARENT;
     }
 
-    // test colision if not an invalid node
-    if (earliestIntersection(&hit, leafNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+    for (ushort i=0; i<leafCount; i++)
     {
+      // test colision if not an invalid node
+      if (earliestIntersection(&hit, leafNodeIndex[i], rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+      {
 #ifdef IntersectionTypeAny
-      currNodeIndex = rootNode;
+        currNodeIndex = rootNode;
 #endif
+      }
     }
+    leafCount = 0;
   }
 
   return hit;
