@@ -130,7 +130,7 @@ Kernel void shadeIntersection(
         shadowRay.direction = direction;
 #if defined(RayStructColor) && !defined(HitStructIndex)
         const MaterialId materialId = hit.primitiveIdentity;
-        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(materials[materialId.identity], direction, hit).xyz;
+        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(materials[materialId.identity], direction, ray.direction, hit).xyz;
 #endif
       }
     }

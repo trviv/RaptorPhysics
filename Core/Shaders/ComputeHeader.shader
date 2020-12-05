@@ -1,7 +1,7 @@
 #ifndef COMPUTE_HEADER_SHADER
 #define COMPUTE_HEADER_SHADER
 
-#ifndef USE_METAL_COMPUTE
+#ifdef USE_OPENCL_COMPUTE
 
 #define constantKernelInput(type, variableName) const type variableName
 #define atomicKernelInput(type, variableName) Device type *variableName
@@ -64,6 +64,7 @@
 #define maxCompFloat3(vec)  max(max(vec.x, vec.y), vec.z)
 #define mulVecMatrix(vec, mat) (constructFloat4(dot(vec, mat.lo.lo), dot(vec, mat.lo.hi), dot(vec, mat.hi.lo), dot(vec, mat.hi.hi)))
 #define mulMatrixVec(mat, vec) (constructFloat4(dot(vec, mat.s048c), dot(vec, mat.s159d), dot(vec, mat.s26ae), dot(vec, mat.s37bf)))
+#define reflectVector(incident, normal) (incident – 2.f * dot(normal, incident) * normal)
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -157,6 +158,7 @@
 #define maxCompFloat3(vec)  max3(vec.x, vec.y, vec.z)
 #define mulVecMatrix(vec, mat) (vec * mat)
 #define mulMatrixVec(mat, vec) (mat * vec)
+#define reflectVector(incident, normal) reflect(incident, normal)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)
