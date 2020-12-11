@@ -26,6 +26,8 @@ protected:
 
   DeviceArray<CameraStruct> deviceData;
 
+  DeviceArray<uint>         rayCount;
+
 public:
 
   Camera(ComputeInterface* compute);
@@ -35,6 +37,8 @@ public:
   RayTracingEntity* createCopy()const;
 
   RayTracingEntityId getIdentity()const;
+
+  const DeviceArray<uint>* getRayCount()const;
 
   /*!@function Update camera struct values using these matrices.*/
   virtual void update(const real projectionMatrix[], const real modelviewMatrix[]);

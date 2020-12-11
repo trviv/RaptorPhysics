@@ -1727,7 +1727,7 @@ void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize
 #endif
 }
 
-void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset)
+void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* workgroupCount, size_t bufferOffset)
 {
 #ifdef USE_OPENCL_COMPUTE
   uint count = 0;
@@ -1769,8 +1769,8 @@ void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize
   // set dispatch info
   [encoder setLabel:[NSString stringWithFormat:@"%@: %d", kernelName, (int)(workgroupSize[0]*workgroupSize[1]*workgroupSize[2])]];
   [encoder setComputePipelineState:kernel];
-  [encoder dispatchThreadgroupsWithIndirectBuffer:(*indirectBuffer)
-                             indirectBufferOffset:indirectBuffer->getOffset()+bufferOffset
+  [encoder dispatchThreadgroupsWithIndirectBuffer:(*workgroupCount)
+                             indirectBufferOffset:workgroupCount->getOffset()+bufferOffset
                             threadsPerThreadgroup:MTLSizeMake(workgroupSize[0], workgroupSize[1], workgroupSize[2])];
 #ifdef ALWAYS_END_ENCODERS
   endEncoders();

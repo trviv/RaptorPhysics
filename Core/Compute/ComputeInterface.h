@@ -282,7 +282,7 @@ public:
 
   void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const size_t workgroupCount[3]);
 
-  void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* indirectBuffer, size_t bufferOffset);
+  void execute(ComputeKernel& kernel, const size_t workgroupSize[3], const ComputeMemory* workgroupCount, size_t bufferOffset);
 
   void execute(ComputeKernel& kernel, const size_t threadCount);
 

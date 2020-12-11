@@ -44,7 +44,7 @@ enum ComputeUtilKey
 */
 class ComputeUtil : protected ShaderEntity
 {
-  uint kernelIndices[14];
+  uint kernelIndices[15];
   vector<void*> localArrays;
   uint batchSize;
   uint maxWorkgroupSize;
@@ -63,6 +63,10 @@ public:
 
   static uint getXABUtil(ComputeInterface* compute);
 
+  void configureWorkgroupCount(ComputeInterface* compute, ComputeMemory* workgroupCount, const ComputeMemory* threadCount, const size_t workgroupSize[3]);
+
+  void configureWorkgroupCount(ComputeInterface* compute, ComputeMemory* workgroupCount, const size_t threadCount[3], const size_t workgroupSize[3]);
+
   void sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean = false);
 
   void sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean = false);
@@ -71,9 +75,11 @@ public:
 
   void sumIrregular2D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* identity, ComputeMemory* partitions, uint length, bool doMean = false);
 
-  void compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength);
+  void compactSparseArray(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactIndices, ComputeMemory* sparseArray, uint sparseLength);
 
-  void compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactArray, ComputeMemory* selectionArray, uint statusArrayLength);
+  void compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactArray, ComputeMemory* sparseArray, uint sparseLength);
+
+  void compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactArray, ComputeMemory* sparseArray, const ComputeMemory* sparseLength, uint maxSparseLength);
 
   void consolidateFromPartitions(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, ComputeMemory* partitions, ComputeMemory* partitionsCount, uint partitionsCountHost);
 
@@ -87,7 +93,7 @@ public:
 
   void clearBuffer(ComputeInterface* compute, ComputeMemory* destination, uint length, uint value = 0);
 
-  void copyBuffer(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes);
+  void copyBuffer(ComputeInterface* compute, const ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes);
 };
 
 #endif

@@ -23,6 +23,9 @@ Camera::Camera(ComputeInterface* compute)
 
   deviceData.create(compute);
   deviceData.resize(1, false);
+
+  rayCount.create(compute);
+  rayCount.resize(4, false);
 }
 
 Camera::~Camera()
@@ -43,6 +46,11 @@ RayTracingEntity* Camera::createCopy()const
 RayTracingEntityId Camera::getIdentity()const
 {
   return identity;
+}
+
+const DeviceArray<uint>* Camera::getRayCount()const
+{
+  return &rayCount;
 }
 
 void Camera::update()
@@ -88,4 +96,12 @@ void Camera::setScale(real scale)
 {
   width  = width * scale;
   height = height * scale;
+
+  rayCount.host()->clear();
+  rayCount.host()->reserve(4);
+  rayCount.host()->push_back(width*height);
+  rayCount.host()->push_back(1);
+  rayCount.host()->push_back(1);
+  rayCount.host()->push_back(0);
+  rayCount.syncDevice();
 }

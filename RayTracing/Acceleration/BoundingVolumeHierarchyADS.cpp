@@ -60,6 +60,9 @@ void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
 
   primitiveCount = 0;
   vertexCount    = 0;
+
+  workgroupCount.create(compute);
+  workgroupCount.resize(4, false);
 }
 
 void BoundingVolumeHierarchyADS::commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
@@ -221,9 +224,10 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
                                                const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
   {
-    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
-
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
+    ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
+
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
@@ -237,7 +241,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
 
-    compute->execute(intersectionKernel, workgroupSize, rayCount, 0);
+    compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
 #ifdef DEBUG_BVH_ADS
     boundingBoxes.syncHost();
