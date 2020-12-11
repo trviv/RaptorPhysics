@@ -68,6 +68,9 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
 
   primitiveCount = 0;
   vertexCount    = 0;
+
+  workgroupCount.create(compute);
+  workgroupCount.resize(4, false);
 }
 
 uint AccelerationDataStruct::getPrimCount()const
@@ -145,9 +148,10 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
                                            const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
   {
-    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
-
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
+    ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
+
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
@@ -158,7 +162,7 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(&primitiveCount,          6);
     intersectionKernel.setArg(systemSettings->device(), 7);
 
-    compute->execute(intersectionKernel, workgroupSize, rayCount, 0);
+    compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
 #ifdef DEBUG_ACCELERATION_DATA_STRUCT
     boundingBoxes.syncHost();

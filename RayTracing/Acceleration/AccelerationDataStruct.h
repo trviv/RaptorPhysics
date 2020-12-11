@@ -38,6 +38,9 @@ protected:
   /*!@member Per primitive bounding box array.*/
   DeviceArray<XAB>          boundingBoxes;
 
+  /*!@member Workgroup count buffer.*/
+  DeviceArray<uint>         workgroupCount;
+
   /*!@member Total primitives in the system.*/
   uint  primitiveCount;
 

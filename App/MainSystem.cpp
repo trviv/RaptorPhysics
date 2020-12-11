@@ -36,7 +36,7 @@ void MainSystem::createFromFile(const char fileName[])
 void MainSystem::initRender()
 {
   displayGridBuffer = Texture(TEXTURE_FORMAT_INT);
-  rayTracingOutBuffer = Texture(TEXTURE_FORMAT_UBYTE);
+  rayTracingOutBuffer = Texture(TEXTURE_FORMAT_HALF);
 
   optionFrame->addElement(new UIElement(RENDER_PARTICLES_OPTION, true, "fa-solid-900", 0xF141));
   optionFrame->addElement(new UIElement(RENDER_SOLIDS_OPTION, true, "fa-solid-900", 0xF1B3));
@@ -387,7 +387,7 @@ void MainSystem::render()
     const uint hostOffset = ((frameCount + FRAME_BUFFERING_SIZE - 1) % FRAME_BUFFERING_SIZE) * camWidth * camHeight;
     rayTracingSystem.getColorOutputBuffer().syncHost(hostOffset, camWidth * camHeight);
 
-    const uint* colorOutputBuffer = &(*(rayTracingSystem.getColorOutputBuffer().host()))[hostOffset];
+    const colorType4* colorOutputBuffer = &(*(rayTracingSystem.getColorOutputBuffer().host()))[hostOffset];
 
     displayRayTraceShader.bind();
     rayTracingOutBuffer.copy((float*)colorOutputBuffer);

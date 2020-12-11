@@ -46,6 +46,23 @@ Kernel void consolidateFromPartitionsKernel(
   }
 }
 
+Kernel void configureWorkgroupCount(
+  Device uint*               destination,
+  constantKernelInput(uint4, source),
+  constantKernelInput(uint4, workgroupSize)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index == 0)
+  {
+    destination[0] = (source.x + workgroupSize.x - 1) / workgroupSize.x;
+    destination[1] = (source.y + workgroupSize.y - 1) / workgroupSize.y;
+    destination[2] = (source.z + workgroupSize.z - 1) / workgroupSize.z;
+    destination[3] = 0;
+  }
+}
+
 #endif
 
 Kernel void bitonicSort32BitKernel(

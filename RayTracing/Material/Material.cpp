@@ -9,6 +9,4 @@ Material::Material(MaterialTypes type)
 
   flags = 0;
   setMaterialType(*this, type);
-  setMaterialShader(*this, MaterialShaderLambert);
-  setMaterialShader(*this, MaterialShaderBlinnPhong);
 }

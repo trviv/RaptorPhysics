@@ -281,10 +281,9 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
 
     Material* newMaterial;
 
-    if (strcmp(material->Name(), "plastic") == 0)
-    {
-      newMaterial = new Material(MaterialTypePlastic);
-    }
+    if      (strcmp(material->Name(), "plastic") == 0)      newMaterial = new Material(MaterialTypePlastic);
+    else if (strcmp(material->Name(), "translucent") == 0)  newMaterial = new Material(MaterialTypeTranslucent);
+    else    newMaterial = new Material(MaterialTypePlastic);
 
     if (material->Attribute("specular-exponent"))
     {
@@ -293,12 +292,18 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
       setMaterialSpecularExponent(*newMaterial, value);
     }
 
-    if      (material->Attribute("diffuse-shader") == string("Lambert")) setMaterialShader(*newMaterial, MaterialShaderLambert);
-    else    logComputeError("Diffuse shader %s, not found!", material->Attribute("diffuse-shader"));
+    if (material->Attribute("diffuse-shader"))
+    {
+      if      (material->Attribute("diffuse-shader") == string("Lambert")) setMaterialShader(*newMaterial, MaterialShaderLambert);
+      else    logComputeError("Diffuse shader %s, not found!", material->Attribute("diffuse-shader"));
+    }
 
-    if      (material->Attribute("specular-shader") == string("Phong"))      setMaterialShader(*newMaterial, MaterialShaderPhong);
-    else if (material->Attribute("specular-shader") == string("BlinnPhong")) setMaterialShader(*newMaterial, MaterialShaderBlinnPhong);
-    else    logComputeError("Specular shader %s, not found!", material->Attribute("specular-shader"));
+    if (material->Attribute("specular-shader"))
+    {
+      if      (material->Attribute("specular-shader") == string("Phong"))      setMaterialShader(*newMaterial, MaterialShaderPhong);
+      else if (material->Attribute("specular-shader") == string("BlinnPhong")) setMaterialShader(*newMaterial, MaterialShaderBlinnPhong);
+      else    logComputeError("Specular shader %s, not found!", material->Attribute("specular-shader"));
+    }
 
     XMLConstHandle color(NULL);
 

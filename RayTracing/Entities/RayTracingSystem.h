@@ -30,38 +30,39 @@ protected:
   vector<EntityPrimAttributes>      registeredPrimitives[RTPrimitiveCount];
 
   /*!@member Final color output.*/
-  DeviceArray<uint> colorOutputBuffer;
+  DeviceArray<colorType4> colorOutputBuffer;
 
   /*!@member Camera used in the scene.*/
   Camera* camera;
 
   /*!@member Lights in the scene.*/
-  DeviceArray<LightStruct>  lights;
+  DeviceArray<LightStruct> lights;
 
   /*!@member Materials in the scene.*/
   DeviceArray<MaterialStruct> materials;
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint>         rays;
+  DeviceArray<uint> rays;
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint>         shadowRays;
+  DeviceArray<uint> shadowRays;
 
   /*!@member Ray hit information buffer for the scene.*/
-  DeviceArray<uint>         hits;
+  DeviceArray<uint> hits;
+
+  /*!@member Buffer holding indirect counts.*/
+  DeviceArray<uint> indirectCount;
 
   /*!@member Composite array containing all positions.*/
-  DeviceArray<PrimitiveStruct>  vertexArray;
+  DeviceArray<PrimitiveStruct> vertexArray;
 
   /*!@member Composite array containing all attributes.*/
-  DeviceArray<PrimitiveAttrib>  attributeArray;
+  DeviceArray<PrimitiveAttrib> attributeArray;
 
   DeviceArray<RTSystemSettings> systemSettings;
 
   /*!@member Acceleration struct for the system.*/
-  AccelerationDataStruct*   accelerationStruct;
-
-  DeviceArray<uint>         validRayCount;
+  AccelerationDataStruct* accelerationStruct;
 
   uint newEntityId();
 
@@ -90,7 +91,8 @@ public:
   /*!@function Get RT system's camera.*/
   const Camera& getCameraStruct()const;
 
-  const DeviceArray<uint>& getColorOutputBuffer()const;
+  /*!@function Get color buffer.*/
+  const DeviceArray<colorType4>& getColorOutputBuffer()const;
 
   /*!@function Register a Material to the system.*/
   MaterialId registerMaterial(Material* material);

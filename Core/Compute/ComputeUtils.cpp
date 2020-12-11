@@ -20,6 +20,7 @@ unordered_map<ComputeInterface*, uint[3]>  staticUtils;
 #define COMPUTE_UTIL_CLEAR_BUFFER                     11
 #define COMPUTE_UTIL_COPY_BUFFER                      12
 #define COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY        13
+#define COMPUTE_UTIL_CONFIGURE_WG_COUNT               14
 
 enum UtilTemporaryBuffer
 {
@@ -29,6 +30,7 @@ enum UtilTemporaryBuffer
   UtilTempRadixPrefixGroupSum,
   UtilTempReduceSum,
   UtilTempReduceStatus,
+  UtilTempIndirectWorkgroupCount,
   UtilTempBufferMax
 };
 
@@ -159,6 +161,9 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
 
   util.kernelIndices[COMPUTE_UTIL_COPY_BUFFER] = (uint)kernelNames.size();
   kernelNames.push_back("copyBuffer");
+
+  util.kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT] = (uint)kernelNames.size();
+  kernelNames.push_back("configureWorkgroupCount");
 
   // use size tuned for best performance
   util.batchSize = 8;
@@ -378,6 +383,36 @@ ComputeUtil* ComputeUtil::get(uint templateId)
   return &computeUtils[templateId];
 }
 
+void ComputeUtil::configureWorkgroupCount(ComputeInterface* compute, ComputeMemory* workgroupCount, const ComputeMemory* threadCount, const size_t workgroupSize[3])
+{
+  uint size[4] = { (uint)workgroupSize[0], (uint)workgroupSize[1], (uint)workgroupSize[2], 0 };
+
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg(workgroupCount, 0);
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg(threadCount, 1);
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg<float4>((float4*)size, 2);
+
+  size_t localWorkgroupSize[3]  = { compute->simdSize(), 1, 1 };
+  size_t localWorkgroupCount[3] = { 1, 1, 1 };
+
+  compute->execute(kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]], localWorkgroupSize, localWorkgroupCount);
+}
+
+void ComputeUtil::configureWorkgroupCount(ComputeInterface* compute, ComputeMemory* workgroupCount, const size_t threadCount[3], const size_t workgroupSize[3])
+{
+  uint count[4] = { (uint)threadCount[0], (uint)threadCount[1], (uint)threadCount[2], 0 };
+  uint size[4]  = { (uint)workgroupSize[0], (uint)workgroupSize[1], (uint)workgroupSize[2], 0 };
+
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg(workgroupCount, 0);
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg<float4>((float4*)count, 1);
+  kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]].setArg<float4>((float4*)size, 2);
+
+  size_t localWorkgroupSize[3]  = { compute->simdSize(), 1, 1 };
+  size_t localWorkgroupCount[3] = { 1, 1, 1 };
+
+  compute->execute(kernels[kernelIndices[COMPUTE_UTIL_CONFIGURE_WG_COUNT]], localWorkgroupSize, localWorkgroupCount);
+}
+
+
 void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* source, uint length, bool doMean)
 {
   sum1D(compute, source, source, length, doMean);
@@ -520,7 +555,7 @@ void ComputeUtil::sumIrregular2D(ComputeInterface* compute, ComputeMemory* desti
 
 //#define DEBUG_PREFIX_SCAN
 
-void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactIndexArray, ComputeMemory* selectionArray, uint statusArrayLength)
+void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactIndices, ComputeMemory* sparseArray, uint sparseLength)
 {
   if (!localArrays[UtilTempPrefixGroupSum])
   {
@@ -534,19 +569,19 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = mAlignBy(statusArrayLength, this->maxWorkgroupSize * batchSize);
+  uint groupCount = mAlignBy(sparseLength, this->maxWorkgroupSize * batchSize);
 
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
   clearBuffer(compute, groupStatus->device(), groupCount);
 
-  ComputeMemory* buffers[] = { compactArrayCount, compactIndexArray, selectionArray, groupSum->device(), groupStatus->device() };
+  ComputeMemory* buffers[] = { compactLength, compactIndices, sparseArray, groupSum->device(), groupStatus->device() };
 
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY];
 
   kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
-  kernels[kernelIndex].setArg<uint>(&statusArrayLength, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&sparseLength, sizeof(buffers) / sizeof(ComputeMemory*));
 
   size_t workgroupSize[3] = { 1, 1, 1 };
   size_t workgroupCount[3] = { 1, 1, 1 };
@@ -561,7 +596,7 @@ void ComputeUtil::compactSparseArray(ComputeInterface* compute, ComputeMemory* c
 #endif
 }
 
-void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactArrayCount, ComputeMemory* compactArray, ComputeMemory* selectionArray, uint statusArrayLength)
+void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactArray, ComputeMemory* sparseArray, uint sparseLength)
 {
   if (!localArrays[UtilTempPrefixGroupSum])
   {
@@ -575,19 +610,19 @@ void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMe
   DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
   DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
 
-  uint groupCount = mAlignBy(statusArrayLength, this->maxWorkgroupSize * batchSize);
+  uint groupCount = mAlignBy(sparseLength, this->maxWorkgroupSize * batchSize);
 
   groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
   groupStatus->resize(groupCount, false);
 
   clearBuffer(compute, groupStatus->device(), groupCount);
 
-  ComputeMemory* buffers[] = { compactArrayCount, compactArray, selectionArray, groupSum->device(), groupStatus->device() };
+  ComputeMemory* buffers[] = { compactLength, compactArray, sparseArray, groupSum->device(), groupStatus->device() };
 
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY];
 
   kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
-  kernels[kernelIndex].setArg<uint>(&statusArrayLength, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg<uint>(&sparseLength, sizeof(buffers) / sizeof(ComputeMemory*));
 
   size_t workgroupSize[3] = { 1, 1, 1 };
   size_t workgroupCount[3] = { 1, 1, 1 };
@@ -595,6 +630,52 @@ void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMe
   workgroupCount[0] = groupCount;
 
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
+
+#ifdef DEBUG_PREFIX_SCAN
+  groupSum->syncHost();
+  compute->sync();
+#endif
+}
+
+void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMemory* compactLength, ComputeMemory* compactArray, ComputeMemory* sparseArray, const ComputeMemory* sparseLength, uint maxSparseLength)
+{
+  if (!localArrays[UtilTempPrefixGroupSum])
+  {
+    localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL);
+
+    localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
+
+    localArrays[UtilTempIndirectWorkgroupCount] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->create(compute, NULL);
+    ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->resize(4, false);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
+  DeviceArray<uint>* workgroupCount = (DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount];
+
+  size_t workgroupSize[3] = {this->maxWorkgroupSize * batchSize, 1, 1 };
+  this->configureWorkgroupCount(compute, workgroupCount->device(), sparseLength, workgroupSize);
+
+  uint groupCount = mAlignBy(maxSparseLength, this->maxWorkgroupSize * batchSize);
+
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
+  groupStatus->resize(groupCount, false);
+
+  clearBuffer(compute, groupStatus->device(), groupCount);
+
+  ComputeMemory* buffers[] = { compactLength, compactArray, sparseArray, groupSum->device(), groupStatus->device() };
+
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_COMPACT_SPARSE_ARRAY_COPY];
+
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg(sparseLength, sizeof(buffers) / sizeof(ComputeMemory*));
+
+  workgroupSize[0] = this->maxWorkgroupSize;
+
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount->device(), 0);
 
 #ifdef DEBUG_PREFIX_SCAN
   groupSum->syncHost();
@@ -787,7 +868,7 @@ void ComputeUtil::clearBuffer(ComputeInterface* compute, ComputeMemory* destinat
   compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount);
 }
 
-void ComputeUtil::copyBuffer(ComputeInterface* compute, ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes)
+void ComputeUtil::copyBuffer(ComputeInterface* compute, const ComputeMemory* source, ComputeMemory* destination, uint sourceOffset, uint destinationOffset, uint sizeInBytes)
 {
   size_t workgroupSize[3];
   size_t workgroupCount[3];

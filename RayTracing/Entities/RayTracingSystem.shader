@@ -80,15 +80,14 @@ Kernel void collectPrimitives(
 
 /*
 @kernel Shade ray intersection in a surface based on its material properties and visiblity info.
+@param shadowRays Shadow ray buffer.
 @param rays Ray buffer.
-@param colorOut Color output buffer.
 @param hits Hit info buffer.
 @param rayCount Ray count.
 */
 Kernel void shadeIntersection(
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
-  Device uint*                  colorOut,
   const Device HitStruct*       hits,
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
@@ -102,9 +101,37 @@ Kernel void shadeIntersection(
   if (index >= rayCount)
     return;
 
+#if defined(RayStructColor) && !defined(HitStructIndex)
   const HitStruct hit = hits[index];
   RayStruct ray = rays[index];
   RayStruct shadowRay;
+  RayStruct childRay;
+
+  const MaterialId materialId = hit.primitiveIdentity;
+  MaterialStruct material;
+  ushort materialType = -1;
+
+  if (hit.distance != INFINITY)
+  {
+    shadowRay.origin = ray.origin + ray.direction * hit.distance;
+    material = materials[materialId.identity];
+    materialType = getMaterialType(material);
+  }
+
+  childRay = ray;
+  childRay.maxDistance = 0.f;
+  if (materialType == MaterialTypeTranslucent)
+  {
+    // produce child ray if needed
+    childRay.origin    = shadowRay.origin;
+#ifdef HitStructNormal
+    childRay.direction = -reflectVector(ray.direction, hit.normal);
+#endif
+    //childRay.color.xyz = ray.color.xyz;
+    childRay.maxDistance = INFINITY;
+    //childRay.rayIndex    = ray.rayIndex;
+  }
+  rays[index] = childRay;
 
   for (ushort i=lightOffset; i<lightCount; i++)
   {
@@ -112,10 +139,8 @@ Kernel void shadeIntersection(
     shadowRay.color = constructColor4(0.f);
 #endif
     shadowRay.maxDistance = 0.f;
-    if (hit.distance != INFINITY)
+    if (materialType == MaterialTypePlastic)
     {
-      shadowRay.origin = ray.origin + ray.direction * hit.distance;
-
       float3 lightPosition, lightColor;
       sampleLight(&lightPosition, &lightColor, lights[i]);
       float3 direction = lightPosition - shadowRay.origin;
@@ -128,22 +153,26 @@ Kernel void shadeIntersection(
         direction /= maxDistance;
         shadowRay.maxDistance = maxDistance;
         shadowRay.direction = direction;
-#if defined(RayStructColor) && !defined(HitStructIndex)
-        const MaterialId materialId = hit.primitiveIdentity;
-        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(materials[materialId.identity], direction, ray.direction, hit).xyz;
-#endif
+        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit).xyz;
       }
+      shadowRay.rayIndex  = ray.rayIndex;
+      //shadowRays[ray.rayIndex + rayCount * i] = shadowRay;
     }
-    shadowRay.rayIndex  = ray.rayIndex;
+    //else
+    //{
+    //  shadowRays[ray.rayIndex + rayCount * i].maxDistance = 0.f;
+    //}
     shadowRays[ray.rayIndex + rayCount * i] = shadowRay;
   }
+#endif
 }
 
 Kernel void processShadowRays(
-  Device uint*            colorOut,
-  const Device RayStruct* shadowRays,
-  const Device HitStruct* hits,
-  Const uint*             rayCount
+  Device colorType4*          colorOut,
+  const Device RayStruct*     shadowRays,
+  const Device HitStruct*     hits,
+  Const uint*                 rayCount,
+  constantKernelInput(ushort, lastIteration)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -155,8 +184,10 @@ Kernel void processShadowRays(
 
 #ifdef RayStructColor
   const RayStruct shadowRay = shadowRays[index];
-  colorType4 finalColor = 255.f * constructColor4(select(clamp(shadowRay.color.xyz, 0.f, 1.f), 0.f, hits[index].primitiveIndex != -1), 1.f);
-  colorOut[shadowRay.rayIndex] = asUint(constructUchar4(finalColor.x, finalColor.y, finalColor.z, finalColor.w));
+  colorType4 finalColor = colorOut[shadowRay.rayIndex];
+  finalColor += shadowRay.color;
+
+  colorOut[shadowRay.rayIndex] = finalColor;
 #endif
 }
 

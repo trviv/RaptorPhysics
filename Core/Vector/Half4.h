@@ -10,7 +10,7 @@ typedef half_float::half half;
 class Half4;
 
 // vector structor
-struct half4
+struct ALIGN(8) half4
 {
   half x, y, z, a;
 
