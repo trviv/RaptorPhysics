@@ -262,7 +262,7 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 
   for (ushort i=0; i<readCount; i++)
   {
-    elements[i] = array1D[indexOffset+i]STRUCT_MEMBER;
+    elements[i] = ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0];
   }
 
 #endif

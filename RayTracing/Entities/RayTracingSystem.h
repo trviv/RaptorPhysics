@@ -8,6 +8,8 @@
 #include <Acceleration/BoundingVolumeHierarchyADS.h>
 #include <Material/Material.h>
 
+#define RAY_TRACING_SYSTEM_ARRAY_COUNT 2
+
 /*!
 @class Class representing a ray tracing system.
 */
@@ -42,10 +44,10 @@ protected:
   DeviceArray<MaterialStruct> materials;
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint> rays;
+  DeviceArray<uint> rays[RAY_TRACING_SYSTEM_ARRAY_COUNT];
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint> shadowRays;
+  DeviceArray<uint> shadowRays[RAY_TRACING_SYSTEM_ARRAY_COUNT];
 
   /*!@member Ray hit information buffer for the scene.*/
   DeviceArray<uint> hits;

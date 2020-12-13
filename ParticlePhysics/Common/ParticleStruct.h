@@ -251,7 +251,10 @@ struct DEFAULT_ALIGN ParticleRigidData_t
 {
   union
   {
-    float3  initialSdfGradient;
+    struct
+    {
+      float3  initialSdfGradient;
+    };
     struct
     {
       uint    reserved1[3];
@@ -260,7 +263,10 @@ struct DEFAULT_ALIGN ParticleRigidData_t
   };
   union
   {
-    float3  initialComOffset;
+    struct
+    {
+      float3  initialComOffset;
+    };
     struct
     {
       uint    reserved2[4];

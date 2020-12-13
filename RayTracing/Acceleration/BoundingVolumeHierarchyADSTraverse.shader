@@ -399,7 +399,7 @@ inline HitStruct stackTraverseBinaryTree(
 Kernel void intersectRaysBVH(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,
-  Const uint*                   rayCount,
+  constantKernelInput(uint,     rayCount),
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
   const Device BVHNodeInfo*     treeInternalNodes,
@@ -412,7 +412,7 @@ Kernel void intersectRaysBVH(
 {
   const uint index = threadIndex();
 
-  if (index >= rayCount[0])
+  if (index >= rayCount)
     return;
 
   const float3 rayOrigin = rays[index].origin;
