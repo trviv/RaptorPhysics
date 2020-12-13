@@ -665,6 +665,7 @@ void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMe
   groupStatus->resize(groupCount, false);
 
   clearBuffer(compute, groupStatus->device(), groupCount);
+  clearBuffer(compute, compactLength, 4);
 
   ComputeMemory* buffers[] = { compactLength, compactArray, sparseArray, groupSum->device(), groupStatus->device() };
 

@@ -111,33 +111,32 @@ Kernel void shadeIntersection(
   MaterialStruct material;
   ushort materialType = -1;
 
-  if (hit.distance != INFINITY)
+  if (hit.primitiveIndex != -1)
   {
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
     material = materials[materialId.identity];
     materialType = getMaterialType(material);
   }
 
-  childRay = ray;
-  childRay.maxDistance = 0.f;
   if (materialType == MaterialTypeTranslucent)
   {
+    childRay = ray;
     // produce child ray if needed
     childRay.origin    = shadowRay.origin;
 #ifdef HitStructNormal
-    childRay.direction = -reflectVector(ray.direction, hit.normal);
+    childRay.direction = reflectVector(ray.direction, hit.normal);
 #endif
-    //childRay.color.xyz = ray.color.xyz;
     childRay.maxDistance = INFINITY;
-    //childRay.rayIndex    = ray.rayIndex;
+    rays[index] = childRay;
   }
-  rays[index] = childRay;
+  else
+  {
+    rays[index].maxDistance = 0.f;
+  }
 
   for (ushort i=lightOffset; i<lightCount; i++)
   {
-#ifdef RayStructColor
     shadowRay.color = constructColor4(0.f);
-#endif
     shadowRay.maxDistance = 0.f;
     if (materialType == MaterialTypePlastic)
     {
@@ -153,16 +152,15 @@ Kernel void shadeIntersection(
         direction /= maxDistance;
         shadowRay.maxDistance = maxDistance;
         shadowRay.direction = direction;
+        shadowRay.rayIndex  = ray.rayIndex;
         shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit).xyz;
       }
-      shadowRay.rayIndex  = ray.rayIndex;
-      //shadowRays[ray.rayIndex + rayCount * i] = shadowRay;
+      shadowRays[index + rayCount * i] = shadowRay;
     }
-    //else
-    //{
-    //  shadowRays[ray.rayIndex + rayCount * i].maxDistance = 0.f;
-    //}
-    shadowRays[ray.rayIndex + rayCount * i] = shadowRay;
+    else
+    {
+      shadowRays[index + rayCount * i].maxDistance = 0.f;
+    }
   }
 #endif
 }
@@ -171,23 +169,27 @@ Kernel void processShadowRays(
   Device colorType4*          colorOut,
   const Device RayStruct*     shadowRays,
   const Device HitStruct*     hits,
-  Const uint*                 rayCount,
+  constantKernelInput(uint,   rayCount),
   constantKernelInput(ushort, lastIteration)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
 
-  if (index >= rayCount[0])
+  if (index >= rayCount)
     return;
 
   const HitStruct shadowHit = hits[index];
 
 #ifdef RayStructColor
-  const RayStruct shadowRay = shadowRays[index];
-  colorType4 finalColor = colorOut[shadowRay.rayIndex];
-  finalColor += shadowRay.color;
+  if (shadowHit.primitiveIndex == -1)
+  {
+    const RayStruct shadowRay = shadowRays[index];
+    colorType4 finalColor = colorOut[shadowRay.rayIndex];
+    finalColor.xyz += shadowRay.color.xyz;
+    finalColor.w = 1.f;
 
-  colorOut[shadowRay.rayIndex] = finalColor;
+    colorOut[shadowRay.rayIndex] = finalColor;
+  }
 #endif
 }
 
