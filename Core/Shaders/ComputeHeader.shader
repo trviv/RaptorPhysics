@@ -8,11 +8,15 @@
 #define sharedMemKernelInput(type, variableName, index) Shared type *variableName
 
 #define threadIndex()       get_global_id(0)
-#define threadIndexN(dim)   get_global_id(dim)
 #define threadLocalIndex()  get_local_id(0)
 #define threadGroupSize()   get_local_size(0)
 #define threadGroupIndex()  get_group_id(0)
 #define threadGroupCount()  get_num_groups(0)
+#define threadIndexN(dim)       get_global_id(dim)
+#define threadLocalIndexN(dim)  get_local_id(dim)
+#define threadGroupSizeN(dim)   get_local_size(dim)
+#define threadGroupIndexN(dim)  get_group_id(dim)
+#define threadGroupCountN(dim)  get_num_groups(dim)
 #define globalMemBarrier()  barrier(CLK_GLOBAL_MEM_FENCE)
 #define localMemBarrier()   barrier(CLK_LOCAL_MEM_FENCE)
 #define localMemFence()     mem_fence(CLK_LOCAL_MEM_FENCE)
@@ -47,6 +51,7 @@
 #define asUint(x)           as_uint(x)
 #define asUint3(x)          as_uint3(x)
 #define asUshort(x)         as_ushort(x)
+#define asUshort2(x)        as_ushort2(x)
 #define simdAll(x)          assert
 #define simdFirst(x)        assert
 #define simdIsFirst()       assert
@@ -105,11 +110,15 @@
 #define sharedMemKernelInput(type, variableName, index) Shared type *variableName[[ threadgroup(index) ]]
 
 #define threadIndex()       thread_position_in_grid[0]
-#define threadIndexN(dim)   thread_position_in_grid[dim]
 #define threadLocalIndex()  thread_index_in_threadgroup
 #define threadGroupSize()   threads_per_threadgroup[0]
 #define threadGroupIndex()  threadgroup_position_in_grid[0]
 #define threadGroupCount()  threadgroups_per_grid[0]
+#define threadIndexN(dim)       thread_position_in_grid[dim]
+#define threadLocalIndexN(dim)  thread_position_in_threadgroup[dim]
+#define threadGroupSizeN(dim)   threads_per_threadgroup[dim]
+#define threadGroupIndexN(dim)  threadgroup_position_in_grid[dim]
+#define threadGroupCountN(dim)  threadgroups_per_grid[dim]
 #define globalMemBarrier()  threadgroup_barrier(mem_flags::mem_device)
 #define localMemBarrier()   threadgroup_barrier(mem_flags::mem_threadgroup)
 #define localMemFence()     threadgroup_barrier(mem_flags::mem_none)
@@ -144,6 +153,7 @@
 #define asUint(x)           as_type<uint>(x)
 #define asUint3(x)          as_type<uint3>(x)
 #define asUshort(x)         as_type<ushort>(x)
+#define asUshort2(x)        as_type<ushort2>(x)
 #define simdAll(x)          simd_all(x)
 #define simdFirst(x)        simd_broadcast_first(x)
 #define simdIsFirst()       simd_is_first()
@@ -178,6 +188,7 @@
   , uint3 thread_position_in_grid [[ thread_position_in_grid ]]
 #define KERNEL_THREAD_ARGUMENTS \
   , ushort thread_index_in_threadgroup [[ thread_index_in_threadgroup ]] \
+  , ushort3 thread_position_in_threadgroup [[ thread_position_in_threadgroup ]] \
   , ushort3 threads_per_threadgroup [[ threads_per_threadgroup ]]
 #define KERNEL_THREADGROUP_ARGUMENTS \
   , ushort3 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]] \

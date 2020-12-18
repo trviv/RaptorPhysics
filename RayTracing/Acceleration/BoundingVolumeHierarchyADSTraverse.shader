@@ -213,14 +213,14 @@ inline HitStruct stacklessTraverseBinaryTree(
   ushort traverseState   = BVH_TRAVERSAL_FROM_PARENT;
   BVHNodeInfo parentNode = treeInternalNodes[0];
 
-  const short3 signBits  = select(constructShort3(0), constructShort3(1), sign);
+  const uchar3 signBits  = select(constructUchar3(0), constructUchar3(1), sign);
   // flip near plane if 2 or more negatives are in the ray direction
   // a simple approach to possible get an intersection sooner
-  const ushort nearPlane = 0;//(signBits.x + signBits.y + signBits.z) > 1;
+  const uchar nearPlane = 0;//(signBits.x + signBits.y + signBits.z) > 1;
   uint currNodeIndex     = parentNode.child[nearPlane];
   uint parentNodeIndex   = rootNode;
 
-  ushort leafCount = 0;
+  uchar leafCount = 0;
   uint leafNodeIndex[BVH_MAX_LEAFS];
 
   // main intersection loop
@@ -268,8 +268,10 @@ inline HitStruct stacklessTraverseBinaryTree(
         break;
       }
 
+      const uint noNodeCurrNodeIndex = removeBVHInternalNodeMarker(currNodeIndex);
+
       // if internal node test bounding box for intersection
-      const XAB boundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(currNodeIndex)];
+      const XAB boundingBox = treeInternalNodeBoundingBoxes[noNodeCurrNodeIndex];
       if (!rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign))
       {
         // switch to parent or sibling when internal node is not intersecting
@@ -277,7 +279,7 @@ inline HitStruct stacklessTraverseBinaryTree(
         continue;
       }
 
-      parentNode      = treeInternalNodes[removeBVHInternalNodeMarker(currNodeIndex)];
+      parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
       parentNodeIndex = currNodeIndex;
       currNodeIndex   = parentNode.child[nearPlane];
       traverseState   = BVH_TRAVERSAL_FROM_PARENT;
