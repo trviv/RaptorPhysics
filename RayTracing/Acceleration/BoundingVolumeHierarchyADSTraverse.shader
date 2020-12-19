@@ -469,7 +469,7 @@ Kernel void intersectRaysBVH(
     // get rays from global to local pool
     if (rayCountArray[simdGroupIndex] == 0 && simdLocalIndex == 0)
     {
-      nextRayArray[simdGroupIndex]  = atomicAdd(rayIndexAtomicBuffer, BVH_ADS_PERSISTENT_MULTIPLIER*ComputeSimdWidth);
+      nextRayArray[simdGroupIndex]  = atomicAdd((rayIndexAtomicBuffer+3), BVH_ADS_PERSISTENT_MULTIPLIER*ComputeSimdWidth);
       rayCountArray[simdGroupIndex] = BVH_ADS_PERSISTENT_MULTIPLIER*ComputeSimdWidth;
     }
 

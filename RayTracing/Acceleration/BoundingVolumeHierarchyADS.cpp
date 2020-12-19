@@ -230,11 +230,8 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
 {
   {
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * BVH_ADS_PERSISTENT_MULTIPLIER, 1, 1};
-#if BVH_ADS_PERSISTENT_MULTIPLIER > 1
-    ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
-    workgroupSize[0] /= BVH_ADS_PERSISTENT_MULTIPLIER;
-#endif
     ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
+    workgroupSize[0] /= BVH_ADS_PERSISTENT_MULTIPLIER;
 
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
@@ -249,7 +246,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
-    intersectionKernel.setArg(visitedInternalNodes.device(),  11);
+    intersectionKernel.setArg(workgroupCount.device(),  11);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
