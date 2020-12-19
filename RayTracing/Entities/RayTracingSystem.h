@@ -26,6 +26,7 @@ protected:
   ComputeKernel collectPrimitives;
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
+  ComputeKernel reorderRaysKernels[RayStructTypeMax];
 
   vector<vector<RayTracingEntity*>> entities;
 
