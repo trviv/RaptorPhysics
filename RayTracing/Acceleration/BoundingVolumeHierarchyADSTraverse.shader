@@ -398,6 +398,8 @@ inline HitStruct stackTraverseBinaryTree(
   return hit;
 }
 
+#if BVH_ADS_PERSISTENT_MULTIPLIER == 1
+
 Kernel void intersectRaysBVH(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,
@@ -433,5 +435,75 @@ Kernel void intersectRaysBVH(
   hits[index].primitiveIndex = hit.primitiveIndex;
 #endif
 }
+
+#else
+
+Kernel void intersectRaysBVH(
+  Device HitStruct*             hits,
+  const Device RayStruct*       rays,
+  constantKernelInput(uint,     rayCount),
+  const Device PrimitiveStruct* vertexArray,
+  const Device PrimitiveAttrib* attributeArray,
+  const Device BVHNodeInfo*     treeInternalNodes,
+  const Device uint*            leafParentNodeIndices,
+  const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeInternalNodeBoundingBoxes,
+  Const RTSystemSettings*       systemSettings,
+  constantKernelInput(uint,     primitiveCount),
+  atomicKernelInput(uint,       rayIndexAtomicBuffer)
+  KERNEL_THREAD_ARGUMENTS)
+{
+  volatile Shared uint nextRayArray[33];
+  volatile Shared uint rayCountArray[33];
+
+  const ushort simdLocalIndex = threadLocalIndex() & (ComputeSimdWidth - 1);
+  const ushort simdGroupIndex = threadLocalIndex() >> ComputeSimdWidthExp;
+
+  if (simdLocalIndex == 0)
+  {
+    rayCountArray[simdGroupIndex] = 0;
+  }
+
+  while (true)
+  {
+    // get rays from global to local pool
+    if (rayCountArray[simdGroupIndex] == 0 && simdLocalIndex == 0)
+    {
+      nextRayArray[simdGroupIndex]  = atomicAdd(rayIndexAtomicBuffer, BVH_ADS_PERSISTENT_MULTIPLIER*ComputeSimdWidth);
+      rayCountArray[simdGroupIndex] = BVH_ADS_PERSISTENT_MULTIPLIER*ComputeSimdWidth;
+    }
+
+    // get rays from local pool
+    const uint index = nextRayArray[simdGroupIndex] + simdLocalIndex;
+    if (index >= rayCount)
+    {
+      return;
+    }
+
+    if (simdLocalIndex == 0)
+    {
+      nextRayArray[simdGroupIndex]  += ComputeSimdWidth;
+      rayCountArray[simdGroupIndex] -= ComputeSimdWidth;
+    }
+
+    const float3 rayOrigin = rays[index].origin;
+    const float3 rayDirection = rays[index].direction;
+    const float3 invRayDirection = 1.f / rayDirection;
+    const bool3 sign = selectInput3(invRayDirection < 0.f);
+
+    //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
+    HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
+
+#ifdef IntersectionTypeClosest
+    setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));
+    hits[index] = hit;
+#endif
+#ifdef IntersectionTypeAny
+    hits[index].primitiveIndex = hit.primitiveIndex;
+#endif
+  }
+}
+
+#endif
 
 #endif
