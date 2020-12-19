@@ -140,6 +140,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
     rayUtilSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
     rayComputeUtilId[r] = ComputeUtil::create(compute, rayUtilSetting, &rayUtilIncludeFiles);
+    reorderRaysKernels[r] = programs.back().createKernel("reorderRays");
   }
 
   collectPrimitives = programs[0].createKernel("collectPrimitives");
@@ -353,6 +354,24 @@ void RayTracingSystem::render()
   for (uint iteration=0; iteration<iterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
     uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
+
+    if (false && iteration > 0)
+    {
+      uint multiplier = 2;
+
+      ComputeKernel& reorderRaysKernel = reorderRaysKernels[rayType];
+
+      reorderRaysKernel.setArg(rays[bufferIndex].device(), 0);
+      reorderRaysKernel.setArg(&currentRayCount[bufferIndex], 1);
+      reorderRaysKernel.setSharedMemArg(sizeof(uint)*2*(workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier), 2);
+
+      compute->execute(reorderRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+      rays[bufferIndex].syncHost();
+      compute->sync();
+#endif
+    }
 
     accelerationStruct->intersectRays(hits.device(), hitStruct, rays[bufferIndex].device(), rayType, &currentRayCount[bufferIndex], IntersectionTypeClosest);
 
