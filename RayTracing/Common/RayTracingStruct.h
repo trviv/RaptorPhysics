@@ -47,7 +47,7 @@ inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, co
   const float tmaxOut = minCompFloat3(tmax);
   const float tminOut = maxCompFloat3(tmin);
 
-  if (tmaxOut > MIN_TIME && tminOut < timeIn && tminOut < tmaxOut)
+  if (tmaxOut > MIN_TIME && tminOut < *timeIn && tminOut < tmaxOut)
   {
     *timeIn  = tminOut;
     *timeOut = tmaxOut;
