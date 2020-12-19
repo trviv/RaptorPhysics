@@ -1,6 +1,7 @@
 #include "BoundingVolumeHierarchyADS.h"
 
 //#define DEBUG_BVH_ADS
+#define BVH_ADS_PERSISTENT_MULTIPLIER 4
 
 BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS()
 {
@@ -36,8 +37,8 @@ void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
     {
       for (int h=0; h<HitStructTypeMax; h++)
       {
-        vector<string> oldType = {getIntersectionTypeName((IntersectionType)i), "RayStruct", "HitStruct"};
-        vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
+        vector<string> oldType = {getIntersectionTypeName((IntersectionType)i), "RayStruct", "HitStruct", "BVH_ADS_PERSISTENT_MULTIPLIER"};
+        vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(BVH_ADS_PERSISTENT_MULTIPLIER)};
         getRayStructDefines(oldType, newType, (RayStructType)r);
         getHitStructDefines(oldType, newType, (HitStructType)h);
         registerShader(compute, "BoundingVolumeHierarchyADSTraverse.shader", &oldType, &newType);
@@ -194,10 +195,13 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
                                                uint rayCount, IntersectionType intersectionType)
 {
   {
-    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
-
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, rayCount);
+    compute->configureSize(workgroupSize, workgroupCount, mAlignBy(rayCount, BVH_ADS_PERSISTENT_MULTIPLIER));
+#if BVH_ADS_PERSISTENT_MULTIPLIER > 1
+    ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
+#endif
+
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
@@ -210,6 +214,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
+    intersectionKernel.setArg(visitedInternalNodes.device(),  11);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
@@ -224,7 +229,11 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
                                                const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
   {
-    size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * BVH_ADS_PERSISTENT_MULTIPLIER, 1, 1};
+#if BVH_ADS_PERSISTENT_MULTIPLIER > 1
+    ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
+    workgroupSize[0] /= BVH_ADS_PERSISTENT_MULTIPLIER;
+#endif
     ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
 
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
@@ -240,6 +249,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
+    intersectionKernel.setArg(visitedInternalNodes.device(),  11);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
