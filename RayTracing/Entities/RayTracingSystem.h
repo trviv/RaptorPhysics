@@ -20,6 +20,8 @@ class RayTracingSystem : protected ShaderEntity
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
 
+  uint maxIterations;
+
   ComputeInterface*     compute;
   RayTracingAllocator*  allocator;
 
@@ -48,7 +50,7 @@ protected:
   DeviceArray<uint> rays[RAY_TRACING_SYSTEM_ARRAY_COUNT];
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint> shadowRays[RAY_TRACING_SYSTEM_ARRAY_COUNT];
+  DeviceArray<uint> shadowRays[2];
 
   /*!@member Ray hit information buffer for the scene.*/
   DeviceArray<uint> hits;

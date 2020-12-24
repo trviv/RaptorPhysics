@@ -118,13 +118,24 @@ Kernel void shadeIntersection(
     materialType = getMaterialType(material);
   }
 
-  if (materialType == MaterialTypeTranslucent)
+  if (materialType == MaterialTypeMirror)
   {
     childRay = ray;
     // produce child ray if needed
     childRay.origin    = shadowRay.origin;
 #ifdef HitStructNormal
     childRay.direction = reflectVector(ray.direction, hit.normal);
+#endif
+    childRay.maxDistance = INFINITY;
+    rays[index] = childRay;
+  }
+  else if (materialType == MaterialTypeTranslucent)
+  {
+    childRay = ray;
+    // produce child ray if needed
+    childRay.origin    = shadowRay.origin;
+#ifdef HitStructNormal
+    childRay.direction = refractVector(ray.direction, hit.normal, 1.f/3.f);
 #endif
     childRay.maxDistance = INFINITY;
     rays[index] = childRay;
@@ -150,8 +161,8 @@ Kernel void shadeIntersection(
       {
         const float maxDistance = length(direction);
         direction /= maxDistance;
-        shadowRay.maxDistance = maxDistance;
         shadowRay.direction = direction;
+        shadowRay.maxDistance = maxDistance;
         shadowRay.rayIndex  = ray.rayIndex;
         shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit).xyz;
       }

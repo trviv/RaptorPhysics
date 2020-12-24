@@ -9,6 +9,7 @@
 enum MaterialTypes
 {
   MaterialTypePlastic,
+  MaterialTypeMirror,
   MaterialTypeTranslucent,
   MaterialTypeMax
 };

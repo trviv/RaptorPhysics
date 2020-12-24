@@ -26,7 +26,7 @@ inline bool earliestIntersection(
 
     if (d >= 0)
     {
-      d = sqrt(b * b - c);
+      d = sqrt(d);
       float time = -(b + d);
       if (time > MIN_TIME && time < hit->distance)
       {
@@ -47,6 +47,7 @@ inline bool earliestIntersection(
         return true;
       }
     }
+    return false;
   }
 
   if (primInfo.primType == PrimitiveTriangle)
@@ -80,6 +81,7 @@ inline bool earliestIntersection(
         }
       }
     }
+    return false;
   }
 
   return false;

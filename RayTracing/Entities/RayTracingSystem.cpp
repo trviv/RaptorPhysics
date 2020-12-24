@@ -96,6 +96,10 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
   {
     rays[i].create(compute);
+  }
+
+  for (uint i=0; i<2; i++)
+  {
     shadowRays[i].create(compute);
   }
 
@@ -157,6 +161,8 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 
   indirectCount.create(compute);
   indirectCount.resize(256/4*3*RAY_TRACING_SYSTEM_ARRAY_COUNT, false);
+
+  maxIterations = 3;
 }
 
 uint RayTracingSystem::newEntityId()
@@ -343,15 +349,14 @@ void RayTracingSystem::render()
     rays[i].resize(rays[0].size(), false);
   }
 
-  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
+  for (uint i=0; i<2; i++)
   {
     shadowRays[i].resize(lights.size() * rayCount * getRayStructSize(shadowRayType) / 4, false);
   }
 
-  uint iterations = 2;
   uint bufferIndex = 0;
 
-  for (uint iteration=0; iteration<iterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
+  for (uint iteration=0; iteration<maxIterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
     uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
 
@@ -388,7 +393,7 @@ void RayTracingSystem::render()
       ComputeKernel& shadeIntersectionKernel = shadeIntersectionKernels[rayType][hitStruct];
 
       ComputeMemory* buffers[] = {
-        shadowRays[bufferIndex].device(),
+        shadowRays[0].device(),
         rays[bufferIndex].device(),
         hits.device()
       };
@@ -404,12 +409,13 @@ void RayTracingSystem::render()
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
       rays[bufferIndex].syncHost();
-      shadowRays[bufferIndex].syncHost();
+      shadowRays[0].syncHost();
       compute->sync();
 #endif
     }
 
-    ComputeUtil::get(rayComputeUtilId[shadowRayType])->compactSparseArrayAndCopy(compute, &validRayCount[bufferIndex], shadowRays[bufferIndex].device(), shadowRays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
+    // use different buffers for source and destination
+    ComputeUtil::get(rayComputeUtilId[shadowRayType])->compactSparseArrayAndCopy(compute, &validRayCount[bufferIndex], shadowRays[1].device(), shadowRays[0].device(), &currentRayCount[bufferIndex], rayCount);
 
     uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &validRayCount[bufferIndex], workgroupSize);
 
@@ -418,26 +424,26 @@ void RayTracingSystem::render()
       compute->sync();
 #endif
 
-    accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays[bufferIndex].device(), shadowRayType, &validRayCount[bufferIndex], IntersectionTypeAny);
+    accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays[1].device(), shadowRayType, &validRayCount[bufferIndex], IntersectionTypeAny);
 
     {
       ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][shadowHitStruct];
 
       ComputeMemory* buffers[] = {
         colorOutputBuffer.device(),
-        shadowRays[bufferIndex].device(),
+        shadowRays[1].device(),
         hits.device()
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       processShadowRaysKernel.setArgs(buffers, bufferCount);
       processShadowRaysKernel.setArg(&validRayCount[bufferIndex], bufferCount);
-      ushort lastIteration = iteration == (iterations-1);
+      ushort lastIteration = iteration == (maxIterations-1);
       processShadowRaysKernel.setArg(&lastIteration, bufferCount+1);
 
       compute->execute(processShadowRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
     }
 
-    if (iteration < (iterations-1))
+    if (iteration < (maxIterations-1))
     {
       ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), rays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
     }

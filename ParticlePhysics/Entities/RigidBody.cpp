@@ -5,13 +5,12 @@ RigidBody::RigidBody()
   solver = SOLVER_RIGID_BODY;
 }
 
-void RigidBody::initCube(const real dimensions[], real particleRadius, const real mass)
+void RigidBody::initCube(const real dimensions[], real particleRadius, const real mass, const int density)
 {
   vector<uint32_t> connectionElements;
   vector<uint32_t> endIndices;
 
   uint subdivision[3];
-  const int density = 2;
   const bool reducedParticles = true;
 
   for (uint i = 0; i < 3; i++)

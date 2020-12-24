@@ -20,7 +20,7 @@ public:
   @param particleRadius Radius for each particle.
   @param mass Entity mass.
   */
-  void initCube(const real dimensions[], const real particleRadius, const real mass);
+  void initCube(const real dimensions[], const real particleRadius, const real mass, const int density);
 };
 
 #endif
