@@ -135,7 +135,7 @@ Kernel void shadeIntersection(
     // produce child ray if needed
     childRay.origin    = shadowRay.origin;
 #ifdef HitStructNormal
-    childRay.direction = refractVector(ray.direction, hit.normal, 1.f/3.f);
+    childRay.direction = refractVector(ray.direction, hit.normal, getMaterialRefractiveIndex(material));
 #endif
     childRay.maxDistance = INFINITY;
     rays[index] = childRay;

@@ -55,6 +55,11 @@ static void setMaterialSpecularExponent(MaterialStruct& mat, float value)
   mat.parameters.x = value;
 }
 
+static void setMaterialRefractiveIndex(MaterialStruct& mat, float value)
+{
+  mat.parameters.x = value;
+}
+
 #else
 
 inline ushort getMaterialType(const MaterialStruct mat)
@@ -68,6 +73,11 @@ inline ushort getMaterialShader(const MaterialStruct mat)
 }
 
 inline colorType getMaterialSpecularExponent(const MaterialStruct mat)
+{
+  return mat.parameters.x;
+}
+
+inline colorType getMaterialRefractiveIndex(const MaterialStruct mat)
 {
   return mat.parameters.x;
 }
