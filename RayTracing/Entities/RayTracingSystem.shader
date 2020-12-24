@@ -118,7 +118,7 @@ Kernel void shadeIntersection(
     materialType = getMaterialType(material);
   }
 
-  if (materialType == MaterialTypeMirror)
+  if (materialType == MaterialTypeReflective)
   {
     childRay = ray;
     // produce child ray if needed

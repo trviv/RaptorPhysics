@@ -286,7 +286,7 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
     Material* newMaterial;
 
     if      (strcmp(material->Name(), "plastic") == 0)      newMaterial = new Material(MaterialTypePlastic);
-    else if (strcmp(material->Name(), "mirror") == 0)       newMaterial = new Material(MaterialTypeMirror);
+    else if (strcmp(material->Name(), "reflective") == 0)   newMaterial = new Material(MaterialTypeReflective);
     else if (strcmp(material->Name(), "translucent") == 0)  newMaterial = new Material(MaterialTypeTranslucent);
     else    newMaterial = new Material(MaterialTypePlastic);
 
