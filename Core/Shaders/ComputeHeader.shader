@@ -191,10 +191,10 @@ inline float3 refractVector(const float3 incident, float3 normal, float eta)
   if (dotNI < 0.f)
   {
     dotNI = -dotNI;
+    eta = 1.f/eta;
   }
   else
   {
-    eta = 1.f/eta;
     normal = -normal;
   }
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
