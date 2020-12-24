@@ -221,6 +221,8 @@ void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
     rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &scale);
   }
 
+  rayTracing->QueryUnsignedAttribute("max-iterations", &rayTracingSystem->maxIterations);
+
   rayTracingSystem->camera->width  = renderer->width();
   rayTracingSystem->camera->height = renderer->height();
   rayTracingSystem->camera->setScale(scale);
@@ -229,6 +231,7 @@ void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
 struct ShapeData
 {
   int subDivision[3] = {0, 0, 0};
+  int spatialDensity = 0;
   Real3 dim = {0.f, 0.f, 0.f};
   real size = 0.f;
   real kernelSize = 0.f;
@@ -260,6 +263,7 @@ ShapeData readShape(XMLConstHandle shapeHandle)
   {
     shape.materialName = shapeHandle.ToElement()->Attribute("material");
   }
+  shapeHandle.ToElement()->QueryIntAttribute("spatial-density", &shape.spatialDensity);
 
   return shape;
 }
@@ -282,6 +286,7 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
     Material* newMaterial;
 
     if      (strcmp(material->Name(), "plastic") == 0)      newMaterial = new Material(MaterialTypePlastic);
+    else if (strcmp(material->Name(), "mirror") == 0)       newMaterial = new Material(MaterialTypeMirror);
     else if (strcmp(material->Name(), "translucent") == 0)  newMaterial = new Material(MaterialTypeTranslucent);
     else    newMaterial = new Material(MaterialTypePlastic);
 
@@ -290,6 +295,13 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
       float value = 1.f;
       material->QueryFloatAttribute("specular-exponent", &value);
       setMaterialSpecularExponent(*newMaterial, value);
+    }
+
+    if (material->Attribute("refractive-index"))
+    {
+      float value = 1.f;
+      material->QueryFloatAttribute("refractive-index", &value);
+      setMaterialRefractiveIndex(*newMaterial, value);
     }
 
     if (material->Attribute("diffuse-shader"))
@@ -354,7 +366,7 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
 
       if (strcmp(shapeHandle.ToElement()->Attribute("type"), "cuboid") == 0)
       {
-        rigidBody->initCube(&shape.dim[0], shape.size, shape.mass);
+        rigidBody->initCube(&shape.dim[0], shape.size, shape.mass, shape.spatialDensity?shape.spatialDensity:2);
         newEntity = rigidBody;
       }
     }
