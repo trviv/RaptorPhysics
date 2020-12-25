@@ -237,6 +237,7 @@ struct ShapeData
   real kernelSize = 0.f;
   real mass = 0.f;
   string materialName;
+  bool twoSided = false;
 };
 
 ShapeData readShape(XMLConstHandle shapeHandle)
@@ -264,6 +265,7 @@ ShapeData readShape(XMLConstHandle shapeHandle)
     shape.materialName = shapeHandle.ToElement()->Attribute("material");
   }
   shapeHandle.ToElement()->QueryIntAttribute("spatial-density", &shape.spatialDensity);
+  shapeHandle.ToElement()->QueryBoolAttribute("two-sided", &shape.twoSided);
 
   return shape;
 }
@@ -412,6 +414,10 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
         logComputeError("Material %s, not found in entity %s!", shape.materialName.c_str(), identity.c_str());
       }
       material = registeredMaterials[shape.materialName];
+      if (shape.twoSided)
+      {
+        material.identity |= 0x80000000;
+      }
     }
 
     if (newEntity)
