@@ -75,7 +75,7 @@ inline bool earliestIntersection(
         {
           hit->primitiveIndex = primIndex;
           setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
-          setHitNormal(hit->normal, cross(edge1.position, edge2.position));
+          setHitNormal(hit->normal, cross(edge2.position, edge1.position));
           setHitDistance(hit->distance, time);
           return true;
         }

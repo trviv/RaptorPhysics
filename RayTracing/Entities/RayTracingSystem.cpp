@@ -393,6 +393,7 @@ void RayTracingSystem::render()
       ComputeKernel& shadeIntersectionKernel = shadeIntersectionKernels[rayType][hitStruct];
 
       ComputeMemory* buffers[] = {
+        colorOutputBuffer.device(),
         shadowRays[0].device(),
         rays[bufferIndex].device(),
         hits.device()
