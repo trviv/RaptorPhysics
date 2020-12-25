@@ -133,28 +133,15 @@ void RigidBody::initCube(const real dimensions[], real particleRadius, const rea
     }
   }
 
-  for (int i=0; i<2; i++)
+  const int indices[] =
   {
-    connectionElements.push_back(endIndices[i * 4 + 0]);
-    connectionElements.push_back(endIndices[i * 4 + 1]);
-    connectionElements.push_back(endIndices[i * 4 + 2]);
-    connectionElements.push_back(endIndices[i * 4 + 2]);
-    connectionElements.push_back(endIndices[i * 4 + 1]);
-    connectionElements.push_back(endIndices[i * 4 + 3]);
+    0, 1, 2, 2, 1, 3, 4, 1, 0, 5, 1, 4, 0, 2, 4, 4, 2, 6,
+    6, 5, 4, 7, 5, 6, 2, 3, 6, 6, 3, 7, 5, 3, 1, 7, 3, 5
+  };
 
-    connectionElements.push_back(endIndices[i * 2 + 0]);
-    connectionElements.push_back(endIndices[i * 2 + 1]);
-    connectionElements.push_back(endIndices[i * 2 + 4]);
-    connectionElements.push_back(endIndices[i * 2 + 4]);
-    connectionElements.push_back(endIndices[i * 2 + 1]);
-    connectionElements.push_back(endIndices[i * 2 + 5]);
-
-    connectionElements.push_back(endIndices[i + 0]);
-    connectionElements.push_back(endIndices[i + 2]);
-    connectionElements.push_back(endIndices[i + 4]);
-    connectionElements.push_back(endIndices[i + 4]);
-    connectionElements.push_back(endIndices[i + 2]);
-    connectionElements.push_back(endIndices[i + 6]);
+  for (auto i : indices)
+  {
+    connectionElements.push_back(endIndices[i]);
   }
 
   Real3 com(0);

@@ -85,6 +85,7 @@ protected:
   unordered_map<uint, MaterialId> entityMaterialMap;
 
   DeviceArray<PrimitiveStruct> bottomSurface;
+  DeviceArray<uint>            primitiveIndices[SOLVER_MAX];
 
   friend class ReaderScene;
 

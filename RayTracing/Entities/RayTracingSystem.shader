@@ -70,7 +70,7 @@ Kernel void collectPrimitives(
       //vert2.identity = v2identity;
       vert2.identity = primitiveIdentity;
 
-      vertIndices = vertexOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, selectInput3(attributePackingInfo.strideIn4Bytes == 0));
+      vertIndices = vertexOffset + constructUint3(0, 1, 2) + index * 3;
       finalVertexArray[vertIndices.x] = vert0;
       finalVertexArray[vertIndices.y] = vert1;
       finalVertexArray[vertIndices.z] = vert2;
@@ -80,12 +80,14 @@ Kernel void collectPrimitives(
 
 /*
 @kernel Shade ray intersection in a surface based on its material properties and visiblity info.
+@param colorOut Final color output.
 @param shadowRays Shadow ray buffer.
 @param rays Ray buffer.
 @param hits Hit info buffer.
 @param rayCount Ray count.
 */
 Kernel void shadeIntersection(
+  Device colorType4*            colorOut,
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
   const Device HitStruct*       hits,
@@ -116,6 +118,11 @@ Kernel void shadeIntersection(
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
     material = materials[materialId.identity];
     materialType = getMaterialType(material);
+
+    colorType4 finalColor = colorOut[ray.rayIndex];
+    finalColor.xyz += material.emissive.xyz * ray.color.xyz;
+    finalColor.w = 1.f;
+    colorOut[ray.rayIndex] = finalColor;
   }
 
   if (materialType == MaterialTypeReflective)

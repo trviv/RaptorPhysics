@@ -140,6 +140,11 @@ void MainSystem::initRender()
   GL_CHECK(glEnableVertexAttribArray(1));
   GL_CHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(4 * sizeof(float))));
   displayBackgroundVertex.unbind();
+
+  for (auto& indices : primitiveIndices)
+  {
+    indices.create(compute);
+  }
 }
 
 void MainSystem::createSphere(float radius)
@@ -302,29 +307,58 @@ void MainSystem::render()
         if (!elements) continue;
 
         vector<pair<uint, pair<uint, uint>>> entityCounts;
+        vector<pair<uint, pair<uint, uint>>> primCounts;
 
+        bool solidRender = true;
         uint prevEntityId = -1;
+        uint indexOffset = 0;
 
         // loop through partitions and add unique entities with offset and count
         for (const auto& partition : *solver->getPartitions().host())
         {
           const IdentityInfo entityIdentity = solver->getParticles().host()->at(partition.offset).identity;
           uint entityId = entityIdentity.identity^getInstanceId(entityIdentity);
+          const uint primCount = physicsSystem.getEntities((SolverType)s)[getEntityId(entityIdentity)]->displayElements.count()/3;
           if (prevEntityId == entityId)
           {
             entityCounts.back().second.second += partition.count;
+            primCounts.back().second.second += primCount;
           }
           else
           {
             entityCounts.push_back(pair<uint, pair<uint, uint>>(entityId, pair<uint, uint>(partition.offset, partition.count)));
+            primCounts.push_back(pair<uint, pair<uint, uint>>(entityId, pair<uint, uint>(indexOffset, primCount)));
           }
-        }
+          indexOffset += primCount*3;
+          prevEntityId = entityId;
 
-        for (const auto& entityCount : entityCounts)
+#ifdef ENABLE_RENDERING
+          // read object vertex indices
+          const PhysicsEntity* entity = physicsSystem.getEntities((SolverType)s)[getEntityId(entityIdentity)];
+          if (entity->displayElements.count())
+          {
+            entity->displayElements.bind();
+            const uint* indexPtr = (uint*)glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, entity->displayElements.count()*sizeof(uint), GL_MAP_READ_BIT);
+            for (uint i=0; i<entity->displayElements.count(); i++)
+            {
+              primitiveIndices[s].host()->push_back(partition.offset+indexPtr[i]);
+            }
+            glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+            entity->displayElements.unbind();
+          }
+#endif
+        }
+        primitiveIndices[s].syncDevice();
+
+        for (const auto& entityCount : solidRender?primCounts:entityCounts)
         {
-          PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntitySpheres, entityCount.second.second);
+          PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(solidRender?RayTracingEntityTriangles:RayTracingEntitySpheres, entityCount.second.second);
           entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo(entityCount.second.first));
           entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(entityCount.second.first, 4, 3));
+          if (solidRender)
+          {
+            entity->setAttribute(EntityPrimitiveAttributeIndex, primitiveIndices[s].device(), PackingInfo(entityCount.second.first, 1));
+          }
           entity->setMaterialId(entityMaterialMap[entityCount.first]);
           rayTracingSystem.registerAndInstantiateEntity(entity);
         }
@@ -343,12 +377,12 @@ void MainSystem::render()
 
       PrimitiveStruct pos;
       pos.position = systemBound.min;     bottomSurface.host()->push_back(pos);
-      pos.position.z = systemBound.max.z; bottomSurface.host()->push_back(pos);
       pos.position.x = systemBound.max.x; bottomSurface.host()->push_back(pos);
+      pos.position.z = systemBound.max.z; bottomSurface.host()->push_back(pos);
 
       bottomSurface.host()->push_back(pos);
-      pos.position.z = systemBound.min.z; bottomSurface.host()->push_back(pos);
       pos.position.x = systemBound.min.x; bottomSurface.host()->push_back(pos);
+      pos.position.z = systemBound.min.z; bottomSurface.host()->push_back(pos);
 
       bottomSurface.syncDevice();
       PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 2);

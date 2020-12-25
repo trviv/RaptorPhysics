@@ -84,7 +84,7 @@ inline colorType getMaterialRefractiveIndex(const MaterialStruct mat)
 
 inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const float3 worldDirection, const HitStruct hit)
 {
-  colorType4 color = material.emissive;
+  colorType4 color = colorType4(0.f);
   const ushort shader = getMaterialShader(material);
 #ifdef HitStructNormal
   // add diffuse color
