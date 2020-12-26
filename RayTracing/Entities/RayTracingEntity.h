@@ -80,8 +80,9 @@ class RayTracingEntity : public EntityPrimAttributes
 
 protected:
 
-  ComputeInterface*     compute;
-  Matrix4               transform; // the transformations related to entity
+  ComputeInterface*   compute;
+  Matrix4             transform; // the transformations related to entity
+  DeviceArray<uint>*  deviceData;
 
 public:
 
@@ -120,6 +121,10 @@ public:
   ~PrimitiveArrayEntity();
 
   RayTracingEntity* createCopy()const;
+
+  void createBox(const real dim[]);
+
+  void createSphere(const real radius);
 
   RayTracingEntityId getIdentity()const;
 

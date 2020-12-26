@@ -382,6 +382,23 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
         newEntity = fluid;
       }
     }
+    else if (strcmp(entity->Name(), "visual") == 0)
+    {
+      PrimitiveArrayEntity* prim = NULL;
+      if (strcmp(shapeHandle.ToElement()->Attribute("type"), "cuboid") == 0)
+      {
+        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0);
+        prim->deviceData = new DeviceArray<uint>(system->compute);
+        prim->createBox(&shape.dim[0]);
+      }
+      else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "sphere") == 0)
+      {
+        prim = new PrimitiveArrayEntity(RayTracingEntitySpheres, 0);
+        prim->deviceData = new DeviceArray<uint>(system->compute);
+        prim->createSphere(shape.size);
+      }
+      newRTEntity = prim;
+    }
     else if (strcmp(entity->Name(), "point-light") == 0)
     {
       Light* light = new Light(RayTracingEntityLightPoint);

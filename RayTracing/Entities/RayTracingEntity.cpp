@@ -68,6 +68,7 @@ RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
   :compute(compute)
 {
   transform.setIdentity();
+  deviceData = NULL;
 }
 
 void RayTracingEntity::setMaterialId(MaterialId materialId)

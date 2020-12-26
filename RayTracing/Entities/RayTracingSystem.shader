@@ -36,7 +36,7 @@ Kernel void collectPrimitives(
     if (primType == PrimitiveSphere)
     {
       PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + primitivePackingInfo.elementOffset);
+      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + attributePackingInfo.elementOffset);
 
       outPrim.identity = primitiveIdentity;
       finalVertexArray[index + vertexOffset] = outPrim;
@@ -45,7 +45,7 @@ Kernel void collectPrimitives(
 
     if (primType == PrimitiveTriangle)
     {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + primitivePackingInfo.elementOffset;
+      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + attributePackingInfo.elementOffset;
 
       // for indexed array a non zero stride is assumed
       if (attributePackingInfo.strideIn4Bytes > 0)
