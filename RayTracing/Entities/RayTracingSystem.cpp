@@ -43,7 +43,7 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
   primitiveInfo.primInfo.primType = primType;
   registeredPrimitives[primType].push_back(primitiveInfo);
 
-  if (entity->attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
+  if (type == RayTracingEntityTriangles && entity->attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
   {
     ComputeMemory indexBuffer(*entity->attributeBuffer[EntityPrimitiveAttributeIndex], entity->attributeInfo[EntityPrimitiveAttributeIndex].elementOffset*sizeof(uint));
     ComputeUtil::get(maxPrimIndex)->sum1D(compute, indirectCount.device(), &indexBuffer, primitiveInfo.primInfo.indexCount);
@@ -246,7 +246,7 @@ void RayTracingSystem::commit()
   {
     for (const auto& p : registeredPrimitives[i])
     {
-      primOffset   += p.primInfo.primOffset;
+      primOffset  += p.primInfo.primOffset;
       indexOffset += p.primInfo.indexOffset;
     }
 

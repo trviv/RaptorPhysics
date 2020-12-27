@@ -22,6 +22,7 @@ RayTracingEntity* PrimitiveArrayEntity::createCopy()const
 
 void PrimitiveArrayEntity::createBox(const real dim[])
 {
+  const bool rectangle = (dim[2] == 0.f);
   const real boxVertices[] = {
     -dim[0], -dim[1], -dim[2], 0.f, +dim[0], -dim[1], -dim[2], 0.f, -dim[0], +dim[1], -dim[2], 0.f, +dim[0], +dim[1], -dim[2], 0.f,
     -dim[0], -dim[1], +dim[2], 0.f, +dim[0], -dim[1], +dim[2], 0.f, -dim[0], +dim[1], +dim[2], 0.f, +dim[0], +dim[1], +dim[2], 0.f,
@@ -29,19 +30,19 @@ void PrimitiveArrayEntity::createBox(const real dim[])
   const uint indices[] = {0, 1, 2, 2, 1, 3, 4, 1, 0, 5, 1, 4, 0, 2, 4, 4, 2, 6, 6, 5, 4, 7, 5, 6, 2, 3, 6, 6, 3, 7, 5, 3, 1, 7, 3, 5};
 
   deviceData->host()->clear();
-  for (auto i : boxVertices)
+  for (int i=0; i<(rectangle?16:32); i++)
   {
-    deviceData->host()->push_back(*((uint*)&i));
+    deviceData->host()->push_back(((uint*)boxVertices)[i]);
   }
-  for (auto i : indices)
+  for (int i=0; i<(rectangle?6:36); i++)
   {
-    deviceData->host()->push_back(i);
+    deviceData->host()->push_back(indices[i]);
   }
   deviceData->syncDevice();
 
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
-  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(sizeof(boxVertices)/sizeof(real), 1));
-  primitiveCount = 12;
+  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(rectangle?16:32, 1));
+  primitiveCount = (rectangle?2:12);
 }
 
 void PrimitiveArrayEntity::createSphere(const real radius)

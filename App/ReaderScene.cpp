@@ -147,7 +147,7 @@ void QueryInt3Attribute(const XMLElement* element, int value[3], const char* att
   value[2] = val[2];
 }
 
-void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
+void ReaderScene::readSettings(MainSystem* system, const XMLElement* settings)
 {
   Window* renderer = system;
   ComputeInterface* compute = system->compute;
@@ -156,9 +156,9 @@ void ReaderScene::readSettings(MainSystem* system, XMLElement* settings)
 
   XMLError queryResult;
 
-  XMLElement* render = settings->FirstChildElement("rendering");
-  XMLElement* physics = settings->FirstChildElement("physics");
-  XMLElement* rayTracing = settings->FirstChildElement("ray-tracing");
+  const XMLElement* render = settings->FirstChildElement("rendering");
+  const XMLElement* physics = settings->FirstChildElement("physics");
+  const XMLElement* rayTracing = settings->FirstChildElement("ray-tracing");
 
   uint width = 640, height = 480;
   render->QueryUnsignedAttribute("width", &width);
@@ -270,7 +270,7 @@ ShapeData readShape(XMLConstHandle shapeHandle)
   return shape;
 }
 
-void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
+void ReaderScene::readMaterials(MainSystem* system, const XMLElement* materials)
 {
   for (const XMLElement* material = materials->FirstChildElement(); material; material = material->NextSiblingElement())
   {
@@ -343,14 +343,14 @@ void ReaderScene::readMaterials(MainSystem* system, XMLElement* materials)
   }
 }
 
-void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
+void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
 {
   for (const XMLElement* entity = entities->FirstChildElement(); entity; entity = entity->NextSiblingElement())
   {
     PhysicsEntity* newEntity = NULL;
     RayTracingEntity* newRTEntity = NULL;
     XMLConstHandle shapeHandle = XMLConstHandle(entity).FirstChildElement("shape");
-    ShapeData shape = readShape(XMLConstHandle(entity).FirstChildElement("shape"));
+    ShapeData shape = XMLConstHandle(entity).FirstChildElement("shape").ToElement()?readShape(XMLConstHandle(entity).FirstChildElement("shape")):ShapeData();
 
     if (strcmp(entity->Name(), "cloth") == 0)
     {
@@ -397,6 +397,13 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
         prim->deviceData = new DeviceArray<uint>(system->compute);
         prim->createSphere(shape.size);
       }
+      else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "rectangle") == 0)
+      {
+        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0);
+        prim->deviceData = new DeviceArray<uint>(system->compute);
+        shape.dim[2] = 0.f;
+        prim->createBox(&shape.dim[0]);
+      }
       newRTEntity = prim;
     }
     else if (strcmp(entity->Name(), "point-light") == 0)
@@ -408,6 +415,11 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
       if (emissiveHandle.ToElement())
       {
         QueryFloat3Attribute(emissiveHandle.ToElement(), light->color);
+      }
+
+      if (entity->FirstChildElement("sub-entities"))
+      {
+        readEntities(system, entity->FirstChildElement("sub-entities"));
       }
     }
 
@@ -451,7 +463,7 @@ void ReaderScene::readEntities(MainSystem* system, XMLElement* entities)
   }
 }
 
-void ReaderScene::createInstances(MainSystem* system, XMLElement* instances)
+void ReaderScene::createInstances(MainSystem* system, const XMLElement* instances)
 {
   for (const XMLElement* instance = instances->FirstChildElement(); instance; instance = instance->NextSiblingElement())
   {
