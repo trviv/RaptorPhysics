@@ -19,6 +19,7 @@ class RayTracingSystem : protected ShaderEntity
 
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
+  static uint maxPrimIndex;
 
   uint maxIterations;
 
@@ -26,6 +27,7 @@ protected:
   RayTracingAllocator*  allocator;
 
   ComputeKernel collectPrimitives;
+  ComputeKernel transformPrimitives;
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel reorderRaysKernels[RayStructTypeMax];

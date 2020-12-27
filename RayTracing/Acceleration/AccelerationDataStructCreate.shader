@@ -29,7 +29,7 @@ Kernel void createPrimitiveBoundingBoxes(
 
     if (primInfo.primType == PrimitiveSphere)
     {
-      const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + index - primInfo.indexOffset];
+      const PrimitiveStruct sphere = vertexArray[primInfo.indexOffset + index - primInfo.primOffset];
       const float radius = attributeArray[index].radius;
 
       primitiveBoundingBox.min = sphere.position - radius;
@@ -38,7 +38,7 @@ Kernel void createPrimitiveBoundingBoxes(
 
     if (primInfo.primType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.vertexOffset + (index - primInfo.indexOffset)*3;
+      const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
 
       const float3 vert0 = vertexArray[triIndex].position;
       const float3 vert1 = vertexArray[triIndex+1].position + vert0;
@@ -53,80 +53,6 @@ Kernel void createPrimitiveBoundingBoxes(
     boundingBoxes[index] = primitiveBoundingBox;
   }
 }
-
-// TODO: Remove if not want to keep it around
-/*Kernel void createPrimitiveBoundingBoxesLegacy(
-  Device PrimitiveStruct*           finalVertexArray,
-  Device PrimitiveAttrib*           finalAttributeArray,
-  Device XAB*                       boundingBoxes,
-  const Device PrimitiveStruct*     primitiveBuffer,
-  constantKernelInput(PackingInfo,  primitivePackingInfo),
-  const Device float*               attributeBuffer,
-  constantKernelInput(PackingInfo,  attributePackingInfo),
-  constantKernelInput(uint,         primitiveBatchSize),
-  constantKernelInput(uint,         primitiveCount),
-  constantKernelInput(uint,         primType),
-  constantKernelInput(uint,         primitiveOffset),
-  constantKernelInput(uint,         vertexOffset)
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
-{
-  uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
-  for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
-  {
-    XAB primitiveBoundingBox;
-
-    if (primType == PrimitiveSphere)
-    {
-      PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
-      primitiveBoundingBox.min = outPrim.position;
-      primitiveBoundingBox.max = outPrim.position;
-
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + primitivePackingInfo.elementOffset);
-
-      primitiveBoundingBox.min -= constructFloat3(radius);
-      primitiveBoundingBox.max += constructFloat3(radius);
-
-      finalVertexArray[index + vertexOffset] = outPrim;
-      finalAttributeArray[index + vertexOffset].radius = radius;
-    }
-
-    if (primType == PrimitiveTriangle)
-    {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + primitivePackingInfo.elementOffset;
-
-      // for indexed array a non zero stride is assumed
-      if (attributePackingInfo.strideIn4Bytes > 0)
-      {
-        vertIndices.x = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.x));
-        vertIndices.y = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.y));
-        vertIndices.z = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.z));
-      }
-
-      // get vertex zero and vertex position
-      PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
-      PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
-      const IdentityInfo v1identity = vert1.identity;
-      PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
-      const IdentityInfo v2identity = vert2.identity;
-
-      primitiveBoundingBox.min = min3(vert0.position, vert1.position, vert2.position);
-      primitiveBoundingBox.max = max3(vert0.position, vert1.position, vert2.position);
-
-      vert1.position = vert1.position - vert0.position;
-      vert1.identity = v1identity;
-      vert2.position = vert2.position - vert0.position;
-      vert2.identity = v2identity;
-
-      vertIndices = vertexOffset + select(constructUint3(0, 1, 2) + index * 3, vertIndices, selectInput3(attributePackingInfo.strideIn4Bytes == 0));
-      finalVertexArray[vertIndices.x] = vert0;
-      finalVertexArray[vertIndices.y] = vert1;
-      finalVertexArray[vertIndices.z] = vert2;
-    }
-
-    boundingBoxes[index + primitiveOffset] = primitiveBoundingBox;
-  }
-}*/
 
 /*
 @kernel Compute and store morton code for each primitive.
@@ -156,12 +82,12 @@ Kernel void assignMortonCode(
 
     if (primInfo.primType == PrimitiveSphere)
     {
-      center = vertexArray[primInfo.vertexOffset + (index - primInfo.indexOffset)].position;
+      center = vertexArray[primInfo.indexOffset + (index - primInfo.primOffset)].position;
     }
 
     if (primInfo.primType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.vertexOffset + (index - primInfo.indexOffset)*3;
+      const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
 
       const float3 vert0 = vertexArray[triIndex].position;
       const float3 edge1 = vertexArray[triIndex+1].position;

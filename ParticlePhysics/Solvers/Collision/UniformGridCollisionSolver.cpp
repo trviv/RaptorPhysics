@@ -60,8 +60,8 @@ void UniformGridCollisionSolver::createUtilities()
   map<ComputeUtilKey, string> utilSetting;
   utilSetting[ComputeUtilOnlyReduce] = "1";
   utilSetting[ComputeUtilStructType] = "float";
-  utilSetting[ComputeUtilCustomAddFunction] = "mergeFloat";
-  utilSetting[ComputeUtilCustomReduceFunction] = "reduceFloat";
+  utilSetting[ComputeUtilCustomAddFunction] = "maxReduce";
+  utilSetting[ComputeUtilCustomReduceFunction] = "maxReduceSimd";
   utilSetting[ComputeUtilSkipParallelPrimitives] = "1";
 
   gridGetSystemRadiusUtilId = ComputeUtil::create(compute, utilSetting, NULL);

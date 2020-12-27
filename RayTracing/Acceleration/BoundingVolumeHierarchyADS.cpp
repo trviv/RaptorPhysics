@@ -60,7 +60,7 @@ void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
   sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
 
   primitiveCount = 0;
-  vertexCount    = 0;
+  indexCount     = 0;
 
   workgroupCount.create(compute);
   workgroupCount.resize(4, false);

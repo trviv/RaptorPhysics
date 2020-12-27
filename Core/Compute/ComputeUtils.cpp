@@ -420,7 +420,7 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* source, uint l
 
 //#define DEBUG_REDUCE
 
-void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length, bool doMean)
+void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, const ComputeMemory* source, uint length, bool doMean)
 {
   if (!localArrays[UtilTempReduceSum])
   {
@@ -442,13 +442,14 @@ void ComputeUtil::sum1D(ComputeInterface* compute, ComputeMemory* destination, C
   uint mean = doMean ? 1 : 0;
   clearBuffer(compute, groupStatus->device(), groupCount);
 
-  ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
-
   const uint kernelIndex = kernelIndices[COMPUTE_UTIL_SUM_1D_KERNEL];
 
-  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
-  kernels[kernelIndex].setArg<uint>(&length, sizeof(buffers) / sizeof(ComputeMemory*));
-  kernels[kernelIndex].setArg<uint>(&mean, 1 + sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg(destination, 0);
+  kernels[kernelIndex].setArg(source, 1);
+  kernels[kernelIndex].setArg(groupSum->device(), 2);
+  kernels[kernelIndex].setArg(groupStatus->device(), 3);
+  kernels[kernelIndex].setArg<uint>(&length, 4);
+  kernels[kernelIndex].setArg<uint>(&mean, 5);
 
   size_t workgroupSize[3] = { 1, 1, 1 };
   size_t workgroupCount[3] = { 1, 1, 1 };

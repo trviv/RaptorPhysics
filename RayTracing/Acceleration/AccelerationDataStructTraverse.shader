@@ -16,7 +16,7 @@ inline bool earliestIntersection(
 
   if (primInfo.primType == PrimitiveSphere)
   {
-    const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + primIndex - primInfo.indexOffset];
+    const PrimitiveStruct sphere = vertexArray[primInfo.indexOffset + primIndex - primInfo.primOffset];
     const float radius = attributeArray[primIndex].radius;
 
     const float3 pvec = rayOrigin - sphere.position;
@@ -52,7 +52,7 @@ inline bool earliestIntersection(
 
   if (primInfo.primType == PrimitiveTriangle)
   {
-    const uint triIndex = primInfo.vertexOffset + (primIndex - primInfo.indexOffset)*3;
+    const uint triIndex = primInfo.indexOffset + (primIndex - primInfo.primOffset)*3;
 
     const PrimitiveStruct vert0 = vertexArray[triIndex];
     const PrimitiveStruct edge1 = vertexArray[triIndex+1];
