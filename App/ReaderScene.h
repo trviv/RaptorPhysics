@@ -18,16 +18,16 @@ class ReaderScene
   unordered_map<string, MaterialId>         registeredMaterials;
 
   /*!@function Read settings for physics and renderer.*/
-  void readSettings(MainSystem* system, XMLElement* settings);
+  void readSettings(MainSystem* system, const XMLElement* settings);
 
   /*!@function Read entities in the scene.*/
-  void readEntities(MainSystem* system, XMLElement* entities);
+  void readEntities(MainSystem* system, const XMLElement* entities);
 
   /*!@function Read materials in the scene.*/
-  void readMaterials(MainSystem* system, XMLElement* materials);
+  void readMaterials(MainSystem* system, const XMLElement* materials);
 
   /*!@function Instantiate entities.*/
-  void createInstances(MainSystem* system, XMLElement* instances);
+  void createInstances(MainSystem* system, const XMLElement* instances);
 
   /*!@function Apply transformation by reading the element.*/
   void transform(const XMLElement* element, Matrix* matrix);

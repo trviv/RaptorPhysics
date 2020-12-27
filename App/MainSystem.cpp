@@ -365,6 +365,7 @@ void MainSystem::render()
       }
     }
 
+    if (entityMaterialMap.size())
     {
       bottomSurface.create(compute);
 

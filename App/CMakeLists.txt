@@ -44,6 +44,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../App/DisplayShaders/PassthruFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene.xml"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_RT.xml"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Cornell.xml"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/DefaultFont.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-solid-900.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-regular-400.ttf"
