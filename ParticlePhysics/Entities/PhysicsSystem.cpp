@@ -425,6 +425,8 @@ void PhysicsSystem::step(float timeStep)
     }
   }
 
+  if (!instanceNodeCount) return;
+
   // create coupling data for cloth
   if (solversUint[SOLVER_CLOTH] && solversUint[SOLVER_FLUID])
   {

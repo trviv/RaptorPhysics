@@ -179,7 +179,7 @@ struct ALIGN(4) EncodedPrimitiveInfo_t
     uint primTypeAndIndexOffset;
     uint count;
   };
-  uint vertexOffset;
+  uint indexOffset;
 };
 
 typedef struct EncodedPrimitiveInfo_t EncodedPrimitiveInfo;
@@ -193,13 +193,13 @@ struct DecodedPrimitiveInfo_t
   ushort primType;
   union
   {
-    uint indexOffset;
-    uint indexCount;
+    uint primOffset;
+    uint primCount;
   };
   union
   {
-    uint vertexOffset;
-    uint vertexCount;
+    uint indexOffset;
+    uint indexCount;
   };
 };
 
@@ -229,7 +229,7 @@ inline static void setPrimitiveIndexOffset(EncodedPrimitiveInfo& sys, uint offse
 
 inline static void setPrimitiveVertexOffset(EncodedPrimitiveInfo& sys, uint offset)
 {
-  sys.vertexOffset = offset;
+  sys.indexOffset = offset;
 }
 
 #endif
@@ -237,9 +237,9 @@ inline static void setPrimitiveVertexOffset(EncodedPrimitiveInfo& sys, uint offs
 inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInfo primInfo)
 {
   DecodedPrimitiveInfo ret;
-  ret.primType     = (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_PRIM_TYPE_ID_SHIFT);
-  ret.indexOffset  = primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK;
-  ret.vertexOffset = primInfo.vertexOffset;
+  ret.primType    = (ushort)(primInfo.primTypeAndIndexOffset >> RAY_TRACING_PRIM_TYPE_ID_SHIFT);
+  ret.primOffset  = primInfo.primTypeAndIndexOffset & RAY_TRACING_PRIM_OFFSET_MASK;
+  ret.indexOffset = primInfo.indexOffset;
   return ret;
 }
 
@@ -261,16 +261,16 @@ inline static DecodedPrimitiveInfo decodePrimitiveInfoFromSystemSettings(Const R
   {
     const DecodedPrimitiveInfo primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[i]);
 
-    if (index < primInfo.indexOffset)
+    if (index < primInfo.primOffset)
     {
       return primInfo;
     }
   }
 
   DecodedPrimitiveInfo ret;
-  ret.primType     = -1;
-  ret.indexOffset  = -1;
-  ret.vertexOffset = -1;
+  ret.primType    = -1;
+  ret.primOffset  = -1;
+  ret.indexOffset = -1;
   return ret;
 }
 

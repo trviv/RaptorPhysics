@@ -1,6 +1,25 @@
 #ifndef RAY_TRACING_SYSTEM_SHADER
 #define RAY_TRACING_SYSTEM_SHADER
 
+Kernel void transformPrimitives(
+  Device PrimitiveStruct*           vertexBuffer,
+  constantKernelInput(PackingInfo,  primitivePackingInfo),
+  constantKernelInput(uint,         maxVertexIndex),
+  constantKernelInput(float4x4,     matrix)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index > maxVertexIndex)
+    return;
+
+  PrimitiveStruct vertexPos = vertexBuffer[index + primitivePackingInfo.elementOffset];
+  const IdentityInfo identity = vertexPos.identity;
+  vertexPos.position = mulMatrixVec(matrix, constructFloat4(vertexPos.position, 1.f)).xyz;
+  vertexPos.identity = identity;
+  vertexBuffer[index + primitivePackingInfo.elementOffset] = vertexPos;
+}
+
 /*
 @kernel Create single array composed of all the primitives.
 @param finalVertexArray Buffer containing all positions.
@@ -11,8 +30,7 @@
 @param primitiveBatchSize Primitives processed per thread.
 @param primitiveCount Total primitives in the buffer.
 @param primType Primitive type for the dispatch.
-@param primitiveOffset Starting offset for storing primitive data.
-@param vertexOffset Starting offset for storing vertex data.
+@param indexOffset Starting offset for storing vertex data.
 */
 Kernel void collectPrimitives(
   Device PrimitiveStruct*           finalVertexArray,
@@ -25,8 +43,7 @@ Kernel void collectPrimitives(
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
   constantKernelInput(uint,         primType),
-  constantKernelInput(uint,         primitiveOffset),
-  constantKernelInput(uint,         vertexOffset)
+  constantKernelInput(uint,         indexOffset)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
@@ -39,8 +56,8 @@ Kernel void collectPrimitives(
       const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + attributePackingInfo.elementOffset);
 
       outPrim.identity = primitiveIdentity;
-      finalVertexArray[index + vertexOffset] = outPrim;
-      finalAttributeArray[index + vertexOffset].radius = radius;
+      finalVertexArray[index + indexOffset] = outPrim;
+      finalAttributeArray[index + indexOffset].radius = radius;
     }
 
     if (primType == PrimitiveTriangle)
@@ -70,7 +87,7 @@ Kernel void collectPrimitives(
       //vert2.identity = v2identity;
       vert2.identity = primitiveIdentity;
 
-      vertIndices = vertexOffset + constructUint3(0, 1, 2) + index * 3;
+      vertIndices = indexOffset + constructUint3(0, 1, 2) + index * 3;
       finalVertexArray[vertIndices.x] = vert0;
       finalVertexArray[vertIndices.y] = vert1;
       finalVertexArray[vertIndices.z] = vert2;

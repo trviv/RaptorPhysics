@@ -67,7 +67,7 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
 
   primitiveCount = 0;
-  vertexCount    = 0;
+  indexCount     = 0;
 
   workgroupCount.create(compute);
   workgroupCount.resize(4, false);
@@ -85,8 +85,8 @@ void AccelerationDataStruct::commit(const DeviceArray<PrimitiveStruct>* vertexAr
   this->attributeArray  = attributeArray;
   this->systemSettings  = systemSettings;
 
-  primitiveCount = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).indexOffset;
-  vertexCount    = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).vertexOffset;
+  primitiveCount = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).primOffset;
+  indexCount     = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).indexOffset;
 
   boundingBoxes.resize(primitiveCount, false);
 }

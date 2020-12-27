@@ -3,6 +3,7 @@
 //#define DEBUG_RAY_TRACING_SYSTEM
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
+uint RayTracingSystem::maxPrimIndex = 0;
 
 RayTracingSystem::RayTracingSystem()
   :allocator(NULL), camera(NULL)
@@ -23,8 +24,8 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
   EntityPrimAttributes primitiveInfo = *entity;
   const uint count = ((PrimitiveArrayEntity*)entity)->getPrimCount();
 
-  primitiveInfo.primInfo.indexCount  = count;
-  primitiveInfo.primInfo.vertexCount = count;
+  primitiveInfo.primInfo.primCount  = count;
+  primitiveInfo.primInfo.indexCount = count;
 
   ushort primType = 0;
   switch (type)
@@ -34,19 +35,41 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
       break;
     case RayTracingEntityTriangles:
       primType = PrimitiveTriangle;
-      primitiveInfo.primInfo.vertexCount *= 3;
+      primitiveInfo.primInfo.indexCount *= 3;
       break;
     default:
       logComputeError("Invalid entity type sent for registration!");
   }
   primitiveInfo.primInfo.primType = primType;
   registeredPrimitives[primType].push_back(primitiveInfo);
+
+  if (entity->attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
+  {
+    ComputeMemory indexBuffer(*entity->attributeBuffer[EntityPrimitiveAttributeIndex], entity->attributeInfo[EntityPrimitiveAttributeIndex].elementOffset*sizeof(uint));
+    ComputeUtil::get(maxPrimIndex)->sum1D(compute, indirectCount.device(), &indexBuffer, primitiveInfo.primInfo.indexCount);
+
+    transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
+    transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
+    transformPrimitives.setArg(indirectCount.device(), 2);
+  }
+  else
+  {
+    transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
+    transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
+    uint maxIndex = primitiveInfo.primInfo.indexCount - 1;
+    transformPrimitives.setArg(&maxIndex, 2);
+  }
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, primitiveInfo.primInfo.indexCount);
+
+  transformPrimitives.setArg<Matrix4>(&entity->getTransform(), 3);
+  compute->execute(transformPrimitives, workgroupSize, workgroupCount);
 }
 
 void RayTracingSystem::composePrimitiveArray()
 {
-  uint indexOffset = 0;
-  uint vertexOffset = 0;
+  uint indexOffset   = 0;
   uint primBatchSize = 8;
 
   for (auto& rp : registeredPrimitives)
@@ -54,7 +77,7 @@ void RayTracingSystem::composePrimitiveArray()
     for (uint i=0; i<rp.size(); i++)
     {
       auto& prim = rp[i];
-      uint primBatchCount = mAlignBy(prim.primInfo.indexCount, primBatchSize);
+      uint primBatchCount = mAlignBy(prim.primInfo.primCount, primBatchSize);
       uint primType = prim.primInfo.primType;
 
       size_t workgroupSize[3], workgroupCount[3];
@@ -65,10 +88,9 @@ void RayTracingSystem::composePrimitiveArray()
       uint nextBindIndex = prim.bindToShader(collectPrimitives, 2);
       collectPrimitives.setArg(&prim.materialId, nextBindIndex);
       collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
-      collectPrimitives.setArg(&prim.primInfo.indexCount, nextBindIndex+2);
+      collectPrimitives.setArg(&prim.primInfo.primCount, nextBindIndex+2);
       collectPrimitives.setArg(&primType, nextBindIndex+3);
       collectPrimitives.setArg(&indexOffset, nextBindIndex+4);
-      collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
@@ -79,7 +101,6 @@ void RayTracingSystem::composePrimitiveArray()
 #endif
 
       indexOffset += prim.primInfo.indexCount;
-      vertexOffset += prim.primInfo.vertexCount;
     }
   }
 }
@@ -147,7 +168,18 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
     reorderRaysKernels[r] = programs.back().createKernel("reorderRays");
   }
 
+  map<ComputeUtilKey, string> maxPrimIndexSetting;
+  maxPrimIndexSetting[ComputeUtilStructType]              = "uint";
+  maxPrimIndexSetting[ComputeUtilOnlyReduce]              = "1";
+  maxPrimIndexSetting[ComputeUtilCustomAddFunction]       = "maxReduce";
+  maxPrimIndexSetting[ComputeUtilCustomReduceFunction]    = "maxReduceSimd";
+  maxPrimIndexSetting[ComputeUtilStructTypeIntegral]      = "1";
+  maxPrimIndexSetting[ComputeUtilSkipParallelPrimitives]  = "1";
+
+  maxPrimIndex = ComputeUtil::create(compute, maxPrimIndexSetting);
+
   collectPrimitives = programs[0].createKernel("collectPrimitives");
+  transformPrimitives = programs[0].createKernel("transformPrimitives");
 
   colorOutputBuffer.create(compute);
   systemSettings.create(compute);
@@ -207,27 +239,27 @@ void RayTracingSystem::commit()
 
   systemSettings.host()->resize(1);
   
+  uint primOffset   = 0;
   uint indexOffset  = 0;
-  uint vertexOffset = 0;
 
   for (uint i=0; i<RTPrimitiveCount; i++)
   {
     for (const auto& p : registeredPrimitives[i])
     {
-      indexOffset  += p.primInfo.indexOffset;
-      vertexOffset += p.primInfo.vertexOffset;
+      primOffset   += p.primInfo.primOffset;
+      indexOffset += p.primInfo.indexOffset;
     }
 
     EncodedPrimitiveInfo primInfo;
 
     setPrimitiveType(primInfo,         (RTPrimitiveType)i);
-    setPrimitiveIndexOffset(primInfo,  indexOffset);
-    setPrimitiveVertexOffset(primInfo, vertexOffset);
+    setPrimitiveIndexOffset(primInfo,  primOffset);
+    setPrimitiveVertexOffset(primInfo, indexOffset);
     systemSettings.host()->at(0).globalOffsets[i] = primInfo;
   }
 
-  vertexArray.resize(vertexOffset, false);
-  attributeArray.resize(indexOffset, false);
+  vertexArray.resize(indexOffset, false);
+  attributeArray.resize(primOffset, false);
 
   systemSettings.syncDevice();
 

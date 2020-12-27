@@ -106,8 +106,8 @@ typedef struct XAB_t XAB;
 #define clearXAB(a, b)  { (a)->min = INFINITY; (a)->max = -INFINITY;}
 #define reduceXAB(o, i) { o.min = simdMin(i.min); o.max = simdMax(i.max);}
 
-#define mergeFloat(a, b)  { *a = max(*a, *b);}
-#define reduceFloat(o, i) { o = simdMax(i);}
+#define maxReduce(a, b)     { *a = max(*a, *b);}
+#define maxReduceSimd(o, i) { o = simdMax(i);}
 
 
 /*!
