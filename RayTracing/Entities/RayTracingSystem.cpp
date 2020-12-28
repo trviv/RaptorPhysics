@@ -211,8 +211,9 @@ void RayTracingSystem::commit()
 {
   lights.host()->clear();
 
-  for (auto& instances : entities)
+  for (uint i=0; i<entities.size(); i++)
   {
+    auto& instances = entities[i];
     for (uint i=1; i<instances.size(); i++)
     {
       RayTracingEntity* entity = instances[i];
@@ -222,15 +223,33 @@ void RayTracingSystem::commit()
       switch (entityCategory)
       {
         case RayTracingEntityPrimArray:
+        {
           registerPrimitive(entityType, entity);
           break;
+        }
         case RayTracingEntityLight:
         {
           Light* light = (Light*)entity;
           light->update();
           lights.host()->push_back(*light);
-        }
+
+          // add a new primitive and material representing the area light
+          if (getRayTracingEntityType(light->getIdentity()) == RayTracingEntityLightArea)
+          {
+            Material *newMaterial = new Material(MaterialTypePlastic);
+            newMaterial->emissive = Half4(light->color.x, light->color.y, light->color.z, 1.f);
+            MaterialId materialIdentity = registerMaterial(newMaterial);
+            setIdentityTwoSided(materialIdentity, true);
+            setIdentityEntityNoShadow(materialIdentity, true);
+
+            PrimitiveArrayEntity *prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, compute);
+            real dim[3] = {1.f, 1.f, 0.f};
+            prim->createBox(dim);
+            prim->setMaterialId(materialIdentity);
+            registerAndInstantiateEntity(prim, 1, &light->getTransform());
+          }
           break;
+        }
         default:
           break;
       }
@@ -360,7 +379,7 @@ void RayTracingSystem::render()
   RayStructType rayType   = RayStructPositionDirectionColor;
   HitStructType hitStruct = HitStructDistanceIndexNormal;
   RayStructType shadowRayType   = RayStructPositionDirectionColor;
-  HitStructType shadowHitStruct = HitStructDistanceIndex;
+  HitStructType shadowHitStruct = HitStructDistanceIdentity;
 
   camera->emitPrimaryRays(rays[0], rayType);
   uintUtil->copyBuffer(compute, camera->getRayCount()->device(), &currentRayCount[0], 0, 0, sizeof(uint)*4);

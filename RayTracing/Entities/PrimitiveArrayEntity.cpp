@@ -1,6 +1,7 @@
 #include "RayTracingEntity.h"
 
-PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount)
+PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount, ComputeInterface* compute)
+  :RayTracingEntity(compute)
 {
   this->identity.identity = 0;
   setRayTracingEntityId(this->identity, type, 0);
@@ -22,6 +23,9 @@ RayTracingEntity* PrimitiveArrayEntity::createCopy()const
 
 void PrimitiveArrayEntity::createBox(const real dim[])
 {
+  if (!deviceData)
+    deviceData = new DeviceArray<uint>(compute);
+
   const bool rectangle = (dim[2] == 0.f);
   const real boxVertices[] = {
     -dim[0], -dim[1], -dim[2], 0.f, +dim[0], -dim[1], -dim[2], 0.f, -dim[0], +dim[1], -dim[2], 0.f, +dim[0], +dim[1], -dim[2], 0.f,
@@ -47,6 +51,9 @@ void PrimitiveArrayEntity::createBox(const real dim[])
 
 void PrimitiveArrayEntity::createSphere(const real radius)
 {
+  if (!deviceData)
+    deviceData = new DeviceArray<uint>(compute);
+
   const real sphereCenter[] = {0.f, 0.f, 0.f, 0.f};
   const real sphereRadius[] = {radius};
 

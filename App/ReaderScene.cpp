@@ -387,20 +387,17 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
       PrimitiveArrayEntity* prim = NULL;
       if (strcmp(shapeHandle.ToElement()->Attribute("type"), "cuboid") == 0)
       {
-        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0);
-        prim->deviceData = new DeviceArray<uint>(system->compute);
+        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, system->compute);
         prim->createBox(&shape.dim[0]);
       }
       else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "sphere") == 0)
       {
-        prim = new PrimitiveArrayEntity(RayTracingEntitySpheres, 0);
-        prim->deviceData = new DeviceArray<uint>(system->compute);
+        prim = new PrimitiveArrayEntity(RayTracingEntitySpheres, 0, system->compute);
         prim->createSphere(shape.size);
       }
       else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "rectangle") == 0)
       {
-        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0);
-        prim->deviceData = new DeviceArray<uint>(system->compute);
+        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, system->compute);
         shape.dim[2] = 0.f;
         prim->createBox(&shape.dim[0]);
       }
@@ -416,10 +413,16 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
       {
         QueryFloat3Attribute(emissiveHandle.ToElement(), light->color);
       }
+    }
+    else if (strcmp(entity->Name(), "area-light") == 0)
+    {
+      Light* light = new Light(RayTracingEntityLightArea);
+      newRTEntity = light;
 
-      if (entity->FirstChildElement("sub-entities"))
+      XMLConstHandle emissiveHandle = XMLConstHandle(entity).FirstChildElement("emissive-color");
+      if (emissiveHandle.ToElement())
       {
-        readEntities(system, entity->FirstChildElement("sub-entities"));
+        QueryFloat3Attribute(emissiveHandle.ToElement(), light->color);
       }
     }
 
@@ -443,10 +446,7 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
         logComputeError("Material %s, not found in entity %s!", shape.materialName.c_str(), identity.c_str());
       }
       material = registeredMaterials[shape.materialName];
-      if (shape.twoSided)
-      {
-        material.identity |= 0x80000000;
-      }
+      setIdentityTwoSided(material, shape.twoSided);
     }
 
     if (newEntity)
