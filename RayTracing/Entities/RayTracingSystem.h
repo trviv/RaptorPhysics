@@ -116,7 +116,7 @@ public:
   /*!@function Update camera based on given matrices.*/
   void updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16]);
 
-  void render();
+  void render(bool updatePrimitives);
 };
 
 #endif

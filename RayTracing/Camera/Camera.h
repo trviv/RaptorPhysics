@@ -14,17 +14,17 @@ class Camera : virtual public CameraStruct, protected ShaderEntity, public RayTr
 protected:
   uint  samples;        // samples per pixel
   real  nearPlane;
+  real  sampleIntensity;
+  bool  updated;
 
   Byte* buffer;
-
-  real  sampleIntensity;
 
   // Function to calculate differentials for different axis and setup ray origin
   void calculateDelta(Real3& origin);
 
   void update();
 
-  DeviceArray<uint>         rayCount;
+  DeviceArray<uint> rayCount;
 
 public:
 
@@ -44,6 +44,8 @@ public:
   virtual void emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType);
 
   virtual void setScale(real scale);
+
+  bool wasUpdated()const;
 };
 
 

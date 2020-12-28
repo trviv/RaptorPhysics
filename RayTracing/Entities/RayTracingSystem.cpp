@@ -358,9 +358,13 @@ void RayTracingSystem::updateCamera(const real projectionMatrix[16], const real 
   camera->update(projectionMatrix, modelviewMatrix);
 }
 
-void RayTracingSystem::render()
+void RayTracingSystem::render(bool updatePrimitives)
 {
-  composePrimitiveArray();
+  if (updatePrimitives)
+  {
+    composePrimitiveArray();
+    accelerationStruct->fullBuild();
+  }
 
   ComputeUtil* uintUtil = ComputeUtil::get(ComputeUtil::getUIntUtil(compute));
 
@@ -390,9 +394,6 @@ void RayTracingSystem::render()
   uintUtil->clearBuffer(compute, colorOutputBuffer.device(), camera->width * camera->height * sizeof(colorType4) / sizeof(uint));
 
   uint rayCount = (rays[0].size() * 4) / getRayStructSize(rayType);
-
-  accelerationStruct->fullBuild();
-
   hits.resize(rayCount * getHitStructSize(hitStruct) / 4, false);
 
   for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
