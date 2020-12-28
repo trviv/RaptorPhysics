@@ -82,16 +82,9 @@
     <visual id="right">
       <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="blue-wall"/>
     </visual>
-    <point-light id="light1">
-      <shape type="void"/>
-      <!-- <sub-entities>
-        <visual id="light-shape">
-          <shape type="rectangle" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="light" two-sided="true"/>
-        </visual>
-      </sub-entities> -->
+    <area-light id="light1">
       <emissive-color xyz="1.f, 1.f, 1.f"/>
-      <!-- <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="light"/> -->
-    </point-light>
+    </area-light>
     <visual id="sphere1">
       <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f" material="reflective1"/>
     </visual>
@@ -144,18 +137,11 @@
         <!-- <scale      xyz="4.0f, 4.0f, 4.0f"/> -->
       </transform>
     </sphere2>
-    <!-- <light-shape count="1">
-      <transform>
-        <translate  xyz="0.0f, 9.9f, 0.0f"/>
-        <scale      xyz="3.33f, .01f, 3.33f"/>
-        <rotate     x="90.0f"/>
-      </transform>
-    </light-shape> -->
     <light1 count="1">
       <transform>
         <translate  xyz="0.0f, 9.9f, 0.0f"/>
-        <!-- <scale      xyz="3.33f, .01f, 3.33f"/>
-        <rotate     x="90.0f"/> -->
+        <scale      xyz="3.33f, 3.33f, 3.33f"/>
+        <rotate     x="90.0f"/>
       </transform>
     </light1>
   </instances>
