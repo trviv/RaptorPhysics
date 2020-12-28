@@ -29,15 +29,11 @@ typedef struct ALIGN(8)
 /*!
 @struct Hit Info containing distance information.
 */
-struct DEFAULT_ALIGN HitInfoDistance_t
+typedef struct ALIGN(8)
 {
   float         distance;
-  uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
-  uint          padding;
-};
-
-typedef struct HitInfoDistance_t HitInfoDistance;
+} HitInfoIdentity;
 
 
 /*!
@@ -57,19 +53,16 @@ typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-inline void initializeHit(Thread HitStruct* hit)
-{
-  hit->distance       = INFINITY;
-  hit->primitiveIndex = -1;
-#ifndef HitStructIndex
-  hit->primitiveIdentity.identity = -1;
-#endif
-}
-
 #ifdef IntersectionTypeClosest
 #define setHitDistance(hitDistance, time) hitDistance = time
 #else
 #define setHitDistance(hitDistance, time)
+#endif
+
+#ifndef HitStructIdentity
+#define setHitPrimitiveIndex(hitPrimitiveIndex, index) hitPrimitiveIndex = index
+#else
+#define setHitPrimitiveIndex(hitPrimitiveIndex, index)
 #endif
 
 #ifndef HitStructIndex
@@ -83,6 +76,13 @@ inline void initializeHit(Thread HitStruct* hit)
 #else
 #define setHitNormal(hitNormal, normal)
 #endif
+
+inline void initializeHit(Thread HitStruct* hit)
+{
+  hit->distance = INFINITY;
+  setHitPrimitiveIndex(hit->primitiveIndex, -1);
+  setHitPrimitiveIdentity(hit->primitiveIdentity.identity, -1);
+}
 
 #else
 

@@ -20,7 +20,7 @@
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-#define MIN_TIME 0.001f
+#define MIN_TIME 0.0001f
 
 // also known as slabs method
 inline bool rayXABIntersectTest(const float timeIn, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
@@ -135,6 +135,16 @@ inline static void setRayTracingInstanceId(IdentityInfo& identity, uint instance
 {
   identity.identity = (identity.identity & (-1 ^ RAY_TRACING_INSTANCE_ID_MASK)) | (instanceId & RAY_TRACING_INSTANCE_ID_MASK);
 }
+
+inline static void setIdentityTwoSided(IdentityInfo& identity, const bool twoSidedFlag)
+{
+  identity.identity = (identity.identity & 0x7FFFFFFF) | (twoSidedFlag?0x80000000:0);
+}
+
+inline static void setIdentityEntityNoShadow(IdentityInfo& identity, const bool noShadow)
+{
+  identity.identity = (identity.identity & 0xBFFFFFFF) | (noShadow?0x40000000:0);
+}
 #endif
 
 inline static uint getRayTracingInstanceId(const IdentityInfo identity)
@@ -150,6 +160,23 @@ inline static ushort getRayTracingEntityId(const IdentityInfo identity)
 inline static ushort getRayTracingEntityType(const IdentityInfo identity)
 {
   return (identity.identity & RAY_TRACING_ENTITY_TYPE_ID_MASK) >> RAY_TRACING_ENTITY_TYPE_ID_SHIFT;
+}
+
+inline static bool isIdentityEntityTwoSided(const IdentityInfo identity)
+{
+  return identity.identity & 0x80000000;
+}
+
+inline static bool isIdentityEntityNoShadow(const IdentityInfo identity)
+{
+  return identity.identity & 0x40000000;
+}
+
+inline IdentityInfo removeIdentityFlags(const IdentityInfo identity)
+{
+  IdentityInfo ret = identity;
+  ret.identity &= 0x3FFFFFFF;
+  return ret;
 }
 
 
@@ -324,7 +351,8 @@ struct DEFAULT_ALIGN LightStruct_t
     };
     struct
     {
-      float res2[4];
+      float res2[3];
+      float width;
     };
   };
   union
@@ -335,7 +363,8 @@ struct DEFAULT_ALIGN LightStruct_t
     };
     struct
     {
-      float res3[4];
+      float res3[3];
+      float height;
     };
   };
 };

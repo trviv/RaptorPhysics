@@ -120,7 +120,7 @@ Kernel void shadeIntersection(
   if (index >= rayCount)
     return;
 
-#if defined(RayStructColor) && !defined(HitStructIndex)
+#if defined(RayStructColor) && !defined(HitStructIndex) && !defined(HitStructIdentity)
   HitStruct hit = hits[index];
   RayStruct ray = rays[index];
   RayStruct shadowRay;
@@ -133,11 +133,11 @@ Kernel void shadeIntersection(
   if (hit.primitiveIndex != -1)
   {
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
-    material = materials[materialId.identity & 0x7FFFFFFF];
-    materialType = getMaterialType(material);
+    material = materials[removeIdentityFlags(materialId).identity];
+    materialType = select(getMaterialType(material), (ushort)-1, isIdentityEntityNoShadow(materialId));
 
 #ifdef HitStructNormal
-    if (materialId.identity > 0x7FFFFFFF && dot(ray.direction, hit.normal) >= 0.f)
+    if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hit.normal) >= 0.f)
     {
       hit.normal = -hit.normal;
     }
@@ -298,7 +298,12 @@ Kernel void processShadowRays(
   const HitStruct shadowHit = hits[index];
 
 #ifdef RayStructColor
+#ifdef HitStructIndex
   if (shadowHit.primitiveIndex == -1)
+#endif
+#ifdef HitStructIdentity
+  if (isIdentityEntityNoShadow(shadowHit.primitiveIdentity))
+#endif
   {
     const RayStruct shadowRay = shadowRays[index];
     colorType4 finalColor = colorOut[shadowRay.rayIndex];

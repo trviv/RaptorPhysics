@@ -30,7 +30,7 @@ inline bool earliestIntersection(
       float time = -(b + d);
       if (time > MIN_TIME && time < hit->distance)
       {
-        hit->primitiveIndex = primIndex;
+        setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
         setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
         setHitNormal(hit->normal, pvec + rayDirection * time);
         setHitDistance(hit->distance, time);
@@ -40,7 +40,7 @@ inline bool earliestIntersection(
       time = -(b - d);
       if (time > MIN_TIME && time < hit->distance)
       {
-        hit->primitiveIndex = primIndex;
+        setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
         setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
         setHitNormal(hit->normal, pvec + rayDirection * time);
         setHitDistance(hit->distance, time);
@@ -73,7 +73,7 @@ inline bool earliestIntersection(
         const float time = dot(edge2.position, qvec) * invDet;
         if (time > MIN_TIME && time < hit->distance)
         {
-          hit->primitiveIndex = primIndex;
+          setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
           setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
           setHitNormal(hit->normal, cross(edge2.position, edge1.position));
           setHitDistance(hit->distance, time);
@@ -142,7 +142,8 @@ Kernel void intersectRays(
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny
-  hits[index].primitiveIndex = hit.primitiveIndex;
+  setHitPrimitiveIndex(hits[index].primitiveIndex, hit.primitiveIndex);
+  setHitPrimitiveIdentity(hits[index].primitiveIdentity, hit.primitiveIdentity);
 #endif
 }
 

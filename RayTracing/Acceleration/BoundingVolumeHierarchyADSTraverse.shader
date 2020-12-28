@@ -432,7 +432,8 @@ Kernel void intersectRaysBVH(
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny
-  hits[index].primitiveIndex = hit.primitiveIndex;
+  setHitPrimitiveIndex(hits[index].primitiveIndex, hit.primitiveIndex);
+  setHitPrimitiveIdentity(hits[index].primitiveIdentity, hit.primitiveIdentity);
 #endif
 }
 
@@ -499,7 +500,8 @@ Kernel void intersectRaysBVH(
     hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny
-    hits[index].primitiveIndex = hit.primitiveIndex;
+    setHitPrimitiveIndex(hits[index].primitiveIndex, hit.primitiveIndex);
+    setHitPrimitiveIdentity(hits[index].primitiveIdentity, hit.primitiveIdentity);
 #endif
   }
 }

@@ -52,10 +52,11 @@ enum RayTracingEntityType
 
   RayTracingEntityLight       = 1,
   RayTracingEntityLightPoint  = 1,
+  RayTracingEntityLightArea   = 2,
 
-  RayTracingEntityPrimArray   = 2,
-  RayTracingEntitySpheres     = 2,
-  RayTracingEntityTriangles   = 3
+  RayTracingEntityPrimArray   = 4,
+  RayTracingEntitySpheres     = 4,
+  RayTracingEntityTriangles   = 5
 };
 
 #ifndef COMPUTE_SHADER_SCOPE
@@ -116,7 +117,7 @@ class PrimitiveArrayEntity : public RayTracingEntity
 
 public:
 
-  PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount);
+  PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount, ComputeInterface* compute = NULL);
 
   ~PrimitiveArrayEntity();
 
