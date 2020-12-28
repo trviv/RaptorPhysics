@@ -398,7 +398,7 @@ void MainSystem::render()
   if (true)
   {
     rayTracingSystem.updateCamera(this->projectionMatrix, this->modelMatrix);
-    rayTracingSystem.render();
+    rayTracingSystem.render(timeSliderFrame->isShrunk());
 
     const uint camWidth  = rayTracingSystem.getCameraStruct().width;
     const uint camHeight = rayTracingSystem.getCameraStruct().height;

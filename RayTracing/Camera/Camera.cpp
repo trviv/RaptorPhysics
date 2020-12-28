@@ -62,7 +62,32 @@ void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[
 {
   this->scale = tan(60.f * 0.5f * M_PI / 180.f);
   Matrix4::invert(this->viewMatrixInv, modelviewMatrix);
-  compute->copyFromHost(deviceData->device(), 0, sizeof(CameraStruct), (CameraStruct*)this, false);
+
+  updated = true;
+  if (deviceData->host()->size() == sizeof(CameraStruct)/sizeof(uint))
+  {
+    CameraStruct *oldValue = (CameraStruct*)&((*deviceData->host())[0]);
+    updated = false;
+    for (uint i=0; i<16; i++)
+    {
+      if (this->viewMatrixInv[i] != oldValue->viewMatrixInv[i])
+      {
+        updated = true;
+        break;
+      }
+    }
+  }
+  else
+  {
+    deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);
+    deviceData->host()->resize(sizeof(CameraStruct) / sizeof(uint), false);
+  }
+
+  if (updated)
+  {
+    memcpy(&((*deviceData->host())[0]), (CameraStruct*)this, sizeof(CameraStruct));
+    deviceData->syncDevice();
+  }
 }
 
 void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
@@ -104,4 +129,9 @@ void Camera::setScale(real scale)
   rayCount.host()->push_back(1);
   rayCount.host()->push_back(0);
   rayCount.syncDevice();
+}
+
+bool Camera::wasUpdated()const
+{
+  return updated;
 }
