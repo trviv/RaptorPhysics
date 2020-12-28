@@ -21,8 +21,8 @@ Camera::Camera(ComputeInterface* compute)
   registerShader(compute, "Camera.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("emitPrimaryRaysZWalkLocal"));
 
-  deviceData.create(compute);
-  deviceData.resize(1, false);
+  deviceData = new DeviceArray<uint>(compute);
+  deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);
 
   rayCount.create(compute);
   rayCount.resize(4, false);
@@ -62,7 +62,7 @@ void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[
 {
   this->scale = tan(60.f * 0.5f * M_PI / 180.f);
   Matrix4::invert(this->viewMatrixInv, modelviewMatrix);
-  compute->copyFromHost(deviceData.device(), 0, sizeof(CameraStruct), (CameraStruct*)this, true);
+  compute->copyFromHost(deviceData->device(), 0, sizeof(CameraStruct), (CameraStruct*)this, false);
 }
 
 void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
@@ -80,7 +80,7 @@ void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     kernels[0].setArgs(buffers, bufferCount);
-    kernels[0].setArg(deviceData.device(), bufferCount);
+    kernels[0].setArg(deviceData->device(), bufferCount);
 
     compute->execute(kernels[0], workgroupSize, workgroupCount);
 

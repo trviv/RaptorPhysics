@@ -24,8 +24,6 @@ protected:
 
   void update();
 
-  DeviceArray<CameraStruct> deviceData;
-
   DeviceArray<uint>         rayCount;
 
 public:
