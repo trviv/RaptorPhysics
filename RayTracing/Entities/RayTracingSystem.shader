@@ -138,40 +138,46 @@ Kernel void shadeIntersection(
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
     material = materials[removeIdentityFlags(materialId).identity];
     materialType = select(getMaterialType(material), (ushort)-1, isIdentityEntityNoShadow(materialId));
-
-#ifdef HitStructNormal
     if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hit.normal) >= 0.f)
     {
       hit.normal = -hit.normal;
     }
-#endif
-
     colorType4 finalColor = colorOut[ray.rayIndex];
     finalColor.xyz += material.emissive.xyz * ray.color.xyz;
     finalColor.w = 1.f;
     colorOut[ray.rayIndex] = finalColor;
   }
 
+  childRay = ray;
+  childRay.origin = shadowRay.origin;
+  bool createChildRay = true;
+
   if (materialType == MaterialTypeReflective)
   {
-    childRay = ray;
-    // produce child ray if needed
-    childRay.origin    = shadowRay.origin;
-#ifdef HitStructNormal
     childRay.direction = reflectVector(ray.direction, hit.normal);
-#endif
-    childRay.maxDistance = INFINITY;
-    rays[index] = childRay;
+    childRay.color *= material.specular;
   }
   else if (materialType == MaterialTypeTranslucent)
   {
-    childRay = ray;
-    // produce child ray if needed
-    childRay.origin    = shadowRay.origin;
-#ifdef HitStructNormal
     childRay.direction = refractVector(ray.direction, hit.normal, getMaterialRefractiveIndex(material));
-#endif
+    childRay.color *= material.specular;
+  }
+  else if (materialType == MaterialTypePlastic && dot(ray.direction, hit.normal) <= 0.f)
+  {
+    const uint rand = camera->frameIndex + randomUints[index];
+    const float2 random = constructFloat2(getRandomNumber(rand, 2+iteration*4+2), getRandomNumber(rand, 2+iteration*4+3));
+    childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
+    childRay.color *= material.diffuse;
+  }
+  else
+  {
+    createChildRay = false;
+  }
+
+  if (createChildRay)
+  {
     childRay.maxDistance = INFINITY;
+    childRay.rayIndex = ray.rayIndex;
     rays[index] = childRay;
   }
   else
@@ -185,16 +191,12 @@ Kernel void shadeIntersection(
     shadowRay.maxDistance = 0.f;
     if (materialType == MaterialTypePlastic)
     {
-      float3 lightPosition, lightColor;
-      sampleLight(&lightPosition, &lightColor, lights + i, camera->frameIndex + randomUints[index] + i, iteration);
-      float3 direction = lightPosition - shadowRay.origin;
+      float3 lightPosition, lightColor, direction;
+      float maxDistance;
+      sampleLight(&lightPosition, &lightColor, &direction, &maxDistance, lights + i, camera->frameIndex + randomUints[index] + i, iteration, shadowRay.origin);
 
-#ifdef HitStructNormal
       if (dot(direction, hit.normal) >= 0.f)
-#endif
       {
-        const float maxDistance = length(direction);
-        direction /= maxDistance;
         shadowRay.direction = direction;
         shadowRay.maxDistance = maxDistance;
         shadowRay.rayIndex  = ray.rayIndex;

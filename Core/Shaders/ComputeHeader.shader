@@ -42,6 +42,7 @@
 #define constructInt3       (int3)
 #define constructUchar3     (uchar3)
 #define constructUchar4     (uchar4)
+#define constructHalf2      (half2)
 
 #define convertShort2(a)    convert_short2(a)
 #define convertUshort4(a)   convert_ushort4(a)
@@ -85,6 +86,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float eta)
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
   return select(0.f, normalize(incident * eta + normal * (eta * dotNI - sqrt(k))), k > 0.f);
 }
+#define sinCos(phi, cosPhi) sincos(phi, &cosPhi)
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -159,6 +161,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float eta)
 #define constructInt3       int3
 #define constructUchar3     uchar3
 #define constructUchar4     uchar4
+#define constructHalf2      half2
 
 #define convertShort2(a)    short2(a)
 #define convertUshort4(a)   ushort4(a)
@@ -200,6 +203,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float eta)
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
   return select(0.f, normalize(incident * eta + normal * (eta * dotNI - sqrt(k))), k > 0.f);
 }
+#define sinCos(phi, cosPhi) sincos(phi, cosPhi)
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)

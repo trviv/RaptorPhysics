@@ -326,6 +326,30 @@ inline float getRandomNumber(uint index, ushort dimension)
   return ret;
 }
 
+// Uses the inversion method to map two uniformly random numbers to a three dimensional
+// unit hemisphere where the probability of a given sample is proportional to the cosine
+// of the angle between the sample direction and the "up" direction (0, 1, 0)
+inline float3 sampleCosineWeightedHemisphere(const float2 random)
+{
+  float cosPhi;
+  const float phi = 6.283185307179586476925286766560 * random.x;
+  const float sinPhi = sinCos(phi, cosPhi);
+  const float sinTheta = sqrt(1.0f - random.y);
+  return constructFloat3(sinTheta * cosPhi, sqrt(random.y), sinTheta * sinPhi);
+}
+
+// Aligns a direction on the unit hemisphere such that the hemisphere's "up" direction
+// (0, 1, 0) maps to the given surface normal direction
+inline float3 alignHemisphereWithNormal(const float3 sample, const float3 normal)
+{
+  // Find an arbitrary direction perpendicular to the normal. This will become the "right" vector.
+  const float3 right = normalize(cross(normal, float3(0.0072f, 1.0f, 0.0034f)));
+  // Find a third vector perpendicular to the previous two. This will be the "forward" vector.
+  const float3 forward = cross(right, normal);
+  // Map the direction on the unit hemisphere to the coordinate system aligned with the normal.
+  return sample.x * right + sample.y * normal + sample.z * forward;
+}
+
 #endif
 
 
