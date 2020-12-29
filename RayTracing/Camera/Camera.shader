@@ -82,7 +82,8 @@ Kernel void emitPrimaryRaysZWalkLocal(
   const short2 xyIndex  = xyOffset + select(constructShort2(threadLocalIndexN(0), threadLocalIndexN(1)), decode32BitMortonCode2d(threadLocalIndex()),
     (camera->width - xyOffset.x) >= threadGroupSizeN(0) && (camera->height - xyOffset.y) >= threadGroupSizeN(1));
 
-  RayStruct ray   = sampleCameraAtPixel(camera, xyIndex.x, xyIndex.y);
+  const float2 random = constructFloat2(getRandomNumber(camera->frameIndex + xyIndex.x, 0), getRandomNumber(camera->frameIndex + xyIndex.y, 1));
+  RayStruct ray   = sampleCameraAtPixel(camera, xyIndex.x + random.x, xyIndex.y + random.y);
   ray.maxDistance = INFINITY;
   ray.color       = constructColor4(1.f);
   ray.rayIndex    = xyIndex.x + camera->width * xyIndex.y;
