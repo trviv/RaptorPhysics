@@ -25,24 +25,14 @@ struct DEFAULT_ALIGN Ray_t
     struct
     {
       float3  origin;
-    };
-    struct
-    {
-      uint  reserved[3];
-      float maxDistance;
-    };
-  };
-
-  union
-  {
-    struct
-    {
       float3  direction;
     };
     struct
     {
-      uint  reserved1[3];
-      uint  rayIndex;
+      uint    reserved[3];
+      float   maxDistance;
+      uint    reserved1[3];
+      uint    rayIndex;
     };
   };
 };
@@ -59,24 +49,14 @@ struct DEFAULT_ALIGN RayColor_t
     struct
     {
       float3  origin;
-    };
-    struct
-    {
-      uint  reserved[3];
-      float maxDistance;
-    };
-  };
-
-  union
-  {
-    struct
-    {
       float3  direction;
     };
     struct
     {
-      uint  reserved1[3];
-      uint  rayIndex;
+      uint    reserved[3];
+      float   maxDistance;
+      uint    reserved1[3];
+      uint    rayIndex;
     };
   };
   colorType4 color;

@@ -47,7 +47,8 @@ Camera::~Camera()
   }
   if (deviceData)
   {
-    delete deviceData;
+    delete[] deviceData;
+    deviceData = NULL;
   }
 }
 
