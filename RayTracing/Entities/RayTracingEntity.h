@@ -23,14 +23,6 @@ public:
 };
 
 
-enum EntityPrimitiveAttributeType
-{
-  EntityPrimitiveAttributePosition,
-  EntityPrimitiveAttributeRadius,
-  EntityPrimitiveAttributeIndex = EntityPrimitiveAttributeRadius,
-  EntityPrimitiveAttributeMax
-};
-
 struct EntityPrimAttributes
 {
   DecodedPrimitiveInfo  primInfo;
@@ -46,21 +38,6 @@ struct EntityPrimAttributes
 };
 
 
-enum RayTracingEntityType
-{
-  RayTracingEntityCamera      = 0,
-
-  RayTracingEntityLight       = 1,
-  RayTracingEntityLightPoint  = 1,
-  RayTracingEntityLightArea   = 2,
-
-  RayTracingEntityPrimArray   = 4,
-  RayTracingEntitySpheres     = 4,
-  RayTracingEntityTriangles   = 5
-};
-
-#ifndef COMPUTE_SHADER_SCOPE
-
 static RayTracingEntityType getRayTracingEntityCategory(ushort type)
 {
   if (type < RayTracingEntityLight)
@@ -70,7 +47,6 @@ static RayTracingEntityType getRayTracingEntityCategory(ushort type)
   return RayTracingEntityPrimArray;
 }
 
-#endif
 
 /*!
 @class Base class for all ray traced entities.

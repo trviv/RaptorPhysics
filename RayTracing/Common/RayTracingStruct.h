@@ -188,6 +188,29 @@ struct ALIGN(4) PrimitiveAttrib_t
 typedef struct PrimitiveAttrib_t PrimitiveAttrib;
 
 
+enum EntityPrimitiveAttributeType
+{
+  EntityPrimitiveAttributePosition,
+  EntityPrimitiveAttributeRadius,
+  EntityPrimitiveAttributeIndex = EntityPrimitiveAttributeRadius,
+  EntityPrimitiveAttributeMax
+};
+
+
+enum RayTracingEntityType
+{
+  RayTracingEntityCamera      = 0,
+
+  RayTracingEntityLight       = 1,
+  RayTracingEntityLightPoint  = 1,
+  RayTracingEntityLightArea   = 2,
+
+  RayTracingEntityPrimArray   = 4,
+  RayTracingEntitySpheres     = 4,
+  RayTracingEntityTriangles   = 5
+};
+
+
 enum RTPrimitiveType
 {
   PrimitiveSphere,
@@ -307,69 +330,46 @@ inline static DecodedPrimitiveInfo decodePrimitiveInfoFromSystemSettings(Const R
 /*!
 @struct Shared Camera information.
 */
-struct DEFAULT_ALIGN CameraStruct_t
+typedef struct DEFAULT_ALIGN
 {
   struct
   {
     uint  width;
     uint  height;
     float scale;
-    IdentityInfo identity;
+    uint  frameIndex;
   };
 #if defined(COMPUTE_SHADER_SCOPE)
   float4x4  viewMatrixInv;
 #else
   float     viewMatrixInv[16];
 #endif
-};
-
-typedef struct CameraStruct_t CameraStruct;
+} CameraStruct;
 
 
 /*!
 @struct Shared Light information.
 */
-struct DEFAULT_ALIGN LightStruct_t
+typedef struct DEFAULT_ALIGN
 {
   union
   {
     struct
     {
       float3 position;
+      float3 color;
+      float3 normal;
+      float3 right;
+      float3 up;
     };
     struct
     {
       uint res1[3];
       IdentityInfo identity;
+      uint res2[4*4];
     };
   };
-  union
-  {
-    struct
-    {
-      float3 color;
-    };
-    struct
-    {
-      float res2[3];
-      float width;
-    };
-  };
-  union
-  {
-    struct
-    {
-      float3 normal;
-    };
-    struct
-    {
-      float res3[3];
-      float height;
-    };
-  };
-};
-
-typedef struct LightStruct_t LightStruct;
+} LightStruct;
 
 #pragma pack(pop)
 

@@ -1,15 +1,14 @@
 #include "Camera.h"
 
 //#define DEBUG_RT_CAMERA
+#define RT_CAMERA_BUFFER_SIZE 3
 
 Camera::Camera(ComputeInterface* compute)
   :RayTracingEntity(compute)
 {
-  setRayTracingEntityId(this->identity, RayTracingEntityCamera, 0);
   scale = 1.f;
   samples = 1;
   buffer = NULL;
-  setRayTracingEntityId(identity, RayTracingEntityCamera, 0);
 
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
@@ -21,11 +20,19 @@ Camera::Camera(ComputeInterface* compute)
   registerShader(compute, "Camera.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("emitPrimaryRaysZWalkLocal"));
 
-  deviceData = new DeviceArray<uint>(compute);
-  deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);
+  deviceData = new DeviceArray<uint>[RT_CAMERA_BUFFER_SIZE];
+  for (uint i=0; i<RT_CAMERA_BUFFER_SIZE; i++)
+  {
+    deviceData[i].create(compute);
+    deviceData[i].resize(sizeof(CameraStruct) / sizeof(uint), false);
+    deviceData[i].host()->resize(sizeof(CameraStruct) / sizeof(uint), false);
+  }
 
   rayCount.create(compute);
   rayCount.resize(4, false);
+
+  frameIndex = 0;
+  deviceIndex = 0;
 }
 
 Camera::~Camera()
@@ -33,6 +40,14 @@ Camera::~Camera()
   if(buffer)
   {
     delete buffer;
+  }
+  for (uint i=0; deviceData && i<RT_CAMERA_BUFFER_SIZE; i++)
+  {
+    deviceData[i].free();
+  }
+  if (deviceData)
+  {
+    delete deviceData;
   }
 }
 
@@ -45,7 +60,8 @@ RayTracingEntity* Camera::createCopy()const
 
 RayTracingEntityId Camera::getIdentity()const
 {
-  return identity;
+  logComputeError("Camera object does not carry an identity!");
+  return IdentityInfo_t();
 }
 
 const DeviceArray<uint>* Camera::getRayCount()const
@@ -63,31 +79,21 @@ void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[
   this->scale = tan(60.f * 0.5f * M_PI / 180.f);
   Matrix4::invert(this->viewMatrixInv, modelviewMatrix);
 
-  updated = true;
-  if (deviceData->host()->size() == sizeof(CameraStruct)/sizeof(uint))
+  // compare current matrix to the previous matrix and set frame index to 0 if its changed
+  CameraStruct* prevValue = (CameraStruct*)&(*(deviceData[deviceIndex].host()))[0];
+  for (uint i=0; i<16; i++)
   {
-    CameraStruct *oldValue = (CameraStruct*)&((*deviceData->host())[0]);
-    updated = false;
-    for (uint i=0; i<16; i++)
+    if (this->viewMatrixInv[i] != prevValue->viewMatrixInv[i])
     {
-      if (this->viewMatrixInv[i] != oldValue->viewMatrixInv[i])
-      {
-        updated = true;
-        break;
-      }
+      frameIndex = 0;
+      break;
     }
   }
-  else
-  {
-    deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);
-    deviceData->host()->resize(sizeof(CameraStruct) / sizeof(uint), false);
-  }
 
-  if (updated)
-  {
-    memcpy(&((*deviceData->host())[0]), (CameraStruct*)this, sizeof(CameraStruct));
-    deviceData->syncDevice();
-  }
+  deviceIndex = (deviceIndex + 1) % RT_CAMERA_BUFFER_SIZE;
+  memcpy((CameraStruct*)&(*(deviceData[deviceIndex].host()))[0], (CameraStruct*)this, sizeof(CameraStruct));
+  deviceData[deviceIndex].syncDevice();
+  frameIndex++;
 }
 
 void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
@@ -131,7 +137,7 @@ void Camera::setScale(real scale)
   rayCount.syncDevice();
 }
 
-bool Camera::wasUpdated()const
+const ComputeMemory* Camera::getDeviceCamera()const
 {
-  return updated;
+  return deviceData[deviceIndex].device();
 }

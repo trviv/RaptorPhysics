@@ -178,13 +178,16 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 
   maxPrimIndex = ComputeUtil::create(compute, maxPrimIndexSetting);
 
+  accumulateColor = programs[0].createKernel("accumulateColor");
   collectPrimitives = programs[0].createKernel("collectPrimitives");
   transformPrimitives = programs[0].createKernel("transformPrimitives");
 
   colorOutputBuffer.create(compute);
+  accumulatedColorBuffer.create(compute);
   systemSettings.create(compute);
   vertexArray.create(compute);
   attributeArray.create(compute);
+  randomUints.create(compute);
 
   for (auto& i : registeredPrimitives)
   {
@@ -299,7 +302,7 @@ const Camera& RayTracingSystem::getCameraStruct()const
 
 const DeviceArray<colorType4>& RayTracingSystem::getColorOutputBuffer()const
 {
-  return colorOutputBuffer;
+  return accumulatedColorBuffer;
 }
 
 MaterialId RayTracingSystem::registerMaterial(Material* material)
@@ -390,11 +393,22 @@ void RayTracingSystem::render(bool updatePrimitives)
 
   size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
   colorOutputBuffer.resize(camera->width * camera->height, false);
+  accumulatedColorBuffer.resize(camera->width * camera->height, false);
 
   uintUtil->clearBuffer(compute, colorOutputBuffer.device(), camera->width * camera->height * sizeof(colorType4) / sizeof(uint));
-
   uint rayCount = (rays[0].size() * 4) / getRayStructSize(rayType);
   hits.resize(rayCount * getHitStructSize(hitStruct) / 4, false);
+
+  if (randomUints.size() != rayCount)
+  {
+    randomUints.resize(rayCount, false);
+    randomUints.host()->resize(rayCount);
+    for (uint i=0; i<rayCount; i++)
+    {
+      (*randomUints.host())[i] = rand() & RAND_MAX;
+    }
+    randomUints.syncDevice();
+  }
 
   for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
   {
@@ -448,7 +462,8 @@ void RayTracingSystem::render(bool updatePrimitives)
         colorOutputBuffer.device(),
         shadowRays[0].device(),
         rays[bufferIndex].device(),
-        hits.device()
+        hits.device(),
+        randomUints.device()
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       shadeIntersectionKernel.setArgs(buffers, bufferCount);
@@ -457,6 +472,8 @@ void RayTracingSystem::render(bool updatePrimitives)
       shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
       shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
       shadeIntersectionKernel.setArg(materials.device(), bufferCount+4);
+      shadeIntersectionKernel.setArg(camera->getDeviceCamera(), bufferCount+5);
+      shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
 
       compute->execute(shadeIntersectionKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
 
@@ -490,8 +507,6 @@ void RayTracingSystem::render(bool updatePrimitives)
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       processShadowRaysKernel.setArgs(buffers, bufferCount);
       processShadowRaysKernel.setArg(&validRayCount[bufferIndex], bufferCount);
-      ushort lastIteration = iteration == (maxIterations-1);
-      processShadowRaysKernel.setArg(&lastIteration, bufferCount+1);
 
       compute->execute(processShadowRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
     }
@@ -500,5 +515,22 @@ void RayTracingSystem::render(bool updatePrimitives)
     {
       ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), rays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
     }
+  }
+
+  // accumulate color
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, rayCount, 1024);
+
+    ComputeMemory* buffers[] = {
+      accumulatedColorBuffer.device(),
+      colorOutputBuffer.device(),
+    };
+    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+    accumulateColor.setArgs(buffers, bufferCount);
+    accumulateColor.setArg(camera->getDeviceCamera(), bufferCount);
+    accumulateColor.setArg(&rayCount, bufferCount+1);
+
+    compute->execute(accumulateColor, workgroupSize, workgroupCount);
   }
 }
