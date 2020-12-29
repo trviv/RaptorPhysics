@@ -3,6 +3,8 @@
 Light::Light(RayTracingEntityType type)
 {
   setRayTracingEntityId(this->identity, type, 0);
+  ((Real3*)&up)->setNull();
+  ((Real3*)&right)->setNull();
   ((Real3*)&color)->setNull();
   ((Real3*)&normal)->setNull();
   ((Real3*)&position)->setNull();
@@ -35,10 +37,10 @@ void Light::update()
 
     Real3 width(1.f, 0.f, 0.f);
     transform.transformDir(width);
-    this->width = width.length();
+    this->right = width;
 
     Real3 height(0.f, 1.f, 0.f);
     transform.transformDir(height);
-    this->height = height.length();
+    this->up = height;
   }
 }

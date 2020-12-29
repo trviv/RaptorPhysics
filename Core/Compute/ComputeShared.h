@@ -309,7 +309,7 @@ ushort Const haltonPrimes[] = {
 // value used to render the image should use a different independent dimension 'd',
 // and each sample (frame) should use a different index 'i'. To decorrelate each
 // pixel, a random offset can be applied to 'i'.
-inline float getRandomNumber(ushort index, ushort dimension)
+inline float getRandomNumber(uint index, ushort dimension)
 {
   float ret = 0;
   float f = 1.0f;

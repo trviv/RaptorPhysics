@@ -1,11 +1,11 @@
 #ifndef CAMERA_SHADER
 #define CAMERA_SHADER
 
-inline RayStruct sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), float pixelX, float pixelY)
+inline RayStruct sampleCameraAtPixel(Const CameraStruct* camera, float pixelX, float pixelY)
 {
   RayStruct worldRay;
-  const float cW = camera.width;
-  const float cH = camera.height;
+  const float cW = camera->width;
+  const float cH = camera->height;
   const float aspectRatio = cW / cH;
 
   /*const float4x4 mat = transpose(camera.viewMatrixInv);
@@ -14,9 +14,9 @@ inline RayStruct sampleCameraAtPixel(constantKernelInput(CameraStruct, camera), 
   const float y = (1.f - 2.f * (pixelY + 0.5f) / cH) * camera.scale;
   worldRay.direction = normalize((constructFloat4(x, y, -1.f, 0.f) * mat).xyz);*/
 
-  const float4x4 mat = camera.viewMatrixInv;
-  const float x = (2.f * (pixelX + 0.5f) / cW - 1.f) * camera.scale * aspectRatio;
-  const float y = (1.f - 2.f * (pixelY + 0.5f) / cH) * camera.scale;
+  const float4x4 mat = camera->viewMatrixInv;
+  const float x = (2.f * (pixelX + 0.5f) / cW - 1.f) * camera->scale * aspectRatio;
+  const float y = (1.f - 2.f * (pixelY + 0.5f) / cH) * camera->scale;
 
   worldRay.origin    = mulVecMatrix(constructFloat4(0.f, 0.f, 0.f, 1.f), mat).xyz;
   worldRay.direction = normalize(mulMatrixVec(mat, constructFloat4(x, y, -1.f, 0.f)).xyz);
@@ -37,7 +37,7 @@ Kernel void emitPrimaryRaysLinear(
   if (threadIndexN(0) >= camera->width || threadIndexN(1) >= camera->height)
     return;
 
-  RayStruct ray = sampleCameraAtPixel(*camera, threadIndexN(0), threadIndexN(1));
+  RayStruct ray = sampleCameraAtPixel(camera, threadIndexN(0), threadIndexN(1));
 
   // The camera emits primary rays
   ray.maxDistance = INFINITY;
@@ -82,7 +82,7 @@ Kernel void emitPrimaryRaysZWalkLocal(
   const short2 xyIndex  = xyOffset + select(constructShort2(threadLocalIndexN(0), threadLocalIndexN(1)), decode32BitMortonCode2d(threadLocalIndex()),
     (camera->width - xyOffset.x) >= threadGroupSizeN(0) && (camera->height - xyOffset.y) >= threadGroupSizeN(1));
 
-  RayStruct ray   = sampleCameraAtPixel(*camera, xyIndex.x, xyIndex.y);
+  RayStruct ray   = sampleCameraAtPixel(camera, xyIndex.x, xyIndex.y);
   ray.maxDistance = INFINITY;
   ray.color       = constructColor4(1.f);
   ray.rayIndex    = xyIndex.x + camera->width * xyIndex.y;
@@ -120,7 +120,7 @@ Kernel void emitPrimaryRaysZWalkLocalTG(
   const short2 xyIndex = xyOffset + select(constructShort2(threadLocalIndexN(0), threadLocalIndexN(1)), decode32BitMortonCode2d(threadLocalIndex()),
     (camera->width - xyOffset.x) >= threadGroupSizeN(0) && (camera->height - xyOffset.y) >= threadGroupSizeN(1));
 
-  RayStruct ray   = sampleCameraAtPixel(*camera, xyIndex.x, xyIndex.y);
+  RayStruct ray   = sampleCameraAtPixel(camera, xyIndex.x, xyIndex.y);
   ray.maxDistance = INFINITY;
   ray.color       = constructColor4(1.f);
   ray.rayIndex    = xyIndex.x + camera->width * xyIndex.y;

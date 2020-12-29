@@ -28,6 +28,7 @@ protected:
 
   ComputeKernel collectPrimitives;
   ComputeKernel transformPrimitives;
+  ComputeKernel accumulateColor;
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel reorderRaysKernels[RayStructTypeMax];
@@ -38,6 +39,7 @@ protected:
 
   /*!@member Final color output.*/
   DeviceArray<colorType4> colorOutputBuffer;
+  DeviceArray<colorType4> accumulatedColorBuffer;
 
   /*!@member Camera used in the scene.*/
   Camera* camera;
@@ -67,6 +69,8 @@ protected:
   DeviceArray<PrimitiveAttrib> attributeArray;
 
   DeviceArray<RTSystemSettings> systemSettings;
+
+  DeviceArray<uint> randomUints;
 
   /*!@member Acceleration struct for the system.*/
   AccelerationDataStruct* accelerationStruct;

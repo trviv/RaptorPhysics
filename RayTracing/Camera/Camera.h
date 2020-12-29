@@ -15,7 +15,7 @@ protected:
   uint  samples;        // samples per pixel
   real  nearPlane;
   real  sampleIntensity;
-  bool  updated;
+  uint  deviceIndex;
 
   Byte* buffer;
 
@@ -45,7 +45,8 @@ public:
 
   virtual void setScale(real scale);
 
-  bool wasUpdated()const;
+  /*!@function Get current camera device object, used for accumulating color from subsequent renders.*/
+  const ComputeMemory* getDeviceCamera()const;
 };
 
 

@@ -108,11 +108,14 @@ Kernel void shadeIntersection(
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
   const Device HitStruct*       hits,
+  const Device uint*            randomUints,
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
   constantKernelInput(ushort,   lightOffset),
   constantKernelInput(ushort,   lightCount),
-  const Device MaterialStruct*  materials
+  const Device MaterialStruct*  materials,
+  Const CameraStruct*           camera,
+  constantKernelInput(uint,     iteration)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -183,7 +186,7 @@ Kernel void shadeIntersection(
     if (materialType == MaterialTypePlastic)
     {
       float3 lightPosition, lightColor;
-      sampleLight(&lightPosition, &lightColor, lights[i]);
+      sampleLight(&lightPosition, &lightColor, lights + i, camera->frameIndex + randomUints[index] + i, iteration);
       float3 direction = lightPosition - shadowRay.origin;
 
 #ifdef HitStructNormal
@@ -283,11 +286,10 @@ Kernel void reorderRays(
 }
 
 Kernel void processShadowRays(
-  Device colorType4*          colorOut,
-  const Device RayStruct*     shadowRays,
-  const Device HitStruct*     hits,
-  constantKernelInput(uint,   rayCount),
-  constantKernelInput(ushort, lastIteration)
+  Device colorType4*        colorOut,
+  const Device RayStruct*   shadowRays,
+  const Device HitStruct*   hits,
+  constantKernelInput(uint, rayCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -313,6 +315,28 @@ Kernel void processShadowRays(
     colorOut[shadowRay.rayIndex] = finalColor;
   }
 #endif
+}
+
+Kernel void accumulateColor(
+  Device colorType4*        accumulatedColorOut,
+  const Device colorType4*  colorOut,
+  Const CameraStruct*       camera,
+  constantKernelInput(uint, rayCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index < rayCount)
+  {
+    if (camera->frameIndex > 0)
+    {
+      accumulatedColorOut[index] = (colorOut[index] + accumulatedColorOut[index] * (float)camera->frameIndex) / (float)(camera->frameIndex+1);
+    }
+    else
+    {
+      accumulatedColorOut[index] = colorOut[index];
+    }
+  }
 }
 
 #endif
