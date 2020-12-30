@@ -51,7 +51,7 @@ protected:
   DeviceArray<MaterialStruct> materials;
 
   /*!@member Ray buffer for the scene.*/
-  DeviceArray<uint> rays[RAY_TRACING_SYSTEM_ARRAY_COUNT];
+  DeviceArray<uint> rays[RAY_TRACING_SYSTEM_ARRAY_COUNT+1];
 
   /*!@member Ray buffer for the scene.*/
   DeviceArray<uint> shadowRays[2];

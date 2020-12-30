@@ -1,6 +1,7 @@
 #include "RayTracingSystem.h"
 
 //#define DEBUG_RAY_TRACING_SYSTEM
+static uint rearrangeMultiplier = 1;
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
 uint RayTracingSystem::maxPrimIndex = 0;
@@ -114,7 +115,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 //    allocator->create(maxRays);
   }
 
-  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
+  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+1; i++)
   {
     rays[i].create(compute);
   }
@@ -141,13 +142,14 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   includeFiles.push_back("Light.shader");
 
   const vector<string> rayUtilIncludeFiles = {"RayStructs.h"};
+  rearrangeMultiplier = 4096 / compute->maxThreadsPerGroup();
 
   for (int r=0; r<RayStructTypeMax; r++)
   {
     for (int h=0; h<HitStructTypeMax; h++)
     {
-      vector<string> oldType = {"RayStruct", "HitStruct"};
-      vector<string> newType = {getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
+      vector<string> oldType = {"RayStruct", "HitStruct", "RAYS_REARRANGE_MULTIPLIER"};
+      vector<string> newType = {getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(rearrangeMultiplier)};
       getRayStructDefines(oldType, newType, (RayStructType)r);
       getHitStructDefines(oldType, newType, (HitStructType)h);
       registerShader(compute, "RayTracingSystem.shader", &oldType, &newType);
@@ -410,7 +412,7 @@ void RayTracingSystem::render(bool updatePrimitives)
     randomUints.syncDevice();
   }
 
-  for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
+  for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+1; i++)
   {
     rays[i].resize(rays[0].size(), false);
   }
@@ -425,25 +427,6 @@ void RayTracingSystem::render(bool updatePrimitives)
   for (uint iteration=0; iteration<maxIterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
     uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
-
-    if (false && iteration > 0)
-    {
-      uint multiplier = 2;
-
-      ComputeKernel& reorderRaysKernel = reorderRaysKernels[rayType];
-
-      reorderRaysKernel.setArg(rays[bufferIndex].device(), 0);
-      reorderRaysKernel.setArg(&currentRayCount[bufferIndex], 1);
-      reorderRaysKernel.setSharedMemArg(sizeof(uint)*2*(workgroupSize[0]*workgroupSize[1]*workgroupSize[2]*multiplier), 2);
-
-      compute->execute(reorderRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
-
-#ifdef DEBUG_RAY_TRACING_SYSTEM
-      rays[bufferIndex].syncHost();
-      compute->sync();
-#endif
-    }
-
     accelerationStruct->intersectRays(hits.device(), hitStruct, rays[bufferIndex].device(), rayType, &currentRayCount[bufferIndex], IntersectionTypeClosest);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
@@ -513,7 +496,33 @@ void RayTracingSystem::render(bool updatePrimitives)
 
     if (iteration < (maxIterations-1))
     {
-      ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), rays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
+      const bool reorderRays = true;
+
+      ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT],
+        reorderRays ? rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device() : rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(),
+        rays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
+
+      if (reorderRays)
+      {
+        size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * rearrangeMultiplier, 1, 1};
+
+        uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], workgroupSize);
+
+        ComputeKernel& reorderRaysKernel = reorderRaysKernels[rayType];
+
+        reorderRaysKernel.setArg(rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 0);
+        reorderRaysKernel.setArg(rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 1);
+        reorderRaysKernel.setArg(&currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], 2);
+        reorderRaysKernel.setSharedMemArg(sizeof(uint)*2*workgroupSize[0]*workgroupSize[1]*workgroupSize[2], 3);
+
+        workgroupSize[0] /= rearrangeMultiplier;
+        compute->execute(reorderRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+        rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].syncHost();
+        compute->sync();
+#endif
+      }
     }
   }
 
