@@ -212,6 +212,11 @@ uint Const mortonCodeMap32Bit[1024] = {
   153354240, 153354241, 153354248, 153354249, 153354304, 153354305, 153354312, 153354313, 153354752, 153354753, 153354760, 153354761, 153354816, 153354817, 153354824, 153354825, 153358336, 153358337, 153358344, 153358345, 153358400, 153358401, 153358408, 153358409, 153358848, 153358849, 153358856, 153358857, 153358912, 153358913, 153358920, 153358921,
   153387008, 153387009, 153387016, 153387017, 153387072, 153387073, 153387080, 153387081, 153387520, 153387521, 153387528, 153387529, 153387584, 153387585, 153387592, 153387593, 153391104, 153391105, 153391112, 153391113, 153391168, 153391169, 153391176, 153391177, 153391616, 153391617, 153391624, 153391625, 153391680, 153391681, 153391688, 153391689};
 
+inline ushort encode16BitMortonCodeMath(const short3 quantizedPosition)
+{
+  return encode16Bits(quantizedPosition.x & 31) | (encode16Bits(quantizedPosition.y & 31) << 1) | (encode16Bits(quantizedPosition.z & 31) << 2);
+}
+
 inline ushort encode16BitMortonCode(const short3 quantizedPosition)
 {
 #if   1
@@ -219,8 +224,16 @@ inline ushort encode16BitMortonCode(const short3 quantizedPosition)
 #elif 0
   return mortonCodeMap32Bit[quantizedPosition.x & 31] | (mortonCodeMap32Bit[quantizedPosition.y & 31] << 1) | (mortonCodeMap32Bit[quantizedPosition.z & 31] << 2);
 #else
-  return encode16Bits(quantizedPosition.x & 31) | (encode16Bits(quantizedPosition.y & 31) << 1) | (encode16Bits(quantizedPosition.z & 31) << 2);
+  return encode16BitMortonCodeMath(quantizedPosition);
 #endif
+}
+
+inline uint encode32BitMortonCodeMath(const int3 quantizedPosition)
+{
+  const short x = quantizedPosition.x & 1023;
+  const short y = quantizedPosition.y & 1023;
+  const short z = quantizedPosition.z & 1023;
+  return encode32Bits(x) | (encode32Bits(y) << 1) | (encode32Bits(z) << 2);
 }
 
 inline uint encode32BitMortonCode(const int3 quantizedPosition)
@@ -230,9 +243,7 @@ inline uint encode32BitMortonCode(const int3 quantizedPosition)
   const short z = quantizedPosition.z & 1023;
 
 #if   0
-  return mortonCodeMap16Bit[x&31] | (mortonCodeMap16Bit[x>>5] << 15) |
-    ((mortonCodeMap16Bit[y&31] | (mortonCodeMap16Bit[y>>5] << 15)) << 1) |
-    ((mortonCodeMap16Bit[z&31] | (mortonCodeMap16Bit[z>>5] << 15)) << 2);
+  return encode32BitMortonCodeMath(quantizedPosition);
 #elif 1
   return mortonCodeMap32Bit[x] | (mortonCodeMap32Bit[y] << 1) | (mortonCodeMap32Bit[z] << 2);
 #else

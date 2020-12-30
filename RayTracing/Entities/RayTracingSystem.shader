@@ -150,7 +150,6 @@ Kernel void shadeIntersection(
 
   childRay = ray;
   childRay.origin = shadowRay.origin;
-  bool createChildRay = true;
 
   if (materialType == MaterialTypeReflective)
   {
@@ -169,12 +168,8 @@ Kernel void shadeIntersection(
     childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
     childRay.color *= material.diffuse;
   }
-  else
-  {
-    createChildRay = false;
-  }
 
-  if (createChildRay)
+  if (materialType != (ushort)-1)
   {
     childRay.maxDistance = INFINITY;
     childRay.rayIndex = ray.rayIndex;
@@ -211,8 +206,6 @@ Kernel void shadeIntersection(
   }
 #endif
 }
-
-#define RAYS_REARRANGE_MULTIPLIER 2
 
 inline void bitonicSortSharedUint2(
   Shared uint2* localNodes,
@@ -251,30 +244,34 @@ inline void bitonicSortSharedUint2(
 }
 
 Kernel void reorderRays(
-  Device RayStruct*           rays,
-  constantKernelInput(uint,   rayCount),
-  sharedMemKernelInput(uint2, raySpatialData, 2)
-  KERNEL_GLOBAL_ARGUMENTS
+  Device RayStruct* raysOut,
+  const Device RayStruct* raysIn,
+  constantKernelInput(uint, rayCount),
+  sharedMemKernelInput(uint2, raySpatialData, 3)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  RayStruct localRays[RAYS_REARRANGE_MULTIPLIER];
+  const uint groupOffset = threadGroupSize() * threadGroupIndex() * RAYS_REARRANGE_MULTIPLIER;
 
   for (short i=0; i<RAYS_REARRANGE_MULTIPLIER; i++)
   {
-    uint2 rayData = constructUint2(-1);
-    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * (i + threadGroupIndex() * RAYS_REARRANGE_MULTIPLIER);
+    uint2 rayData;
+    const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * i + groupOffset;
     if (threadGlobalIndex < rayCount)
     {
-      localRays[i] = rays[threadGlobalIndex];
-      const uint cellInternalSpatialIndex = encode32BitMortonCode(constructInt3(511.f * (localRays[i].direction + 1.f)));
+      const uint cellInternalSpatialIndex = encode32BitMortonCodeMath(constructInt3(511.f * (raysIn[threadGlobalIndex].direction + 1.f)));
+      //const uint cellInternalSpatialIndex = encode16BitMortonCodeMath(constructShort3(15.f * (raysIn[threadGlobalIndex].direction + 1.f)));
       rayData = constructUint2(cellInternalSpatialIndex, threadGlobalIndex);
+    }
+    else
+    {
+      rayData = constructUint2(-1);
     }
     raySpatialData[threadLocalIndex() + i * threadGroupSize()] = rayData;
   }
 
   const short tgSizePowOf2 = 32 - clz((int)threadGroupSize() * RAYS_REARRANGE_MULTIPLIER) - 1;
-  bitonicSortSharedUint2(raySpatialData, tgSizePowOf2 / 2, threadGroupSize(), threadLocalIndex());
+  bitonicSortSharedUint2(raySpatialData, tgSizePowOf2, threadGroupSize(), threadLocalIndex());
 
   for (short i=0; i<RAYS_REARRANGE_MULTIPLIER; i++)
   {
@@ -282,7 +279,7 @@ Kernel void reorderRays(
 
     if (threadGlobalIndex != -1)
     {
-      rays[threadGlobalIndex] = localRays[i];
+      raysOut[threadLocalIndex() + threadGroupSize() * i + groupOffset] = raysIn[threadGlobalIndex];
     }
   }
 }
