@@ -207,11 +207,11 @@ Kernel void shadeIntersection(
 #endif
 }
 
-inline void bitonicSortSharedUint2(
-  Shared uint2* localNodes,
-  const short   maxDepth,
-  const short   localThreadCount,
-  const short   localIndex)
+inline void bitonicSortSharedUshort2(
+  Shared ushort2* localNodes,
+  const short     maxDepth,
+  const short     localThreadCount,
+  const short     localIndex)
 {
   localMemBarrier();
 
@@ -228,8 +228,8 @@ inline void bitonicSortSharedUint2(
 
         if (swapIndex < localThreadCount * RAYS_REARRANGE_MULTIPLIER && index < localThreadCount * RAYS_REARRANGE_MULTIPLIER)
         {
-          const uint2 node1 = localNodes[index].xy;
-          const uint2 node2 = localNodes[swapIndex].xy;
+          const ushort2 node1 = localNodes[index];
+          const ushort2 node2 = localNodes[swapIndex];
 
           if (node1.x > node2.x)
           {
@@ -238,7 +238,10 @@ inline void bitonicSortSharedUint2(
           }
         }
       }
-      localMemBarrier();
+      if (mergeSubSize > ComputeSimdWidth)
+      {
+        localMemBarrier();
+      }
     }
   }
 }
@@ -247,7 +250,7 @@ Kernel void reorderRays(
   Device RayStruct* raysOut,
   const Device RayStruct* raysIn,
   constantKernelInput(uint, rayCount),
-  sharedMemKernelInput(uint2, raySpatialData, 3)
+  sharedMemKernelInput(ushort2, raySpatialData, 3)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
@@ -255,31 +258,31 @@ Kernel void reorderRays(
 
   for (short i=0; i<RAYS_REARRANGE_MULTIPLIER; i++)
   {
-    uint2 rayData;
+    ushort2 rayData;
     const uint threadGlobalIndex = threadLocalIndex() + threadGroupSize() * i + groupOffset;
     if (threadGlobalIndex < rayCount)
     {
-      const uint cellInternalSpatialIndex = encode32BitMortonCodeMath(constructInt3(511.f * (raysIn[threadGlobalIndex].direction + 1.f)));
-      //const uint cellInternalSpatialIndex = encode16BitMortonCodeMath(constructShort3(15.f * (raysIn[threadGlobalIndex].direction + 1.f)));
-      rayData = constructUint2(cellInternalSpatialIndex, threadGlobalIndex);
+      //const uint cellInternalSpatialIndex = encode32BitMortonCodeMath(constructInt3(511.f * (raysIn[threadGlobalIndex].direction + 1.f)));
+      const ushort cellInternalSpatialIndex = encode16BitMortonCode(constructShort3(15.f * (raysIn[threadGlobalIndex].direction + 1.f)));
+      rayData = constructUshort2(cellInternalSpatialIndex, threadLocalIndex() + threadGroupSize() * i);
     }
     else
     {
-      rayData = constructUint2(-1);
+      rayData = constructUshort2(-1);
     }
     raySpatialData[threadLocalIndex() + i * threadGroupSize()] = rayData;
   }
 
   const short tgSizePowOf2 = 32 - clz((int)threadGroupSize() * RAYS_REARRANGE_MULTIPLIER) - 1;
-  bitonicSortSharedUint2(raySpatialData, tgSizePowOf2, threadGroupSize(), threadLocalIndex());
+  bitonicSortSharedUshort2(raySpatialData, tgSizePowOf2, threadGroupSize(), threadLocalIndex());
 
   for (short i=0; i<RAYS_REARRANGE_MULTIPLIER; i++)
   {
-    const uint threadGlobalIndex = raySpatialData[threadLocalIndex() + i * threadGroupSize()].y;
+    const ushort threadGlobalIndex = raySpatialData[threadLocalIndex() + i * threadGroupSize()].y;
 
-    if (threadGlobalIndex != -1)
+    if (threadGlobalIndex != (ushort)-1)
     {
-      raysOut[threadLocalIndex() + threadGroupSize() * i + groupOffset] = raysIn[threadGlobalIndex];
+      raysOut[threadLocalIndex() + threadGroupSize() * i + groupOffset] = raysIn[groupOffset + threadGlobalIndex];
     }
   }
 }
