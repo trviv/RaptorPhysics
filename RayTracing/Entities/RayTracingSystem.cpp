@@ -142,7 +142,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   includeFiles.push_back("Light.shader");
 
   const vector<string> rayUtilIncludeFiles = {"RayStructs.h"};
-  rearrangeMultiplier = 4096 / compute->maxThreadsPerGroup();
+  rearrangeMultiplier = 8192 / compute->maxThreadsPerGroup();
 
   for (int r=0; r<RayStructTypeMax; r++)
   {
@@ -513,7 +513,7 @@ void RayTracingSystem::render(bool updatePrimitives)
         reorderRaysKernel.setArg(rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 0);
         reorderRaysKernel.setArg(rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 1);
         reorderRaysKernel.setArg(&currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], 2);
-        reorderRaysKernel.setSharedMemArg(sizeof(uint)*2*workgroupSize[0]*workgroupSize[1]*workgroupSize[2], 3);
+        reorderRaysKernel.setSharedMemArg(sizeof(ushort)*2*workgroupSize[0]*workgroupSize[1]*workgroupSize[2], 3);
 
         workgroupSize[0] /= rearrangeMultiplier;
         compute->execute(reorderRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
