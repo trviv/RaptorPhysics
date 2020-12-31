@@ -161,17 +161,24 @@ Kernel void shadeIntersection(
     childRay.direction = refractVector(ray.direction, hit.normal, getMaterialRefractiveIndex(material));
     childRay.color *= material.specular;
   }
-  else if (materialType == MaterialTypePlastic && dot(ray.direction, hit.normal) <= 0.f)
+  else if (materialType == MaterialTypePlastic)
   {
-    const uint rand = camera->frameIndex + randomUints[index];
-    const float2 random = constructFloat2(getRandomNumber(rand, 2+iteration*4+2), getRandomNumber(rand, 2+iteration*4+3));
-    childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
-    childRay.color *= material.diffuse;
+    if (dot(ray.direction, hit.normal) <= 0.f)
+    {
+      const uint rand = camera->frameIndex + randomUints[index];
+      const float2 random = constructFloat2(getRandomNumber(rand, 2+iteration*4+2), getRandomNumber(rand, 2+iteration*4+3));
+      childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
+      childRay.color *= material.diffuse;
+    }
+    else
+    {
+      materialType = -1;
+    }
   }
 
   if (materialType != (ushort)-1)
   {
-    childRay.maxDistance = INFINITY;
+    childRay.maxDistance = select(INFINITY, 0.f, maxComp3(childRay.color) < MIN_TIME);
     childRay.rayIndex = ray.rayIndex;
     rays[index] = childRay;
   }
@@ -186,16 +193,16 @@ Kernel void shadeIntersection(
     shadowRay.maxDistance = 0.f;
     if (materialType == MaterialTypePlastic)
     {
-      float3 lightPosition, lightColor, direction;
+      float3 lightColor, direction;
       float maxDistance;
-      sampleLight(&lightPosition, &lightColor, &direction, &maxDistance, lights + i, camera->frameIndex + randomUints[index] + i, iteration, shadowRay.origin);
 
-      if (dot(direction, hit.normal) >= 0.f)
+      if (sampleLight(&lightColor, &direction, &maxDistance, lights + i, camera->frameIndex + randomUints[index] + i, iteration, shadowRay.origin)
+        && dot(direction, hit.normal) >= MIN_TIME)
       {
         shadowRay.direction = direction;
-        shadowRay.maxDistance = maxDistance;
         shadowRay.rayIndex  = ray.rayIndex;
         shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit).xyz;
+        shadowRay.maxDistance = select(maxDistance, 0.f, maxComp3(shadowRay.color) < MIN_TIME);
       }
       shadowRays[index + rayCount * i] = shadowRay;
     }
