@@ -11,7 +11,12 @@ enum MaterialTypes
   MaterialTypePlastic,
   MaterialTypeReflective,
   MaterialTypeTranslucent,
-  MaterialTypeMax
+  MaterialTypeMax,
+  MaterialTypeReflection    = 0x1,
+  MaterialTypeTransmission  = 0x2,
+  MaterialTypeDiffuse       = 0x4,
+  MaterialTypeGlossy        = 0x8,
+  MaterialTypeSpecular      = 0x10,
 };
 
 enum MaterialShaders
@@ -42,12 +47,12 @@ typedef struct DEFAULT_ALIGN
 
 static void setMaterialType(MaterialStruct& mat, MaterialTypes type)
 {
-  mat.flags = (mat.flags & 0xFFFFFFF0) | (type & 0xF);
+  mat.flags = (mat.flags & 0xFFFFFF00) | (type & 0xFF);
 }
 
 static void setMaterialShader(MaterialStruct& mat, MaterialShaders shaderType)
 {
-  mat.flags = mat.flags | (shaderType << 4);
+  mat.flags = mat.flags | (shaderType << 8);
 }
 
 static void setMaterialSpecularExponent(MaterialStruct& mat, float value)
@@ -60,16 +65,21 @@ static void setMaterialRefractiveIndex(MaterialStruct& mat, float value)
   mat.parameters.x = value;
 }
 
+static void setMaterialFresnelK(MaterialStruct& mat, float value)
+{
+  mat.parameters.y = value;
+}
+
 #else
 
 inline ushort getMaterialType(const MaterialStruct mat)
 {
-  return mat.flags & 0xF;
+  return mat.flags & 0xFF;
 }
 
 inline ushort getMaterialShader(const MaterialStruct mat)
 {
-  return mat.flags >> 4;
+  return mat.flags >> 8;
 }
 
 inline colorType getMaterialSpecularExponent(const MaterialStruct mat)
@@ -80,6 +90,11 @@ inline colorType getMaterialSpecularExponent(const MaterialStruct mat)
 inline colorType getMaterialRefractiveIndex(const MaterialStruct mat)
 {
   return mat.parameters.x;
+}
+
+inline colorType getMaterialFresnelK(const MaterialStruct mat)
+{
+  return mat.parameters.y;
 }
 
 inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const float3 worldDirection, const HitStruct hit)
@@ -116,10 +131,46 @@ inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, con
   {
     specularScale = 0.f;
   }
-  color += material.specular * pow(max(specularScale, (colorType)0.f), getMaterialSpecularExponent(material));
+  if (specularScale)
+  {
+    color += material.specular * pow(max(specularScale, (colorType)0.f), getMaterialSpecularExponent(material));
+  }
 #endif
 
   return color;
+}
+
+inline float fresnelDielectric(float cosThetaI, colorType etaI, colorType etaT)
+{
+  const float sinThetaI = sqrt(1.f - cosThetaI * cosThetaI);
+  if (cosThetaI > 0.f)
+  {
+    const colorType temp = etaI;
+    etaI = etaT;
+    etaT = temp;
+  }
+  cosThetaI = abs(cosThetaI);
+
+  const float sinThetaT = etaI / etaT * sinThetaI;
+  if (sinThetaT >= 1.f)
+  {
+    return 1.f;
+  }
+
+  const float cosThetaT = sqrt(1.f - sinThetaT * sinThetaT);
+  const float rPara = ((etaT * cosThetaI) - (etaI * cosThetaT)) / ((etaT * cosThetaI) + (etaI * cosThetaT));
+  const float rPerp = ((etaI * cosThetaI) - (etaT * cosThetaT)) / ((etaI * cosThetaI) + (etaT * cosThetaT));
+  return (rPara * rPara + rPerp * rPerp) * 0.5f;
+}
+
+inline float fresnelConductor(float cosThetaI, colorType etaI, colorType etaT, const colorType k)
+{
+  return 0.f;
+}
+
+inline float getFresnelCoefficient(float cosThetaI, colorType etaI, colorType etaT, const colorType k)
+{
+  return select(fresnelDielectric(cosThetaI, etaI, etaT), fresnelConductor(cosThetaI, etaI, etaT, k), k);
 }
 
 #endif

@@ -133,6 +133,8 @@ Kernel void shadeIntersection(
   MaterialStruct material;
   ushort materialType = -1;
 
+  const uint pixelRandomValue = camera->frameIndex + randomUints[index];
+
   if (hit.primitiveIndex != -1)
   {
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
@@ -158,15 +160,22 @@ Kernel void shadeIntersection(
   }
   else if (materialType == MaterialTypeTranslucent)
   {
-    childRay.direction = refractVector(ray.direction, hit.normal, getMaterialRefractiveIndex(material));
+    const float randomNumber = getRandomNumber(pixelRandomValue, 2+iteration*4);
+    if (randomNumber < getFresnelCoefficient(dot(ray.direction, hit.normal), 1.f, getMaterialRefractiveIndex(material), getMaterialFresnelK(material)))
+    {
+      childRay.direction = reflectVector(ray.direction, hit.normal);
+    }
+    else
+    {
+      childRay.direction = refractVector(ray.direction, hit.normal, 1.f, getMaterialRefractiveIndex(material));
+    }
     childRay.color *= material.specular;
   }
   else if (materialType == MaterialTypePlastic)
   {
     if (dot(ray.direction, hit.normal) <= 0.f)
     {
-      const uint rand = camera->frameIndex + randomUints[index];
-      const float2 random = constructFloat2(getRandomNumber(rand, 2+iteration*4+2), getRandomNumber(rand, 2+iteration*4+3));
+      const float2 random = constructFloat2(getRandomNumber(pixelRandomValue, 2+iteration*4+2), getRandomNumber(pixelRandomValue, 2+iteration*4+3));
       childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
       childRay.color *= material.diffuse;
     }
@@ -196,7 +205,7 @@ Kernel void shadeIntersection(
       float3 lightColor, direction;
       float maxDistance;
 
-      if (sampleLight(&lightColor, &direction, &maxDistance, lights + i, camera->frameIndex + randomUints[index] + i, iteration, shadowRay.origin)
+      if (sampleLight(&lightColor, &direction, &maxDistance, lights + i, pixelRandomValue + i, iteration, shadowRay.origin)
         && dot(direction, hit.normal) >= MIN_TIME)
       {
         shadowRay.direction = direction;

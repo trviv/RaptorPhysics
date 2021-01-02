@@ -27,15 +27,13 @@ inline bool rayXABIntersectTest(const float timeIn, const XAB xab, const float3 
 {
   const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
   const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
-  const float3 tmin = select(t0, t1, sign);
-  const float tminOut = maxComp3(tmin);
-
-  if (tminOut >= timeIn)
+  const float tmaxOut = minComp3(select(t1, t0, sign));
+  if (tmaxOut <= MIN_TIME)
   {
     return false;
   }
-  const float tmaxOut = minComp3(select(t1, t0, sign));
-  return tminOut < tmaxOut && tmaxOut > MIN_TIME;
+  const float tminOut = maxComp3(select(t0, t1, sign));
+  return tminOut < timeIn && tminOut < tmaxOut;
 }
 
 inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
