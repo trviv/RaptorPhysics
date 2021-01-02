@@ -72,20 +72,19 @@
 #define mulVecMatrix(vec, mat) (constructFloat4(dot(vec, mat.lo.lo), dot(vec, mat.lo.hi), dot(vec, mat.hi.lo), dot(vec, mat.hi.hi)))
 #define mulMatrixVec(mat, vec) (constructFloat4(dot(vec, mat.s048c), dot(vec, mat.s159d), dot(vec, mat.s26ae), dot(vec, mat.s37bf)))
 #define reflectVector(incident, normal) (incident – 2.f * dot(normal, incident) * normal)
-inline float3 refractVector(const float3 incident, float3 normal, float eta)
+inline float3 refractVector(const float3 incident, float3 normal, float etaI, float etaT)
 {
-  float dotNI = dot(normal, incident);
-  if (dotNI < 0.f)
+  const float dotNI = dot(normal, incident);
+  if (dotNI > 0.f)
   {
-    dotNI = -dotNI;
-  }
-  else
-  {
-    eta = 1.f/eta;
+    const float temp = etaI;
+    etaI = etaT;
+    etaT = temp;
     normal = -normal;
   }
+  const float eta = etaI/etaT;
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
-  return select(0.f, normalize(incident * eta + normal * (eta * dotNI - sqrt(k))), k > 0.f);
+  return select(0.f, normalize(incident * eta + normal * (eta * abs(dotNI) - sqrt(k))), k > 0.f);
 }
 #define sinCos(phi, cosPhi) sincos(phi, &cosPhi)
 
@@ -190,20 +189,19 @@ inline float3 refractVector(const float3 incident, float3 normal, float eta)
 #define mulMatrixVec(mat, vec) (mat * vec)
 #define reflectVector(incident, normal) reflect(incident, normal)
 //#define refractVector(incident, normal, eta) refract(incident, normal, eta)
-inline float3 refractVector(const float3 incident, float3 normal, float eta)
+inline float3 refractVector(const float3 incident, float3 normal, float etaI, float etaT)
 {
-  float dotNI = dot(normal, incident);
-  if (dotNI < 0.f)
+  const float dotNI = dot(normal, incident);
+  if (dotNI > 0.f)
   {
-    dotNI = -dotNI;
-    eta = 1.f/eta;
-  }
-  else
-  {
+    const float temp = etaI;
+    etaI = etaT;
+    etaT = temp;
     normal = -normal;
   }
+  const float eta = etaI/etaT;
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
-  return select(0.f, normalize(incident * eta + normal * (eta * dotNI - sqrt(k))), k > 0.f);
+  return select(0.f, normalize(incident * eta + normal * (eta * abs(dotNI) - sqrt(k))), k > 0.f);
 }
 #define sinCos(phi, cosPhi) sincos(phi, cosPhi)
 
