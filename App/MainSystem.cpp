@@ -332,7 +332,6 @@ void MainSystem::render()
           indexOffset += primCount*3;
           prevEntityId = entityId;
 
-#ifdef ENABLE_RENDERING
           // read object vertex indices
           const PhysicsEntity* entity = physicsSystem.getEntities((SolverType)s)[getEntityId(entityIdentity)];
           if (entity->displayElements.count())
@@ -346,7 +345,6 @@ void MainSystem::render()
             glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
             entity->displayElements.unbind();
           }
-#endif
         }
         primitiveIndices[s].syncDevice();
 

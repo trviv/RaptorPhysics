@@ -162,6 +162,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
     rayUtilSetting[ComputeUtilStructMember]       = "maxDistance";
     rayUtilSetting[ComputeUtilStructMemberType]   = "uint";
     rayUtilSetting[ComputeUtilStructMemberSize]   = "4";
+    rayUtilSetting[ComputeUtilBatchSize]          = "1";
     rayUtilSetting[ComputeUtilOnlyCompaction]     = "1";
     rayUtilSetting[ComputeUtilStructTypeIntegral] = "1";
     rayUtilSetting[ComputeUtilSkipParallelPrimitives] = "1";
