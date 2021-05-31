@@ -294,8 +294,10 @@ void MainSystem::createUnitCircle()
 
 void MainSystem::render()
 {
+  const bool enableRayTracing = rayTracingSystem.isAvailable();
+
   // initialize ray tracer if it has no primitives
-  if (rayTracingSystem.getPrimCount() == 0)
+  if (enableRayTracing && rayTracingSystem.getPrimCount() == 0)
   {
     for (uint s = 0; s < SOLVER_MAX; s++)
     {
@@ -393,7 +395,7 @@ void MainSystem::render()
     rayTracingSystem.commit();
   }
 
-  if (true)
+  if (enableRayTracing)
   {
     rayTracingSystem.updateCamera(this->projectionMatrix, this->modelMatrix);
     rayTracingSystem.render(timeSliderFrame->isShrunk());

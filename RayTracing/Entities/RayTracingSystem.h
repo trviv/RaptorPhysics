@@ -90,6 +90,8 @@ public:
 
   ~RayTracingSystem();
 
+  bool isAvailable();
+
   /*!@function Initialize the system based on max number of rays.*/
   void init(ComputeInterface* compute, const uint maxRays);
 

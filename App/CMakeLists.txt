@@ -43,6 +43,7 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../App/DisplayShaders/BGFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/../App/DisplayShaders/PassthruFrag.glsl"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene.xml"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_Fluid.xml"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_RT.xml"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Cornell.xml"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/DefaultFont.ttf"

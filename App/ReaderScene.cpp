@@ -213,19 +213,22 @@ void ReaderScene::readSettings(MainSystem* system, const XMLElement* settings)
   QueryFloat3Attribute(render->FirstChildElement("reset-camera-position"), renderer->cameraPosition.end());
   renderer->cameraPosition.begin() = renderer->cameraPosition.end();
 
-  real scale = 1.f;
-  rayTracingSystem->init(compute, renderer->width() * renderer->height() * 2);
-  if (rayTracing->FirstChildElement("simple-camera"))
+  if (rayTracing)
   {
-    rayTracingSystem->camera = new Camera(compute);
-    rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &scale);
+    real scale = 1.f;
+    rayTracingSystem->init(compute, renderer->width() * renderer->height() * 2);
+    if (rayTracing->FirstChildElement("simple-camera"))
+    {
+      rayTracingSystem->camera = new Camera(compute);
+      rayTracing->FirstChildElement("simple-camera")->QueryFloatAttribute("scale", &scale);
+    }
+
+    rayTracing->QueryUnsignedAttribute("max-iterations", &rayTracingSystem->maxIterations);
+
+    rayTracingSystem->camera->width  = renderer->width();
+    rayTracingSystem->camera->height = renderer->height();
+    rayTracingSystem->camera->setScale(scale);
   }
-
-  rayTracing->QueryUnsignedAttribute("max-iterations", &rayTracingSystem->maxIterations);
-
-  rayTracingSystem->camera->width  = renderer->width();
-  rayTracingSystem->camera->height = renderer->height();
-  rayTracingSystem->camera->setScale(scale);
 }
 
 struct ShapeData

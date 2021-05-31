@@ -21,44 +21,41 @@
       <reset-camera-front xyz="0.0f, 0.0f, -1.f"/>
       <reset-camera-position xyz="0.0f, 0.0f, 30.0f"/>
     </rendering>
-    <ray-tracing max-iterations="8">
-      <simple-camera scale=".5" near-plane=""/>
+    <ray-tracing max-iterations="4">
+      <simple-camera scale=".25" near-plane=""/>
     </ray-tracing>
   </settings>
   
   <!-- Material definitions -->
   <materials>
-    <translucent id="translucent1" refractive-index="3.0f">
-      <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    <translucent id="translucent1" refractive-index="1.5f">
+      <specular-color rgba="0.95f, 0.95f, 0.95f, 1.0f"/>
     </translucent>
     <reflective id="reflective1">
-      <diffuse-color  rgba="0.3f, 0.0f, 0.0f, 1.f"/>
-      <specular-color rgba="0.4f, 0.4f, 0.4f, 1.f"/>
-      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.f"/>
+      <specular-color rgba="0.95f, 0.95f, 0.95f, 1.0f"/>
     </reflective>
-    <shade id="light" specular-exponent="0.f">
-      <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <emissive-color rgba="1.0f, 1.0f, 1.0f, 1.0f"/>
+    <shade id="blue-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.0f, 0.0f, 0.2f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.14f, 0.45f, 0.091f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.25f, 0.25f, 0.75f, 1.0f"/>
     </shade>
-    <shade id="blue-wall" diffuse-shader="Lambert" specular-shader="Phong" specular-exponent="20">
-      <diffuse-color  rgba="0.0f, 0.0f, 0.2f, 1.0f"/>
-      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    <shade id="red-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.2f, 0.0f, 0.0f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.63f, 0.065f, 0.05f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.75f, 0.25f, 0.25f, 1.0f"/>
     </shade>
-    <shade id="red-wall" diffuse-shader="Lambert" specular-shader="Phong" specular-exponent="20">
-      <diffuse-color  rgba="0.2f, 0.0f, 0.0f, 1.0f"/>
-      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    <shade id="white-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.2f, 0.2f, 0.2f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.2f, 0.2f, 0.2f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.725f, 0.71f, 0.68f, 1.0f"/> -->
+      <!-- <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.75f, 0.75f, 0.75f, 1.0f"/>
     </shade>
-    <shade id="white-wall" diffuse-shader="Lambert" specular-shader="Phong" specular-exponent="20">
-      <diffuse-color  rgba="0.2f, 0.2f, 0.2f, 1.0f"/>
-      <specular-color rgba="0.2f, 0.2f, 0.2f, 1.0f"/>
-      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
-    </shade>
-    <shade id="black-wall" diffuse-shader="Lambert" specular-shader="Phong" specular-exponent="0">
+    <shade id="black-wall" diffuse-shader="Lambert" specular-exponent="0.f">
       <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
       <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
       <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
@@ -68,6 +65,9 @@
   <!-- Entity definitions -->
   <entities>
     <visual id="front">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+    </visual>
+    <visual id="back">
       <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
     </visual>
     <visual id="top">
@@ -101,6 +101,12 @@
         <scale      xyz="14.0f, 10.0f, 1.0f"/>
       </transform>
     </front>
+    <!-- <back count="1">
+      <transform>
+        <translate  xyz="0.0f, 0.0f, 11.f"/>
+        <scale      xyz="14.0f, 10.0f, 1.0f"/>
+      </transform>
+    </back> -->
     <top count="1">
       <transform>
         <translate  xyz="0.0f, 11.0f, 0.0f"/>
@@ -127,19 +133,19 @@
     </right>
     <sphere1 count="1">
       <transform>
-        <translate  xyz="-6.5f, -6.0f, -6.0f"/>
+        <translate  xyz="-5.5f, -6.0f, -3.0f"/>
         <!-- <scale      xyz="4.0f, 4.0f, 4.0f"/> -->
       </transform>
     </sphere1>
     <sphere2 count="1">
       <transform>
-        <translate  xyz="5.5f, -6.0f, 0.0f"/>
+        <translate  xyz="5.5f, -6.0f, 4.0f"/>
         <!-- <scale      xyz="4.0f, 4.0f, 4.0f"/> -->
       </transform>
     </sphere2>
     <light1 count="1">
       <transform>
-        <translate  xyz="0.0f, 9.9f, 0.0f"/>
+        <translate  xyz="0.0f, 9.99f, 0.0f"/>
         <scale      xyz="3.33f, 3.33f, 3.33f"/>
         <rotate     x="90.0f"/>
       </transform>

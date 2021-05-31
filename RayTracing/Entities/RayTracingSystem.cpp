@@ -20,6 +20,11 @@ RayTracingSystem::~RayTracingSystem()
   }
 }
 
+bool RayTracingSystem::isAvailable()
+{
+  return camera;
+}
+
 void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity)
 {
   EntityPrimAttributes primitiveInfo = *entity;
