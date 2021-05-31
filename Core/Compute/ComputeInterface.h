@@ -256,6 +256,8 @@ public:
   ComputeProgram createTemplateProgram(const char* fileName, const vector<string>* oldType = NULL,
     const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
 
+  ComputeProgram createTemplateProgram(const string& sourceCode, const vector<string>* oldType = NULL,
+    const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
 
   void copyBuffer(const ComputeMemory* source, ComputeMemory* destination, size_t sourceOffset, size_t destinationOffset, size_t sizeInBytes);
 
@@ -297,6 +299,8 @@ public:
   void startCapture();
 
   void endCapture();
+
+  double lastExecutionTime()const;
 
   ComputeDeviceId getDevice();
 

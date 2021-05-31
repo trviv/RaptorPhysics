@@ -170,6 +170,7 @@ static id<MTLBlitCommandEncoder> currentBlitEncoder       = nil;
 static id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
 unordered_map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
 unordered_map<string, uintPairList> kernelNameArgumentBufferMap;
+static double  lastExecutionTime = 0.f;
 
 // 128 bytes aligned
 uint alignAllocSize(uint minimumSize)
@@ -1445,6 +1446,31 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
   return createProgram(data.c_str(), data.size());
 }
 
+ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode, const vector<string>* oldType,
+  const vector<string>* newType, const vector<string>* includeFiles)
+{
+  std::string data = "\n";
+  if (oldType)
+  {
+    for (uint i = 0; i < oldType->size(); i++)
+    {
+      data += "#define " + (*oldType)[i] + " " + (*newType)[i] + "\n";
+    }
+  }
+  logComputeMessage("Template types%s", data.c_str());
+  if (includeFiles)
+  {
+    for (uint i = 0; i < includeFiles->size(); i++)
+    {
+      data += IOInterface::readFile((*includeFiles)[i].c_str()) + "\n";
+    }
+  }
+  data += sourceCode;
+  data += "\n";
+
+  return createProgram(data.c_str(), data.size());
+}
+
 #ifdef ENABLE_CL_PROFILING
 void* registerKernelLaunched(ComputeKernel kernel, const size_t workgroup[3])
 {
@@ -1805,6 +1831,9 @@ void ComputeInterface::sync(bool waitOnFinish)
   endEncoders();
   if (currentCommandBuffer)
   {
+    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
+      ::lastExecutionTime = (currentCommandBuffer.GPUEndTime - currentCommandBuffer.GPUStartTime) * 1000.f;
+    }];
     [currentCommandBuffer commit];
     if (waitOnFinish)
     {
@@ -1881,6 +1910,11 @@ void ComputeInterface::endCapture()
 ComputeDeviceId ComputeInterface::getDevice()
 {
   return deviceId;
+}
+
+double ComputeInterface::lastExecutionTime()const
+{
+  return ::lastExecutionTime;
 }
 
 #ifdef ENABLE_RENDERING
