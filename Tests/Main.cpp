@@ -5,6 +5,7 @@
 static ComputeInterface* compute;
 
 static bool runOnlyFunctional = false;
+static int performanceInterations = 100;
 
 #if TARGET_OS_IPHONE
   const int roughElements = 12345678;
@@ -76,7 +77,7 @@ void testBandwidthRW(ComputeInterface* compute)
   DeviceArray<float> data(compute, NULL);
   DeviceArray<float> outdata(compute, NULL);
   const int elements = 1024 * 1024 * 16;
-  uint iterations = runOnlyFunctional?0:20;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.resize(elements, false);
   outdata.resize(elements, false);
@@ -84,11 +85,10 @@ void testBandwidthRW(ComputeInterface* compute)
   //--------------------------------------------------------------------------------
   // warm up run
   compute->copyBuffer(data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
-  compute->sync();
+  compute->sync(false);
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("R/W Bandwidth");
     for (uint i = 0; i < iterations; i++)
@@ -98,7 +98,7 @@ void testBandwidthRW(ComputeInterface* compute)
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements, 2, sizeof(uint));
 }
 
@@ -109,7 +109,7 @@ void testCustomBandwidthRW(ComputeInterface* compute)
   DeviceArray<float> data(compute, NULL);
   DeviceArray<float> outdata(compute, NULL);
   const int elements = 1024 * 1024 * 16;
-  uint iterations = runOnlyFunctional?0:20;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.resize(elements, false);
   outdata.resize(elements, false);
@@ -130,11 +130,10 @@ void testCustomBandwidthRW(ComputeInterface* compute)
   //--------------------------------------------------------------------------------
   // warm up run
   ComputeUtil::get(templateId)->copyBuffer(compute, data.device(), outdata.device(), 0, 0, elements * sizeof(uint));
-  compute->sync();
+  compute->sync(false);
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("R/W Custom Bandwidth");
     for (uint i = 0; i < iterations; i++)
@@ -144,7 +143,7 @@ void testCustomBandwidthRW(ComputeInterface* compute)
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  float mean = compute->lastExecutionTime() / iterations;
 
   outdata.syncHost();
   compute->sync();
@@ -167,7 +166,7 @@ void testSetBuffer(ComputeInterface* compute)
 
   DeviceArray<uint> data(compute, NULL);
   const int elements = 1024 * 1024 * 128;
-  uint iterations = runOnlyFunctional?0:20;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.resize(elements, false);
 
@@ -178,12 +177,11 @@ void testSetBuffer(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->clearBuffer(compute, data.device(), elements);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Clear Bandwidth");
     for (uint i = 0; i < iterations; i++)
@@ -193,7 +191,7 @@ void testSetBuffer(ComputeInterface* compute)
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  float mean = compute->lastExecutionTime() / iterations;
 
   //--------------------------------------------------------------------------------
   // functional run
@@ -224,7 +222,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
 
   const int elements = roughElements;
   double sum = 0;
-  uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.host()->reserve(elements);
   for (int i = 0; i < elements; i++)
@@ -245,12 +243,11 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->sum1D(compute, output.device(), data.device(), elements);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Reduce scan");
     for (uint i = 0; i < iterations; i++)
@@ -261,7 +258,7 @@ template<class DataType> void test1DMean(ComputeInterface* compute)
 
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements, 1, sizeof(DataType));
 
   //--------------------------------------------------------------------------------
@@ -361,7 +358,7 @@ void testIrregular2DMean(ComputeInterface* compute)
   const uint parts = 2000;
   uint elements = 0;
   Real3 sum = 0;
-  uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   int increment = 1;
 
@@ -429,12 +426,11 @@ void testIrregular2DMean(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->sumIrregular2D(compute, particles.device(), particlesIn.device(), particlesIn.device(), partitions.device(), elements, true);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Irregular Reduce scan");
     for (uint i = 0; i < iterations; i++)
@@ -445,7 +441,7 @@ void testIrregular2DMean(ComputeInterface* compute)
 
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements+partitions.size(), 1, sizeof(ParticleStruct));
 
   //--------------------------------------------------------------------------------
@@ -541,7 +537,7 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
 
   const int elements = roughElements;
   DataType sum = 0;
-  const uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.host()->reserve(elements);
   for (uint i = 0; i < elements; i++)
@@ -561,32 +557,27 @@ template<class DataType> void test1DPrefixScan(ComputeInterface* compute)
   // warm up run
   if (!runOnlyFunctional)
   {
-    ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
-    compute->sync();
+    ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), backupData.device(), elements);
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Prefix scan");
     for (uint i = 0; i < iterations; i++)
     {
-      ComputeUtil::get(templateId)->prefixScan1D(compute, backupData.device(), backupData.device(), elements);
+      ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), backupData.device(), elements);
     }
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
-
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements, 2, sizeof(uint));
 
   //--------------------------------------------------------------------------------
   // functional run
-  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), data.device(), elements);
-#if TARGET_OS_IPHONE
-  compute->sync();
-#endif
+  ComputeUtil::get(templateId)->prefixScan1D(compute, data.device(), backupData.device(), elements);
   data.syncHost();
   compute->sync();
 
@@ -612,7 +603,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   vector<uint> statusOutput;
 
   const int elements = roughElements;
-  const uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   selectionArray.host()->reserve(elements);
   statusOutput.reserve(elements);
@@ -637,12 +628,11 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->compactSparseArray(compute, count.device(), compactIndexArray.device(), selectionArray.device(), elements);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Compact sparse array");
     for (uint i = 0; i < iterations; i++)
@@ -652,8 +642,7 @@ template<class DataType> void test1DCompaction(ComputeInterface* compute)
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
-
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements+(uint)statusOutput.size(), 1, sizeof(uint));
 
   //--------------------------------------------------------------------------------
@@ -687,7 +676,7 @@ template<class DataType> void test1DCompactionAndCopy(ComputeInterface* compute)
   vector<uint> statusOutput;
 
   const int elements = roughElements;
-  const uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   selectionArray.host()->reserve(elements);
   statusOutput.reserve(elements);
@@ -712,12 +701,11 @@ template<class DataType> void test1DCompactionAndCopy(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->compactSparseArrayAndCopy(compute, count.device(), compactArray.device(), selectionArray.device(), elements);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  ProfileManager::Reset();
   {
     ProfileBlock("Compact sparse array");
     for (uint i = 0; i < iterations; i++)
@@ -727,8 +715,7 @@ template<class DataType> void test1DCompactionAndCopy(ComputeInterface* compute)
   }
   compute->sync();
 
-  float mean = ProfileManager::Get_Time_Since_Reset() / iterations;
-
+  float mean = compute->lastExecutionTime() / iterations;
   printStats(mean, elements+2*(uint)statusOutput.size(), 1, sizeof(uint));
 
   //--------------------------------------------------------------------------------
@@ -829,27 +816,24 @@ void test1DRadixSort32Bit(ComputeInterface* compute)
   if (!runOnlyFunctional)
   {
     ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
-    compute->sync();
+    compute->sync(false);
   }
 
   //--------------------------------------------------------------------------------
   // performance run
-  uint iterations = runOnlyFunctional?0:10;
+  const uint iterations = runOnlyFunctional?0:performanceInterations;
   float cumulativeTime = 0;
   for (uint i = 0; i < iterations; i++)
   {
     data.syncDevice();
     compute->sync();
 
-    ProfileManager::Reset();
     {
       ProfileBlock("Radix sort");
       ComputeUtil::get(templateId)->radixSort32Bit(compute, destination.device(), data.device(), elements);
       compute->sync();
     }
-    cumulativeTime += ProfileManager::Get_Time_Since_Reset();
-    ProfileManager::dumpAll(stdout);
-    ProfileManager::Increment_Frame_Counter();
+    cumulativeTime += compute->lastExecutionTime();
   }
 
   float mean = cumulativeTime / iterations;
