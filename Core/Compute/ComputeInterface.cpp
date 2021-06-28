@@ -1266,7 +1266,7 @@ void ComputeInterface::create(int deviceIndex)
 #else
 #if TARGET_OS_IPHONE
       // TODO: investigate 1024 thread group size not working with irregular reduce
-      size_t  maxWorkgroupSize = 512;//deviceId.maxThreadsPerThreadgroup.width;
+      size_t  maxWorkgroupSize = 256;//deviceId.maxThreadsPerThreadgroup.width;
 #else
       // TODO: remove this size once other issues are resolved.
       size_t  maxWorkgroupSize = 256;//deviceId.maxThreadsPerThreadgroup.width;
@@ -1831,8 +1831,8 @@ void ComputeInterface::sync(bool waitOnFinish)
   endEncoders();
   if (currentCommandBuffer)
   {
-    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
-      ::lastExecutionTime = (currentCommandBuffer.GPUEndTime - currentCommandBuffer.GPUStartTime) * 1000.f;
+    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+      ::lastExecutionTime = (buffer.GPUEndTime - buffer.GPUStartTime) * 1000.f;
     }];
     [currentCommandBuffer commit];
     if (waitOnFinish)

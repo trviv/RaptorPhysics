@@ -70,6 +70,8 @@
 #define SCAN_FUNCTION(o, i)     o = simdScan(i)
 #endif
 
+#define SHORT_BATCH_RW 1
+
 // general atomics for structures
 inline MemberStructType atomicLoadN(volatile Device MemberStructType* x)
 {
@@ -137,6 +139,36 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
 #if defined(NoMemberStruct) && BatchSize > 1
 #pragma message ("Using Batch Read")
 
+#if SHORT_BATCH_RW
+  if (readCount < BatchSize)
+  {
+    for (ushort i=0; i<readCount; i++)
+    {
+      elements[i] = ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0];
+    }
+    for (ushort i=readCount; i<BatchSize; i++)
+    {
+      elements[i] = (MemberStructType)(0);
+    }
+  }
+  else
+  {
+#if BatchSize == 16
+    *((Thread MemberStructType16*)elements) = *((const Device MemberStructType16*)(array1D + indexOffset));
+#elif BatchSize == 8
+    *((Thread MemberStructType8*)elements)  = *((const Device MemberStructType8*)(array1D + indexOffset));
+#elif BatchSize == 4
+    *((Thread MemberStructType4*)elements)  = *((const Device MemberStructType4*)(array1D + indexOffset));
+#else
+    for (ushort i=0; i<readCount; i++)
+    {
+      elements[i] = ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0];
+    }
+#endif
+  }
+
+#else
+  if (readCount < BatchSize)
 #if BatchSize == 16
   * ((Thread MemberStructType16*)elements) = (MemberStructType16)(0);
 #elif BatchSize == 8
@@ -251,6 +283,7 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
   default:
     break;
   }
+#endif
 
 #else
 
@@ -260,10 +293,31 @@ inline static void batchRead(Thread MemberStructType *elements, const Device Str
     CLEAR_FUNCTION(elements[i], 0);
   }
 
+#if 0
+  const ushort stepSize = max((ushort)1, (ushort)(sizeof(commonUint16) / sizeof(StructType)));
+  commonUint16 localArr(0);
+  for (ushort i=0; i<readCount; i+=stepSize)
+  {
+    if (stepSize > 1)
+    {
+      localArr = ((Device commonUint16*)&(array1D[indexOffset+i]))[0];
+      Thread StructType* localArr2 = (Thread StructType*)&localArr;
+      for (ushort j=0; j<stepSize; j++)
+      {
+        elements[i+j] = ((Thread MemberStructType*)&(localArr2[j]STRUCT_MEMBER))[0];
+      }
+    }
+    else
+    {
+      elements[i] = ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0];
+    }
+  }
+#else
   for (ushort i=0; i<readCount; i++)
   {
     elements[i] = ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0];
   }
+#endif
 
 #endif
 }
@@ -276,6 +330,31 @@ inline static void batchWrite(const Thread MemberStructType *elements, Device St
 #if defined(NoMemberStruct) && BatchSize > 1
 #pragma message ("Using Batch Write")
 
+#if SHORT_BATCH_RW
+  if (writeCount == BatchSize)
+  {
+#if BatchSize == 16
+    *((Device MemberStructType16*)(array1D + indexOffset))  = *((const Thread MemberStructType16*)elements);
+#elif BatchSize == 8
+    *((Device MemberStructType8*)(array1D + indexOffset))   = *((const Thread MemberStructType8*)elements);
+#elif BatchSize == 4
+    *((Device MemberStructType4*)(array1D + indexOffset))   = *((const Thread MemberStructType4*)elements);
+#else
+    for (ushort i=0; i<writeCount; i++)
+    {
+      ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0] = elements[i];
+    }
+#endif
+  }
+  else
+  {
+    for (ushort i=0; i<writeCount; i++)
+    {
+      ((Device MemberStructType*)&(array1D[indexOffset+i]STRUCT_MEMBER))[0] = elements[i];
+    }
+  }
+
+#else
   switch (writeCount)
   {
 #if BatchSize >= 16
@@ -382,6 +461,7 @@ inline static void batchWrite(const Thread MemberStructType *elements, Device St
   default:
     break;
   }
+#endif
 
 #else
 

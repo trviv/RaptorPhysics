@@ -143,10 +143,20 @@ Kernel void prefixGroupScanKernel(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
   Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
+  const uint index = threadIndex();
+  const uint threadGroupIndex = threadGroupIndex();
+
+  //if (localIndex == 0)
+  //{
+  //  ((Shared uint*)localArray1D)[0] = atomicAdd(&statusBuffer[threadGroupCount()-1], 1);
+  //}
+  //localMemBarrier();
+  //const uint threadGroupIndex = ((Shared uint*)localArray1D)[0];
+  //const uint index = localIndex + threadGroupIndex * threadGroupSize();
+  //localMemBarrier();
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -170,21 +180,21 @@ Kernel void prefixGroupScanKernel(
     MemberStructType previousSum = 0;
 
     // save current value as partial sum, or final sum for the first threadgroup
-    if (threadGroupIndex())
+    if (threadGroupIndex)
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() << 1], lastSum);
-      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_PARTIAL);
+      writeAndWait(&sumBuffer[threadGroupIndex << 1], lastSum);
+      atomicStore(&statusBuffer[threadGroupIndex], PREFIX_SCAN_STATUS_PARTIAL);
     }
     else
     {
-      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], lastSum);
-      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
+      writeAndWait(&sumBuffer[(threadGroupIndex << 1) + 1], lastSum);
+      atomicStore(&statusBuffer[threadGroupIndex], PREFIX_SCAN_STATUS_FINAL);
     }
 
-    int prevGroupIndex = threadGroupIndex() - 1;
+    int prevGroupIndex = threadGroupIndex - 1;
     INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
+    while (threadGroupIndex && prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(&statusBuffer[prevGroupIndex]);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
@@ -201,11 +211,11 @@ Kernel void prefixGroupScanKernel(
     }
 
     // save final sum for this threadgroup, if not first or very last
-    if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
+    if (threadGroupIndex && threadGroupIndex < (threadGroupCount() - 1))
     {
       ADD_FUNCTION(lastSum, previousSum);
-      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], lastSum);
-      atomicStore(&statusBuffer[threadGroupIndex()], PREFIX_SCAN_STATUS_FINAL);
+      writeAndWait(&sumBuffer[(threadGroupIndex << 1) + 1], lastSum);
+      atomicStore(&statusBuffer[threadGroupIndex], PREFIX_SCAN_STATUS_FINAL);
     }
 
     localArray1D[0] = previousSum;
