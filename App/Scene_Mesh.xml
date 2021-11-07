@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scene>
+  <settings>
+    <physics max-particles="131072">
+      <bound-min xyz="-4.f, -2.f, -4.f"/>
+      <bound-max xyz="4.f, 0.f, 4.f"/>
+      <gravity xyz="0.f, -9.8f, 0.f"/>
+      <simulation-iterations value="3"/>
+      <solver-iterations value="1"/>
+      <frame-capture-start value="0"/>
+      <frame-capture-end value="0"/>
+      <stream-max-capacity value="1000"/>
+    </physics>
+    <rendering width="1280" height="1080">
+      <render-particles-option value="false"/>
+      <render-solids-option value="false"/>
+      <render-bounding-boxes-option value="false"/>
+      <render-system-bound-option value="false"/>
+      <render-grid-heatmap-option value="false"/>
+      <reset-camera-up xyz="0.0f, 1.0f, 0.0f"/>
+      <reset-camera-front xyz="0.0f, 0.0f, -1.f"/>
+      <reset-camera-position xyz="0.0f, 0.0f, 30.0f"/>
+    </rendering>
+    <ray-tracing max-iterations="1">
+      <simple-camera scale=".25" near-plane=""/>
+    </ray-tracing>
+  </settings>
+  
+  <!-- Material definitions -->
+  <materials>
+    <translucent id="translucent1" refractive-index="1.5f">
+      <specular-color rgba="0.95f, 0.95f, 0.95f, 1.0f"/>
+    </translucent>
+    <reflective id="reflective1">
+      <specular-color rgba="0.95f, 0.95f, 0.95f, 1.0f"/>
+    </reflective>
+    <shade id="blue-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.0f, 0.0f, 0.2f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.14f, 0.45f, 0.091f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.25f, 0.25f, 0.75f, 1.0f"/>
+    </shade>
+    <shade id="red-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.2f, 0.0f, 0.0f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.63f, 0.065f, 0.05f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.75f, 0.25f, 0.25f, 1.0f"/>
+    </shade>
+    <shade id="white-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <!-- <diffuse-color  rgba="0.2f, 0.2f, 0.2f, 1.0f"/> -->
+      <!-- <specular-color rgba="0.2f, 0.2f, 0.2f, 1.0f"/> -->
+      <!-- <diffuse-color  rgba="0.725f, 0.71f, 0.68f, 1.0f"/> -->
+      <!-- <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/> -->
+      <diffuse-color  rgba="0.75f, 0.75f, 0.75f, 1.0f"/>
+    </shade>
+    <shade id="black-wall" diffuse-shader="Lambert" specular-exponent="0.f">
+      <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    </shade>
+  </materials>
+
+  <!-- Entity definitions -->
+  <entities>
+    <!-- <visual id="front">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+    </visual>
+    <visual id="back">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+    </visual>
+    <visual id="top">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+    </visual> -->
+    <visual id="bottom">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+    </visual>
+    <!-- <visual id="left">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="red-wall"/>
+    </visual>
+    <visual id="right">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="blue-wall"/>
+    </visual> -->
+    <area-light id="light1">
+      <emissive-color xyz="1.f, 1.f, 1.f"/>
+    </area-light>
+    <!-- <visual id="sphere1">
+      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f" material="reflective1"/>
+    </visual>
+    <visual id="sphere2">
+      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f" material="translucent1"/>
+    </visual> -->
+    <visual id="bunny">
+      <shape type="mesh" dim="1.f, 1.f, 1.f" mass="1.f" material="blue-wall" file-name="stanford-bunny-small.obj"/>
+    </visual>
+  </entities>
+
+  <!-- Instantiate entities -->
+  <instances>
+    <front count="1">
+      <transform>
+        <translate  xyz="0.0f, 0.0f, -11.f"/>
+        <scale      xyz="14.0f, 10.0f, 1.0f"/>
+      </transform>
+    </front>
+    <!-- <back count="1">
+      <transform>
+        <translate  xyz="0.0f, 0.0f, 11.f"/>
+        <scale      xyz="14.0f, 10.0f, 1.0f"/>
+      </transform>
+    </back> -->
+    <top count="1">
+      <transform>
+        <translate  xyz="0.0f, 11.0f, 0.0f"/>
+        <scale      xyz="14.0f, 1.0f, 10.0f"/>
+      </transform>
+    </top>
+    <bottom count="1">
+      <transform>
+        <translate  xyz="0.0f, -11.0f, 0.0f"/>
+        <scale      xyz="14.0f, 1.0f, 10.0f"/>
+      </transform>
+    </bottom>
+    <left count="1">
+      <transform>
+        <translate  xyz="-13.0f, 0.0f, 0.0f"/>
+        <scale      xyz="1.0f, 10.0f, 10.0f"/>
+      </transform>
+    </left>
+    <right count="1">
+      <transform>
+        <translate  xyz="13.0f, 0.0f, 0.0f"/>
+        <scale      xyz="1.0f, 10.0f, 10.0f"/>
+      </transform>
+    </right>
+    <!-- <sphere1 count="1">
+      <transform>
+        <translate  xyz="-5.5f, -6.0f, -3.0f"/>
+      </transform>
+    </sphere1>
+    <sphere2 count="1">
+      <transform>
+        <translate  xyz="5.5f, -6.0f, 4.0f"/>
+      </transform>
+    </sphere2> -->
+    <bunny count="1">
+      <transform>
+        <translate  xyz="5.5f, -6.0f, -4.0f"/>
+        <scale      xyz="40.0f, 40.0f, 40.0f"/>
+      </transform>
+    </bunny>
+    <light1 count="1">
+      <transform>
+        <translate  xyz="0.0f, 9.99f, 0.0f"/>
+        <scale      xyz="3.33f, 3.33f, 3.33f"/>
+        <rotate     x="90.0f"/>
+      </transform>
+    </light1>
+  </instances>
+</scene>

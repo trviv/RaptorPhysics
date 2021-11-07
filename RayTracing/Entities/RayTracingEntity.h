@@ -103,6 +103,8 @@ public:
 
   void createSphere(const real radius);
 
+  void createMesh(const string fileName);
+
   RayTracingEntityId getIdentity()const;
 
   uint getPrimCount()const;

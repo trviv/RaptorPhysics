@@ -46,11 +46,14 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_Fluid.xml"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_RT.xml"
   "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Cornell.xml"
+  "${PROJECT_SOURCE_DIR}/${PROJECT_STRING}/Scene_Mesh.xml"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/DefaultFont.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-solid-900.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-regular-400.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-brands-400.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControl.png"
-  "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControlBack.png")
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControlBack.png"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/stanford-bunny-small.obj"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/stanford-bunny-large.obj")
 
 create_lib_and_exe()

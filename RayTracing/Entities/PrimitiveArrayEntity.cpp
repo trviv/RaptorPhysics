@@ -1,4 +1,5 @@
 #include "RayTracingEntity.h"
+#include <sstream>
 
 PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount, ComputeInterface* compute)
   :RayTracingEntity(compute)
@@ -71,6 +72,78 @@ void PrimitiveArrayEntity::createSphere(const real radius)
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
   setAttribute(EntityPrimitiveAttributeRadius, deviceData->device(), PackingInfo(sizeof(sphereCenter)/sizeof(real), 1));
   primitiveCount = 1;
+}
+
+void PrimitiveArrayEntity::createMesh(const string fileName)
+{
+  if (!deviceData)
+    deviceData = new DeviceArray<uint>(compute);
+
+  uint triangles = 0;
+  uint vertices = 0;
+
+  deviceData->host()->clear();
+
+  std::stringstream ss;
+  std::string data = IOInterface::readFile(fileName.c_str());
+  ss << data;
+
+  size_t start = 0;
+  size_t end = 0;
+
+  std::string temp;
+
+  while (std::getline(ss, temp))
+  {
+    std::stringstream line;
+    line << temp;
+
+    char head;
+    line >> head;
+    switch (head)
+    {
+      case '#':
+        continue;
+
+      case 'v':
+      {
+        for (int i=0; i<3; i++)
+        {
+          float val;
+          line >> val;
+          deviceData->host()->push_back(*((uint*)&val));
+        }
+        deviceData->host()->push_back(0);
+        vertices++;
+      }
+        break;
+      case 'f':
+      {
+        for (int i=0; i<3; i++)
+        {
+          uint val;
+          line >> val;
+          deviceData->host()->push_back(val-1);
+        }
+
+        // change triangle orientation
+        {
+          uint temp = deviceData->host()->at(deviceData->host()->size()-2);
+          deviceData->host()->at(deviceData->host()->size()-2) = deviceData->host()->at(deviceData->host()->size()-1);
+          deviceData->host()->at(deviceData->host()->size()-1) = temp;
+        }
+        triangles++;
+      }
+        break;
+      default:
+        break;
+    }
+  }
+  deviceData->syncDevice();
+
+  setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
+  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(vertices*4, 1));
+  primitiveCount = triangles;
 }
 
 RayTracingEntityId PrimitiveArrayEntity::getIdentity()const

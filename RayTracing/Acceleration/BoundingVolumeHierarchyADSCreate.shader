@@ -41,11 +41,15 @@ inline short getBVHCommonPrefixLength(const uint2 left, const uint2 right)
   return select(ret, (short)(clz(left.y ^ right.y) + 32), (short)(ret == 32));
 }
 
-inline short getBVHCommonPrefixLengthHalf(const uint2 left, const uint2 right)
+inline short getNodesCommonPrefixLength(const Device BVHLeafInfo* bvhLeafs, const int currNodeIndex, const int nodeCount, const uint2 baseNode)
 {
-  return clz(left.x ^ right.x);
-}
+  if (currNodeIndex < 0 || currNodeIndex >= nodeCount)
+  {
+    return -1;
+  }
 
+  return getBVHCommonPrefixLength(baseNode, constructUint2(bvhLeafs[currNodeIndex].mortonCode, currNodeIndex));
+}
 
 /*
 @kernel Create tree from the leaf data.
@@ -69,17 +73,11 @@ Kernel void constructBinaryTree(
   if (internalNodeIndex >= (nodeCount - 1))
     return;
 
-  // code of leaf before this
-  const uint2 prevNodePrefix = constructUint2(select(0xFFFFFFFF, bvhLeafs[internalNodeIndex - 1].mortonCode, internalNodeIndex > 0), internalNodeIndex - 1);
-
   // code of this leaf
   const uint2 currNodePrefix = constructUint2(bvhLeafs[internalNodeIndex].mortonCode, internalNodeIndex);
 
-  // code of leaf after this
-  const uint2 nextNodePrefix = constructUint2(bvhLeafs[internalNodeIndex + 1].mortonCode, internalNodeIndex + 1);
-
-  const short nodeLeftSharedPrefixLength  = select((short)-1, (short)getBVHCommonPrefixLengthHalf(currNodePrefix, prevNodePrefix), (short)(internalNodeIndex > 0));
-  const short nodeRightSharedPrefixLength = getBVHCommonPrefixLengthHalf(currNodePrefix, nextNodePrefix);
+  const short nodeLeftSharedPrefixLength  = getNodesCommonPrefixLength(bvhLeafs, internalNodeIndex - 1, nodeCount, currNodePrefix);
+  const short nodeRightSharedPrefixLength = getNodesCommonPrefixLength(bvhLeafs, internalNodeIndex + 1, nodeCount, currNodePrefix);
 
   const int direction   = select(-1, 1, nodeRightSharedPrefixLength > nodeLeftSharedPrefixLength);
   const short minLength = select(nodeRightSharedPrefixLength, nodeLeftSharedPrefixLength, (short)(nodeRightSharedPrefixLength > nodeLeftSharedPrefixLength));
@@ -93,7 +91,7 @@ Kernel void constructBinaryTree(
     maxStep <<= 1;
     currInternalNodeIndex = internalNodeIndex + maxStep * direction;
   }
-  while (currInternalNodeIndex >= 0 && currInternalNodeIndex < nodeCount && getBVHCommonPrefixLengthHalf(currNodePrefix, constructUint2(bvhLeafs[currInternalNodeIndex].mortonCode, currInternalNodeIndex)) > minLength);
+  while (getNodesCommonPrefixLength(bvhLeafs, currInternalNodeIndex, nodeCount, currNodePrefix) > minLength);
 
   int indexOffset = 0;
 
@@ -101,7 +99,7 @@ Kernel void constructBinaryTree(
   for (int currentStep = maxStep >> 1; currentStep != 0; currentStep >>= 1)
   {
     currInternalNodeIndex = internalNodeIndex + (currentStep + indexOffset) * direction;
-    if (currInternalNodeIndex >= 0 && currInternalNodeIndex < nodeCount && getBVHCommonPrefixLengthHalf(currNodePrefix, constructUint2(bvhLeafs[currInternalNodeIndex].mortonCode, currInternalNodeIndex)) > minLength)
+    if (getNodesCommonPrefixLength(bvhLeafs, currInternalNodeIndex, nodeCount, currNodePrefix) > minLength)
     {
       indexOffset += currentStep;
     }
@@ -117,7 +115,7 @@ Kernel void constructBinaryTree(
   {
     indexOffset = (indexOffset >> 1) + (indexOffset & 1);
     currInternalNodeIndex = internalNodeIndex + (indexOffset + splitOffset) * direction;
-    if (currInternalNodeIndex >= 0 && currInternalNodeIndex < nodeCount && getBVHCommonPrefixLength(currNodePrefix, constructUint2(bvhLeafs[currInternalNodeIndex].mortonCode, currInternalNodeIndex)) > splitLength)
+    if (getNodesCommonPrefixLength(bvhLeafs, currInternalNodeIndex, nodeCount, currNodePrefix) > splitLength)
     {
       splitOffset += indexOffset;
     }
