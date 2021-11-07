@@ -404,6 +404,11 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
         shape.dim[2] = 0.f;
         prim->createBox(&shape.dim[0]);
       }
+      else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "mesh") == 0)
+      {
+        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, system->compute);
+        prim->createMesh(shapeHandle.ToElement()->Attribute("file-name"));
+      }
       newRTEntity = prim;
     }
     else if (strcmp(entity->Name(), "point-light") == 0)
