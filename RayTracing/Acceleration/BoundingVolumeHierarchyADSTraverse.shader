@@ -82,7 +82,8 @@ inline HitStruct stacklessTraverseBinaryTree2(
   const bool3                   sign,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
-  Const RTSystemSettings*       systemSettings)
+  Const RTSystemSettings*       systemSettings,
+  Thread DecodedPrimitiveInfo*  primInfo)
 {
   HitStruct hit;
   initializeHit(&hit);
@@ -178,7 +179,7 @@ inline HitStruct stacklessTraverseBinaryTree2(
     }
 
     // test colision if not an invalid node
-    if (earliestIntersection(&hit, leafNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+    if (earliestIntersection(&hit, leafNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
     {
 #ifdef IntersectionTypeAny
       currNodeIndex = rootNode;
@@ -201,7 +202,8 @@ inline HitStruct stacklessTraverseBinaryTree(
   const bool3                   sign,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
-  Const RTSystemSettings*       systemSettings)
+  Const RTSystemSettings*       systemSettings,
+  Thread DecodedPrimitiveInfo*  primInfo)
 {
   HitStruct hit;
   initializeHit(&hit);
@@ -288,7 +290,7 @@ inline HitStruct stacklessTraverseBinaryTree(
     for (ushort i=0; i<leafCount; i++)
     {
       // test colision if not an invalid node
-      if (earliestIntersection(&hit, leafNodeIndex[i], rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+      if (earliestIntersection(&hit, leafNodeIndex[i], rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
       {
 #ifdef IntersectionTypeAny
         currNodeIndex = rootNode;
@@ -313,7 +315,8 @@ inline HitStruct stackTraverseBinaryTree(
   const bool3                   sign,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
-  Const RTSystemSettings*       systemSettings)
+  Const RTSystemSettings*       systemSettings,
+  Thread DecodedPrimitiveInfo*  primInfo)
 {
   HitStruct hit;
   initializeHit(&hit);
@@ -377,7 +380,7 @@ inline HitStruct stackTraverseBinaryTree(
     // test colision if not an invalid node
     if (currNodeIndex != BOUNDING_VOLUME_HIERARCHY_ADS_ROOT_NODE_MARKER)
     {
-      if (earliestIntersection(&hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+      if (earliestIntersection(&hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
       {
 #ifdef IntersectionTypeAny
         break;
@@ -424,8 +427,11 @@ Kernel void intersectRaysBVH(
   const float3 invRayDirection = 1.f / rayDirection;
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primType = RTPrimitiveCount;
+
   //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-  HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
+  HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo);
 
 #ifdef IntersectionTypeClosest
   setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));
@@ -465,6 +471,9 @@ Kernel void intersectRaysBVH(
     rayCountArray[simdGroupIndex] = 0;
   }
 
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primType = RTPrimitiveCount;
+
   while (true)
   {
     // get rays from global to local pool
@@ -493,7 +502,7 @@ Kernel void intersectRaysBVH(
     const bool3 sign = selectInput3(invRayDirection < 0.f);
 
     //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-    HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
+    HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo);
 
 #ifdef IntersectionTypeClosest
     setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));

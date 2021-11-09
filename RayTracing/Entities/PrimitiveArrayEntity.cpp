@@ -88,9 +88,6 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
   std::string data = IOInterface::readFile(fileName.c_str());
   ss << data;
 
-  size_t start = 0;
-  size_t end = 0;
-
   std::string temp;
 
   while (std::getline(ss, temp))
