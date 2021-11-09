@@ -20,12 +20,15 @@ Kernel void createPrimitiveBoundingBoxes(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primType = RTPrimitiveCount;
+
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
   {
     XAB primitiveBoundingBox;
 
-    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfoFromSystemSettings(systemSettings, index);
+    decodePrimitiveInfoFromSystemSettings(systemSettings, index, &primInfo);
 
     if (primInfo.primType == PrimitiveSphere)
     {
@@ -71,13 +74,16 @@ Kernel void assignMortonCode(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primType = RTPrimitiveCount;
+
   const float3 inverseMergedBoxSize = 1024.f / (systemSettings->systemBound.max - systemSettings->systemBound.min);
   const float3 mergedBoxCenter = (systemSettings->systemBound.min + systemSettings->systemBound.max) * 0.5f;
 
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
   {
-    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfoFromSystemSettings(systemSettings, index);
+    decodePrimitiveInfoFromSystemSettings(systemSettings, index, &primInfo);
     float3 center;
 
     if (primInfo.primType == PrimitiveSphere)

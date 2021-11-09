@@ -239,6 +239,7 @@ typedef struct EncodedPrimitiveInfo_t EncodedPrimitiveInfo;
 struct DecodedPrimitiveInfo_t
 {
   ushort primType;
+  uint prevPrimOffset;
   union
   {
     uint primOffset;
@@ -303,23 +304,32 @@ float extractPackedFloat(const Device float* buffer, const PackingInfo packingIn
   return buffer[index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes];
 }
 
-inline static DecodedPrimitiveInfo decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index)
+inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index, Thread DecodedPrimitiveInfo* primInfo)
 {
-  for (ushort i=0; i<RTPrimitiveCount; i++)
+  if (index >= primInfo->prevPrimOffset && index < primInfo->primOffset && primInfo->primType < RTPrimitiveCount)
   {
-    const DecodedPrimitiveInfo primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[i]);
-
-    if (index < primInfo.primOffset)
-    {
-      return primInfo;
-    }
+    return;
   }
 
-  DecodedPrimitiveInfo ret;
-  ret.primType    = -1;
-  ret.primOffset  = -1;
-  ret.indexOffset = -1;
-  return ret;
+  uint prevPrimOffset = 0;
+
+  for (ushort i=0; i<RTPrimitiveCount; i++)
+  {
+    *primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[i]);
+    primInfo->prevPrimOffset = prevPrimOffset;
+
+    if (index < primInfo->primOffset)
+    {
+      return;
+    }
+
+    prevPrimOffset = primInfo->primOffset;
+  }
+
+  primInfo->primType    = -1;
+  primInfo->primOffset  = -1;
+  primInfo->indexOffset = -1;
+  primInfo->prevPrimOffset = 0;
 }
 
 #endif

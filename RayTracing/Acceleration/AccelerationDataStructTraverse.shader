@@ -10,9 +10,11 @@ inline bool earliestIntersection(
   const bool3   sign,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
-  Const RTSystemSettings* systemSettings)
+  Const RTSystemSettings* systemSettings,
+  Thread DecodedPrimitiveInfo* prevPrimInfo)
 {
-  const DecodedPrimitiveInfo primInfo = decodePrimitiveInfoFromSystemSettings(systemSettings, primIndex);
+  decodePrimitiveInfoFromSystemSettings(systemSettings, primIndex, prevPrimInfo);
+  const DecodedPrimitiveInfo primInfo = *prevPrimInfo;
 
   if (primInfo.primType == PrimitiveSphere)
   {
@@ -124,11 +126,14 @@ Kernel void intersectRays(
 
   hit.distance = rays[index].maxDistance;
 
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primType = RTPrimitiveCount;
+
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {
     if (rayXABIntersectTest(hit.distance, boundingBoxes[primIndex], rayOrigin, invRayDirection, sign))
     {
-      if (earliestIntersection(&hit, primIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings))
+      if (earliestIntersection(&hit, primIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo))
       {
 #ifdef IntersectionTypeAny
         break;
