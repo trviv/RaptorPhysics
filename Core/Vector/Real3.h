@@ -187,6 +187,40 @@ public:
       x * val.y - y * val.x);
   }
 
+  /// Get min
+  Real3 min(const Real3& val)const
+  {
+    return Real3(::min(this->x, val.x), ::min(this->y, val.y), ::min(this->z, val.z));
+  }
+
+  /// Get max
+  Real3 max(const Real3& val)const
+  {
+    return Real3(::max(this->x, val.x), ::max(this->y, val.y), ::max(this->z, val.z));
+  }
+
+  bool operator < (const Real3& val)const
+  {
+    if (x < val.x) return true;
+    if (x > val.x) return false;
+    if (y < val.y) return true;
+    if (y > val.y) return false;
+    if (z < val.z) return true;
+    if (z > val.z) return false;
+    return false;
+  }
+
+  bool operator > (const Real3& val)const
+  {
+    if (x < val.x) return false;
+    if (x > val.x) return true;
+    if (y < val.y) return false;
+    if (y > val.y) return true;
+    if (z < val.z) return false;
+    if (z > val.z) return true;
+    return false;
+  }
+
   /// Get square of length of vector
   real  lengthSq()const
   {

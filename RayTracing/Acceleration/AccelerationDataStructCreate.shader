@@ -38,8 +38,18 @@ Kernel void createPrimitiveBoundingBoxes(
       primitiveBoundingBox.min = sphere.position - radius;
       primitiveBoundingBox.max = sphere.position + radius;
     }
+    else if (primInfo.primType == PrimitiveIndexedTriangle)
+    {
+      const uint3 triIndex = attributeArray[index].triangleIndex;
 
-    if (primInfo.primType == PrimitiveTriangle)
+      const float3 vert0 = vertexArray[triIndex.x].position;
+      const float3 vert1 = vertexArray[triIndex.y].position;
+      const float3 vert2 = vertexArray[triIndex.z].position;
+
+      primitiveBoundingBox.min = min3(vert0, vert1, vert2);
+      primitiveBoundingBox.max = max3(vert0, vert1, vert2);
+    }
+    else if (primInfo.primType == PrimitiveTriangle)
     {
       const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
 
@@ -68,6 +78,7 @@ Kernel void createPrimitiveBoundingBoxes(
 Kernel void assignMortonCode(
   Device BVHLeafInfo*           bvhLeafs,
   const Device PrimitiveStruct* vertexArray,
+  const Device PrimitiveAttrib* attributeArray,
   Const RTSystemSettings*       systemSettings,
   constantKernelInput(uint,     primitiveBatchSize),
   constantKernelInput(uint,     primitiveCount)
@@ -90,8 +101,17 @@ Kernel void assignMortonCode(
     {
       center = vertexArray[primInfo.indexOffset + (index - primInfo.primOffset)].position;
     }
+    else if (primInfo.primType == PrimitiveIndexedTriangle)
+    {
+      const uint3 triangleIndex = attributeArray[index].triangleIndex;
 
-    if (primInfo.primType == PrimitiveTriangle)
+      const float3 vert0 = vertexArray[triangleIndex.x].position;
+      const float3 vert1 = vertexArray[triangleIndex.y].position;
+      const float3 vert2 = vertexArray[triangleIndex.z].position;
+
+      center = (vert0 + vert1 + vert2) * 1.f/3.f;
+    }
+    else if (primInfo.primType == PrimitiveTriangle)
     {
       const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
 

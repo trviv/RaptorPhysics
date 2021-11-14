@@ -89,7 +89,7 @@ class PrimitiveArrayEntity : public RayTracingEntity
   friend class ReaderScene;
 
   RayTracingEntityId  identity;
-  uint                primitiveCount;
+  XAB                 primBound;
 
 public:
 
@@ -107,7 +107,7 @@ public:
 
   RayTracingEntityId getIdentity()const;
 
-  uint getPrimCount()const;
+  const XAB& getPrimBound()const;
 
   void update();
 };

@@ -1,7 +1,7 @@
 #include "BoundingVolumeHierarchyADS.h"
 
 //#define DEBUG_BVH_ADS
-#define BVH_ADS_PERSISTENT_MULTIPLIER 4
+#define BVH_ADS_PERSISTENT_MULTIPLIER 1
 
 BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS()
 {
@@ -119,9 +119,10 @@ void BoundingVolumeHierarchyADS::fullBuild()
     // assign morton code to the particle bounding boxes
     assignMortonCode.setArg(primitiveLeafData.device(), 0);
     assignMortonCode.setArg(vertexArray->device(),      1);
-    assignMortonCode.setArg(systemSettings->device(),   2);
-    assignMortonCode.setArg(&primBatchSize,  3);
-    assignMortonCode.setArg(&primitiveCount, 4);
+    assignMortonCode.setArg(attributeArray->device(),   2);
+    assignMortonCode.setArg(systemSettings->device(),   3);
+    assignMortonCode.setArg(&primBatchSize,  4);
+    assignMortonCode.setArg(&primitiveCount, 5);
 
     compute->execute(assignMortonCode, workgroupSize, workgroupCount);
   }

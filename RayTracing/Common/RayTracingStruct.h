@@ -81,14 +81,12 @@ struct ALIGN(8) PackingInfo_t
 {
   uint   elementOffset;
   ushort strideIn4Bytes;
-  ushort offsetIn4Bytes;
 
 #ifndef COMPUTE_SHADER_SCOPE
   PackingInfo_t(uint elementOffset = 0, ushort strideIn4Bytes = 0, ushort offsetIn4Bytes = 0)
   {
-    this->elementOffset  = elementOffset;
+    this->elementOffset  = elementOffset + offsetIn4Bytes;
     this->strideIn4Bytes = strideIn4Bytes;
-    this->offsetIn4Bytes = offsetIn4Bytes;
   }
 #endif
 };
@@ -178,9 +176,25 @@ inline IdentityInfo removeIdentityFlags(const IdentityInfo identity)
 }
 
 
-struct ALIGN(4) PrimitiveAttrib_t
+struct DEFAULT_ALIGN PrimitiveAttrib_t
 {
+#ifdef COMPUTE_SHADER_SCOPE
+  union
+  {
+    struct
+    {
+      uint3 triangleIndex;
+    };
+    struct
+    {
+      int   dummy[3];
+      float radius;
+    };
+  };
+#else
+  uint  triangleIndex[3];
   float radius;
+#endif
 };
 
 typedef struct PrimitiveAttrib_t PrimitiveAttrib;
@@ -205,13 +219,15 @@ enum RayTracingEntityType
 
   RayTracingEntityPrimArray   = 4,
   RayTracingEntitySpheres     = 4,
-  RayTracingEntityTriangles   = 5
+  RayTracingEntityTriangles   = 5,
+  RayTracingEntityIndexedTriangles  = 6
 };
 
 
 enum RTPrimitiveType
 {
   PrimitiveSphere,
+  PrimitiveIndexedTriangle,
   PrimitiveTriangle,
   RTPrimitiveCount
 };
@@ -243,7 +259,7 @@ struct DecodedPrimitiveInfo_t
   union
   {
     uint primOffset;
-    uint primCount;
+    uint primitiveCount;
   };
   union
   {
@@ -296,12 +312,12 @@ inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInf
 
 float3 extractPackedFloat3(const Device float* buffer, const PackingInfo packingInfo, const uint index)
 {
-  return *((Device float3*)(buffer + index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes));
+  return *((Device float3*)(buffer + index * packingInfo.strideIn4Bytes + packingInfo.elementOffset));
 }
 
 float extractPackedFloat(const Device float* buffer, const PackingInfo packingInfo, const uint index)
 {
-  return buffer[index * packingInfo.strideIn4Bytes + packingInfo.offsetIn4Bytes];
+  return buffer[index * packingInfo.strideIn4Bytes + packingInfo.elementOffset];
 }
 
 inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index, Thread DecodedPrimitiveInfo* primInfo)

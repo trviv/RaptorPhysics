@@ -7,7 +7,9 @@ PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primi
   this->identity.identity = 0;
   setRayTracingEntityId(this->identity, type, 0);
   this->primInfo.primType = type;
-  this->primitiveCount    = primitiveCount;
+  this->primInfo.primitiveCount = primitiveCount;
+  this->primBound.min = Real3(-1.f, -1.f, -1.f);
+  this->primBound.max = Real3(1.f, 1.f, 1.f);
 }
 
 PrimitiveArrayEntity::~PrimitiveArrayEntity()
@@ -17,7 +19,7 @@ PrimitiveArrayEntity::~PrimitiveArrayEntity()
 
 RayTracingEntity* PrimitiveArrayEntity::createCopy()const
 {
-  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity((RayTracingEntityType)this->primInfo.primType, primitiveCount);
+  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity((RayTracingEntityType)this->primInfo.primType, primInfo.primitiveCount);
   *newEntity = *this;
   return newEntity;
 }
@@ -46,8 +48,9 @@ void PrimitiveArrayEntity::createBox(const real dim[])
   deviceData->syncDevice();
 
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
-  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(rectangle?16:32, 1));
-  primitiveCount = (rectangle?2:12);
+  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(rectangle?16:32, 3));
+  primInfo.primitiveCount = (rectangle?2:12);
+  primInfo.indexCount = (rectangle?4:8);
 }
 
 void PrimitiveArrayEntity::createSphere(const real radius)
@@ -71,7 +74,24 @@ void PrimitiveArrayEntity::createSphere(const real radius)
 
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
   setAttribute(EntityPrimitiveAttributeRadius, deviceData->device(), PackingInfo(sizeof(sphereCenter)/sizeof(real), 1));
-  primitiveCount = 1;
+  primInfo.primitiveCount = 1;
+  primInfo.indexCount = 1;
+}
+
+struct triangleIndices
+{
+  int i1, i2, i3;
+};
+
+bool compTriangleIndices(triangleIndices &a, triangleIndices &b)
+{
+  if (a.i1 < b.i1) return true;
+  if (a.i1 > b.i1) return false;
+  if (a.i2 < b.i2) return true;
+  if (a.i2 > b.i2) return false;
+  if (a.i3 < b.i3) return true;
+  if (a.i3 > b.i3) return false;
+  return false;
 }
 
 void PrimitiveArrayEntity::createMesh(const string fileName)
@@ -82,6 +102,8 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
   uint triangles = 0;
   uint vertices = 0;
 
+  vector<triangleIndices> allindices;
+
   deviceData->host()->clear();
 
   std::stringstream ss;
@@ -90,57 +112,91 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
 
   std::string temp;
 
+  Real3 vertexMin(FLT_MAX);
+  Real3 vertexMax(-FLT_MAX);
+
   while (std::getline(ss, temp))
   {
     std::stringstream line;
     line << temp;
 
-    char head;
+    string head;
     line >> head;
-    switch (head)
+
+    if (head == "v")
     {
-      case '#':
-        continue;
-
-      case 'v':
+      Real3 vert;
+      for (int i=0; i<3; i++)
       {
-        for (int i=0; i<3; i++)
-        {
-          float val;
-          line >> val;
-          deviceData->host()->push_back(*((uint*)&val));
-        }
-        deviceData->host()->push_back(0);
-        vertices++;
+        float val;
+        line >> val;
+        deviceData->host()->push_back(*((uint*)&val));
+        vert[i] = val;
       }
-        break;
-      case 'f':
+      vertexMin = vertexMin.min(vert);
+      vertexMax = vertexMax.max(vert);
+      deviceData->host()->push_back(0);
+      vertices++;
+    }
+    else if (head == "f")
+    {
+      int indices[6] = {0};
+      int i = 0;
+      while (line)
       {
-        for (int i=0; i<3; i++)
-        {
-          uint val;
-          line >> val;
-          deviceData->host()->push_back(val-1);
-        }
+        string indexStr;
+        line >> indexStr;
 
-        // change triangle orientation
-        {
-          uint temp = deviceData->host()->at(deviceData->host()->size()-2);
-          deviceData->host()->at(deviceData->host()->size()-2) = deviceData->host()->at(deviceData->host()->size()-1);
-          deviceData->host()->at(deviceData->host()->size()-1) = temp;
-        }
+        if (indexStr == "")
+          break;
+
+        uint val = atoi(indexStr.substr(0, indexStr.find("/")).c_str());
+
+        indices[i++] = val-1;
+      }
+      triangles++;
+
+      // add another triangle for quad prim
+      if (i == 4)
+      {
+        indices[4] = indices[2];
+        indices[5] = indices[0];
         triangles++;
+        i = 6;
       }
-        break;
-      default:
-        break;
+
+      uint temp = indices[1];
+      indices[1] = indices[2];
+      indices[2] = temp;
+
+      if (i >= 3)
+      {
+        allindices.push_back(triangleIndices{indices[0],indices[1],indices[2]});
+      }
+      if (i == 6)
+      {
+        allindices.push_back(triangleIndices{indices[3],indices[4],indices[5]});
+      }
     }
   }
+
+  sort(allindices.begin(), allindices.end(), compTriangleIndices);
+
+  for (int j=0; j<allindices.size(); j++)
+  {
+    deviceData->host()->push_back(allindices[j].i1);
+    deviceData->host()->push_back(allindices[j].i2);
+    deviceData->host()->push_back(allindices[j].i3);
+  }
+
+  primBound.min = vertexMin;
+  primBound.max = vertexMax;
   deviceData->syncDevice();
 
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
-  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(vertices*4, 1));
-  primitiveCount = triangles;
+  setAttribute(EntityPrimitiveAttributeIndex, deviceData->device(), PackingInfo(vertices*4, 3));
+  primInfo.primitiveCount = triangles;
+  primInfo.indexCount = vertices;
 }
 
 RayTracingEntityId PrimitiveArrayEntity::getIdentity()const
@@ -148,9 +204,9 @@ RayTracingEntityId PrimitiveArrayEntity::getIdentity()const
   return identity;
 }
 
-uint PrimitiveArrayEntity::getPrimCount()const
+const XAB& PrimitiveArrayEntity::getPrimBound()const
 {
-  return primitiveCount;
+  return primBound;
 }
 
 void PrimitiveArrayEntity::update()
