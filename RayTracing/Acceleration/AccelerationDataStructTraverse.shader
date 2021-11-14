@@ -51,14 +51,31 @@ inline bool earliestIntersection(
     }
     return false;
   }
-
-  if (primInfo.primType == PrimitiveTriangle)
+  else if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
   {
-    const uint triIndex = primInfo.indexOffset + (primIndex - primInfo.primOffset)*3;
+    PrimitiveStruct vert0;
+    PrimitiveStruct edge1;
+    PrimitiveStruct edge2;
 
-    const PrimitiveStruct vert0 = vertexArray[triIndex];
-    const PrimitiveStruct edge1 = vertexArray[triIndex+1];
-    const PrimitiveStruct edge2 = vertexArray[triIndex+2];
+    if (primInfo.primType == PrimitiveTriangle)
+    {
+      const uint triIndex = primInfo.indexOffset + (primIndex - primInfo.primOffset)*3;
+
+      vert0 = vertexArray[triIndex];
+      edge1 = vertexArray[triIndex+1];
+      edge2 = vertexArray[triIndex+2];
+    }
+    else
+    {
+      const uint3 triangleIndex = attributeArray[primIndex].triangleIndex;
+
+      vert0 = vertexArray[triangleIndex.x];
+      edge1 = vertexArray[triangleIndex.y];
+      edge2 = vertexArray[triangleIndex.z];
+      
+      edge1.position -= vert0.position;
+      edge2.position -= vert0.position;
+    }
 
     const float3 tvec = rayOrigin - vert0.position;
     const float3 pvec = cross(rayDirection, edge2.position);

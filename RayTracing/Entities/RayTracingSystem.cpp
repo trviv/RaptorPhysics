@@ -28,20 +28,19 @@ bool RayTracingSystem::isAvailable()
 void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity)
 {
   EntityPrimAttributes primitiveInfo = *entity;
-  const uint count = ((PrimitiveArrayEntity*)entity)->getPrimCount();
+  RTPrimitiveType primType = RTPrimitiveCount;
 
-  primitiveInfo.primInfo.primCount  = count;
-  primitiveInfo.primInfo.indexCount = count;
-
-  ushort primType = 0;
   switch (type)
   {
     case RayTracingEntitySpheres:
       primType = PrimitiveSphere;
       break;
+    case RayTracingEntityIndexedTriangles:
+      primType = PrimitiveIndexedTriangle;
+      break;
     case RayTracingEntityTriangles:
       primType = PrimitiveTriangle;
-      primitiveInfo.primInfo.indexCount *= 3;
+      primitiveInfo.primInfo.indexCount = primitiveInfo.primInfo.primitiveCount * 3;
       break;
     default:
       logComputeError("Invalid entity type sent for registration!");
@@ -49,41 +48,45 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
   primitiveInfo.primInfo.primType = primType;
   registeredPrimitives[primType].push_back(primitiveInfo);
 
-  if (type == RayTracingEntityTriangles && entity->attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
-  {
-    ComputeMemory indexBuffer(*entity->attributeBuffer[EntityPrimitiveAttributeIndex], entity->attributeInfo[EntityPrimitiveAttributeIndex].elementOffset*sizeof(uint));
-    ComputeUtil::get(maxPrimIndex)->sum1D(compute, indirectCount.device(), &indexBuffer, primitiveInfo.primInfo.indexCount);
+  XAB primBound = ((PrimitiveArrayEntity*)entity)->getPrimBound();
 
-    transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
-    transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
-    transformPrimitives.setArg(indirectCount.device(), 2);
-  }
-  else
-  {
-    transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
-    transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
-    uint maxIndex = primitiveInfo.primInfo.indexCount - 1;
-    transformPrimitives.setArg(&maxIndex, 2);
-  }
+  const Real3 bound = Real3(primBound.max) - Real3(primBound.min);
+  const float maxRatio = max(bound.x, max(bound.y, bound.z));
+
+  Matrix primMatrix;
+  primMatrix.setIdentity();
+  primMatrix.scale(Real3(2.f) / maxRatio);
+  primMatrix.translate(Real3(0.f) - (Real3(primBound.min) + bound*0.5f));
+
+  Matrix4 transform = entity->getTransform();
+  transform *= primMatrix[TRANS];
 
   size_t workgroupSize[3], workgroupCount[3];
-  compute->configureSize(workgroupSize, workgroupCount, primitiveInfo.primInfo.indexCount);
 
-  transformPrimitives.setArg<Matrix4>(&entity->getTransform(), 3);
+  uint maxIndex = entity->primInfo.indexCount-1;
+
+  transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
+  transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
+  transformPrimitives.setArg(&maxIndex, 2);
+
+  compute->configureSize(workgroupSize, workgroupCount, maxIndex+1);
+
+  transformPrimitives.setArg<Matrix4>(&transform, 3);
   compute->execute(transformPrimitives, workgroupSize, workgroupCount);
 }
 
 void RayTracingSystem::composePrimitiveArray()
 {
-  uint indexOffset   = 0;
-  uint primBatchSize = 8;
+  uint indexOffset    = 0;
+  uint primOffset     = 0;
+  uint primBatchSize  = 8;
 
   for (auto& rp : registeredPrimitives)
   {
     for (uint i=0; i<rp.size(); i++)
     {
       auto& prim = rp[i];
-      uint primBatchCount = mAlignBy(prim.primInfo.primCount, primBatchSize);
+      uint primBatchCount = mAlignBy(prim.primInfo.primitiveCount, primBatchSize);
       uint primType = prim.primInfo.primType;
 
       size_t workgroupSize[3], workgroupCount[3];
@@ -94,9 +97,10 @@ void RayTracingSystem::composePrimitiveArray()
       uint nextBindIndex = prim.bindToShader(collectPrimitives, 2);
       collectPrimitives.setArg(&prim.materialId, nextBindIndex);
       collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
-      collectPrimitives.setArg(&prim.primInfo.primCount, nextBindIndex+2);
+      collectPrimitives.setArg(&prim.primInfo.primitiveCount, nextBindIndex+2);
       collectPrimitives.setArg(&primType, nextBindIndex+3);
-      collectPrimitives.setArg(&indexOffset, nextBindIndex+4);
+      collectPrimitives.setArg(&primOffset, nextBindIndex+4);
+      collectPrimitives.setArg(&indexOffset, nextBindIndex+5);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
@@ -107,6 +111,7 @@ void RayTracingSystem::composePrimitiveArray()
 #endif
 
       indexOffset += prim.primInfo.indexCount;
+      primOffset  += prim.primInfo.primitiveCount;
     }
   }
 }

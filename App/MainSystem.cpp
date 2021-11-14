@@ -295,6 +295,7 @@ void MainSystem::createUnitCircle()
 void MainSystem::render()
 {
   const bool enableRayTracing = rayTracingSystem.isAvailable();
+  bool forceRTUpdate = false;
 
   // initialize ray tracer if it has no primitives
   if (enableRayTracing && rayTracingSystem.getPrimCount() == 0)
@@ -354,15 +355,17 @@ void MainSystem::render()
         {
           PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(solidRender?RayTracingEntityTriangles:RayTracingEntitySpheres, entityCount.second.second);
           entity->setAttribute(EntityPrimitiveAttributePosition, solver->getParticles().device(), PackingInfo(entityCount.second.first));
-          entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(entityCount.second.first, 4, 3));
+          entity->setAttribute(EntityPrimitiveAttributeRadius, solver->getParticleCollisionData().device(), PackingInfo(entityCount.second.first*sizeof(ParticleCollisionData)/sizeof(float), 4, 3));
           if (solidRender)
           {
-            entity->setAttribute(EntityPrimitiveAttributeIndex, primitiveIndices[s].device(), PackingInfo(entityCount.second.first, 1));
+            entity->setAttribute(EntityPrimitiveAttributeIndex, primitiveIndices[s].device(), PackingInfo(entityCount.second.first, 3));
           }
           entity->setMaterialId(entityMaterialMap[entityCount.first]);
           rayTracingSystem.registerAndInstantiateEntity(entity);
         }
       }
+
+      forceRTUpdate = true;
     }
 
     if (entityMaterialMap.size())
@@ -388,6 +391,7 @@ void MainSystem::render()
       bottomSurface.syncDevice();
       PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 2);
       entity->setAttribute(EntityPrimitiveAttributePosition, bottomSurface.device(), PackingInfo());
+      entity->setAttribute(EntityPrimitiveAttributeIndex, bottomSurface.device(), PackingInfo(sizeof(PositionStruct)/sizeof(float) * 6));
       entity->setMaterialId((*entityMaterialMap.begin()).second);
       rayTracingSystem.registerAndInstantiateEntity(entity);
     }
@@ -398,7 +402,7 @@ void MainSystem::render()
   if (enableRayTracing)
   {
     rayTracingSystem.updateCamera(this->projectionMatrix, this->modelMatrix);
-    rayTracingSystem.render(timeSliderFrame->isShrunk());
+    rayTracingSystem.render((timeSliderFrame->isShrunk() && (physicsSystem.particleCount() > 0)) || forceRTUpdate);
 
     const uint camWidth  = rayTracingSystem.getCameraStruct().width;
     const uint camHeight = rayTracingSystem.getCameraStruct().height;

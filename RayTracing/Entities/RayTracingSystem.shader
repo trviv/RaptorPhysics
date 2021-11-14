@@ -43,6 +43,7 @@ Kernel void collectPrimitives(
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
   constantKernelInput(uint,         primType),
+  constantKernelInput(uint,         primOffset),
   constantKernelInput(uint,         indexOffset)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
@@ -53,38 +54,52 @@ Kernel void collectPrimitives(
     if (primType == PrimitiveSphere)
     {
       PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index + attributePackingInfo.elementOffset);
+      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
 
       outPrim.identity = primitiveIdentity;
       finalVertexArray[index + indexOffset] = outPrim;
       finalAttributeArray[index + indexOffset].radius = radius;
     }
-
-    if (primType == PrimitiveTriangle)
+    else if (primType == PrimitiveIndexedTriangle)
     {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3 + attributePackingInfo.elementOffset;
+      uint3 vertIndices = asUint3(extractPackedFloat3(attributeBuffer, attributePackingInfo, index));
+
+      // get vertex zero and vertex position
+      PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
+      PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
+      PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
+
+      vert0.identity = primitiveIdentity;
+      vert1.identity = primitiveIdentity;
+      vert2.identity = primitiveIdentity;
+
+      vertIndices += indexOffset;
+
+      finalVertexArray[vertIndices.x] = vert0;
+      finalVertexArray[vertIndices.y] = vert1;
+      finalVertexArray[vertIndices.z] = vert2;
+
+      finalAttributeArray[index + primOffset].triangleIndex = vertIndices;
+    }
+    else if (primType == PrimitiveTriangle)
+    {
+      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3;
 
       // for indexed array a non zero stride is assumed
       if (attributePackingInfo.strideIn4Bytes > 0)
       {
-        vertIndices.x = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.x));
-        vertIndices.y = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.y));
-        vertIndices.z = asUint(extractPackedFloat(attributeBuffer, attributePackingInfo, vertIndices.z));
+        vertIndices = asUint3(extractPackedFloat3(attributeBuffer, attributePackingInfo, index));
       }
 
       // get vertex zero and vertex position
       PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
       PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
-      //const IdentityInfo v1identity = vert1.identity;
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
-      //const IdentityInfo v2identity = vert2.identity;
 
       vert0.identity = primitiveIdentity;
       vert1.position = vert1.position - vert0.position;
-      //vert1.identity = v1identity;
       vert1.identity = primitiveIdentity;
       vert2.position = vert2.position - vert0.position;
-      //vert2.identity = v2identity;
       vert2.identity = primitiveIdentity;
 
       vertIndices = indexOffset + constructUint3(0, 1, 2) + index * 3;

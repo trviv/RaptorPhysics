@@ -39,7 +39,7 @@ uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
     return startIndex+4;
   }
   else
-  if (primInfo.primType == PrimitiveTriangle)
+  if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
   {
     kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex);
     kernel.setArg(&attributeInfo[EntityPrimitiveAttributePosition], startIndex+1);
