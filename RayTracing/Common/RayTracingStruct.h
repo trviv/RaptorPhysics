@@ -141,6 +141,11 @@ inline static void setIdentityEntityNoShadow(IdentityInfo& identity, const bool 
 {
   identity.identity = (identity.identity & 0xBFFFFFFF) | (noShadow?0x40000000:0);
 }
+
+inline static void setIdentityEntityFlat(IdentityInfo& identity, const bool flatNormal)
+{
+  identity.identity = (identity.identity & 0xDFFFFFFF) | (flatNormal?0x20000000:0);
+}
 #endif
 
 inline static uint getRayTracingInstanceId(const IdentityInfo identity)
@@ -168,10 +173,15 @@ inline static bool isIdentityEntityNoShadow(const IdentityInfo identity)
   return identity.identity & 0x40000000;
 }
 
+inline static bool isIdentityEntityFlat(const IdentityInfo identity)
+{
+  return identity.identity & 0x20000000;
+}
+
 inline IdentityInfo removeIdentityFlags(const IdentityInfo identity)
 {
   IdentityInfo ret = identity;
-  ret.identity &= 0x3FFFFFFF;
+  ret.identity &= 0x1FFFFFFF;
   return ret;
 }
 
@@ -200,11 +210,31 @@ struct DEFAULT_ALIGN PrimitiveAttrib_t
 typedef struct PrimitiveAttrib_t PrimitiveAttrib;
 
 
+struct DEFAULT_ALIGN VertexAttrib_t
+{
+  union
+  {
+    struct
+    {
+      float3  normal;
+    };
+    struct
+    {
+      int     dummy[3];
+      float   radius;
+    };
+  };
+};
+
+typedef struct VertexAttrib_t VertexAttrib;
+
+
 enum EntityPrimitiveAttributeType
 {
   EntityPrimitiveAttributePosition,
   EntityPrimitiveAttributeRadius,
   EntityPrimitiveAttributeIndex = EntityPrimitiveAttributeRadius,
+  EntityPrimitiveAttributeNormal,
   EntityPrimitiveAttributeMax
 };
 
@@ -310,14 +340,9 @@ inline static DecodedPrimitiveInfo decodePrimitiveInfo(const EncodedPrimitiveInf
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-float3 extractPackedFloat3(const Device float* buffer, const PackingInfo packingInfo, const uint index)
+const Device float* extractPackedPointer(const Device float* buffer, const PackingInfo packingInfo)
 {
-  return *((Device float3*)(buffer + index * packingInfo.strideIn4Bytes + packingInfo.elementOffset));
-}
-
-float extractPackedFloat(const Device float* buffer, const PackingInfo packingInfo, const uint index)
-{
-  return buffer[index * packingInfo.strideIn4Bytes + packingInfo.elementOffset];
+  return buffer + packingInfo.elementOffset;
 }
 
 inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index, Thread DecodedPrimitiveInfo* primInfo)

@@ -97,7 +97,7 @@ inline colorType getMaterialFresnelK(const MaterialStruct mat)
   return mat.parameters.y;
 }
 
-inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const float3 worldDirection, const HitStruct hit)
+inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, const float3 lightDirection, const float3 worldDirection, const HitStruct hit, const float3 hitNormal)
 {
   colorType4 color = colorType4(0.f);
   const ushort shader = getMaterialShader(material);
@@ -106,7 +106,7 @@ inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, con
   colorType diffuseScale;
   if (shader & MaterialShaderLambert)
   {
-    diffuseScale = dot(lightDirection, hit.normal);
+    diffuseScale = dot(lightDirection, hitNormal);
   }
   else
   {
@@ -118,14 +118,14 @@ inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, con
   colorType specularScale;
   if (shader & MaterialShaderPhong)
   {
-    const float3 reflection = reflectVector(lightDirection, hit.normal);
+    const float3 reflection = reflectVector(lightDirection, hitNormal);
     specularScale = dot(reflection, worldDirection);
   }
   else
   if (shader & MaterialShaderBlinnPhong)
   {
     const float3 halfDir = normalize(lightDirection - worldDirection);
-    specularScale = dot(halfDir, hit.normal);
+    specularScale = dot(halfDir, hitNormal);
   }
   else
   {

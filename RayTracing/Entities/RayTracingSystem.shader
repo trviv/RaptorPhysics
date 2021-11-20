@@ -24,9 +24,13 @@ Kernel void transformPrimitives(
 @kernel Create single array composed of all the primitives.
 @param finalVertexArray Buffer containing all positions.
 @param finalAttributeArray Buffer containing primitive attribute data.
+@param finalVertexAttributeArray Buffer containing vertex attribute data.
 @param primitiveBuffer Buffer containing primitive positions.
+@param primitivePackingInfo Packing information for primitive structure.
 @param attributeBuffer Buffer containing attribute inside a structure.
 @param attributePackingInfo Packing information for attribute in primitive structure.
+@param vertexAttribBuffer Buffer containing vertex attribute inside a structure.
+@param vertexAttribPackingInfo Packing information for vertex structure.
 @param primitiveBatchSize Primitives processed per thread.
 @param primitiveCount Total primitives in the buffer.
 @param primType Primitive type for the dispatch.
@@ -35,10 +39,13 @@ Kernel void transformPrimitives(
 Kernel void collectPrimitives(
   Device PrimitiveStruct*           finalVertexArray,
   Device PrimitiveAttrib*           finalAttributeArray,
+  Device VertexAttrib*              finalVertexAttributeArray,
   const Device PrimitiveStruct*     primitiveBuffer,
   constantKernelInput(PackingInfo,  primitivePackingInfo),
   const Device float*               attributeBuffer,
   constantKernelInput(PackingInfo,  attributePackingInfo),
+  const Device float*               vertexAttribBuffer,
+  constantKernelInput(PackingInfo,  vertexAttribPackingInfo),
   constantKernelInput(IdentityInfo, primitiveIdentity),
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
@@ -48,47 +55,35 @@ Kernel void collectPrimitives(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
+  const Device PrimitiveAttrib* primitiveAttribPtr  = (const Device PrimitiveAttrib*)extractPackedPointer(attributeBuffer, attributePackingInfo);
+  const Device VertexAttrib* vertexAttribPtr = (const Device VertexAttrib*)extractPackedPointer(vertexAttribBuffer, vertexAttribPackingInfo);
+
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
   {
     if (primType == PrimitiveSphere)
     {
       PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
-      const float radius = extractPackedFloat(attributeBuffer, attributePackingInfo, index);
 
       outPrim.identity = primitiveIdentity;
       finalVertexArray[index + indexOffset] = outPrim;
-      finalAttributeArray[index + indexOffset].radius = radius;
+      finalAttributeArray[index + indexOffset].radius = primitiveAttribPtr[index].radius;
     }
-    else if (primType == PrimitiveIndexedTriangle)
+    else if (primType == PrimitiveIndexedTriangle || primType == PrimitiveTriangle)
     {
-      uint3 vertIndices = asUint3(extractPackedFloat3(attributeBuffer, attributePackingInfo, index));
-
-      // get vertex zero and vertex position
-      PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
-      PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
-      PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
-
-      vert0.identity = primitiveIdentity;
-      vert1.identity = primitiveIdentity;
-      vert2.identity = primitiveIdentity;
-
-      vertIndices += indexOffset;
-
-      finalVertexArray[vertIndices.x] = vert0;
-      finalVertexArray[vertIndices.y] = vert1;
-      finalVertexArray[vertIndices.z] = vert2;
-
-      finalAttributeArray[index + primOffset].triangleIndex = vertIndices;
-    }
-    else if (primType == PrimitiveTriangle)
-    {
-      uint3 vertIndices = constructUint3(0, 1, 2) + index * 3;
-
-      // for indexed array a non zero stride is assumed
-      if (attributePackingInfo.strideIn4Bytes > 0)
+      uint3 vertIndices;
+      if (primType == PrimitiveIndexedTriangle)
       {
-        vertIndices = asUint3(extractPackedFloat3(attributeBuffer, attributePackingInfo, index));
+        vertIndices = primitiveAttribPtr[index].triangleIndex;
+      }
+      else
+      {
+        vertIndices = constructUint3(0, 1, 2) + index * 3;
+        // for indexed array a non zero stride is assumed
+        if (attributePackingInfo.strideIn4Bytes > 0)
+        {
+          vertIndices = primitiveAttribPtr[index].triangleIndex;
+        }
       }
 
       // get vertex zero and vertex position
@@ -96,16 +91,34 @@ Kernel void collectPrimitives(
       PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
 
+      const VertexAttrib vertAttrib0 = vertexAttribPtr[vertIndices.x];
+      const VertexAttrib vertAttrib1 = vertexAttribPtr[vertIndices.y];
+      const VertexAttrib vertAttrib2 = vertexAttribPtr[vertIndices.z];
+
+      if (primType == PrimitiveIndexedTriangle)
+      {
+        vertIndices += indexOffset;
+      }
+      else
+      {
+        vert1.position = vert1.position - vert0.position;
+        vert2.position = vert2.position - vert0.position;
+        vertIndices = indexOffset + constructUint3(0, 1, 2) + index * 3;
+      }
+
       vert0.identity = primitiveIdentity;
-      vert1.position = vert1.position - vert0.position;
       vert1.identity = primitiveIdentity;
-      vert2.position = vert2.position - vert0.position;
       vert2.identity = primitiveIdentity;
 
-      vertIndices = indexOffset + constructUint3(0, 1, 2) + index * 3;
       finalVertexArray[vertIndices.x] = vert0;
       finalVertexArray[vertIndices.y] = vert1;
       finalVertexArray[vertIndices.z] = vert2;
+
+      finalVertexAttributeArray[vertIndices.x] = vertAttrib0;
+      finalVertexAttributeArray[vertIndices.y] = vertAttrib1;
+      finalVertexAttributeArray[vertIndices.z] = vertAttrib2;
+
+      finalAttributeArray[index + primOffset].triangleIndex = vertIndices;
     }
   }
 }
@@ -124,13 +137,17 @@ Kernel void shadeIntersection(
   Device RayStruct*             rays,
   const Device HitStruct*       hits,
   const Device uint*            randomUints,
+  const Device PrimitiveStruct* vertexArray,
+  const Device PrimitiveAttrib* attributeArray,
+  const Device VertexAttrib*    vertexAttributeArray,
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
   constantKernelInput(ushort,   lightOffset),
   constantKernelInput(ushort,   lightCount),
   const Device MaterialStruct*  materials,
   Const CameraStruct*           camera,
-  constantKernelInput(uint,     iteration)
+  constantKernelInput(uint,     iteration),
+  Const RTSystemSettings*       systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -150,14 +167,73 @@ Kernel void shadeIntersection(
 
   const uint pixelRandomValue = camera->frameIndex + randomUints[index];
 
+  float3 hitNormal;
   if (hit.primitiveIndex != -1)
   {
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
+
+    DecodedPrimitiveInfo primInfo;
+    primInfo.primType = RTPrimitiveCount;
+    decodePrimitiveInfoFromSystemSettings(systemSettings, hit.primitiveIndex, &primInfo);
+
+    if (primInfo.primType == PrimitiveSphere)
+    {
+      setHitNormal(hitNormal, shadowRay.origin - vertexArray[hit.primitiveIndex].position);
+    }
+    else if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
+    {
+      PrimitiveAttrib attributes;
+      float3 vert0, edge1, edge2;
+      float3 normal0, normal1, normal2;
+
+      if (primInfo.primType == PrimitiveTriangle)
+      {
+        const uint triIndex = primInfo.indexOffset + (hit.primitiveIndex - primInfo.primOffset)*3;
+        attributes.triangleIndex = constructUint3(triIndex, triIndex+1, triIndex+2);
+      }
+      else
+      {
+        attributes = attributeArray[hit.primitiveIndex];
+      }
+
+      vert0 = vertexArray[attributes.triangleIndex.x].position;
+      edge1 = vertexArray[attributes.triangleIndex.y].position;
+      edge2 = vertexArray[attributes.triangleIndex.z].position;
+
+      if (primInfo.primType == PrimitiveIndexedTriangle)
+      {
+        edge1 -= vert0;
+        edge2 -= vert0;
+      }
+
+      if (isIdentityEntityFlat(materialId))
+      {
+        setHitNormal(hitNormal, cross(edge2, edge1));
+      }
+      else
+      {
+        const float3 tvec = ray.origin - vert0;
+        const float3 pvec = cross(ray.direction, edge2);
+        const float invDet= 1.f / dot(edge1, pvec);
+        const float3 qvec = cross(tvec, edge1);
+
+        const float u = dot(tvec, pvec) * invDet;
+        const float v = dot(ray.direction, qvec) * invDet;
+
+        normal0 = vertexAttributeArray[attributes.triangleIndex.x].normal;
+        normal1 = vertexAttributeArray[attributes.triangleIndex.y].normal;
+        normal2 = vertexAttributeArray[attributes.triangleIndex.z].normal;
+
+        setHitNormal(hitNormal, (1 - u - v) * normal0 + u * normal1 + v * normal2);
+      }
+    }
+    hitNormal = normalize(hitNormal);
+
     material = materials[removeIdentityFlags(materialId).identity];
     materialType = select(getMaterialType(material), (ushort)-1, isIdentityEntityNoShadow(materialId));
-    if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hit.normal) >= 0.f)
+    if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hitNormal) >= 0.f)
     {
-      hit.normal = -hit.normal;
+      hitNormal = -hitNormal;
     }
     colorType4 finalColor = colorOut[ray.rayIndex];
     finalColor.xyz += material.emissive.xyz * ray.color.xyz;
@@ -170,28 +246,28 @@ Kernel void shadeIntersection(
 
   if (materialType == MaterialTypeReflective)
   {
-    childRay.direction = reflectVector(ray.direction, hit.normal);
+    childRay.direction = reflectVector(ray.direction, hitNormal);
     childRay.color *= material.specular;
   }
   else if (materialType == MaterialTypeTranslucent)
   {
     const float randomNumber = getRandomNumber(pixelRandomValue, 2+iteration*4);
-    if (randomNumber < getFresnelCoefficient(dot(ray.direction, hit.normal), 1.f, getMaterialRefractiveIndex(material), getMaterialFresnelK(material)))
+    if (randomNumber < getFresnelCoefficient(dot(ray.direction, hitNormal), 1.f, getMaterialRefractiveIndex(material), getMaterialFresnelK(material)))
     {
-      childRay.direction = reflectVector(ray.direction, hit.normal);
+      childRay.direction = reflectVector(ray.direction, hitNormal);
     }
     else
     {
-      childRay.direction = refractVector(ray.direction, hit.normal, 1.f, getMaterialRefractiveIndex(material));
+      childRay.direction = refractVector(ray.direction, hitNormal, 1.f, getMaterialRefractiveIndex(material));
     }
     childRay.color *= material.specular;
   }
   else if (materialType == MaterialTypePlastic)
   {
-    if (dot(ray.direction, hit.normal) <= 0.f)
+    if (dot(ray.direction, hitNormal) <= 0.f)
     {
       const float2 random = constructFloat2(getRandomNumber(pixelRandomValue, 2+iteration*4+2), getRandomNumber(pixelRandomValue, 2+iteration*4+3));
-      childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hit.normal);
+      childRay.direction = alignHemisphereWithNormal(sampleCosineWeightedHemisphere(random), hitNormal);
       childRay.color *= material.diffuse;
     }
     else
@@ -221,11 +297,11 @@ Kernel void shadeIntersection(
       float maxDistance;
 
       if (sampleLight(&lightColor, &direction, &maxDistance, lights + i, pixelRandomValue + i, iteration, shadowRay.origin)
-        && dot(direction, hit.normal) >= MIN_TIME)
+        && dot(direction, hitNormal) >= MIN_TIME)
       {
         shadowRay.direction = direction;
         shadowRay.rayIndex  = ray.rayIndex;
-        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit).xyz;
+        shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit, hitNormal).xyz;
         shadowRay.maxDistance = select(maxDistance, 0.f, maxComp3(shadowRay.color) < MIN_TIME);
       }
       shadowRays[index + rayCount * i] = shadowRay;
