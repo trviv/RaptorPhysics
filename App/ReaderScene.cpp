@@ -343,6 +343,9 @@ void ReaderScene::readMaterials(MainSystem* system, const XMLElement* materials)
     }
 
     registeredMaterials[identity] = system->rayTracingSystem.registerMaterial(newMaterial);
+    bool flat = true;
+    material->QueryBoolAttribute("flat", &flat);
+    setIdentityEntityFlat(registeredMaterials[identity], flat);
   }
 }
 
@@ -406,7 +409,7 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
       }
       else if (strcmp(shapeHandle.ToElement()->Attribute("type"), "mesh") == 0)
       {
-        prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, system->compute);
+        prim = new PrimitiveArrayEntity(RayTracingEntityIndexedTriangles, 0, system->compute);
         prim->createMesh(shapeHandle.ToElement()->Attribute("file-name"));
       }
       newRTEntity = prim;

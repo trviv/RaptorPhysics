@@ -94,7 +94,8 @@ void RayTracingSystem::composePrimitiveArray()
 
       collectPrimitives.setArg(vertexArray.device(), 0);
       collectPrimitives.setArg(attributeArray.device(), 1);
-      uint nextBindIndex = prim.bindToShader(collectPrimitives, 2);
+      collectPrimitives.setArg(vertexAttributeArray.device(), 2);
+      uint nextBindIndex = prim.bindToShader(collectPrimitives, 3);
       collectPrimitives.setArg(&prim.materialId, nextBindIndex);
       collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
       collectPrimitives.setArg(&prim.primInfo.primitiveCount, nextBindIndex+2);
@@ -107,6 +108,7 @@ void RayTracingSystem::composePrimitiveArray()
 #ifdef DEBUG_RAY_TRACING_SYSTEM
       vertexArray.syncHost();
       attributeArray.syncHost();
+      vertexAttributeArray.syncHost();
       compute->sync();
 #endif
 
@@ -200,6 +202,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   systemSettings.create(compute);
   vertexArray.create(compute);
   attributeArray.create(compute);
+  vertexAttributeArray.create(compute);
   randomUints.create(compute);
 
   for (auto& i : registeredPrimitives)
@@ -295,6 +298,7 @@ void RayTracingSystem::commit()
 
   vertexArray.resize(indexOffset, false);
   attributeArray.resize(primOffset, false);
+  vertexAttributeArray.resize(indexOffset, false);
 
   systemSettings.syncDevice();
 
@@ -457,7 +461,11 @@ void RayTracingSystem::render(bool updatePrimitives)
         shadowRays[0].device(),
         rays[bufferIndex].device(),
         hits.device(),
-        randomUints.device()
+        randomUints.device(),
+        vertexArray.device(),
+        attributeArray.device(),
+        vertexAttributeArray.device()
+
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       shadeIntersectionKernel.setArgs(buffers, bufferCount);
@@ -468,6 +476,7 @@ void RayTracingSystem::render(bool updatePrimitives)
       shadeIntersectionKernel.setArg(materials.device(), bufferCount+4);
       shadeIntersectionKernel.setArg(camera->getDeviceCamera(), bufferCount+5);
       shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
+      shadeIntersectionKernel.setArg(systemSettings.device(), bufferCount+7);
 
       compute->execute(shadeIntersectionKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
 

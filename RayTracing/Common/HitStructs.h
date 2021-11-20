@@ -45,7 +45,6 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexNormal_t
   uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
   uint          padding;
-  float3        normal;
 };
 
 typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;

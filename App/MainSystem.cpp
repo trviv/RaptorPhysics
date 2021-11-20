@@ -389,11 +389,15 @@ void MainSystem::render()
       pos.position.z = systemBound.min.z; bottomSurface.host()->push_back(pos);
 
       bottomSurface.syncDevice();
-      PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 2);
-      entity->setAttribute(EntityPrimitiveAttributePosition, bottomSurface.device(), PackingInfo());
-      entity->setAttribute(EntityPrimitiveAttributeIndex, bottomSurface.device(), PackingInfo(sizeof(PositionStruct)/sizeof(float) * 6));
+
+      PrimitiveArrayEntity *entity = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, compute);
+      Real3 bound = Real3(systemBound.max)-Real3(systemBound.min);
+      entity->createBox(&bound.x);
+      Matrix mat;
+      mat.setIdentity();
+      mat.translate((Real3(systemBound.max)+Real3(systemBound.min)) * 0.5f);
       entity->setMaterialId((*entityMaterialMap.begin()).second);
-      rayTracingSystem.registerAndInstantiateEntity(entity);
+      rayTracingSystem.registerAndInstantiateEntity(entity, 1, &mat[TRANS]);
     }
 
     rayTracingSystem.commit();

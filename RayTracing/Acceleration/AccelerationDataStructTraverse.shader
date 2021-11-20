@@ -34,7 +34,6 @@ inline bool earliestIntersection(
       {
         setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
         setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
-        setHitNormal(hit->normal, pvec + rayDirection * time);
         setHitDistance(hit->distance, time);
         return true;
       }
@@ -44,7 +43,6 @@ inline bool earliestIntersection(
       {
         setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
         setHitPrimitiveIdentity(hit->primitiveIdentity, sphere.identity);
-        setHitNormal(hit->normal, pvec + rayDirection * time);
         setHitDistance(hit->distance, time);
         return true;
       }
@@ -94,7 +92,6 @@ inline bool earliestIntersection(
         {
           setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
           setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
-          setHitNormal(hit->normal, cross(edge2.position, edge1.position));
           setHitDistance(hit->distance, time);
           return true;
         }
@@ -160,7 +157,6 @@ Kernel void intersectRays(
   }
 
 #ifdef IntersectionTypeClosest
-  setHitNormal(hit.normal, select(normalize(hit.normal), 0.f, hit.primitiveIndex == -1));
   hits[index] = hit;
 #endif
 #ifdef IntersectionTypeAny

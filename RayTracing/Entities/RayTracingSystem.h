@@ -65,8 +65,11 @@ protected:
   /*!@member Composite array containing all positions.*/
   DeviceArray<PrimitiveStruct> vertexArray;
 
-  /*!@member Composite array containing all attributes.*/
+  /*!@member Composite array containing all primitive attributes.*/
   DeviceArray<PrimitiveAttrib> attributeArray;
+
+  /*!@member Composite array containing all vertex attributes.*/
+  DeviceArray<VertexAttrib>    vertexAttributeArray;
 
   DeviceArray<RTSystemSettings> systemSettings;
 
