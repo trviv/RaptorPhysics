@@ -20,13 +20,8 @@ Camera::Camera(ComputeInterface* compute)
   registerShader(compute, "Camera.shader", &oldType, &newType);
   kernels.push_back(programs[0].createKernel("emitPrimaryRaysZWalkLocal"));
 
-  deviceData = new DeviceArray<uint>[RT_CAMERA_BUFFER_SIZE];
-  for (uint i=0; i<RT_CAMERA_BUFFER_SIZE; i++)
-  {
-    deviceData[i].create(compute);
-    deviceData[i].resize(sizeof(CameraStruct) / sizeof(uint), false);
-    deviceData[i].host()->resize(sizeof(CameraStruct) / sizeof(uint), false);
-  }
+  deviceData = new DeviceArray<uint>(compute);
+  deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);
 
   rayCount.create(compute);
   rayCount.resize(4, false);
@@ -41,13 +36,9 @@ Camera::~Camera()
   {
     delete buffer;
   }
-  for (uint i=0; deviceData && i<RT_CAMERA_BUFFER_SIZE; i++)
-  {
-    deviceData[i].free();
-  }
   if (deviceData)
   {
-    delete[] deviceData;
+    delete deviceData;
     deviceData = NULL;
   }
 }
@@ -79,22 +70,7 @@ void Camera::update(const real projectionMatrix[16], const real modelviewMatrix[
 {
   this->scale = tan(60.f * 0.5f * M_PI / 180.f);
   Matrix4::invert(this->viewMatrixInv, modelviewMatrix);
-
-  // compare current matrix to the previous matrix and set frame index to 0 if its changed
-  CameraStruct* prevValue = (CameraStruct*)&(*(deviceData[deviceIndex].host()))[0];
-  for (uint i=0; i<16; i++)
-  {
-    if (this->viewMatrixInv[i] != prevValue->viewMatrixInv[i])
-    {
-      frameIndex = 0;
-      break;
-    }
-  }
-
-  deviceIndex = (deviceIndex + 1) % RT_CAMERA_BUFFER_SIZE;
-  memcpy((CameraStruct*)&(*(deviceData[deviceIndex].host()))[0], (CameraStruct*)this, sizeof(CameraStruct));
-  deviceData[deviceIndex].syncDevice();
-  frameIndex++;
+  compute->copyFromHost(deviceData->device(), 0, sizeof(CameraStruct), (CameraStruct*)this, false);
 }
 
 void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
@@ -140,5 +116,5 @@ void Camera::setScale(real scale)
 
 const ComputeMemory* Camera::getDeviceCamera()const
 {
-  return deviceData[deviceIndex].device();
+  return deviceData->device();
 }
