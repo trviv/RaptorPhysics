@@ -32,6 +32,7 @@ protected:
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel reorderRaysKernels[RayStructTypeMax];
+  ComputeKernel updateCameraKernel;
 
   vector<vector<RayTracingEntity*>> entities;
 
@@ -43,6 +44,9 @@ protected:
 
   /*!@member Camera used in the scene.*/
   Camera* camera;
+
+  /*!@member Latest Camera used in the scene.*/
+  DeviceArray<CameraStruct>* currentCamera;
 
   /*!@member Lights in the scene.*/
   DeviceArray<LightStruct> lights;

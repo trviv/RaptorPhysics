@@ -7,7 +7,7 @@ uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
 uint RayTracingSystem::maxPrimIndex = 0;
 
 RayTracingSystem::RayTracingSystem()
-  :allocator(NULL), camera(NULL)
+  :allocator(NULL), camera(NULL), currentCamera(NULL)
 {
 
 }
@@ -121,6 +121,8 @@ void RayTracingSystem::composePrimitiveArray()
 void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 {
   this->compute = compute;
+  this->currentCamera = new DeviceArray<CameraStruct>(compute);
+  this->currentCamera->resize(1, false);
   if (!allocator)
   {
 //    allocator = new RayTracingAllocator(compute);
@@ -196,6 +198,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   accumulateColor = programs[0].createKernel("accumulateColor");
   collectPrimitives = programs[0].createKernel("collectPrimitives");
   transformPrimitives = programs[0].createKernel("transformPrimitives");
+  updateCameraKernel = programs[0].createKernel("updateCameraKernel");
 
   colorOutputBuffer.create(compute);
   accumulatedColorBuffer.create(compute);
@@ -439,6 +442,16 @@ void RayTracingSystem::render(bool updatePrimitives)
 
   uint bufferIndex = 0;
 
+  // update camera or increase the frame count 
+  {
+    size_t workgroupSize[3], workgroupCount[3];
+    compute->configureSize(workgroupSize, workgroupCount, 1);
+    updateCameraKernel.setArg(currentCamera->device(), 0);
+    updateCameraKernel.setArg(camera->getDeviceCamera(), 1);
+
+    compute->execute(updateCameraKernel, workgroupSize, workgroupCount);
+  }
+
   for (uint iteration=0; iteration<maxIterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
     uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
@@ -474,7 +487,7 @@ void RayTracingSystem::render(bool updatePrimitives)
       shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
       shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
       shadeIntersectionKernel.setArg(materials.device(), bufferCount+4);
-      shadeIntersectionKernel.setArg(camera->getDeviceCamera(), bufferCount+5);
+      shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount+5);
       shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
       shadeIntersectionKernel.setArg(systemSettings.device(), bufferCount+7);
 
@@ -557,7 +570,7 @@ void RayTracingSystem::render(bool updatePrimitives)
     };
     uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
     accumulateColor.setArgs(buffers, bufferCount);
-    accumulateColor.setArg(camera->getDeviceCamera(), bufferCount);
+    accumulateColor.setArg(currentCamera->device(), bufferCount);
     accumulateColor.setArg(&rayCount, bufferCount+1);
 
     compute->execute(accumulateColor, workgroupSize, workgroupCount);

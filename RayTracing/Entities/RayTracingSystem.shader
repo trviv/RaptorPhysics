@@ -448,4 +448,33 @@ Kernel void accumulateColor(
   }
 }
 
+Kernel void updateCameraKernel(
+  Device CameraStruct* newCamera,
+  Const CameraStruct* camera
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index < 1)
+  {
+    CameraStruct currCamera = *camera;
+    CameraStruct prevCamera = *newCamera;
+
+    Thread float* currCameraMatPtr = (Thread float*)&currCamera.viewMatrixInv;
+    Thread float* prevCameraMatPtr = (Thread float*)&prevCamera.viewMatrixInv;
+
+    for (uint i=0; i<16; i++)
+    {
+      if (currCameraMatPtr[i] != prevCameraMatPtr[i])
+      {
+        currCamera.frameIndex = 0;
+        *newCamera = currCamera;
+        return;
+      }
+    }
+
+    newCamera->frameIndex++;
+  }
+}
+
 #endif

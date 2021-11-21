@@ -290,7 +290,12 @@ void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount)
   for (int i=0; i<vertexCount; i++)
   {
     Real3 normal = smoothNormals[i].first / max(1, smoothNormals[i].second);
-    normal.normalize();
+    float length = normal.length();
+    if (length > 0)
+    {
+      normal /= length;
+
+    }
     deviceData->host()->push_back(*((uint*)&normal.x));
     deviceData->host()->push_back(*((uint*)&normal.y));
     deviceData->host()->push_back(*((uint*)&normal.z));
