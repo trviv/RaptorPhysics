@@ -21,7 +21,7 @@ Kernel void createPrimitiveBoundingBoxes(
   KERNEL_THREADGROUP_ARGUMENTS)
 {
   DecodedPrimitiveInfo primInfo;
-  primInfo.primType = RTPrimitiveCount;
+  primInfo.primitiveType = RTPrimitiveCount;
 
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
@@ -30,15 +30,15 @@ Kernel void createPrimitiveBoundingBoxes(
 
     decodePrimitiveInfoFromSystemSettings(systemSettings, index, &primInfo);
 
-    if (primInfo.primType == PrimitiveSphere)
+    if (primInfo.primitiveType == PrimitiveSphere)
     {
-      const PrimitiveStruct sphere = vertexArray[primInfo.indexOffset + index - primInfo.primOffset];
+      const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + index - primInfo.primitiveOffset];
       const float radius = attributeArray[index].radius;
 
       primitiveBoundingBox.min = sphere.position - radius;
       primitiveBoundingBox.max = sphere.position + radius;
     }
-    else if (primInfo.primType == PrimitiveIndexedTriangle)
+    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
     {
       const uint3 triIndex = attributeArray[index].triangleIndex;
 
@@ -49,9 +49,9 @@ Kernel void createPrimitiveBoundingBoxes(
       primitiveBoundingBox.min = min3(vert0, vert1, vert2);
       primitiveBoundingBox.max = max3(vert0, vert1, vert2);
     }
-    else if (primInfo.primType == PrimitiveTriangle)
+    else if (primInfo.primitiveType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
+      const uint triIndex = primInfo.vertexOffset + (index - primInfo.primitiveOffset)*3;
 
       const float3 vert0 = vertexArray[triIndex].position;
       const float3 vert1 = vertexArray[triIndex+1].position + vert0;
@@ -86,7 +86,7 @@ Kernel void assignMortonCode(
   KERNEL_THREADGROUP_ARGUMENTS)
 {
   DecodedPrimitiveInfo primInfo;
-  primInfo.primType = RTPrimitiveCount;
+  primInfo.primitiveType = RTPrimitiveCount;
 
   const float3 inverseMergedBoxSize = 1024.f / (systemSettings->systemBound.max - systemSettings->systemBound.min);
   const float3 mergedBoxCenter = (systemSettings->systemBound.min + systemSettings->systemBound.max) * 0.5f;
@@ -97,11 +97,11 @@ Kernel void assignMortonCode(
     decodePrimitiveInfoFromSystemSettings(systemSettings, index, &primInfo);
     float3 center;
 
-    if (primInfo.primType == PrimitiveSphere)
+    if (primInfo.primitiveType == PrimitiveSphere)
     {
-      center = vertexArray[primInfo.indexOffset + (index - primInfo.primOffset)].position;
+      center = vertexArray[primInfo.vertexOffset + (index - primInfo.primitiveOffset)].position;
     }
-    else if (primInfo.primType == PrimitiveIndexedTriangle)
+    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
     {
       const uint3 triangleIndex = attributeArray[index].triangleIndex;
 
@@ -111,9 +111,9 @@ Kernel void assignMortonCode(
 
       center = (vert0 + vert1 + vert2) * 1.f/3.f;
     }
-    else if (primInfo.primType == PrimitiveTriangle)
+    else if (primInfo.primitiveType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.indexOffset + (index - primInfo.primOffset)*3;
+      const uint triIndex = primInfo.vertexOffset + (index - primInfo.primitiveOffset)*3;
 
       const float3 vert0 = vertexArray[triIndex].position;
       const float3 edge1 = vertexArray[triIndex+1].position;
