@@ -6,7 +6,7 @@ PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primi
 {
   this->identity.identity = 0;
   setRayTracingEntityId(this->identity, type, 0);
-  this->primInfo.primType = type;
+  this->primInfo.primitiveType  = type;
   this->primInfo.primitiveCount = primitiveCount;
   this->primBound.min = Real3(-1.f, -1.f, -1.f);
   this->primBound.max = Real3(1.f, 1.f, 1.f);
@@ -19,7 +19,7 @@ PrimitiveArrayEntity::~PrimitiveArrayEntity()
 
 RayTracingEntity* PrimitiveArrayEntity::createCopy()const
 {
-  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity((RayTracingEntityType)this->primInfo.primType, primInfo.primitiveCount);
+  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity((RayTracingEntityType)this->primInfo.primitiveType, primInfo.primitiveCount);
   *newEntity = *this;
   return newEntity;
 }
@@ -57,7 +57,7 @@ void PrimitiveArrayEntity::createBox(const real dim[])
   vertexAndIndexOffset = vertexOffset + (rectangle?8:48);
 
   primInfo.primitiveCount = (rectangle?2:12);
-  primInfo.indexCount = (rectangle?4:8);
+  primInfo.vertexCount    = (rectangle?4:8);
 
   generateNeighbourBasedNormal(rectangle?4:8);
   deviceData->syncDevice();
@@ -98,7 +98,7 @@ void PrimitiveArrayEntity::createSphere(const real radius)
   setAttribute(EntityPrimitiveAttributeNormal,    deviceData->device(), PackingInfo(vertexAndIndexOffset, 4));
 
   primInfo.primitiveCount = 1;
-  primInfo.indexCount = 1;
+  primInfo.vertexCount    = 1;
 }
 
 struct DEFAULT_ALIGN triangleIndices
@@ -220,7 +220,7 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
   primBound.max = vertexMax;
 
   primInfo.primitiveCount = triangles;
-  primInfo.indexCount = vertices;
+  primInfo.vertexCount    = vertices;
 
   vertexOffset = vertices * sizeof(PrimitiveStruct) / 4;
   vertexAndIndexOffset = vertexOffset + (uint)allindices.size() * sizeof(triangleIndices) / 4;

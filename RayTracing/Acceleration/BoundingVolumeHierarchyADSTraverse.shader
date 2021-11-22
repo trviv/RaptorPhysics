@@ -428,7 +428,7 @@ Kernel void intersectRaysBVH(
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   DecodedPrimitiveInfo primInfo;
-  primInfo.primType = RTPrimitiveCount;
+  primInfo.primitiveType = RTPrimitiveCount;
 
   //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
   HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo);
@@ -471,7 +471,7 @@ Kernel void intersectRaysBVH(
   }
 
   DecodedPrimitiveInfo primInfo;
-  primInfo.primType = RTPrimitiveCount;
+  primInfo.primitiveType = RTPrimitiveCount;
 
   while (true)
   {

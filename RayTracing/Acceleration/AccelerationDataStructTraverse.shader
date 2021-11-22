@@ -16,9 +16,9 @@ inline bool earliestIntersection(
   decodePrimitiveInfoFromSystemSettings(systemSettings, primIndex, prevPrimInfo);
   const DecodedPrimitiveInfo primInfo = *prevPrimInfo;
 
-  if (primInfo.primType == PrimitiveSphere)
+  if (primInfo.primitiveType == PrimitiveSphere)
   {
-    const PrimitiveStruct sphere = vertexArray[primInfo.indexOffset + primIndex - primInfo.primOffset];
+    const PrimitiveStruct sphere = vertexArray[primInfo.vertexOffset + primIndex - primInfo.primitiveOffset];
     const float radius = attributeArray[primIndex].radius;
 
     const float3 pvec = rayOrigin - sphere.position;
@@ -49,15 +49,15 @@ inline bool earliestIntersection(
     }
     return false;
   }
-  else if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
+  else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle)
   {
     PrimitiveStruct vert0;
     PrimitiveStruct edge1;
     PrimitiveStruct edge2;
 
-    if (primInfo.primType == PrimitiveTriangle)
+    if (primInfo.primitiveType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.indexOffset + (primIndex - primInfo.primOffset)*3;
+      const uint triIndex = primInfo.vertexOffset + (primIndex - primInfo.primitiveOffset)*3;
 
       vert0 = vertexArray[triIndex];
       edge1 = vertexArray[triIndex+1];
@@ -141,7 +141,7 @@ Kernel void intersectRays(
   hit.distance = rays[index].maxDistance;
 
   DecodedPrimitiveInfo primInfo;
-  primInfo.primType = RTPrimitiveCount;
+  primInfo.primitiveType = RTPrimitiveCount;
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {

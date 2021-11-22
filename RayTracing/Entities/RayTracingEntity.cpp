@@ -32,13 +32,13 @@ uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
 {
   kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex);
   kernel.setArg(&attributeInfo[EntityPrimitiveAttributePosition], startIndex+1);
-  if (primInfo.primType == PrimitiveSphere)
+  if (primInfo.primitiveType == PrimitiveSphere)
   {
     kernel.setArg(attributeBuffer[EntityPrimitiveAttributeRadius], startIndex+2);
     kernel.setArg(&attributeInfo[EntityPrimitiveAttributeRadius], startIndex+3);
   }
   else
-  if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
+  if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle)
   {
     if (attributeInfo[EntityPrimitiveAttributeIndex].strideIn4Bytes)
     {

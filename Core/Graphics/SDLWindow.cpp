@@ -12,7 +12,7 @@ SDL_GLContext gl_context;
 #define WINDOW_TRANSLATION_RATE     0.10f
 #define WINDOW_ROTATION_SCALE       0.005f
 #define MOUSE_SENSITIVITY           0.50f
-#define MOVE_FRICTION               0.75f
+#define MOVE_FRICTION               0.50f
 #define RESET_CAMERA_SPEED          0.75f
 
 #define USE_ON_SCREEN_CONTROLLER
@@ -449,7 +449,7 @@ void Window::processOnScreenController(void* eventData, bool end)
   if (fingerData.fingerId == leftFingerId)
   {
 //    logComputeMessage("Left Move");
-    cameraSideSpeed = (fingerData.x - initialLeft.x) * 2.f;
+    cameraSideSpeed = (fingerData.x - initialLeft.x);
     cameraSideSpeed = mCrop(cameraSideSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
     cameraForwardSpeed = (initialLeft.y - fingerData.y);
     cameraForwardSpeed = mCrop(cameraForwardSpeed, -WINDOW_MAX_TRANSLATION_RATE, WINDOW_MAX_TRANSLATION_RATE);
@@ -493,6 +493,10 @@ void Window::start()
   while (!quit)
   {
     const uint frameStartTime = SDL_GetTicks();
+
+    if(abs(cameraUpSpeed)*height() < 1.f)       cameraUpSpeed = 0.f;
+    if(abs(cameraSideSpeed)*width() < 1.f)      cameraSideSpeed = 0.f;
+    if(abs(cameraForwardSpeed)*height() < 1.f)  cameraForwardSpeed = 0.f;
 
     // update camera settings
     Real3 cross = cameraFront().cross(cameraUp);

@@ -33,8 +33,8 @@ Kernel void transformPrimitives(
 @param vertexAttribPackingInfo Packing information for vertex structure.
 @param primitiveBatchSize Primitives processed per thread.
 @param primitiveCount Total primitives in the buffer.
-@param primType Primitive type for the dispatch.
-@param indexOffset Starting offset for storing vertex data.
+@param primitiveType Primitive type for the dispatch.
+@param vertexOffset Starting offset for storing vertex data.
 */
 Kernel void collectPrimitives(
   Device PrimitiveStruct*           finalVertexArray,
@@ -49,9 +49,9 @@ Kernel void collectPrimitives(
   constantKernelInput(IdentityInfo, primitiveIdentity),
   constantKernelInput(uint,         primitiveBatchSize),
   constantKernelInput(uint,         primitiveCount),
-  constantKernelInput(uint,         primType),
-  constantKernelInput(uint,         primOffset),
-  constantKernelInput(uint,         indexOffset)
+  constantKernelInput(uint,         primitiveType),
+  constantKernelInput(uint,         primitiveOffset),
+  constantKernelInput(uint,         vertexOffset)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
@@ -61,18 +61,18 @@ Kernel void collectPrimitives(
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
   {
-    if (primType == PrimitiveSphere)
+    if (primitiveType == PrimitiveSphere)
     {
       PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
 
       outPrim.identity = primitiveIdentity;
-      finalVertexArray[index + indexOffset] = outPrim;
-      finalAttributeArray[index + indexOffset].radius = primitiveAttribPtr[index].radius;
+      finalVertexArray[index + vertexOffset] = outPrim;
+      finalAttributeArray[index + vertexOffset].radius = primitiveAttribPtr[index].radius;
     }
-    else if (primType == PrimitiveIndexedTriangle || primType == PrimitiveTriangle)
+    else if (primitiveType == PrimitiveIndexedTriangle || primitiveType == PrimitiveTriangle)
     {
       uint3 vertIndices;
-      if (primType == PrimitiveIndexedTriangle)
+      if (primitiveType == PrimitiveIndexedTriangle)
       {
         vertIndices = primitiveAttribPtr[index].triangleIndex;
       }
@@ -95,15 +95,15 @@ Kernel void collectPrimitives(
       const VertexAttrib vertAttrib1 = vertexAttribPtr[vertIndices.y];
       const VertexAttrib vertAttrib2 = vertexAttribPtr[vertIndices.z];
 
-      if (primType == PrimitiveIndexedTriangle)
+      if (primitiveType == PrimitiveIndexedTriangle)
       {
-        vertIndices += indexOffset;
+        vertIndices += vertexOffset;
       }
       else
       {
         vert1.position = vert1.position - vert0.position;
         vert2.position = vert2.position - vert0.position;
-        vertIndices = indexOffset + constructUint3(0, 1, 2) + index * 3;
+        vertIndices = vertexOffset + constructUint3(0, 1, 2) + index * 3;
       }
 
       vert0.identity = primitiveIdentity;
@@ -118,7 +118,7 @@ Kernel void collectPrimitives(
       finalVertexAttributeArray[vertIndices.y] = vertAttrib1;
       finalVertexAttributeArray[vertIndices.z] = vertAttrib2;
 
-      finalAttributeArray[index + primOffset].triangleIndex = vertIndices;
+      finalAttributeArray[index + primitiveOffset].triangleIndex = vertIndices;
     }
   }
 }
@@ -173,22 +173,22 @@ Kernel void shadeIntersection(
     shadowRay.origin = ray.origin + ray.direction * hit.distance;
 
     DecodedPrimitiveInfo primInfo;
-    primInfo.primType = RTPrimitiveCount;
+    primInfo.primitiveType = RTPrimitiveCount;
     decodePrimitiveInfoFromSystemSettings(systemSettings, hit.primitiveIndex, &primInfo);
 
-    if (primInfo.primType == PrimitiveSphere)
+    if (primInfo.primitiveType == PrimitiveSphere)
     {
       setHitNormal(hitNormal, shadowRay.origin - vertexArray[hit.primitiveIndex].position);
     }
-    else if (primInfo.primType == PrimitiveTriangle || primInfo.primType == PrimitiveIndexedTriangle)
+    else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle)
     {
       PrimitiveAttrib attributes;
       float3 vert0, edge1, edge2;
       float3 normal0, normal1, normal2;
 
-      if (primInfo.primType == PrimitiveTriangle)
+      if (primInfo.primitiveType == PrimitiveTriangle)
       {
-        const uint triIndex = primInfo.indexOffset + (hit.primitiveIndex - primInfo.primOffset)*3;
+        const uint triIndex = primInfo.vertexOffset + (hit.primitiveIndex - primInfo.primitiveOffset)*3;
         attributes.triangleIndex = constructUint3(triIndex, triIndex+1, triIndex+2);
       }
       else
@@ -200,7 +200,7 @@ Kernel void shadeIntersection(
       edge1 = vertexArray[attributes.triangleIndex.y].position;
       edge2 = vertexArray[attributes.triangleIndex.z].position;
 
-      if (primInfo.primType == PrimitiveIndexedTriangle)
+      if (primInfo.primitiveType == PrimitiveIndexedTriangle)
       {
         edge1 -= vert0;
         edge2 -= vert0;

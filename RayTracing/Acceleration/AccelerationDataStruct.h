@@ -45,7 +45,7 @@ protected:
   uint  primitiveCount;
 
   /*!@member Total positions/vertex in the system.*/
-  uint  indexCount;
+  uint  vertexCount;
 
 public:
 
