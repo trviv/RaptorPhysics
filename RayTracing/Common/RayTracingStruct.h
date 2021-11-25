@@ -197,13 +197,27 @@ struct DEFAULT_ALIGN PrimitiveAttrib_t
     };
     struct
     {
+      uint4 quadIndex;
+    };
+    struct
+    {
       int   dummy[3];
       float radius;
     };
   };
 #else
-  uint  triangleIndex[3];
-  float radius;
+  union
+  {
+    struct
+    {
+      uint  triangleIndex[3];
+      float radius;
+    };
+    struct
+    {
+      uint  quadIndex[4];
+    };
+  };
 #endif
 };
 
@@ -250,7 +264,8 @@ enum RayTracingEntityType
   RayTracingEntityPrimArray   = 4,
   RayTracingEntitySpheres     = 4,
   RayTracingEntityTriangles   = 5,
-  RayTracingEntityIndexedTriangles  = 6
+  RayTracingEntityIndexedTriangles  = 6,
+  RayTracingEntityIndexedQuads      = 7
 };
 
 
@@ -258,6 +273,7 @@ enum RTPrimitiveType
 {
   PrimitiveSphere,
   PrimitiveIndexedTriangle,
+  PrimitiveIndexedQuad,
   PrimitiveTriangle,
   RTPrimitiveCount
 };

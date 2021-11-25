@@ -1,6 +1,38 @@
 #ifndef ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 #define ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 
+bool triangleIntersection(
+  Thread HitStruct* hit,
+  const PrimitiveStruct vert0,
+  const float3 edge1,
+  const float3 edge2,
+  const float3 rayOrigin,
+  const float3 rayDirection)
+{
+  const float3 tvec = rayOrigin - vert0.position;
+  const float3 pvec = cross(rayDirection, edge2);
+  const float invDet= 1.f/dot(edge1, pvec);
+  const float u     = dot(tvec, pvec) * invDet;
+
+  if (u >= 0.f && u <= 1.f)
+  {
+    const float3 qvec = cross(tvec, edge1);
+    const float v = dot(rayDirection, qvec) * invDet;
+
+    if (v >= 0.f && (u + v) <= 1.f)
+    {
+      const float time = dot(edge2, qvec) * invDet;
+      if (time > MIN_TIME && time < hit->distance)
+      {
+        setHitDistance(hit->distance, time);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 inline bool earliestIntersection(
   Thread HitStruct* hit,
   const uint    primIndex,
@@ -49,6 +81,67 @@ inline bool earliestIntersection(
     }
     return false;
   }
+  else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
+  {
+    PrimitiveStruct vert0;
+    PrimitiveStruct edge1;
+    PrimitiveStruct edge2;
+
+    uint4 quadIndex;
+
+    if (primInfo.primitiveType == PrimitiveTriangle)
+    {
+      quadIndex = constructUint4(primInfo.vertexOffset + (primIndex - primInfo.primitiveOffset) * 3 + constructUint3(0, 1, 2), -1);
+    }
+    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+    {
+      quadIndex = attributeArray[primIndex].quadIndex;
+    }
+    else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+    {
+      quadIndex = attributeArray[primIndex].quadIndex;
+    }
+
+    vert0 = vertexArray[quadIndex.x];
+    edge1 = vertexArray[quadIndex.y];
+    edge2 = vertexArray[quadIndex.z];
+
+    const IdentityInfo identity = vert0.identity;
+
+    if (primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
+    {
+      edge1.position -= vert0.position;
+      edge2.position -= vert0.position;
+    }
+
+    bool isIntersecting = triangleIntersection(hit, vert0, edge1.position, edge2.position, rayOrigin, rayDirection);
+
+    if (isIntersecting)
+    {
+      setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 0);
+    }
+
+    if (quadIndex.w != -1)
+    {
+      edge1 = edge2;
+      edge2.position = vertexArray[quadIndex.w].position - vert0.position;
+
+      if (triangleIntersection(hit, vert0, edge1.position, edge2.position, rayOrigin, rayDirection))
+      {
+        setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 1);
+        isIntersecting = true;
+      }
+    }
+
+    if (isIntersecting)
+    {
+      setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
+      setHitPrimitiveIdentity(hit->primitiveIdentity, identity);
+    }
+
+    return isIntersecting;
+  }
+  /*
   else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle)
   {
     PrimitiveStruct vert0;
@@ -75,30 +168,57 @@ inline bool earliestIntersection(
       edge2.position -= vert0.position;
     }
 
-    const float3 tvec = rayOrigin - vert0.position;
-    const float3 pvec = cross(rayDirection, edge2.position);
-    const float invDet= 1.f/dot(edge1.position, pvec);
-    const float u     = dot(tvec, pvec) * invDet;
-
-    if (u >= 0.0f && u <= 1.0f)
+    if (triangleIntersection(hit, vert0, edge1.position, edge2.position, rayOrigin, rayDirection))
     {
-      const float3 qvec = cross(tvec, edge1.position);
-      const float v = dot(rayDirection, qvec) * invDet;
-
-      if (v >= 0.0f && (u + v) <= 1.0f)
-      {
-        const float time = dot(edge2.position, qvec) * invDet;
-        if (time > MIN_TIME && time < hit->distance)
-        {
-          setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
-          setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
-          setHitDistance(hit->distance, time);
-          return true;
-        }
-      }
+      setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
+      setHitPrimitiveIdentity(hit->primitiveIdentity, vert0.identity);
+      return true;
     }
     return false;
   }
+  else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+  {
+    PrimitiveStruct vert0;
+    PrimitiveStruct edge1;
+    PrimitiveStruct edge2;
+
+    {
+      const uint4 quadIndex = attributeArray[primIndex].quadIndex;
+
+      vert0 = vertexArray[quadIndex.x];
+      edge1 = vertexArray[quadIndex.y];
+      edge2 = vertexArray[quadIndex.z];
+
+      const IdentityInfo identity = vert0.identity;
+
+      bool isIntersecting = triangleIntersection(hit, vert0, edge1.position - vert0.position, edge2.position - vert0.position, rayOrigin, rayDirection);
+
+      if (isIntersecting)
+      {
+        setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 0);
+      }
+
+      if (quadIndex.w != -1)
+      {
+        edge1 = edge2;
+        edge2 = vertexArray[quadIndex.w];
+
+        if (triangleIntersection(hit, vert0, edge1.position - vert0.position, edge2.position - vert0.position, rayOrigin, rayDirection))
+        {
+          setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 1);
+          isIntersecting = true;
+        }
+      }
+
+      if (isIntersecting)
+      {
+        setHitPrimitiveIndex(hit->primitiveIndex, primIndex);
+        setHitPrimitiveIdentity(hit->primitiveIdentity, identity);
+      }
+
+      return isIntersecting;
+    }
+  }*/
 
   return false;
 }

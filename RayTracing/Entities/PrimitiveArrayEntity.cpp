@@ -51,7 +51,7 @@ void PrimitiveArrayEntity::createBox(const real dim[])
     deviceData->host()->push_back(indices[i]);
     if ((i%3) == 2)
     {
-      deviceData->host()->push_back(0);
+      deviceData->host()->push_back(-1);
     }
   }
   vertexAndIndexOffset = vertexOffset + (rectangle?8:48);
@@ -101,12 +101,12 @@ void PrimitiveArrayEntity::createSphere(const real radius)
   primInfo.vertexCount    = 1;
 }
 
-struct DEFAULT_ALIGN triangleIndices
+struct DEFAULT_ALIGN PrimitiveIndices
 {
-  int i0, i1, i2, i3=0;
+  uint i0, i1, i2, i3;
 };
 
-bool compTriangleIndices(triangleIndices &a, triangleIndices &b)
+bool compTriangleIndices(PrimitiveIndices &a, PrimitiveIndices &b)
 {
   if (a.i0 < b.i0) return true;
   if (a.i0 > b.i0) return false;
@@ -114,6 +114,8 @@ bool compTriangleIndices(triangleIndices &a, triangleIndices &b)
   if (a.i1 > b.i1) return false;
   if (a.i2 < b.i2) return true;
   if (a.i2 > b.i2) return false;
+  if (a.i3 < b.i3) return true;
+  if (a.i3 > b.i3) return false;
   return false;
 }
 
@@ -125,7 +127,8 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
   uint triangles = 0;
   uint vertices = 0;
 
-  vector<triangleIndices> allindices;
+  vector<PrimitiveIndices> primitiveIndices;
+  vector<Real3> normals;
 
   uint vertexOffset = 0;
   uint vertexAndIndexOffset = 0;
@@ -164,9 +167,21 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
       deviceData->host()->push_back(0);
       vertices++;
     }
+    else if (head == "vn")
+    {
+      Real3 normal;
+      for (int i=0; i<3; i++)
+      {
+        float val;
+        line >> val;
+        normal[i] = val;
+      }
+      normals.push_back(normal);
+    }
     else if (head == "f")
     {
-      int indices[6] = {0};
+      uint indices[4];
+      indices[3] = 0xFFFFFFFF;
       int i = 0;
       while (line)
       {
@@ -185,35 +200,20 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
       // add another triangle for quad prim
       if (i == 4)
       {
-        indices[4] = indices[2];
-        indices[5] = indices[0];
-        triangles++;
-        i = 6;
+        primInfo.primitiveType = RayTracingEntityIndexedQuads;
       }
-
-      uint temp = indices[1];
-      indices[1] = indices[2];
-      indices[2] = temp;
-
-      if (i >= 3)
-      {
-        allindices.push_back(triangleIndices{indices[0],indices[1],indices[2]});
-      }
-      if (i == 6)
-      {
-        allindices.push_back(triangleIndices{indices[3],indices[4],indices[5]});
-      }
+      primitiveIndices.push_back(PrimitiveIndices{indices[0], indices[1], indices[2], indices[3]});
     }
   }
 
-  sort(allindices.begin(), allindices.end(), compTriangleIndices);
+  sort(primitiveIndices.begin(), primitiveIndices.end(), compTriangleIndices);
 
-  for (int j=0; j<allindices.size(); j++)
+  for (int j=0; j<primitiveIndices.size(); j++)
   {
-    deviceData->host()->push_back(allindices[j].i0);
-    deviceData->host()->push_back(allindices[j].i1);
-    deviceData->host()->push_back(allindices[j].i2);
-    deviceData->host()->push_back(allindices[j].i3);
+    deviceData->host()->push_back(primitiveIndices[j].i0);
+    deviceData->host()->push_back(primitiveIndices[j].i1);
+    deviceData->host()->push_back(primitiveIndices[j].i2);
+    deviceData->host()->push_back(primitiveIndices[j].i3);
   }
 
   primBound.min = vertexMin;
@@ -223,9 +223,9 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
   primInfo.vertexCount    = vertices;
 
   vertexOffset = vertices * sizeof(PrimitiveStruct) / 4;
-  vertexAndIndexOffset = vertexOffset + (uint)allindices.size() * sizeof(triangleIndices) / 4;
+  vertexAndIndexOffset = vertexOffset + (uint)primitiveIndices.size() * sizeof(PrimitiveIndices) / 4;
 
-  generateNeighbourBasedNormal(vertices);
+  generateNeighbourBasedNormal(vertices, &normals);
   deviceData->syncDevice();
 
   setAttribute(EntityPrimitiveAttributePosition, deviceData->device(), PackingInfo());
@@ -248,48 +248,55 @@ void PrimitiveArrayEntity::update()
 
 }
 
-void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount)
+void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount, vector<Real3>* normals)
 {
-  const auto& hostBuffer = *deviceData->host();
-  const auto* hostVertexBuffer = (PrimitiveStruct*)&hostBuffer[0];
-  PrimitiveStruct* vertex   = (PrimitiveStruct*)&hostVertexBuffer[0];
-  triangleIndices* indices  = (triangleIndices*)(&hostVertexBuffer[vertexCount]);
+  std::vector<Real3> smoothNormals;
 
-  std::vector<Real3>            flatNormals(primInfo.primitiveCount);
-  std::vector<pair<Real3, int>> smoothNormals(vertexCount, make_pair(Real3(0.f), 0));
-
-  for (int i=0; i<primInfo.primitiveCount; i++)
+  if (normals == NULL || normals->size() == 0)
   {
-    triangleIndices index = indices[i];
-    assert(index.i0 < vertexCount && index.i0 < vertexCount && index.i2 < vertexCount);
+    const auto& hostBuffer = *deviceData->host();
+    const auto* hostVertexBuffer = (PrimitiveStruct*)&hostBuffer[0];
 
-    Real3 vert0 = vertex[index.i0].position;
-    Real3 edge1 = Real3(vertex[index.i1].position) - vert0;
-    Real3 edge2 = Real3(vertex[index.i2].position) - vert0;
+    PrimitiveStruct*  vertex  = (PrimitiveStruct*)&hostVertexBuffer[0];
+    PrimitiveIndices* indices = (PrimitiveIndices*)(&hostVertexBuffer[vertexCount]);
 
-    Real3 normal = edge2.cross(edge1);
-    normal.normalize();
+    smoothNormals = std::vector<Real3>(vertexCount, Real3(0.f));
+    normals       = &smoothNormals;
 
-    flatNormals[i] = normal;
-  }
+    for (uint i=0; i<primInfo.primitiveCount; i++)
+    {
+      const PrimitiveIndices index = indices[i];
+      assert(index.i0 < vertexCount && index.i0 < vertexCount && index.i2 < vertexCount && (index.i3 == -1 || index.i3 < vertexCount));
 
-  for (int i=0; i<primInfo.primitiveCount; i++)
-  {
-    triangleIndices index = indices[i];
-    assert(index.i0 < vertexCount && index.i0 < vertexCount && index.i2 < vertexCount);
+      Real3 vert0 = vertex[index.i0].position;
+      Real3 edge1 = Real3(vertex[index.i1].position) - vert0;
+      Real3 edge2 = Real3(vertex[index.i2].position) - vert0;
 
-    smoothNormals[index.i0].first += flatNormals[i];
-    smoothNormals[index.i1].first += flatNormals[i];
-    smoothNormals[index.i2].first += flatNormals[i];
+      Real3 normal = edge1.cross(edge2);
+      normal.normalize();
 
-    smoothNormals[index.i0].second++;
-    smoothNormals[index.i1].second++;
-    smoothNormals[index.i2].second++;
+      smoothNormals[index.i0] += normal;
+      smoothNormals[index.i1] += normal;
+      smoothNormals[index.i2] += normal;
+
+      if (index.i3 == -1) continue;
+
+      vert0 = vertex[index.i0].position;
+      edge1 = Real3(vertex[index.i2].position) - vert0;
+      edge2 = Real3(vertex[index.i3].position) - vert0;
+
+      normal = edge1.cross(edge2);
+      normal.normalize();
+
+      smoothNormals[index.i0] += normal;
+      smoothNormals[index.i2] += normal;
+      smoothNormals[index.i3] += normal;
+    }
   }
 
   for (int i=0; i<vertexCount; i++)
   {
-    Real3 normal = smoothNormals[i].first / max(1, smoothNormals[i].second);
+    Real3 normal = normals->at(i);
     float length = normal.length();
     if (length > 0)
     {

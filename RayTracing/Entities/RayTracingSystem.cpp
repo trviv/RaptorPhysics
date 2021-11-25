@@ -38,6 +38,9 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
     case RayTracingEntityIndexedTriangles:
       primType = PrimitiveIndexedTriangle;
       break;
+    case RayTracingEntityIndexedQuads:
+      primType = PrimitiveIndexedQuad;
+      break;
     case RayTracingEntityTriangles:
       primType = PrimitiveTriangle;
       primitiveInfo.primInfo.vertexCount = primitiveInfo.primInfo.primitiveCount * 3;
