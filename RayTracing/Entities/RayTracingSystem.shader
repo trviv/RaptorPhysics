@@ -118,7 +118,58 @@ Kernel void collectPrimitives(
       finalVertexAttributeArray[vertIndices.y] = vertAttrib1;
       finalVertexAttributeArray[vertIndices.z] = vertAttrib2;
 
-      finalAttributeArray[index + primitiveOffset].triangleIndex = vertIndices;
+      finalAttributeArray[index + primitiveOffset].quadIndex = constructUint4(vertIndices, -1);
+    }
+    else if (primitiveType == PrimitiveIndexedQuad)
+    {
+      uint4 vertIndices;
+      {
+        vertIndices = primitiveAttribPtr[index].quadIndex;
+      }
+
+      // get vertex zero and vertex position
+      PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
+      PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
+      PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
+      PrimitiveStruct vert3;
+
+      const VertexAttrib vertAttrib0 = vertexAttribPtr[vertIndices.x];
+      const VertexAttrib vertAttrib1 = vertexAttribPtr[vertIndices.y];
+      const VertexAttrib vertAttrib2 = vertexAttribPtr[vertIndices.z];
+      VertexAttrib vertAttrib3;
+
+      if (vertIndices.w != -1)
+      {
+        vert3 = primitiveBuffer[vertIndices.w];
+        vertAttrib3 = vertexAttribPtr[vertIndices.w];
+        vertIndices.w += vertexOffset;
+        vert3.identity = primitiveIdentity;
+      }
+
+      if (primitiveType == PrimitiveIndexedQuad)
+      {
+        vertIndices.xyz += vertexOffset;
+      }
+
+      vert0.identity = primitiveIdentity;
+      vert1.identity = primitiveIdentity;
+      vert2.identity = primitiveIdentity;
+
+      finalVertexArray[vertIndices.x] = vert0;
+      finalVertexArray[vertIndices.y] = vert1;
+      finalVertexArray[vertIndices.z] = vert2;
+
+      if (vertIndices.w != -1)
+      {
+        finalVertexArray[vertIndices.w] = vert3;
+        finalVertexAttributeArray[vertIndices.w] = vertAttrib3;
+      }
+
+      finalVertexAttributeArray[vertIndices.x] = vertAttrib0;
+      finalVertexAttributeArray[vertIndices.y] = vertAttrib1;
+      finalVertexAttributeArray[vertIndices.z] = vertAttrib2;
+
+      finalAttributeArray[index + primitiveOffset].quadIndex = vertIndices;
     }
   }
 }
@@ -180,7 +231,7 @@ Kernel void shadeIntersection(
     {
       setHitNormal(hitNormal, shadowRay.origin - vertexArray[hit.primitiveIndex].position);
     }
-    else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle)
+    else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
     {
       PrimitiveAttrib attributes;
       float3 vert0, edge1, edge2;
@@ -191,16 +242,25 @@ Kernel void shadeIntersection(
         const uint triIndex = primInfo.vertexOffset + (hit.primitiveIndex - primInfo.primitiveOffset)*3;
         attributes.triangleIndex = constructUint3(triIndex, triIndex+1, triIndex+2);
       }
-      else
+      else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
       {
         attributes = attributeArray[hit.primitiveIndex];
+      }
+      else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+      {
+        attributes = attributeArray[hit.primitiveIndex];
+        if (hit.primitiveInternalIndex == 1)
+        {
+          attributes.quadIndex.y = attributes.quadIndex.x;
+          attributes.quadIndex.x = attributes.quadIndex.w;
+        }
       }
 
       vert0 = vertexArray[attributes.triangleIndex.x].position;
       edge1 = vertexArray[attributes.triangleIndex.y].position;
       edge2 = vertexArray[attributes.triangleIndex.z].position;
 
-      if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+      if (primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
       {
         edge1 -= vert0;
         edge2 -= vert0;

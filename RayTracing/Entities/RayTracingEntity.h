@@ -91,7 +91,7 @@ class PrimitiveArrayEntity : public RayTracingEntity
   RayTracingEntityId  identity;
   XAB                 primBound;
 
-  void generateNeighbourBasedNormal(uint vertexCount);
+  void generateNeighbourBasedNormal(uint vertexCount, vector<Real3>* normals = NULL);
 
 public:
 

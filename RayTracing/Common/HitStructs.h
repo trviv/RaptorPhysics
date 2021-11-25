@@ -44,7 +44,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexNormal_t
   float         distance;
   uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
-  uint          padding;
+  uint          primitiveInternalIndex;
 };
 
 typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
@@ -75,6 +75,13 @@ typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
 #else
 #define setHitNormal(hitNormal, normal)
 #endif
+
+#ifdef HitStructNormal
+#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = index
+#else
+#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index)
+#endif
+
 
 inline void initializeHit(Thread HitStruct* hit)
 {

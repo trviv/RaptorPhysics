@@ -38,27 +38,36 @@ Kernel void createPrimitiveBoundingBoxes(
       primitiveBoundingBox.min = sphere.position - radius;
       primitiveBoundingBox.max = sphere.position + radius;
     }
-    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+    else
     {
-      const uint3 triIndex = attributeArray[index].triangleIndex;
+      uint4 quadIndex;
+      if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+      {
+        quadIndex = constructUint4(attributeArray[index].triangleIndex, -1);
+      }
+      else if (primInfo.primitiveType == PrimitiveTriangle)
+      {
+        quadIndex = constructUint4(primInfo.vertexOffset + (index - primInfo.primitiveOffset) * 3 + constructUint3(0, 1, 2), -1);
+      }
+      else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+      {
+        quadIndex = attributeArray[index].quadIndex;
+      }
 
-      const float3 vert0 = vertexArray[triIndex.x].position;
-      const float3 vert1 = vertexArray[triIndex.y].position;
-      const float3 vert2 = vertexArray[triIndex.z].position;
+      const float3 vert0 = vertexArray[quadIndex.x].position;
+      const float3 vert1 = vertexArray[quadIndex.y].position;
+      const float3 vert2 = vertexArray[quadIndex.z].position;
 
       primitiveBoundingBox.min = min3(vert0, vert1, vert2);
       primitiveBoundingBox.max = max3(vert0, vert1, vert2);
-    }
-    else if (primInfo.primitiveType == PrimitiveTriangle)
-    {
-      const uint triIndex = primInfo.vertexOffset + (index - primInfo.primitiveOffset)*3;
 
-      const float3 vert0 = vertexArray[triIndex].position;
-      const float3 vert1 = vertexArray[triIndex+1].position + vert0;
-      const float3 vert2 = vertexArray[triIndex+2].position + vert0;
+      if (quadIndex.w != -1)
+      {
+        const float3 vert3 = vertexArray[quadIndex.w].position;
 
-      primitiveBoundingBox.min = min3(vert0, vert1, vert2);
-      primitiveBoundingBox.max = max3(vert0, vert1, vert2);
+        primitiveBoundingBox.min = min(primitiveBoundingBox.min, vert3);
+        primitiveBoundingBox.max = max(primitiveBoundingBox.max, vert3);
+      }
     }
 
     primitiveBoundingBox.min -= MIN_TIME;
@@ -101,25 +110,42 @@ Kernel void assignMortonCode(
     {
       center = vertexArray[primInfo.vertexOffset + (index - primInfo.primitiveOffset)].position;
     }
-    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+    else
     {
-      const uint3 triangleIndex = attributeArray[index].triangleIndex;
+      uint4 quadIndex;
+      if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+      {
+        quadIndex = constructUint4(attributeArray[index].triangleIndex, -1);
+      }
+      else if (primInfo.primitiveType == PrimitiveTriangle)
+      {
+        quadIndex = constructUint4(primInfo.vertexOffset + (index - primInfo.primitiveOffset) * 3 + constructUint3(0, 1, 2), -1);
+      }
+      else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+      {
+        quadIndex = attributeArray[index].quadIndex;
+      }
 
-      const float3 vert0 = vertexArray[triangleIndex.x].position;
-      const float3 vert1 = vertexArray[triangleIndex.y].position;
-      const float3 vert2 = vertexArray[triangleIndex.z].position;
+      const float3 vert0 = vertexArray[quadIndex.x].position;
+      const float3 vert1 = vertexArray[quadIndex.y].position;
+      const float3 vert2 = vertexArray[quadIndex.z].position;
 
-      center = (vert0 + vert1 + vert2) * 1.f/3.f;
-    }
-    else if (primInfo.primitiveType == PrimitiveTriangle)
-    {
-      const uint triIndex = primInfo.vertexOffset + (index - primInfo.primitiveOffset)*3;
+      center = (vert0 + vert1 + vert2);
 
-      const float3 vert0 = vertexArray[triIndex].position;
-      const float3 edge1 = vertexArray[triIndex+1].position;
-      const float3 edge2 = vertexArray[triIndex+2].position;
+      if (primInfo.primitiveType == PrimitiveTriangle)
+      {
+        center += 2.f * vert0;
+      }
 
-      center = vert0 + (edge1 + edge2) * 1.f/3.f;
+      if (quadIndex.w != -1)
+      {
+        const float3 vert3 = vertexArray[quadIndex.w].position;
+        center = (center + vert3) * 1.f/4.f;
+      }
+      else
+      {
+        center = center * 1.f/3.f;
+      }
     }
 
     // Quantize into integer coordinates
