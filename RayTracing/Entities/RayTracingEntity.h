@@ -93,6 +93,8 @@ class PrimitiveArrayEntity : public RayTracingEntity
 
   void generateNeighbourBasedNormal(uint vertexCount, vector<Real3>* normals = NULL);
 
+  void changeEntityType(RayTracingEntityType type);
+
 public:
 
   PrimitiveArrayEntity(RayTracingEntityType type, uint primitiveCount, ComputeInterface* compute = NULL);
