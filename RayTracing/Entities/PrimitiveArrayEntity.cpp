@@ -119,6 +119,26 @@ bool compTriangleIndices(PrimitiveIndices &a, PrimitiveIndices &b)
   return false;
 }
 
+struct EdgeData
+{
+  uint i0, i1, i2;
+  uint primitiveIndex;
+};
+
+bool compEdgeDataSort(EdgeData &a, EdgeData &b)
+{
+  if (a.i0 < b.i0) return true;
+  if (a.i0 > b.i0) return false;
+  if (a.i1 < b.i1) return true;
+  if (a.i1 > b.i1) return false;
+  return false;
+}
+
+bool compEdgeDataSearch(const EdgeData &a, const EdgeData &b)
+{
+  return a.i0 < b.i1;
+}
+
 void PrimitiveArrayEntity::createMesh(const string fileName)
 {
   if (!deviceData)
@@ -200,10 +220,88 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
       // add another triangle for quad prim
       if (i == 4)
       {
-        primInfo.primitiveType = RayTracingEntityIndexedQuads;
+        changeEntityType(RayTracingEntityIndexedQuads);
       }
       primitiveIndices.push_back(PrimitiveIndices{indices[0], indices[1], indices[2], indices[3]});
     }
+  }
+
+  if (primInfo.primitiveType == RayTracingEntityIndexedTriangles)
+  {
+    vector<EdgeData> edges;
+    vector<PrimitiveIndices> newPrimitiveIndices;
+
+    for (int i=0; i<primitiveIndices.size(); i++)
+    {
+      PrimitiveIndices pi = primitiveIndices[i];
+
+      if (pi.i3 != -1)
+      {
+        newPrimitiveIndices.push_back(pi);
+        continue;
+      }
+
+      EdgeData edge;
+      edge.primitiveIndex = i;
+
+      edge.i0 = pi.i0;
+      edge.i1 = pi.i1;
+      edge.i2 = pi.i2;
+      edges.push_back(edge);
+
+      edge.i0 = pi.i1;
+      edge.i1 = pi.i2;
+      edge.i2 = pi.i0;
+      edges.push_back(edge);
+
+      edge.i0 = pi.i2;
+      edge.i1 = pi.i0;
+      edge.i2 = pi.i1;
+      edges.push_back(edge);
+    }
+
+    sort(edges.begin(), edges.end(), compEdgeDataSort);
+
+    for (uint i=0; i<edges.size(); i++)
+    {
+      const auto& edge1 = edges[i];
+      auto& prim1 = primitiveIndices[edge1.primitiveIndex];
+
+      if (prim1.i0 == -1 || prim1.i3 != -1) continue;
+
+//      uint j = (uint)(lower_bound(edges.begin(), edges.end(), edge1, compEdgeDataSearch) - edges.begin());
+      for (uint j=i+1 ; j<edges.size(); j++)
+      {
+        const auto& edge2 = edges[j];
+//        if (edge2.i0 != edge1.i1) break;
+        if (edge1.i0 == edge2.i1 && edge1.i1 == edge2.i0 && edge1.i2 != edge2.i2)
+        {
+          auto& prim2 = primitiveIndices[edge2.primitiveIndex];
+          if (prim2.i3 == -1 && prim2.i0 != -1)
+          {
+            prim2.i0 = edge1.i0;
+            prim2.i2 = edge1.i1;
+            prim2.i3 = edge1.i2;
+            prim2.i1 = edge2.i2;
+            prim1.i0 = -1;
+
+            break;
+          }
+        }
+      }
+    }
+
+    for (uint i=0; i<primitiveIndices.size(); i++)
+    {
+      const auto& pi = primitiveIndices[i];
+      if (pi.i0 == -1) continue;
+
+      newPrimitiveIndices.push_back(pi);
+    }
+
+    primitiveIndices = newPrimitiveIndices;
+    triangles = (int)primitiveIndices.size();
+    changeEntityType(RayTracingEntityIndexedQuads);
   }
 
   sort(primitiveIndices.begin(), primitiveIndices.end(), compTriangleIndices);
@@ -308,4 +406,10 @@ void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount, vector
     deviceData->host()->push_back(*((uint*)&normal.z));
     deviceData->host()->push_back(0);
   }
+}
+
+void PrimitiveArrayEntity::changeEntityType(RayTracingEntityType type)
+{
+  primInfo.primitiveType = type;
+  setRayTracingEntityId(identity, RayTracingEntityIndexedQuads, getRayTracingEntityId(identity));
 }
