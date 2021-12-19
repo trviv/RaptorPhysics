@@ -109,6 +109,39 @@ typedef struct XAB_t XAB;
 #define maxReduce(a, b)     { *a = max(*a, *b);}
 #define maxReduceSimd(o, i) { o = simdMax(i);}
 
+#if defined(COMPUTE_SHADER_SCOPE)
+
+inline XAB atomicLoadXAB(Device XAB *source)
+{
+  XAB ret;
+
+  Device float* xabPtr = (Device float*)source;
+
+  ret.min.x = asFloat(atomicLoad(xabPtr+0));
+  ret.min.y = asFloat(atomicLoad(xabPtr+1));
+  ret.min.z = asFloat(atomicLoad(xabPtr+2));
+
+  ret.max.x = asFloat(atomicLoad(xabPtr+4));
+  ret.max.y = asFloat(atomicLoad(xabPtr+5));
+  ret.max.z = asFloat(atomicLoad(xabPtr+6));
+
+  return ret;
+}
+
+inline void atomicStoreXAB(Device XAB *destination, const XAB source)
+{
+  Device float* xabPtr = (Device float*)destination;
+
+  atomicStore(xabPtr+0, asUint(source.min.x));
+  atomicStore(xabPtr+1, asUint(source.min.y));
+  atomicStore(xabPtr+2, asUint(source.min.z));
+
+  atomicStore(xabPtr+4, asUint(source.max.x));
+  atomicStore(xabPtr+5, asUint(source.max.y));
+  atomicStore(xabPtr+6, asUint(source.max.z));
+}
+
+#endif
 
 /*!
 @struct Generic template structure to store position, and and some associated uint data.

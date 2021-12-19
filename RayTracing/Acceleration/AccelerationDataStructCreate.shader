@@ -55,8 +55,14 @@ Kernel void createPrimitiveBoundingBoxes(
       }
 
       const float3 vert0 = vertexArray[quadIndex.x].position;
-      const float3 vert1 = vertexArray[quadIndex.y].position;
-      const float3 vert2 = vertexArray[quadIndex.z].position;
+      float3 vert1 = vertexArray[quadIndex.y].position;
+      float3 vert2 = vertexArray[quadIndex.z].position;
+
+      if (primInfo.primitiveType == PrimitiveTriangle)
+      {
+        vert1 += vert0;
+        vert2 += vert0;
+      }
 
       primitiveBoundingBox.min = min3(vert0, vert1, vert2);
       primitiveBoundingBox.max = max3(vert0, vert1, vert2);

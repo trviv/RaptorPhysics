@@ -1386,6 +1386,10 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   @autoreleasepool {
   NSError *error = nil;
   NSString *source = @"#include <metal_stdlib>\nusing namespace metal;\n";
+  if ([deviceId supportsFamily:MTLGPUFamilyApple6])
+  {
+    source = [source stringByAppendingString:@"#define USE_SIMD_COMPUTE"];
+  }
 #ifdef USE_ARGUMENT_BUFFERS
   source = [source stringByAppendingString:[NSString stringWithUTF8String:processAutoArgumentBuffers(sourceCode).c_str()]];
 #else

@@ -249,11 +249,13 @@ Kernel void shadeIntersection(
       else if (primInfo.primitiveType == PrimitiveIndexedQuad)
       {
         attributes = attributeArray[hit.primitiveIndex];
+#if defined(HitStructIndexIdentity)
         if (hit.primitiveInternalIndex == 1)
         {
           attributes.quadIndex.y = attributes.quadIndex.x;
           attributes.quadIndex.x = attributes.quadIndex.w;
         }
+#endif
       }
 
       vert0 = vertexArray[attributes.triangleIndex.x].position;
@@ -297,6 +299,9 @@ Kernel void shadeIntersection(
     }
     colorType4 finalColor = colorOut[ray.rayIndex];
     finalColor.xyz += material.emissive.xyz * ray.color.xyz;
+#if defined(HitStructBVHHits)
+    finalColor = hit.bvhHits * 0.001f;
+#endif
     finalColor.w = 1.f;
     colorOut[ray.rayIndex] = finalColor;
   }

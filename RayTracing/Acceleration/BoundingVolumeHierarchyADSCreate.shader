@@ -205,7 +205,7 @@ Kernel void constructTreeBoundingBox(
     }
     else
     {
-      childBoundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(internalNode.childLeft)];
+      childBoundingBox = atomicLoadXAB(treeInternalNodeBoundingBoxes + removeBVHInternalNodeMarker(internalNode.childLeft));
     }
     mergeXAB(&mergedBoundingBox, &childBoundingBox);
 
@@ -215,12 +215,12 @@ Kernel void constructTreeBoundingBox(
     }
     else
     {
-      childBoundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(internalNode.childRight)];
+      childBoundingBox = atomicLoadXAB(treeInternalNodeBoundingBoxes + removeBVHInternalNodeMarker(internalNode.childRight));
     }
     mergeXAB(&mergedBoundingBox, &childBoundingBox);
 
     // save the internal node information
-    treeInternalNodeBoundingBoxes[currentNodeIndex] = mergedBoundingBox;
+    atomicStoreXAB(treeInternalNodeBoundingBoxes + currentNodeIndex, mergedBoundingBox);
 
     // process the parent node next
     currentNodeIndex = nodeParentNodeIndices[currentNodeIndex];
