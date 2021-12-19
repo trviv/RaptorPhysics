@@ -10,8 +10,11 @@ uint getHitStructSize(HitStructType type)
     case HitStructDistanceIdentity:
       return sizeof(HitInfoIdentity);
       break;
-    case HitStructDistanceIndexNormal:
-      return sizeof(HitInfoDistanceIndexNormal);
+    case HitStructDistanceIndexIdentity:
+      return sizeof(HitInfoDistanceIndexIdentity);
+      break;
+    case HitStructDistanceBVHHits:
+      return sizeof(HitInfoDistanceBVHHits);
       break;
     default:
       return 0;
@@ -31,8 +34,11 @@ string getHitStructName(HitStructType type)
     case HitStructDistanceIdentity:
       return "HitInfoIdentity";
       break;
-    case HitStructDistanceIndexNormal:
-      return "HitInfoDistanceIndexNormal";
+    case HitStructDistanceIndexIdentity:
+      return "HitInfoDistanceIndexIdentity";
+      break;
+    case HitStructDistanceBVHHits:
+      return "HitInfoDistanceBVHHits";
       break;
     default:
       return "";
@@ -54,8 +60,12 @@ void getHitStructDefines(vector<string>& oldType, vector<string>& newType, HitSt
     oldType.push_back("HitStructIdentity");
     newType.push_back("");
     break;
-  case HitStructDistanceIndexNormal:
-    oldType.push_back("HitStructNormal");
+  case HitStructDistanceIndexIdentity:
+    oldType.push_back("HitStructIndexIdentity");
+    newType.push_back("");
+    break;
+  case HitStructDistanceBVHHits:
+    oldType.push_back("HitStructBVHHits");
     newType.push_back("");
     break;
   default:

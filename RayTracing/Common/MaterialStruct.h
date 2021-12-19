@@ -101,7 +101,7 @@ inline colorType4 shadeMaterialAtIntersection(const MaterialStruct material, con
 {
   colorType4 color = colorType4(0.f);
   const ushort shader = getMaterialShader(material);
-#ifdef HitStructNormal
+#ifdef HitStructIndexIdentity
   // add diffuse color
   colorType diffuseScale;
   if (shader & MaterialShaderLambert)

@@ -407,7 +407,7 @@ void RayTracingSystem::render(bool updatePrimitives)
   }
 
   RayStructType rayType   = RayStructPositionDirectionColor;
-  HitStructType hitStruct = HitStructDistanceIndexNormal;
+  HitStructType hitStruct = HitStructDistanceIndexIdentity;
   RayStructType shadowRayType   = RayStructPositionDirectionColor;
   HitStructType shadowHitStruct = HitStructDistanceIdentity;
 

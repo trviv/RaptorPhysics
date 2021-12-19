@@ -11,7 +11,8 @@ enum HitStructType
 {
   HitStructDistanceIndex,
   HitStructDistanceIdentity,
-  HitStructDistanceIndexNormal,
+  HitStructDistanceIndexIdentity,
+  HitStructDistanceBVHHits,
   HitStructTypeMax
 };
 
@@ -39,7 +40,7 @@ typedef struct ALIGN(8)
 /*!
 @struct Hit Info containing distance information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceIndexNormal_t
+struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity_t
 {
   float         distance;
   uint          primitiveIndex;
@@ -47,7 +48,21 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexNormal_t
   uint          primitiveInternalIndex;
 };
 
-typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
+typedef struct HitInfoDistanceIndexIdentity_t HitInfoDistanceIndexIdentity;
+
+
+/*!
+@struct Hit Info containing distance and BVH information.
+*/
+struct DEFAULT_ALIGN HitInfoDistanceBVHHits_t
+{
+  float         distance;
+  uint          primitiveIndex;
+  IdentityInfo  primitiveIdentity;
+  uint          bvhHits;
+};
+
+typedef struct HitInfoDistanceBVHHits_t HitInfoDistanceBVHHits;
 
 
 #ifdef COMPUTE_SHADER_SCOPE
@@ -70,16 +85,20 @@ typedef struct HitInfoDistanceIndexNormal_t HitInfoDistanceIndexNormal;
 #define setHitPrimitiveIdentity(hitPrimitiveIdentity, identity)
 #endif
 
-#ifdef HitStructNormal
+#ifdef HitStructIndexIdentity
 #define setHitNormal(hitNormal, normal) hitNormal = normal
-#else
-#define setHitNormal(hitNormal, normal)
-#endif
-
-#ifdef HitStructNormal
 #define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = index
 #else
+#define setHitNormal(hitNormal, normal)
 #define setHitPrimitiveInternalIndex(primitiveInternalIndex, index)
+#endif
+
+#if defined(HitStructBVHHits)
+#define addBVHHit(hitBVHHits, hitCount) hitBVHHits += hitCount
+#define setBVHHit(hitBVHHits, hitCount) hitBVHHits = hitCount
+#else
+#define addBVHHit(hitBVHHits, hitCount)
+#define setBVHHit(hitBVHHits, hitCount)
 #endif
 
 
@@ -88,6 +107,9 @@ inline void initializeHit(Thread HitStruct* hit)
   hit->distance = INFINITY;
   setHitPrimitiveIndex(hit->primitiveIndex, -1);
   setHitPrimitiveIdentity(hit->primitiveIdentity.identity, -1);
+#if defined(HitStructBVHHits)
+  setBVHHit(hit->bvhHits, 0);
+#endif
 }
 
 #else
