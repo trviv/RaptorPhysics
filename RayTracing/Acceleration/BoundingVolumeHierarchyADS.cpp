@@ -219,8 +219,8 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
-    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 11);
-    intersectionKernel.setArg(visitedInternalNodes.device(),  12);
+    intersectionKernel.setArg(visitedInternalNodes.device(),  11);
+    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 12);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
@@ -252,8 +252,8 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 8);
     intersectionKernel.setArg(systemSettings->device(), 9);
     intersectionKernel.setArg(&primitiveCount,          10);
-    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 11);
-    intersectionKernel.setArg(workgroupCount.device(),  12);
+    intersectionKernel.setArg(workgroupCount.device(),  11);
+    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 12);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 

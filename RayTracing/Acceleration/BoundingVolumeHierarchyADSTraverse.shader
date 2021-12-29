@@ -603,7 +603,8 @@ Kernel void intersectRaysBVH(
   const Device XAB*             treeInternalNodeBoundingBoxes,
   Const RTSystemSettings*       systemSettings,
   constantKernelInput(uint,     primitiveCount),
-  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 11)
+  atomicKernelInput(uint,       rayIndexAtomicBuffer),
+  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 12)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -621,7 +622,7 @@ Kernel void intersectRaysBVH(
   primInfo.primitiveType = RTPrimitiveCount;
 
   //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-  HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
+  HitStruct hit = stacklessTraverseBinaryTreeEarlyChild(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
 #ifdef IntersectionTypeClosest
   hits[index] = hit;
@@ -646,8 +647,8 @@ Kernel void intersectRaysBVH(
   const Device XAB*             treeInternalNodeBoundingBoxes,
   Const RTSystemSettings*       systemSettings,
   constantKernelInput(uint,     primitiveCount),
-  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 11),
-  atomicKernelInput(uint,       rayIndexAtomicBuffer)
+  atomicKernelInput(uint,       rayIndexAtomicBuffer),
+  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 12)
   KERNEL_THREAD_ARGUMENTS)
 {
   volatile Shared uint nextRayArray[33];
@@ -692,7 +693,7 @@ Kernel void intersectRaysBVH(
     const bool3 sign = selectInput3(invRayDirection < 0.f);
 
     //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-    HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
+    HitStruct hit = stacklessTraverseBinaryTreeEarlyChild(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
 #ifdef IntersectionTypeClosest
     hits[index] = hit;
