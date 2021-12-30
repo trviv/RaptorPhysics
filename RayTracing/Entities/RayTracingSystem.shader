@@ -51,7 +51,8 @@ Kernel void collectPrimitives(
   constantKernelInput(uint,         primitiveCount),
   constantKernelInput(uint,         primitiveType),
   constantKernelInput(uint,         primitiveOffset),
-  constantKernelInput(uint,         vertexOffset)
+  constantKernelInput(uint,         vertexOffset),
+  constantKernelInput(float4x4,     matrix)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
@@ -65,6 +66,7 @@ Kernel void collectPrimitives(
     {
       PrimitiveStruct outPrim  = primitiveBuffer[index + primitivePackingInfo.elementOffset];
 
+      outPrim.position = mulMatrixVec(matrix, constructFloat4(outPrim.position, 1.f)).xyz;
       outPrim.identity = primitiveIdentity;
       finalVertexArray[index + vertexOffset] = outPrim;
       finalAttributeArray[index + vertexOffset].radius = primitiveAttribPtr[index].radius;
@@ -90,6 +92,10 @@ Kernel void collectPrimitives(
       PrimitiveStruct vert0 = primitiveBuffer[vertIndices.x];
       PrimitiveStruct vert1 = primitiveBuffer[vertIndices.y];
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
+
+      vert0.position = mulMatrixVec(matrix, constructFloat4(vert0.position, 1.f)).xyz;
+      vert1.position = mulMatrixVec(matrix, constructFloat4(vert1.position, 1.f)).xyz;
+      vert2.position = mulMatrixVec(matrix, constructFloat4(vert2.position, 1.f)).xyz;
 
       const VertexAttrib vertAttrib0 = vertexAttribPtr[vertIndices.x];
       const VertexAttrib vertAttrib1 = vertexAttribPtr[vertIndices.y];
@@ -133,6 +139,10 @@ Kernel void collectPrimitives(
       PrimitiveStruct vert2 = primitiveBuffer[vertIndices.z];
       PrimitiveStruct vert3;
 
+      vert0.position = mulMatrixVec(matrix, constructFloat4(vert0.position, 1.f)).xyz;
+      vert1.position = mulMatrixVec(matrix, constructFloat4(vert1.position, 1.f)).xyz;
+      vert2.position = mulMatrixVec(matrix, constructFloat4(vert2.position, 1.f)).xyz;
+
       const VertexAttrib vertAttrib0 = vertexAttribPtr[vertIndices.x];
       const VertexAttrib vertAttrib1 = vertexAttribPtr[vertIndices.y];
       const VertexAttrib vertAttrib2 = vertexAttribPtr[vertIndices.z];
@@ -141,6 +151,7 @@ Kernel void collectPrimitives(
       if (vertIndices.w != -1)
       {
         vert3 = primitiveBuffer[vertIndices.w];
+        vert3.position = mulMatrixVec(matrix, constructFloat4(vert3.position, 1.f)).xyz;
         vertAttrib3 = vertexAttribPtr[vertIndices.w];
         vertIndices.w += vertexOffset;
         vert3.identity = primitiveIdentity;
