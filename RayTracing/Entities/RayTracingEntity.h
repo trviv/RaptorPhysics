@@ -23,13 +23,18 @@ public:
 };
 
 
-struct EntityPrimAttributes
+class EntityPrimAttributes
 {
+  friend class RayTracingSystem;
+
+protected:
   DecodedPrimitiveInfo  primInfo;
   MaterialId            materialId;
   const ComputeMemory*  attributeBuffer[EntityPrimitiveAttributeMax];
   PackingInfo           attributeInfo[EntityPrimitiveAttributeMax];
+  Matrix4               transform; // the transformations related to entity
 
+public:
   EntityPrimAttributes();
 
   uint bindToShader(ComputeKernel& kernel, uint startIndex);
@@ -58,7 +63,6 @@ class RayTracingEntity : public EntityPrimAttributes
 protected:
 
   ComputeInterface*   compute;
-  Matrix4             transform; // the transformations related to entity
   DeviceArray<uint>*  deviceData;
 
 public:

@@ -2,6 +2,7 @@
 
 //#define DEBUG_RAY_TRACING_SYSTEM
 static uint rearrangeMultiplier = 1;
+static bool copyPrimitiveData = true;
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
 uint RayTracingSystem::maxPrimIndex = 0;
@@ -50,32 +51,6 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
   }
   primitiveInfo.primInfo.primitiveType = primType;
   registeredPrimitives[primType].push_back(primitiveInfo);
-
-  XAB primBound = ((PrimitiveArrayEntity*)entity)->getPrimBound();
-
-  const Real3 bound = Real3(primBound.max) - Real3(primBound.min);
-  const float maxRatio = max(bound.x, max(bound.y, bound.z));
-
-  Matrix primMatrix;
-  primMatrix.setIdentity();
-  primMatrix.scale(Real3(2.f) / maxRatio);
-  primMatrix.translate(Real3(0.f) - (Real3(primBound.min) + bound*0.5f));
-
-  Matrix4 transform = entity->getTransform();
-  transform *= primMatrix[TRANS];
-
-  size_t workgroupSize[3], workgroupCount[3];
-
-  uint maxIndex = entity->primInfo.vertexCount-1;
-
-  transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
-  transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
-  transformPrimitives.setArg(&maxIndex, 2);
-
-  compute->configureSize(workgroupSize, workgroupCount, maxIndex+1);
-
-  transformPrimitives.setArg<Matrix4>(&transform, 3);
-  compute->execute(transformPrimitives, workgroupSize, workgroupCount);
 }
 
 void RayTracingSystem::composePrimitiveArray()
@@ -105,6 +80,7 @@ void RayTracingSystem::composePrimitiveArray()
       collectPrimitives.setArg(&primType, nextBindIndex+3);
       collectPrimitives.setArg(&primOffset, nextBindIndex+4);
       collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
+      collectPrimitives.setArg<Matrix4>(&prim.transform, nextBindIndex+6);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
@@ -224,22 +200,22 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 
 uint RayTracingSystem::newEntityId()
 {
-  return (uint)entities.size();
+  return (uint)registeredEntities.size();
 }
 
 uint RayTracingSystem::newEntityInstanceId(uint entityIndex)
 {
-  return (uint)entities[entityIndex].size() - 1;
+  return (uint)entities[entityIndex].size();
 }
 
 void RayTracingSystem::commit()
 {
   lights.host()->clear();
 
-  for (uint i=0; i<entities.size(); i++)
+  for (uint i=0; i<registeredEntities.size(); i++)
   {
     auto& instances = entities[i];
-    for (uint i=1; i<instances.size(); i++)
+    for (uint i=0; i<instances.size(); i++)
     {
       RayTracingEntity* entity = instances[i];
       const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
@@ -342,7 +318,38 @@ RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
   resetIdentity(entityId);
   setRayTracingEntityId(entityId, getRayTracingEntityType(entity->getIdentity()), newEntityId());
   entities.push_back(vector<RayTracingEntity*>());
-  entities.back().push_back(entity);
+  registeredEntities.push_back(entity);
+
+  const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
+  const RayTracingEntityType entityCategory = getRayTracingEntityCategory(entityType);
+
+  // transform primitive vertex data
+  if (entityCategory == RayTracingEntityPrimArray)
+  {
+    XAB primBound = ((PrimitiveArrayEntity*)entity)->getPrimBound();
+
+    const Real3 bound = Real3(primBound.max) - Real3(primBound.min);
+    const float maxRatio = max(bound.x, max(bound.y, bound.z));
+
+    Matrix primMatrix;
+    primMatrix.setIdentity();
+    primMatrix.scale(Real3(2.f) / maxRatio);
+    primMatrix.translate(Real3(0.f) - (Real3(primBound.min) + bound*0.5f));
+
+    Matrix4 transform = primMatrix[TRANS];
+    size_t workgroupSize[3], workgroupCount[3];
+
+    uint maxIndex = entity->primInfo.vertexCount-1;
+
+    transformPrimitives.setArg(entity->attributeBuffer[EntityPrimitiveAttributePosition], 0);
+    transformPrimitives.setArg(&entity->attributeInfo[EntityPrimitiveAttributePosition], 1);
+    transformPrimitives.setArg(&maxIndex, 2);
+
+    compute->configureSize(workgroupSize, workgroupCount, maxIndex+1);
+
+    transformPrimitives.setArg<Matrix4>(&transform, 3);
+    compute->execute(transformPrimitives, workgroupSize, workgroupCount);
+  }
 
   return entityId;
 }
@@ -358,7 +365,7 @@ void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEnt
     RayTracingEntityId entityInstanceId = registeredEntityId;
     setRayTracingInstanceId(entityInstanceId, newEntityInstanceId(entityId));
 
-    RayTracingEntity* newEntity = entities[entityId][0]->createCopy();
+    RayTracingEntity* newEntity = registeredEntities[entityId]->createCopy();
     if (instanceTransforms)
     {
       newEntity->getTransform() = instanceTransforms[instance];

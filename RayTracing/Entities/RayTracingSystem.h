@@ -20,6 +20,7 @@ class RayTracingSystem : protected ShaderEntity
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
   static uint maxPrimIndex;
+  static bool copyPrimitiveData;
 
   uint maxIterations;
 
@@ -35,7 +36,7 @@ protected:
   ComputeKernel updateCameraKernel;
 
   vector<vector<RayTracingEntity*>> entities;
-
+  vector<RayTracingEntity*>         registeredEntities;
   vector<EntityPrimAttributes>      registeredPrimitives[RTPrimitiveCount];
 
   /*!@member Final color output.*/
