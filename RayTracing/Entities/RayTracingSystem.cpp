@@ -26,11 +26,10 @@ bool RayTracingSystem::isAvailable()
   return camera;
 }
 
-void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity)
+void RayTracingSystem::registerPrimitive(RayTracingEntity* entity)
 {
   RTPrimitiveType primType = RTPrimitiveCount;
-
-  switch (type)
+  switch ((RayTracingEntityType)getRayTracingEntityType(entity->getIdentity()))
   {
     case RayTracingEntitySpheres:
       primType = PrimitiveSphere;
@@ -213,18 +212,13 @@ void RayTracingSystem::commit()
 
   for (uint i=0; i<registeredEntities.size(); i++)
   {
-    auto& instances = entitiyInstances[i];
-    for (uint i=0; i<instances.size(); i++)
+    for (auto& entity : entitiyInstances[i])
     {
-      RayTracingEntity* entity = instances[i];
-      const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
-      const RayTracingEntityType entityCategory = getRayTracingEntityCategory(entityType);
-
-      switch (entityCategory)
+      switch (entity->getEntityCategory())
       {
         case RayTracingEntityPrimArray:
         {
-          registerPrimitive(entityType, entity);
+          registerPrimitive(entity);
           break;
         }
         case RayTracingEntityLight:
@@ -313,17 +307,16 @@ MaterialId RayTracingSystem::registerMaterial(Material* material)
 
 RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
 {
+  const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
+
   RayTracingEntityId entityId;
   resetIdentity(entityId);
-  setRayTracingEntityId(entityId, getRayTracingEntityType(entity->getIdentity()), newEntityId());
+  setRayTracingEntityId(entityId, entityType, newEntityId());
   entitiyInstances.push_back(vector<RayTracingEntity*>());
   registeredEntities.push_back(entity);
 
-  const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
-  const RayTracingEntityType entityCategory = getRayTracingEntityCategory(entityType);
-
   // transform primitive vertex data
-  if (entityCategory == RayTracingEntityPrimArray)
+  if (entity->getEntityCategory() == RayTracingEntityPrimArray)
   {
     XAB primBound = ((PrimitiveArrayEntity*)entity)->getPrimBound();
 
