@@ -32,7 +32,6 @@ protected:
   MaterialId            materialId;
   const ComputeMemory*  attributeBuffer[EntityPrimitiveAttributeMax];
   PackingInfo           attributeInfo[EntityPrimitiveAttributeMax];
-  Matrix4               transform; // the transformations related to entity
 
 public:
   EntityPrimAttributes();
@@ -63,6 +62,7 @@ class RayTracingEntity : public EntityPrimAttributes
 protected:
 
   ComputeInterface*   compute;
+  Matrix4             transform; // the transformations related to entity
   DeviceArray<uint>*  deviceData;
 
 public:

@@ -35,9 +35,9 @@ protected:
   ComputeKernel reorderRaysKernels[RayStructTypeMax];
   ComputeKernel updateCameraKernel;
 
-  vector<vector<RayTracingEntity*>> entities;
+  vector<vector<RayTracingEntity*>> entitiyInstances;
   vector<RayTracingEntity*>         registeredEntities;
-  vector<EntityPrimAttributes>      registeredPrimitives[RTPrimitiveCount];
+  vector<RayTracingEntity*>         registeredPrimitives[RTPrimitiveCount];
 
   /*!@member Final color output.*/
   DeviceArray<colorType4> colorOutputBuffer;
