@@ -78,3 +78,8 @@ Matrix4& RayTracingEntity::getTransform()
 {
   return transform;
 }
+
+RayTracingEntityType RayTracingEntity::getEntityCategory()const
+{
+  return getRayTracingEntityCategory((RayTracingEntityType)getRayTracingEntityType(getIdentity()));
+}

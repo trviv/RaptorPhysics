@@ -82,6 +82,8 @@ public:
   virtual void update() = 0;
 
   Matrix4& getTransform();
+
+  RayTracingEntityType getEntityCategory()const;
 };
 
 
