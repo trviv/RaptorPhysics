@@ -28,7 +28,6 @@ bool RayTracingSystem::isAvailable()
 
 void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEntity* entity)
 {
-  EntityPrimAttributes primitiveInfo = *entity;
   RTPrimitiveType primType = RTPrimitiveCount;
 
   switch (type)
@@ -44,13 +43,13 @@ void RayTracingSystem::registerPrimitive(RayTracingEntityType type, RayTracingEn
       break;
     case RayTracingEntityTriangles:
       primType = PrimitiveTriangle;
-      primitiveInfo.primInfo.vertexCount = primitiveInfo.primInfo.primitiveCount * 3;
+      entity->primInfo.vertexCount = entity->primInfo.primitiveCount * 3;
       break;
     default:
       logComputeError("Invalid entity type sent for registration!");
   }
-  primitiveInfo.primInfo.primitiveType = primType;
-  registeredPrimitives[primType].push_back(primitiveInfo);
+  entity->primInfo.primitiveType = primType;
+  registeredPrimitives[primType].push_back(entity);
 }
 
 void RayTracingSystem::composePrimitiveArray()
@@ -63,7 +62,7 @@ void RayTracingSystem::composePrimitiveArray()
   {
     for (uint i=0; i<rp.size(); i++)
     {
-      auto& prim = rp[i];
+      auto& prim = *rp[i];
       uint primBatchCount = mAlignBy(prim.primInfo.primitiveCount, primBatchSize);
       uint primType = prim.primInfo.primitiveType;
 
@@ -80,7 +79,7 @@ void RayTracingSystem::composePrimitiveArray()
       collectPrimitives.setArg(&primType, nextBindIndex+3);
       collectPrimitives.setArg(&primOffset, nextBindIndex+4);
       collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
-      collectPrimitives.setArg<Matrix4>(&prim.transform, nextBindIndex+6);
+      collectPrimitives.setArg<Matrix4>(&prim.getTransform(), nextBindIndex+6);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
@@ -205,7 +204,7 @@ uint RayTracingSystem::newEntityId()
 
 uint RayTracingSystem::newEntityInstanceId(uint entityIndex)
 {
-  return (uint)entities[entityIndex].size();
+  return (uint)entitiyInstances[entityIndex].size();
 }
 
 void RayTracingSystem::commit()
@@ -214,7 +213,7 @@ void RayTracingSystem::commit()
 
   for (uint i=0; i<registeredEntities.size(); i++)
   {
-    auto& instances = entities[i];
+    auto& instances = entitiyInstances[i];
     for (uint i=0; i<instances.size(); i++)
     {
       RayTracingEntity* entity = instances[i];
@@ -264,10 +263,10 @@ void RayTracingSystem::commit()
 
   for (uint i=0; i<RTPrimitiveCount; i++)
   {
-    for (const auto& p : registeredPrimitives[i])
+    for (const auto& primPtr : registeredPrimitives[i])
     {
-      primOffset    += p.primInfo.primitiveOffset;
-      vertexOffset  += p.primInfo.vertexOffset;
+      primOffset    += (*primPtr).primInfo.primitiveOffset;
+      vertexOffset  += (*primPtr).primInfo.vertexOffset;
     }
 
     EncodedPrimitiveInfo primInfo;
@@ -317,7 +316,7 @@ RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
   RayTracingEntityId entityId;
   resetIdentity(entityId);
   setRayTracingEntityId(entityId, getRayTracingEntityType(entity->getIdentity()), newEntityId());
-  entities.push_back(vector<RayTracingEntity*>());
+  entitiyInstances.push_back(vector<RayTracingEntity*>());
   registeredEntities.push_back(entity);
 
   const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
@@ -374,7 +373,7 @@ void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEnt
     {
       newEntity->getTransform().setIdentity();
     }
-    entities[entityId].push_back(newEntity);
+    entitiyInstances[entityId].push_back(newEntity);
   }
 }
 
