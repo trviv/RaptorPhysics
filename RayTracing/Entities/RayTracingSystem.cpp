@@ -72,7 +72,7 @@ void RayTracingSystem::composePrimitiveArray()
       collectPrimitives.setArg(attributeArray.device(), 1);
       collectPrimitives.setArg(vertexAttributeArray.device(), 2);
       uint nextBindIndex = prim.bindToShader(collectPrimitives, 3);
-      collectPrimitives.setArg(&prim.materialId, nextBindIndex);
+      collectPrimitives.setArg(&prim.getMaterialId(), nextBindIndex);
       collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
       collectPrimitives.setArg(&prim.primInfo.primitiveCount, nextBindIndex+2);
       collectPrimitives.setArg(&primType, nextBindIndex+3);
