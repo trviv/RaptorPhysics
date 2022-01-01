@@ -25,7 +25,6 @@ EntityPrimAttributes::EntityPrimAttributes()
   {
     attributeBuffer[i]  = 0;
   }
-  materialId.identity = -1;
 }
 
 uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
@@ -67,6 +66,7 @@ RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
 {
   transform.setIdentity();
   deviceData = NULL;
+  materialId.identity = -1;
 }
 
 void RayTracingEntity::setMaterialId(MaterialId materialId)
@@ -82,4 +82,9 @@ Matrix4& RayTracingEntity::getTransform()
 RayTracingEntityType RayTracingEntity::getEntityCategory()const
 {
   return getRayTracingEntityCategory((RayTracingEntityType)getRayTracingEntityType(getIdentity()));
+}
+
+MaterialId& RayTracingEntity::getMaterialId()
+{
+  return materialId;
 }
