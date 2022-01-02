@@ -61,6 +61,11 @@ void EntityPrimAttributes::setAttribute(EntityPrimitiveAttributeType type, const
   this->attributeInfo[type]   = attributePacking;
 }
 
+const ComputeMemory* EntityPrimAttributes::operator[](EntityPrimitiveAttributeType attributeType)const
+{
+  return attributeBuffer[attributeType];
+}
+
 RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
   :compute(compute)
 {

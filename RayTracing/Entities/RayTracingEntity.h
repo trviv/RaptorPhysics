@@ -38,6 +38,12 @@ public:
   uint bindToShader(ComputeKernel& kernel, uint startIndex);
 
   void setAttribute(EntityPrimitiveAttributeType type, const ComputeMemory* attributeBuffer, PackingInfo attributePacking);
+
+  const ComputeMemory* operator[](EntityPrimitiveAttributeType attributeType)const;
+
+  uint getVertexCount()const;
+
+  uint getPrimitiveCount()const;
 };
 
 

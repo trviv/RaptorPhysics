@@ -28,18 +28,18 @@ protected:
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
   /*!@member Composite array containing all positions.*/
-  const DeviceArray<PrimitiveStruct>* vertexArray;
+  const ComputeMemory*  vertexArray;
 
   /*!@member Composite array containing all attributes.*/
-  const DeviceArray<PrimitiveAttrib>* attributeArray;
+  const ComputeMemory*  attributeArray;
 
-  DeviceArray<RTSystemSettings>*      systemSettings;
+  DeviceArray<RTSystemSettings>*  systemSettings;
 
   /*!@member Per primitive bounding box array.*/
-  DeviceArray<XAB>          boundingBoxes;
+  DeviceArray<XAB>  boundingBoxes;
 
   /*!@member Workgroup count buffer.*/
-  DeviceArray<uint>         workgroupCount;
+  DeviceArray<uint> workgroupCount;
 
   /*!@member Total primitives in the system.*/
   uint  primitiveCount;
@@ -57,8 +57,8 @@ public:
 
   uint getPrimCount()const;
 
-  virtual void commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
-                      DeviceArray<RTSystemSettings>* systemSettings);
+  virtual void bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                           DeviceArray<RTSystemSettings>* systemSettings);
 
   virtual void fullBuild();
 

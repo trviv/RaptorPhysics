@@ -31,8 +31,8 @@ public:
 
   void create(ComputeInterface* compute);
 
-  void commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
-              DeviceArray<RTSystemSettings>* systemSettings);
+  void bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                   DeviceArray<RTSystemSettings>* systemSettings);
 
   void fullBuild();
 

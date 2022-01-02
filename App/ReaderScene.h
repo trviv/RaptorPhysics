@@ -32,6 +32,9 @@ class ReaderScene
   /*!@function Apply transformation by reading the element.*/
   void transform(const XMLElement* element, Matrix* matrix);
 
+  /*!@function Get material id for an instance.*/
+  MaterialId getMaterialId(const XMLElement* instance, const string& identity);
+
 public:
 
   bool readFile(MainSystem* system, const char fileName[]);

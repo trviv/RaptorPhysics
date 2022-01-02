@@ -360,8 +360,7 @@ void MainSystem::render()
           {
             entity->setAttribute(EntityPrimitiveAttributeIndex, primitiveIndices[s].device(), PackingInfo(entityCount.second.first, 3));
           }
-          entity->setMaterialId(entityMaterialMap[entityCount.first]);
-          rayTracingSystem.registerAndInstantiateEntity(entity);
+          rayTracingSystem.registerAndInstantiateEntity(entity, entityMaterialMap[entityCount.first]);
         }
       }
 
@@ -396,8 +395,7 @@ void MainSystem::render()
       Matrix mat;
       mat.setIdentity();
       mat.translate((Real3(systemBound.max)+Real3(systemBound.min)) * 0.5f);
-      entity->setMaterialId((*entityMaterialMap.begin()).second);
-      rayTracingSystem.registerAndInstantiateEntity(entity, 1, &mat[TRANS]);
+      rayTracingSystem.registerAndInstantiateEntity(entity, (*entityMaterialMap.begin()).second, 1, &mat[TRANS]);
     }
 
     rayTracingSystem.commit();
