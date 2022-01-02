@@ -70,10 +70,10 @@ void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
   workgroupCount.resize(4, false);
 }
 
-void BoundingVolumeHierarchyADS::commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
-                                        DeviceArray<RTSystemSettings>* systemSettings)
+void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                                             DeviceArray<RTSystemSettings>* systemSettings)
 {
-  AccelerationDataStruct::commit(vertexArray, attributeArray, systemSettings);
+  AccelerationDataStruct::bindBuffers(vertexArray, attributeArray, systemSettings);
   visitedInternalNodes.resize(primitiveCount, false);
   leafParentNodeIndices.resize(primitiveCount, false);
   nodeParentNodeIndices.resize(primitiveCount, false);
@@ -93,8 +93,8 @@ void BoundingVolumeHierarchyADS::fullBuild()
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
     createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(),   0);
-    createPrimitiveBoundingBoxes.setArg(vertexArray->device(),    1);
-    createPrimitiveBoundingBoxes.setArg(attributeArray->device(), 2);
+    createPrimitiveBoundingBoxes.setArg(vertexArray,              1);
+    createPrimitiveBoundingBoxes.setArg(attributeArray,           2);
     createPrimitiveBoundingBoxes.setArg(systemSettings->device(), 3);
     createPrimitiveBoundingBoxes.setArg(&primBatchSize,           4);
     createPrimitiveBoundingBoxes.setArg(&primitiveCount,          5);
@@ -122,8 +122,8 @@ void BoundingVolumeHierarchyADS::fullBuild()
 
     // assign morton code to the particle bounding boxes
     assignMortonCode.setArg(primitiveLeafData.device(), 0);
-    assignMortonCode.setArg(vertexArray->device(),      1);
-    assignMortonCode.setArg(attributeArray->device(),   2);
+    assignMortonCode.setArg(vertexArray,                1);
+    assignMortonCode.setArg(attributeArray,             2);
     assignMortonCode.setArg(systemSettings->device(),   3);
     assignMortonCode.setArg(&primBatchSize,  4);
     assignMortonCode.setArg(&primitiveCount, 5);
@@ -211,8 +211,8 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
-    intersectionKernel.setArg(vertexArray->device(),    3);
-    intersectionKernel.setArg(attributeArray->device(), 4);
+    intersectionKernel.setArg(vertexArray, 3);
+    intersectionKernel.setArg(attributeArray, 4);
     intersectionKernel.setArg(treeInternalNodes.device(),     5);
     intersectionKernel.setArg(leafParentNodeIndices.device(), 6);
     intersectionKernel.setArg(nodeParentNodeIndices.device(), 7);
@@ -244,8 +244,8 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(rayCount, 2);
-    intersectionKernel.setArg(vertexArray->device(),    3);
-    intersectionKernel.setArg(attributeArray->device(), 4);
+    intersectionKernel.setArg(vertexArray, 3);
+    intersectionKernel.setArg(attributeArray, 4);
     intersectionKernel.setArg(treeInternalNodes.device(),     5);
     intersectionKernel.setArg(leafParentNodeIndices.device(), 6);
     intersectionKernel.setArg(nodeParentNodeIndices.device(), 7);

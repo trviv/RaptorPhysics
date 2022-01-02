@@ -147,6 +147,30 @@ void QueryInt3Attribute(const XMLElement* element, int value[3], const char* att
   value[2] = val[2];
 }
 
+MaterialId ReaderScene::getMaterialId(const XMLElement* instance, const string& identity)
+{
+  MaterialId material;
+  material.identity = -1;
+
+  if (instance->ToElement()->Attribute("material"))
+  {
+    string materialName(instance->ToElement()->Attribute("material"));
+
+    if (registeredMaterials.count(materialName.c_str()) == 0)
+    {
+      logComputeError("Material %s, not found in entity %s!", materialName.c_str(), identity.c_str());
+    }
+    material = registeredMaterials[materialName];
+
+    bool twoSided = false;
+    instance->ToElement()->QueryBoolAttribute("two-sided", &twoSided);
+
+    setIdentityTwoSided(material, twoSided);
+  }
+
+  return material;
+}
+
 void ReaderScene::readSettings(MainSystem* system, const XMLElement* settings)
 {
   Window* renderer = system;
@@ -239,8 +263,6 @@ struct ShapeData
   real size = 0.f;
   real kernelSize = 0.f;
   real mass = 0.f;
-  string materialName;
-  bool twoSided = false;
 };
 
 ShapeData readShape(XMLConstHandle shapeHandle)
@@ -263,12 +285,7 @@ ShapeData readShape(XMLConstHandle shapeHandle)
       shape.mass *= shape.dim[2];
     }
   }
-  if (shapeHandle.ToElement()->Attribute("material"))
-  {
-    shape.materialName = shapeHandle.ToElement()->Attribute("material");
-  }
   shapeHandle.ToElement()->QueryIntAttribute("spatial-density", &shape.spatialDensity);
-  shapeHandle.ToElement()->QueryBoolAttribute("two-sided", &shape.twoSided);
 
   return shape;
 }
@@ -448,28 +465,14 @@ void ReaderScene::readEntities(MainSystem* system, const XMLElement* entities)
       logComputeError("Duplicate id %s, not allowed!", identity.c_str());
     }
 
-    MaterialId material;
-    material.identity = -1;
-    if (shape.materialName.size())
-    {
-      if (registeredMaterials.count(shape.materialName.c_str()) == 0)
-      {
-        logComputeError("Material %s, not found in entity %s!", shape.materialName.c_str(), identity.c_str());
-      }
-      material = registeredMaterials[shape.materialName];
-      setIdentityTwoSided(material, shape.twoSided);
-    }
-
     if (newEntity)
     {
       const PhysicsEntityId entityId = system->physicsSystem.registerEntity(newEntity);
       registeredEntities[identity] = entityId;
-      system->entityMaterialMap[entityId.identity^getInstanceId(entityId)] = material;
     }
     else if (newRTEntity)
     {
       registeredRTEntities[identity] = system->rayTracingSystem.registerEntity(newRTEntity);
-      newRTEntity->setMaterialId(material);
     }
   }
 }
@@ -484,22 +487,27 @@ void ReaderScene::createInstances(MainSystem* system, const XMLElement* instance
 
     int count = 0;
     instance->QueryIntAttribute("count", &count);
+    auto transforms = instance->FirstChildElement("transform");
     for (int i=0; i<count; i++)
     {
       Matrix matrix;
-
-      QueryTransformElement(instance->FirstChildElement("transform"), matrix);
+      QueryTransformElement(transforms, matrix);
       matrixTransforms.push_back(matrix[TRANS]);
+      transforms = transforms->NextSiblingElement("transform");
     }
 
-    if (registeredEntities.find(identity) != registeredEntities.end())
+    MaterialId material = getMaterialId(instance, identity);
+
+    if (registeredEntities.count(identity))
     {
+      const auto entityId = registeredEntities[identity];
       system->physicsSystem.addEntityInstance(registeredEntities[identity], count, &matrixTransforms[0]);
+      system->entityMaterialMap[entityId.identity^getInstanceId(entityId)] = material;
     }
 
-    if (registeredRTEntities.find(identity) != registeredRTEntities.end())
+    if (registeredRTEntities.count(identity))
     {
-      system->rayTracingSystem.addEntityInstance(registeredRTEntities[identity], count, &matrixTransforms[0]);
+      system->rayTracingSystem.addEntityInstance(registeredRTEntities[identity], material, count, &matrixTransforms[0]);
     }
   }
 }

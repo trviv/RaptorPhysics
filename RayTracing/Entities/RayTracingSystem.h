@@ -6,6 +6,7 @@
 #include <Camera/Camera.h>
 #include <Acceleration/AccelerationDataStruct.h>
 #include <Acceleration/BoundingVolumeHierarchyADS.h>
+#include <Acceleration/PrimitiveAccelerationDataStruct.h>
 #include <Material/Material.h>
 
 #define RAY_TRACING_SYSTEM_ARRAY_COUNT 2
@@ -122,10 +123,10 @@ public:
   RayTracingEntityId registerEntity(RayTracingEntity* entity);
 
   /*!@function Instantiate an entity registered within the system.*/
-  void addEntityInstance(const RayTracingEntityId& registeredEntityId, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
+  void addEntityInstance(const RayTracingEntityId& registeredEntityId, const MaterialId& material, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
 
   /*!@function Register a Ray Tracing entity and instantiate.*/
-  RayTracingEntityId registerAndInstantiateEntity(RayTracingEntity* entity, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
+  RayTracingEntityId registerAndInstantiateEntity(RayTracingEntity* entity, const MaterialId& material, ushort instanceCount = 1, const Matrix4* instanceTransforms = NULL);
 
   /*!@function Update camera based on given matrices.*/
   void updateCamera(const real projectionMatrix[16], const real modelviewMatrix[16]);

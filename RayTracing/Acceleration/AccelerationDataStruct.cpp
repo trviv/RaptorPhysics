@@ -78,8 +78,8 @@ uint AccelerationDataStruct::getPrimCount()const
   return primitiveCount;
 }
 
-void AccelerationDataStruct::commit(const DeviceArray<PrimitiveStruct>* vertexArray, const DeviceArray<PrimitiveAttrib>* attributeArray,
-                                    DeviceArray<RTSystemSettings>* systemSettings)
+void AccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                                         DeviceArray<RTSystemSettings>* systemSettings)
 {
   this->vertexArray     = vertexArray;
   this->attributeArray  = attributeArray;
@@ -102,8 +102,8 @@ void AccelerationDataStruct::fullBuild()
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
     createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(),   0);
-    createPrimitiveBoundingBoxes.setArg(vertexArray->device(),    1);
-    createPrimitiveBoundingBoxes.setArg(attributeArray->device(), 2);
+    createPrimitiveBoundingBoxes.setArg(vertexArray,              1);
+    createPrimitiveBoundingBoxes.setArg(attributeArray,           2);
     createPrimitiveBoundingBoxes.setArg(systemSettings->device(), 3);
     createPrimitiveBoundingBoxes.setArg(&primBatchSize,           4);
     createPrimitiveBoundingBoxes.setArg(&primitiveCount,          5);
@@ -130,8 +130,8 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
     intersectionKernel.setArg(boundingBoxes.device(),   3);
-    intersectionKernel.setArg(vertexArray->device(),    4);
-    intersectionKernel.setArg(attributeArray->device(), 5);
+    intersectionKernel.setArg(vertexArray,              4);
+    intersectionKernel.setArg(attributeArray,           5);
     intersectionKernel.setArg(&primitiveCount,          6);
     intersectionKernel.setArg(systemSettings->device(), 7);
 
@@ -157,8 +157,8 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(rayCount, 2);
     intersectionKernel.setArg(boundingBoxes.device(),   3);
-    intersectionKernel.setArg(vertexArray->device(),    4);
-    intersectionKernel.setArg(attributeArray->device(), 5);
+    intersectionKernel.setArg(vertexArray,              4);
+    intersectionKernel.setArg(attributeArray,           5);
     intersectionKernel.setArg(&primitiveCount,          6);
     intersectionKernel.setArg(systemSettings->device(), 7);
 

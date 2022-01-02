@@ -239,8 +239,7 @@ void RayTracingSystem::commit()
             PrimitiveArrayEntity *prim = new PrimitiveArrayEntity(RayTracingEntityTriangles, 0, compute);
             real dim[3] = {1.f, 1.f, 0.f};
             prim->createBox(dim);
-            prim->setMaterialId(materialIdentity);
-            registerAndInstantiateEntity(prim, 1, &light->getTransform());
+            registerAndInstantiateEntity(prim, materialIdentity, 1, &light->getTransform());
           }
           break;
         }
@@ -277,7 +276,7 @@ void RayTracingSystem::commit()
 
   systemSettings.syncDevice();
 
-  accelerationStruct->commit(&vertexArray, &attributeArray, &systemSettings);
+  accelerationStruct->bindBuffers(vertexArray.device(), attributeArray.device(), &systemSettings);
   lights.syncDevice();
   materials.syncDevice();
 }
@@ -346,7 +345,7 @@ RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
   return entityId;
 }
 
-void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEntityId, ushort instanceCount, const Matrix4* instanceTransforms)
+void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEntityId, const MaterialId& material, ushort instanceCount, const Matrix4* instanceTransforms)
 {
   // get entity
   const uint entityId = getRayTracingEntityId(registeredEntityId);
@@ -366,14 +365,18 @@ void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEnt
     {
       newEntity->getTransform().setIdentity();
     }
+    if (material.identity != -1)
+    {
+      newEntity->setMaterialId(material);
+    }
     entitiyInstances[entityId].push_back(newEntity);
   }
 }
 
-RayTracingEntityId RayTracingSystem::registerAndInstantiateEntity(RayTracingEntity* entity, ushort instanceCount, const Matrix4* instanceTransforms)
+RayTracingEntityId RayTracingSystem::registerAndInstantiateEntity(RayTracingEntity* entity, const MaterialId& material, ushort instanceCount, const Matrix4* instanceTransforms)
 {
   RayTracingEntityId entityId = registerEntity(entity);
-  addEntityInstance(entityId, instanceCount, instanceTransforms);
+  addEntityInstance(entityId, material, instanceCount, instanceTransforms);
 
   return entityId;
 }
