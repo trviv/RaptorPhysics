@@ -19,3 +19,9 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
 
   boundingBoxes.resize(primitiveCount, false);
 }
+
+void PrimitiveAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                                                  DeviceArray<RTSystemSettings>* systemSettings)
+{
+  logComputeError("Bind buffers method is not available with PrimitiveAccelerationDataStruct!");
+}

@@ -28,6 +28,7 @@
 #define Thread  __private
 
 #define constructUshort4    (ushort4)
+#define constructUshort3    (ushort3)
 #define constructUshort2    (ushort2)
 #define constructShort3     (short3)
 #define constructShort2     (short2)
@@ -147,6 +148,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
 #define Thread  thread
 
 #define constructUshort4    ushort4
+#define constructUshort3    ushort3
 #define constructUshort2    ushort2
 #define constructShort3     short3
 #define constructShort2     short2

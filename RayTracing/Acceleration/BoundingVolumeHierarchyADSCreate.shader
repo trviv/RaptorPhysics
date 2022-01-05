@@ -13,7 +13,9 @@ inline bool isBVHLeafNode(const uint index)
 #ifdef BOUNDING_VOLUME_HIERARCHY_ADS_DEBUG_TREE_CREATION
   return index < 1000000000;
 #else
-  return (index & 0x80000000) == 0;
+  return asUshort2(index).y < 0x7FFF;
+  //return (index & 0x80000000) == 0;
+  //return index < 0x7FFFFFFF;
 #endif
 }
 
