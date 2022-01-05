@@ -8,9 +8,9 @@
 */
 class PrimitiveInstanceAccelerationDataStruct : public BoundingVolumeHierarchyADS
 {
-  vector<const PrimitiveAccelerationDataStruct*> primitiveInstances;
+protected:
 
-  vector<const RayTracingEntity*> entityInstances;
+  unordered_map<const PrimitiveAccelerationDataStruct*, vector<const RayTracingEntity*>> primitiveInstances;
 
 public:
 

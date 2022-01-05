@@ -73,6 +73,7 @@ inline HitStruct stacklessTraverseBinaryTree2(
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeLeafNodeBoundingBoxes,
   const Device XAB*             treeInternalNodeBoundingBoxes,
   const float3                  rayOrigin,
   const float3                  rayDirection,
@@ -188,180 +189,45 @@ inline HitStruct stacklessTraverseBinaryTree2(
   return hit;
 }
 
-inline ushort3 getNearChilds(const Device XAB* treeInternalNodeBoundingBoxes,
+inline ushort3 getNearChilds(
+  const Device XAB* treeLeafNodeBoundingBoxes,
+  const Device XAB* treeInternalNodeBoundingBoxes,
   const BVHNodeInfo parentNode,
   const float3      rayOrigin,
   const float3      invRayDirection,
   const float       timeIn,
   const bool3       sign)
 {
-  ushort3 ret;
+#ifdef STACKLESS_TRAVERSE_EARLY_CHILD
+  XAB boundingBox;
+  ushort ret[3] = {0, 0, 0};
   float minTime = INFINITY;
-  ret.z = 0;
 
-  if (isBVHLeafNode(parentNode.child[0]))
+#pragma unroll
+  for (short i=0; i<2; i++)
   {
-    ret.x = 1;
-  }
-  else
-  {
-    const float time = rayXABIntersectTime(timeIn, treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(parentNode.child[0])], rayOrigin, invRayDirection, sign);
-    if (time != -1.f)
+    if (isBVHLeafNode(parentNode.child[i]))
     {
+      boundingBox = treeLeafNodeBoundingBoxes[parentNode.child[i]];
+    }
+    else
+    {
+      boundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(parentNode.child[i])];
+    }
+
+    const float time = rayXABIntersectTime(timeIn, boundingBox, rayOrigin, invRayDirection, sign);
+    if (time != -1.f && minTime > time)
+    {
+      ret[i] = 1;
+      ret[2] = i;
       minTime = time;
-      ret.x = 1;
     }
   }
 
-  if (isBVHLeafNode(parentNode.child[1]))
-  {
-    ret.y = 1;
-  }
-  else
-  {
-    const float time = rayXABIntersectTime(timeIn, treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(parentNode.child[1])], rayOrigin, invRayDirection, sign);
-    if (time != -1.f && time < minTime)
-    {
-      minTime = time;
-      ret.y = 1;
-      ret.z = 1;
-    }
-  }
-
-  return ret;
-}
-
-inline HitStruct stacklessTraverseBinaryTreeEarlyChild(
-  float                         currentTime,
-  const Device BVHNodeInfo*     treeInternalNodes,
-  const Device uint*            leafParentNodeIndices,
-  const Device uint*            nodeParentNodeIndices,
-  const Device XAB*             treeInternalNodeBoundingBoxes,
-  const float3                  rayOrigin,
-  const float3                  rayDirection,
-  const float3                  invRayDirection,
-  const bool3                   sign,
-  const Device PrimitiveStruct* vertexArray,
-  const Device PrimitiveAttrib* attributeArray,
-  Const RTSystemSettings*       systemSettings,
-  Thread DecodedPrimitiveInfo*  primInfo,
-  const ushort                  localIndex,
-  Shared uint*                  sharedLeafNodeIndex)
-{
-  HitStruct hit;
-  initializeHit(&hit);
-
-  hit.distance = currentTime;
-
-  const uint rootNode    = setBVHInternalNodeMarker(false, 0);
-
-  ushort traverseState   = BVH_TRAVERSAL_FROM_PARENT;
-  BVHNodeInfo parentNode = treeInternalNodes[0];
-
-  const uchar3 signBits  = select(constructUchar3(0), constructUchar3(1), sign);
-
-  ushort3 nodeChildFlags = getNearChilds(treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign);
-  short nearPlane        = nodeChildFlags.z;
-
-  uint currNodeIndex     = parentNode.child[nearPlane];
-  uint parentNodeIndex   = rootNode;
-
-  ushort leafCount = 0;
-#if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0
-  Shared uint *leafNodeIndex = sharedLeafNodeIndex;
+  return constructUshort3(ret[0], ret[1], ret[2]);
 #else
-  uint leafNodeIndex[RAY_TRAVERSAL_BVH_MAX_LEAFS];
+  return constructUshort3(0, 0, 0);
 #endif
-
-  // main intersection loop
-  while (currNodeIndex != rootNode)
-  {
-    // traverse while a leaf node is found
-    while (currNodeIndex != rootNode)
-    {
-      // when going to parent from child
-      if (traverseState == BVH_TRAVERSAL_FROM_CHILD)
-      {
-        // fetch parent index
-        if (isBVHLeafNode(currNodeIndex))
-        {
-          parentNodeIndex = leafParentNodeIndices[currNodeIndex];
-        }
-        else
-        {
-          parentNodeIndex = nodeParentNodeIndices[removeBVHInternalNodeMarker(currNodeIndex)];
-        }
-
-        // fetch parent node, since it will be available otherwise
-        parentNode = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
-
-        nodeChildFlags = getNearChilds(treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign);
-        nearPlane      = nodeChildFlags.z;
-
-        // if near is processed
-        const bool stateIsLeft = (currNodeIndex == parentNode.child[nearPlane]);
-        traverseState = select(BVH_TRAVERSAL_FROM_CHILD, BVH_TRAVERSAL_FROM_SIBLING, stateIsLeft);
-        currNodeIndex = select(parentNodeIndex, parentNode.child[nearPlane^1], stateIsLeft);
-        continue;
-      }
-
-      // when coming from parent or sibling
-      const bool stateIsSibling = (traverseState == BVH_TRAVERSAL_FROM_SIBLING);
-      traverseState = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, stateIsSibling);
-
-      // if current node is leaf, mark for test
-      if (isBVHLeafNode(currNodeIndex))
-      {
-        leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + leafCount++] = currNodeIndex;
-        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
-        if (leafCount != RAY_TRAVERSAL_BVH_MAX_LEAFS)
-        {
-          continue;
-        }
-        break;
-      }
-
-      const uint noNodeCurrNodeIndex = removeBVHInternalNodeMarker(currNodeIndex);
-
-      // if internal node test bounding box for intersection
-      const XAB boundingBox = treeInternalNodeBoundingBoxes[noNodeCurrNodeIndex];
-      if (!rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign))
-      //if (((Thread ushort*)&nodeChildFlags)[nearPlane] == 0)
-      {
-        // switch to parent or sibling when internal node is not intersecting
-        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
-        continue;
-      }
-      else
-      {
-        addBVHHit(hit.bvhHits, 1);
-      }
-
-      parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
-
-      nodeChildFlags  = getNearChilds(treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign);
-      nearPlane       = nodeChildFlags.z;
-
-      parentNodeIndex = currNodeIndex;
-      currNodeIndex   = parentNode.child[nearPlane];
-      traverseState   = BVH_TRAVERSAL_FROM_PARENT;
-    }
-
-    for (ushort i=0; i<leafCount; i++)
-    {
-      // test colision if not an invalid node
-      if (earliestIntersection(&hit, leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + i], rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
-      {
-#ifdef IntersectionTypeAny
-        currNodeIndex = rootNode;
-        break;
-#endif
-      }
-    }
-    leafCount = 0;
-  }
-
-  return hit;
 }
 
 inline HitStruct stacklessTraverseBinaryTree(
@@ -369,6 +235,7 @@ inline HitStruct stacklessTraverseBinaryTree(
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeLeafNodeBoundingBoxes,
   const Device XAB*             treeInternalNodeBoundingBoxes,
   const float3                  rayOrigin,
   const float3                  rayDirection,
@@ -394,7 +261,7 @@ inline HitStruct stacklessTraverseBinaryTree(
   const uchar3 signBits  = select(constructUchar3(0), constructUchar3(1), sign);
   // flip near plane if 2 or more negatives are in the ray direction
   // a simple approach to possible get an intersection sooner
-  const ushort nearPlane = 0;//(signBits.x + signBits.y + signBits.z) > 1;
+  ushort nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
   uint currNodeIndex     = parentNode.child[nearPlane];
   uint parentNodeIndex   = rootNode;
 
@@ -426,6 +293,7 @@ inline HitStruct stacklessTraverseBinaryTree(
 
         // fetch parent node, since it will be available otherwise
         parentNode = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
+        nearPlane = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
 
         // if near is processed
         const bool stateIsLeft = (currNodeIndex == parentNode.child[nearPlane]);
@@ -438,34 +306,54 @@ inline HitStruct stacklessTraverseBinaryTree(
       const bool stateIsSibling = (traverseState == BVH_TRAVERSAL_FROM_SIBLING);
       traverseState = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, stateIsSibling);
 
-      // if current node is leaf, mark for test
-      if (isBVHLeafNode(currNodeIndex))
+      const bool isLeaf = isBVHLeafNode(currNodeIndex);
+      const uint noNodeCurrNodeIndex = removeBVHInternalNodeMarker(currNodeIndex);
+
+      XAB boundingBox;
+      if (isLeaf)
       {
-        leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + leafCount++] = currNodeIndex;
-        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
+        boundingBox = treeLeafNodeBoundingBoxes[currNodeIndex];
+      }
+      else
+      {
+        boundingBox = treeInternalNodeBoundingBoxes[noNodeCurrNodeIndex];
+      }
+
+      const bool intersectsBVH = rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign);
+
+      // switch to parent or sibling when internal node is not intersecting
+      const uint nextNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
+
+      // if current node is leaf, mark for test
+      if (isLeaf)
+      {
+        if (intersectsBVH)
+        {
+          leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + leafCount++] = currNodeIndex;
+        }
+        currNodeIndex = nextNodeIndex;
         if (leafCount != RAY_TRAVERSAL_BVH_MAX_LEAFS)
         {
           continue;
         }
         break;
       }
-
-      const uint noNodeCurrNodeIndex = removeBVHInternalNodeMarker(currNodeIndex);
-
-      // if internal node test bounding box for intersection
-      const XAB boundingBox = treeInternalNodeBoundingBoxes[noNodeCurrNodeIndex];
-      if (!rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign))
-      {
-        // switch to parent or sibling when internal node is not intersecting
-        currNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
-        continue;
-      }
       else
       {
-        addBVHHit(hit.bvhHits, 1);
+        // if internal node test bounding box for intersection
+        if (intersectsBVH)
+        {
+          addBVHHit(hit.bvhHits, 1);
+        }
+        else
+        {
+          currNodeIndex = nextNodeIndex;
+          continue;
+        }
       }
 
       parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
+      nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
       parentNodeIndex = currNodeIndex;
       currNodeIndex   = parentNode.child[nearPlane];
       traverseState   = BVH_TRAVERSAL_FROM_PARENT;
@@ -493,6 +381,7 @@ inline HitStruct stackTraverseBinaryTree(
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeLeafNodeBoundingBoxes,
   const Device XAB*             treeInternalNodeBoundingBoxes,
   const float3                  rayOrigin,
   const float3                  rayDirection,
@@ -600,11 +489,12 @@ Kernel void intersectRaysBVH(
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeLeafNodeBoundingBoxes,
   const Device XAB*             treeInternalNodeBoundingBoxes,
   Const RTSystemSettings*       systemSettings,
   constantKernelInput(uint,     primitiveCount),
   atomicKernelInput(uint,       rayIndexAtomicBuffer),
-  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 12)
+  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 13)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -622,7 +512,7 @@ Kernel void intersectRaysBVH(
   primInfo.primitiveType = RTPrimitiveCount;
 
   //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-  HitStruct hit = stacklessTraverseBinaryTreeEarlyChild(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
+  HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
 #ifdef IntersectionTypeClosest
   hits[index] = hit;
@@ -644,11 +534,12 @@ Kernel void intersectRaysBVH(
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
+  const Device XAB*             treeLeafNodeBoundingBoxes,
   const Device XAB*             treeInternalNodeBoundingBoxes,
   Const RTSystemSettings*       systemSettings,
   constantKernelInput(uint,     primitiveCount),
   atomicKernelInput(uint,       rayIndexAtomicBuffer),
-  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 12)
+  sharedMemKernelInput(uint,    sharedLeafNodeIndex, 13)
   KERNEL_THREAD_ARGUMENTS)
 {
   volatile Shared uint nextRayArray[33];
@@ -693,7 +584,7 @@ Kernel void intersectRaysBVH(
     const bool3 sign = selectInput3(invRayDirection < 0.f);
 
     //HitStruct hit = stackTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings);
-    HitStruct hit = stacklessTraverseBinaryTreeEarlyChild(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
+    HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
 #ifdef IntersectionTypeClosest
     hits[index] = hit;

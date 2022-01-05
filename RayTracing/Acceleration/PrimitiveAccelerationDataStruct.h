@@ -9,6 +9,10 @@
 */
 class PrimitiveAccelerationDataStruct : public BoundingVolumeHierarchyADS
 {
+  friend class PrimitiveInstanceAccelerationDataStruct;
+
+protected:
+
   const RayTracingEntity* primitiveEntity;
 
 public:
@@ -18,6 +22,9 @@ public:
   ~PrimitiveAccelerationDataStruct();
 
   void bindEntity(const RayTracingEntity* primitiveEntity);
+
+  void bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
+                   DeviceArray<RTSystemSettings>* systemSettings);
 };
 
 #endif
