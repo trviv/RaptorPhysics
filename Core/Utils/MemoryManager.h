@@ -10,7 +10,12 @@
 */
 class MemoryManaged
 {
+  friend class MemoryManager;
+
 public:
+
+  bool persistant = false;
+
   /*!@function This function should implement memory cleaning for objects allocated by memory manager.*/
   virtual void freeManaged()const = 0;
 };

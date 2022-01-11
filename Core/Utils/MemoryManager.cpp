@@ -30,7 +30,7 @@ void MemoryManager::dealloc()
   vector<const MemoryManaged*> deallocList;
   for (auto &i : allocatedMemory)
   {
-    if (i.second == 0)
+    if (i.second == 0 && !(i.first->persistant))
     {
       i.first->freeManaged();
       deallocList.push_back(i.first);
