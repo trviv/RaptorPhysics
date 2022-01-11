@@ -51,11 +51,12 @@ public:
     hostBuffer = NULL;
     elements = 0;
     allocated = 0;
+    persistant = false;
   }
 
-  DeviceArray(ComputeInterface* compute, ComputeHeap* heap = NULL) : DeviceArray()
+  DeviceArray(ComputeInterface* compute, ComputeHeap* heap = NULL, bool persistantHeap = false) : DeviceArray()
   {
-    create(compute, heap);
+    create(compute, heap, persistantHeap);
   }
 
   DeviceArray(const DeviceArray& ref)
@@ -63,7 +64,7 @@ public:
     logComputeError("Copying device array is not defined yet!");
   }
 
-  void create(ComputeInterface* compute, ComputeHeap* heap = NULL)
+  void create(ComputeInterface* compute, ComputeHeap* heap = NULL, bool persistantHeap = false)
   {
     if (this->compute)
     {
@@ -75,6 +76,7 @@ public:
     hostBuffer = NULL;
     elements = 0;
     allocated = 0;
+    persistant = persistantHeap;
     this->compute = compute;
     this->heap = heap ? heap : (compute ? &compute->heap : NULL);
   }
@@ -243,6 +245,8 @@ public:
   {
     return deviceBuffer;
   }
+
+  void syncDevicePointerBuffer();
 };
 
 #endif
