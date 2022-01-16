@@ -66,6 +66,21 @@ const ComputeMemory* EntityPrimAttributes::operator[](EntityPrimitiveAttributeTy
   return attributeBuffer[attributeType];
 }
 
+RTPrimitiveType EntityPrimAttributes::getPrimitiveType()const
+{
+  return (RTPrimitiveType)primInfo.primitiveType;
+}
+
+uint EntityPrimAttributes::getPrimitiveCount()const
+{
+  return primInfo.primitiveCount;
+}
+
+uint EntityPrimAttributes::getVertexCount()const
+{
+  return primInfo.vertexCount;
+}
+
 RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
   :compute(compute)
 {
@@ -79,7 +94,17 @@ void RayTracingEntity::setMaterialId(MaterialId materialId)
   this->materialId = materialId;
 }
 
+const XAB& RayTracingEntity::getPrimBound()const
+{
+  return primBound;
+}
+
 Matrix4& RayTracingEntity::getTransform()
+{
+  return transform;
+}
+
+const Matrix4& RayTracingEntity::getTransform()const
 {
   return transform;
 }

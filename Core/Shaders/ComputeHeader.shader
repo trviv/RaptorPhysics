@@ -45,6 +45,7 @@
 #define constructUchar3     (uchar3)
 #define constructUchar4     (uchar4)
 #define constructHalf2      (half2)
+#define constructFloat4x4   (float4x4)
 
 #define convertShort2(a)    convert_short2(a)
 #define convertUshort4(a)   convert_ushort4(a)
@@ -165,6 +166,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
 #define constructUchar3     uchar3
 #define constructUchar4     uchar4
 #define constructHalf2      half2
+#define constructFloat4x4   float4x4
 
 #define convertShort2(a)    short2(a)
 #define convertUshort4(a)   ushort4(a)
@@ -313,6 +315,18 @@ typedef struct ALIGN(4)
 #define copyMatrix3x3(a, b)   for (uint i = 0; i < 9; i++) { (a)->val[i] = (b)->val[i]; }
 #define clearMatrix3x3(a, b)  for (uint i = 0; i < 9; i++) { (a)->val[i] = b; }
 #define reduceMatrix3x3(o, in)for (uint i = 0; i < 9; i++) { (o)->val[i] = simdReduce((in)->val[i]); }
+
+#define unpackDeviceFloat3x4To4x4(inMat) constructFloat4x4(\
+  ((Device float4*)inMat)[0], \
+  ((Device float4*)inMat)[1], \
+  ((Device float4*)inMat)[2], \
+  constructFloat4(0, 0, 0, 1) \
+);
+
+#define packFloat4x4ToDevice3x4(inMat, outMat) \
+  ((Device float4*)outMat)[0] = ((Thread float4*)&inMat)[0];\
+  ((Device float4*)outMat)[1] = ((Thread float4*)&inMat)[1];\
+  ((Device float4*)outMat)[2] = ((Thread float4*)&inMat)[2];\
 
 // this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
 #define INIT_POLL()     short poll_count = 0;

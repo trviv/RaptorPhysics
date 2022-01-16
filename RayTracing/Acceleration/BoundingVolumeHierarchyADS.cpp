@@ -13,21 +13,45 @@ BoundingVolumeHierarchyADS::~BoundingVolumeHierarchyADS()
 {
 }
 
-void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
+void BoundingVolumeHierarchyADS::initializeData()
 {
-  this->compute = compute;
+  AccelerationDataStruct::initializeData();
+  visitedInternalNodes.create(compute);
+  leafParentNodeIndices.create(compute);
+  nodeParentNodeIndices.create(compute);
+  treeNodeBoundingBoxes.create(compute);
+  treeInternalNodes.create(compute);
+  primitiveLeafData.create(compute);
+  primitiveLeafDataSorted.create(compute);
+}
+
+void BoundingVolumeHierarchyADS::updatePointers()
+{
+  AccelerationDataStruct::updatePointers();
+  pointerLeafParentNodeIndices = leafParentNodeIndices.device();
+  pointerNodeParentNodeIndices = nodeParentNodeIndices.device();
+  pointerLeafNodeBoundingBoxes = leafNodeBoundingBoxes.device();
+  pointerTreeNodeBoundingBoxes = treeNodeBoundingBoxes.device();
+  pointerTreeInternalNodes     = treeInternalNodes.device();
+}
+
+void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
+{
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayTracingStruct.h");
   includeFiles.push_back("AccelerationDataStructCreate.shader");
 
-  registerShader(compute, "BoundingVolumeHierarchyADSCreate.shader", NULL, NULL);
+  registerShader(compute, "BoundingVolumeHierarchyADSCreate.shader", oldType, newType);
 
   createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
   assignMortonCode             = programs[0].createKernel("assignMortonCode");
   constructBinaryTree          = programs[0].createKernel("constructBinaryTree");
   constructTreeBoundingBox     = programs[0].createKernel("constructTreeBoundingBox");
+}
 
+void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
+{
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
@@ -47,29 +71,15 @@ void BoundingVolumeHierarchyADS::create(ComputeInterface* compute)
 //        newType.push_back("");
         getRayStructDefines(oldType, newType, (RayStructType)r);
         getHitStructDefines(oldType, newType, (HitStructType)h);
+
+        if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
+        if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());
+
         registerShader(compute, "BoundingVolumeHierarchyADSTraverse.shader", &oldType, &newType);
         intersectRayKernels[i][r][h] = programs.back().createKernel("intersectRaysBVH");
       }
     }
   }
-
-  boundingBoxes.create(compute);
-  visitedInternalNodes.create(compute);
-  leafParentNodeIndices.create(compute);
-  nodeParentNodeIndices.create(compute);
-  treeInternalNodeBoundingBoxes.create(compute);
-  treeInternalNodes.create(compute);
-  primitiveLeafData.create(compute);
-  primitiveLeafDataSorted.create(compute);
-
-  accXABComputeUtilId = ComputeUtil::getXABUtil(compute);
-  sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
-
-  primitiveCount  = 0;
-  vertexCount     = 0;
-
-  workgroupCount.create(compute);
-  workgroupCount.resize(4, false);
 }
 
 void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
@@ -79,7 +89,7 @@ void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, c
   visitedInternalNodes.resize(primitiveCount, false);
   leafParentNodeIndices.resize(primitiveCount, false);
   nodeParentNodeIndices.resize(primitiveCount, false);
-  treeInternalNodeBoundingBoxes.resize(primitiveCount - 1, false);
+  treeNodeBoundingBoxes.resize(primitiveCount - 1, false);
   treeInternalNodes.resize(primitiveCount - 1, false);
   primitiveLeafData.resize(primitiveCount, false);
   primitiveLeafDataSorted.resize(primitiveCount, false);
@@ -87,6 +97,10 @@ void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, c
 
 void BoundingVolumeHierarchyADS::fullBuild()
 {
+  if (!needsRebuild) return;
+
+  updatePointers();
+
   uint primBatchSize = 8;
   uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
 
@@ -94,12 +108,12 @@ void BoundingVolumeHierarchyADS::fullBuild()
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
-    createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(),   0);
-    createPrimitiveBoundingBoxes.setArg(vertexArray,              1);
-    createPrimitiveBoundingBoxes.setArg(attributeArray,           2);
-    createPrimitiveBoundingBoxes.setArg(systemSettings->device(), 3);
-    createPrimitiveBoundingBoxes.setArg(&primBatchSize,           4);
-    createPrimitiveBoundingBoxes.setArg(&primitiveCount,          5);
+    createPrimitiveBoundingBoxes.setArg(pointerLeafNodeBoundingBoxes, 0);
+    createPrimitiveBoundingBoxes.setArg(pointerVertexArray, 1);
+    createPrimitiveBoundingBoxes.setArg(pointerAttributeArray, 2);
+    createPrimitiveBoundingBoxes.setArg(pointerSystemSettings, 3);
+    createPrimitiveBoundingBoxes.setArg(&primBatchSize, 4);
+    createPrimitiveBoundingBoxes.setArg(&primitiveCount, 5);
 
     compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
@@ -110,7 +124,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
   }
 
   // find bounding box for the simulation space
-  ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, systemSettings->device(), boundingBoxes.device(), primitiveCount);
+  ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, pointerSystemSettings, pointerLeafNodeBoundingBoxes, primitiveCount);
 
 #ifdef DEBUG_BVH_ADS
   systemSettings->syncHost();
@@ -124,10 +138,10 @@ void BoundingVolumeHierarchyADS::fullBuild()
 
     // assign morton code to the particle bounding boxes
     assignMortonCode.setArg(primitiveLeafData.device(), 0);
-    assignMortonCode.setArg(vertexArray,                1);
-    assignMortonCode.setArg(attributeArray,             2);
-    assignMortonCode.setArg(systemSettings->device(),   3);
-    assignMortonCode.setArg(&primBatchSize,  4);
+    assignMortonCode.setArg(pointerVertexArray, 1);
+    assignMortonCode.setArg(pointerAttributeArray, 2);
+    assignMortonCode.setArg(pointerSystemSettings, 3);
+    assignMortonCode.setArg(&primBatchSize, 4);
     assignMortonCode.setArg(&primitiveCount, 5);
 
     compute->execute(assignMortonCode, workgroupSize, workgroupCount);
@@ -150,16 +164,12 @@ void BoundingVolumeHierarchyADS::fullBuild()
     compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
 
     // create binary radix tree
-    ComputeMemory* buffers[] = {
-      treeInternalNodes.device(),
-      visitedInternalNodes.device(),
-      leafParentNodeIndices.device(),
-      nodeParentNodeIndices.device(),
-      primitiveLeafDataSorted.device()
-    };
-    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    constructBinaryTree.setArgs(buffers, bufferCount);
-    constructBinaryTree.setArg<uint>(&primitiveCount, bufferCount);
+    constructBinaryTree.setArg(pointerTreeInternalNodes, 0);
+    constructBinaryTree.setArg(visitedInternalNodes.device(), 1);
+    constructBinaryTree.setArg(pointerLeafParentNodeIndices, 2);
+    constructBinaryTree.setArg(pointerNodeParentNodeIndices, 3);
+    constructBinaryTree.setArg(primitiveLeafDataSorted.device(), 4);
+    constructBinaryTree.setArg<uint>(&primitiveCount, 5);
 
     compute->execute(constructBinaryTree, workgroupSize, workgroupCount);
   }
@@ -176,17 +186,13 @@ void BoundingVolumeHierarchyADS::fullBuild()
     compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
 
     // calculate bounding boxes for the tree
-    ComputeMemory* buffers[] = {
-      treeInternalNodeBoundingBoxes.device(),
-      visitedInternalNodes.device(),
-      treeInternalNodes.device(),
-      leafParentNodeIndices.device(),
-      nodeParentNodeIndices.device(),
-      boundingBoxes.device()
-    };
-    uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-    constructTreeBoundingBox.setArgs(buffers, bufferCount);
-    constructTreeBoundingBox.setArg<uint>(&primitiveCount, bufferCount);
+    constructTreeBoundingBox.setArg(pointerTreeNodeBoundingBoxes, 0);
+    constructTreeBoundingBox.setArg(visitedInternalNodes.device(), 1);
+    constructTreeBoundingBox.setArg(pointerTreeInternalNodes, 2);
+    constructTreeBoundingBox.setArg(pointerLeafParentNodeIndices, 3);
+    constructTreeBoundingBox.setArg(pointerNodeParentNodeIndices, 4);
+    constructTreeBoundingBox.setArg(pointerLeafNodeBoundingBoxes, 5);
+    constructTreeBoundingBox.setArg<uint>(&primitiveCount, 6);
 
     compute->execute(constructTreeBoundingBox, workgroupSize, workgroupCount);
   }
@@ -196,11 +202,14 @@ void BoundingVolumeHierarchyADS::fullBuild()
   visitedInternalNodes.syncHost();
   compute->sync();
 #endif
+
+  needsRebuild = false;
 }
 
 void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                                uint rayCount, IntersectionType intersectionType)
 {
+  validateBuild();
   {
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, mAlignBy(rayCount, BVH_ADS_PERSISTENT_MULTIPLIER));
@@ -213,16 +222,16 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
-    intersectionKernel.setArg(vertexArray, 3);
-    intersectionKernel.setArg(attributeArray, 4);
-    intersectionKernel.setArg(treeInternalNodes.device(),     5);
-    intersectionKernel.setArg(leafParentNodeIndices.device(), 6);
-    intersectionKernel.setArg(nodeParentNodeIndices.device(), 7);
-    intersectionKernel.setArg(boundingBoxes.device(), 8);
-    intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 9);
-    intersectionKernel.setArg(systemSettings->device(), 10);
-    intersectionKernel.setArg(&primitiveCount,          11);
-    intersectionKernel.setArg(visitedInternalNodes.device(),  12);
+    intersectionKernel.setArg(pointerVertexArray, 3);
+    intersectionKernel.setArg(pointerAttributeArray, 4);
+    intersectionKernel.setArg(pointerTreeInternalNodes, 5);
+    intersectionKernel.setArg(pointerLeafParentNodeIndices, 6);
+    intersectionKernel.setArg(pointerNodeParentNodeIndices, 7);
+    intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 8);
+    intersectionKernel.setArg(pointerTreeNodeBoundingBoxes, 9);
+    intersectionKernel.setArg(pointerSystemSettings, 10);
+    intersectionKernel.setArg(&primitiveCount, 11);
+    intersectionKernel.setArg(visitedInternalNodes.device(), 12);
     intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 13);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
@@ -237,6 +246,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
 void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                                const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
+  validateBuild();
   {
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * BVH_ADS_PERSISTENT_MULTIPLIER, 1, 1};
     ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
@@ -247,16 +257,16 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(rayCount, 2);
-    intersectionKernel.setArg(vertexArray, 3);
-    intersectionKernel.setArg(attributeArray, 4);
-    intersectionKernel.setArg(treeInternalNodes.device(),     5);
-    intersectionKernel.setArg(leafParentNodeIndices.device(), 6);
-    intersectionKernel.setArg(nodeParentNodeIndices.device(), 7);
-    intersectionKernel.setArg(boundingBoxes.device(), 8);
-    intersectionKernel.setArg(treeInternalNodeBoundingBoxes.device(), 9);
-    intersectionKernel.setArg(systemSettings->device(), 10);
-    intersectionKernel.setArg(&primitiveCount,          11);
-    intersectionKernel.setArg(workgroupCount.device(),  12);
+    intersectionKernel.setArg(pointerVertexArray, 3);
+    intersectionKernel.setArg(pointerAttributeArray, 4);
+    intersectionKernel.setArg(pointerTreeInternalNodes, 5);
+    intersectionKernel.setArg(pointerLeafParentNodeIndices, 6);
+    intersectionKernel.setArg(pointerNodeParentNodeIndices, 7);
+    intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 8);
+    intersectionKernel.setArg(pointerTreeNodeBoundingBoxes, 9);
+    intersectionKernel.setArg(pointerSystemSettings, 10);
+    intersectionKernel.setArg(&primitiveCount, 11);
+    intersectionKernel.setArg(workgroupCount.device(), 12);
     intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 13);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);

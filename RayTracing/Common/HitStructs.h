@@ -9,22 +9,11 @@
 
 enum HitStructType
 {
-  HitStructDistanceIndex,
   HitStructDistanceIdentity,
   HitStructDistanceIndexIdentity,
   HitStructDistanceBVHHits,
   HitStructTypeMax
 };
-
-
-/*!
-@struct Hit Info containing distance information.
-*/
-typedef struct ALIGN(8)
-{
-  float distance;
-  uint  primitiveIndex;
-} HitInfoIndex;
 
 
 /*!

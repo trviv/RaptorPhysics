@@ -41,9 +41,11 @@ public:
 
   const ComputeMemory* operator[](EntityPrimitiveAttributeType attributeType)const;
 
-  uint getVertexCount()const;
+  RTPrimitiveType getPrimitiveType()const;
 
   uint getPrimitiveCount()const;
+
+  uint getVertexCount()const;
 };
 
 
@@ -67,6 +69,7 @@ class RayTracingEntity : public EntityPrimAttributes
 protected:
 
   ComputeInterface*   compute;
+  XAB                 primBound;
   Matrix4             transform; // the transformations related to entity
   DeviceArray<uint>*  deviceData;
   MaterialId          materialId;
@@ -87,7 +90,11 @@ public:
   // Should be called while initializing, after transformations are done.
   virtual void update() = 0;
 
+  const XAB& getPrimBound()const;
+
   Matrix4& getTransform();
+
+  const Matrix4& getTransform()const;
 
   RayTracingEntityType getEntityCategory()const;
 
@@ -103,7 +110,6 @@ class PrimitiveArrayEntity : public RayTracingEntity
   friend class ReaderScene;
 
   RayTracingEntityId  identity;
-  XAB                 primBound;
 
   void generateNeighbourBasedNormal(uint vertexCount, vector<Real3>* normals = NULL);
 
@@ -124,8 +130,6 @@ public:
   void createMesh(const string fileName);
 
   RayTracingEntityId getIdentity()const;
-
-  const XAB& getPrimBound()const;
 
   void update();
 };

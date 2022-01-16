@@ -2,7 +2,7 @@
 
 //#define DEBUG_RAY_TRACING_SYSTEM
 static uint rearrangeMultiplier = 1;
-static bool copyPrimitiveData = true;
+static bool usePrimitiveInstancing = false;
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
 uint RayTracingSystem::maxPrimIndex = 0;
@@ -61,6 +61,21 @@ void RayTracingSystem::composePrimitiveArray()
   {
     for (uint i=0; i<rp.size(); i++)
     {
+      if (usePrimitiveInstancing)
+      {
+        if (i == 0)
+        {
+          PrimitiveAccelerationDataStruct* primitiveEntityADS = new PrimitiveAccelerationDataStruct();
+          primitiveEntityADS->create(compute);
+          primitiveEntityADS->bindEntity(rp[i]);
+          primitiveEntityADS->fullBuild();
+          ((PrimitiveInstanceAccelerationDataStruct*)accelerationStruct)->registerPrimitiveADS(primitiveEntityADS);
+        }
+
+        ((PrimitiveInstanceAccelerationDataStruct*)accelerationStruct)->registerPrimitiveInstance(rp[i]);
+        continue;
+      }
+
       auto& prim = *rp[i];
       uint primBatchCount = mAlignBy(prim.primInfo.primitiveCount, primBatchSize);
       uint primType = prim.primInfo.primitiveType;
@@ -121,7 +136,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   materials.create(compute);
 
 //  accelerationStruct = new AccelerationDataStruct();
-  accelerationStruct = new BoundingVolumeHierarchyADS();
+  accelerationStruct = usePrimitiveInstancing ? new PrimitiveInstanceAccelerationDataStruct() : new BoundingVolumeHierarchyADS();
   accelerationStruct->create(compute);
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -249,6 +264,11 @@ void RayTracingSystem::commit()
     }
   }
 
+  lights.syncDevice();
+  materials.syncDevice();
+
+  if (usePrimitiveInstancing) return;
+
   systemSettings.host()->resize(1);
   
   uint primOffset   = 0;
@@ -277,8 +297,6 @@ void RayTracingSystem::commit()
   systemSettings.syncDevice();
 
   accelerationStruct->bindBuffers(vertexArray.device(), attributeArray.device(), &systemSettings);
-  lights.syncDevice();
-  materials.syncDevice();
 }
 
 uint RayTracingSystem::getPrimCount()const

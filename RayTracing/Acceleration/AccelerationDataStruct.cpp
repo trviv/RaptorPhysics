@@ -25,23 +25,43 @@ uint AccelerationDataStruct::sortComputeUtilId   = -1;
 
 AccelerationDataStruct::AccelerationDataStruct()
 {
+  compute               = NULL;
+  pointerVertexArray    = NULL;
+  pointerAttributeArray = NULL;
+  pointerSystemSettings = NULL;
+  needsRebuild          = true;
 }
 
 AccelerationDataStruct::~AccelerationDataStruct()
 {
 }
 
-void AccelerationDataStruct::create(ComputeInterface* compute)
+void AccelerationDataStruct::validateBuild()const
 {
-  this->compute = compute;
+  if (needsRebuild)
+  {
+    logComputeError("Acceleration Data Structure need to be build, before using!");
+  }
+}
+
+void AccelerationDataStruct::updatePointers()
+{
+  pointerLeafNodeBoundingBoxes = leafNodeBoundingBoxes.device();
+}
+
+void AccelerationDataStruct::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
+{
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayTracingStruct.h");
 
-  registerShader(compute, "AccelerationDataStructCreate.shader", NULL, NULL);
+  registerShader(compute, "AccelerationDataStructCreate.shader", oldType, newType);
 
   createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
+}
 
+void AccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
+{
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
 
@@ -55,13 +75,20 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
         vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h)};
         getRayStructDefines(oldType, newType, (RayStructType)r);
         getHitStructDefines(oldType, newType, (HitStructType)h);
+
+        if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
+        if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());
+
         registerShader(compute, "AccelerationDataStructTraverse.shader", &oldType, &newType);
         intersectRayKernels[i][r][h] = programs.back().createKernel("intersectRays");
       }
     }
   }
+}
 
-  boundingBoxes.create(compute);
+void AccelerationDataStruct::initializeData()
+{
+  leafNodeBoundingBoxes.create(compute);
 
   accXABComputeUtilId = ComputeUtil::getXABUtil(compute);
   sortComputeUtilId   = ComputeUtil::getUIntUtil(compute);
@@ -73,6 +100,14 @@ void AccelerationDataStruct::create(ComputeInterface* compute)
   workgroupCount.resize(4, false);
 }
 
+void AccelerationDataStruct::create(ComputeInterface* compute)
+{
+  this->compute = compute;
+  initializeData();
+  registerCreateShaders();
+  registerTraverseShaders();
+}
+
 uint AccelerationDataStruct::getPrimCount()const
 {
   return primitiveCount;
@@ -81,18 +116,26 @@ uint AccelerationDataStruct::getPrimCount()const
 void AccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
                                          DeviceArray<RTSystemSettings>* systemSettings)
 {
-  this->vertexArray     = vertexArray;
-  this->attributeArray  = attributeArray;
-  this->systemSettings  = systemSettings;
+  this->pointerVertexArray     = vertexArray;
+  this->pointerAttributeArray  = attributeArray;
 
-  primitiveCount  = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).primitiveOffset;
-  vertexCount     = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).vertexOffset;
+  if (systemSettings)
+  {
+    primitiveCount  = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).primitiveOffset;
+    vertexCount     = decodePrimitiveInfo(systemSettings->host()->at(0).globalOffsets[RTPrimitiveCount-1]).vertexOffset;
+    pointerSystemSettings = systemSettings->device();
+  }
 
-  boundingBoxes.resize(primitiveCount, false);
+  leafNodeBoundingBoxes.resize(primitiveCount, false);
+  needsRebuild = true;
 }
 
 void AccelerationDataStruct::fullBuild()
 {
+  if (!needsRebuild) return;
+
+  updatePointers();
+
   uint primBatchSize = 8;
 
   {
@@ -101,12 +144,12 @@ void AccelerationDataStruct::fullBuild()
     size_t workgroupSize[3], workgroupCount[3];
     compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
 
-    createPrimitiveBoundingBoxes.setArg(boundingBoxes.device(),   0);
-    createPrimitiveBoundingBoxes.setArg(vertexArray,              1);
-    createPrimitiveBoundingBoxes.setArg(attributeArray,           2);
-    createPrimitiveBoundingBoxes.setArg(systemSettings->device(), 3);
-    createPrimitiveBoundingBoxes.setArg(&primBatchSize,           4);
-    createPrimitiveBoundingBoxes.setArg(&primitiveCount,          5);
+    createPrimitiveBoundingBoxes.setArg(pointerLeafNodeBoundingBoxes, 0);
+    createPrimitiveBoundingBoxes.setArg(pointerVertexArray, 1);
+    createPrimitiveBoundingBoxes.setArg(pointerAttributeArray, 2);
+    createPrimitiveBoundingBoxes.setArg(pointerSystemSettings, 3);
+    createPrimitiveBoundingBoxes.setArg(&primBatchSize, 4);
+    createPrimitiveBoundingBoxes.setArg(&primitiveCount, 5);
 
     compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
@@ -115,11 +158,14 @@ void AccelerationDataStruct::fullBuild()
     compute->sync();
 #endif
   }
+
+  needsRebuild = false;
 }
 
 void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                            uint rayCount, IntersectionType intersectionType)
 {
+  validateBuild();
   {
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
@@ -129,11 +175,11 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(&rayCount, 2);
-    intersectionKernel.setArg(boundingBoxes.device(),   3);
-    intersectionKernel.setArg(vertexArray,              4);
-    intersectionKernel.setArg(attributeArray,           5);
-    intersectionKernel.setArg(&primitiveCount,          6);
-    intersectionKernel.setArg(systemSettings->device(), 7);
+    intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 3);
+    intersectionKernel.setArg(pointerVertexArray, 4);
+    intersectionKernel.setArg(pointerAttributeArray, 5);
+    intersectionKernel.setArg(&primitiveCount, 6);
+    intersectionKernel.setArg(pointerSystemSettings, 7);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
@@ -147,6 +193,7 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
 void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                            const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
+  validateBuild();
   {
     size_t workgroupSize[3] = {compute->maxThreadsPerGroup(), 1, 1};
     ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
@@ -156,11 +203,11 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(rayCount, 2);
-    intersectionKernel.setArg(boundingBoxes.device(),   3);
-    intersectionKernel.setArg(vertexArray,              4);
-    intersectionKernel.setArg(attributeArray,           5);
-    intersectionKernel.setArg(&primitiveCount,          6);
-    intersectionKernel.setArg(systemSettings->device(), 7);
+    intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 3);
+    intersectionKernel.setArg(pointerVertexArray, 4);
+    intersectionKernel.setArg(pointerAttributeArray, 5);
+    intersectionKernel.setArg(&primitiveCount, 6);
+    intersectionKernel.setArg(pointerSystemSettings, 7);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 

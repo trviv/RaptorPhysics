@@ -7,6 +7,7 @@
 #include <Acceleration/AccelerationDataStruct.h>
 #include <Acceleration/BoundingVolumeHierarchyADS.h>
 #include <Acceleration/PrimitiveAccelerationDataStruct.h>
+#include <Acceleration/PrimitiveInstanceAccelerationDataStruct.h>
 #include <Material/Material.h>
 
 #define RAY_TRACING_SYSTEM_ARRAY_COUNT 2
@@ -21,7 +22,6 @@ class RayTracingSystem : protected ShaderEntity
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
   static uint maxPrimIndex;
-  static bool copyPrimitiveData;
 
   uint maxIterations;
 

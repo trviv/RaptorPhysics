@@ -20,8 +20,7 @@ Kernel void createPrimitiveBoundingBoxes(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  DecodedPrimitiveInfo primInfo;
-  primInfo.primitiveType = RTPrimitiveCount;
+  DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
   uint index = threadLocalIndex() + primitiveBatchSize * threadGroupIndex() * threadGroupSize();
   for (short b = 0; index < primitiveCount && b < primitiveBatchSize; index += threadGroupSize(), b++)
@@ -100,8 +99,7 @@ Kernel void assignMortonCode(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  DecodedPrimitiveInfo primInfo;
-  primInfo.primitiveType = RTPrimitiveCount;
+  DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
   const float3 inverseMergedBoxSize = 1024.f / (systemSettings->systemBound.max - systemSettings->systemBound.min);
   const float3 mergedBoxCenter = (systemSettings->systemBound.min + systemSettings->systemBound.max) * 0.5f;

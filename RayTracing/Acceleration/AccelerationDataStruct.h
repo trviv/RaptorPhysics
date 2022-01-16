@@ -28,15 +28,16 @@ protected:
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
 
   /*!@member Composite array containing all positions.*/
-  const ComputeMemory*  vertexArray;
-
+  const ComputeMemory*  pointerVertexArray;
   /*!@member Composite array containing all attributes.*/
-  const ComputeMemory*  attributeArray;
+  const ComputeMemory*  pointerAttributeArray;
+  /*!@member Pointer to ray tracing system settings .*/
+  ComputeMemory*        pointerSystemSettings;
 
-  DeviceArray<RTSystemSettings>*  systemSettings;
+  const ComputeMemory*  pointerLeafNodeBoundingBoxes;
 
   /*!@member Per primitive bounding box array.*/
-  DeviceArray<XAB>  boundingBoxes;
+  DeviceArray<XAB>  leafNodeBoundingBoxes;
 
   /*!@member Workgroup count buffer.*/
   DeviceArray<uint> workgroupCount;
@@ -46,6 +47,21 @@ protected:
 
   /*!@member Total positions/vertex in the system.*/
   uint  vertexCount;
+
+  /*!@member Indicate's if ADS need to be build before being used.*/
+  bool needsRebuild;
+
+  virtual void validateBuild()const;
+
+  virtual void updatePointers();
+
+  virtual void initializeData();
+
+  /*!@function Create Acceleration Data Structure creation shaders.*/
+  virtual void registerCreateShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
+
+  /*!@function Create Acceleration Data Structure traverse shaders.*/
+  virtual void registerTraverseShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 
 public:
 
