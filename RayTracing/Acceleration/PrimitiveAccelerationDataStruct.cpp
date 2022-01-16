@@ -2,26 +2,81 @@
 
 PrimitiveAccelerationDataStruct::PrimitiveAccelerationDataStruct()
 {
+  primitiveEntity = NULL;
 }
 
 PrimitiveAccelerationDataStruct::~PrimitiveAccelerationDataStruct()
 {
 }
 
+void PrimitiveAccelerationDataStruct::initializeData()
+{
+  BoundingVolumeHierarchyADS::initializeData();
+  primitiveInformation.create(compute);
+}
+
+void PrimitiveAccelerationDataStruct::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
+{
+  BoundingVolumeHierarchyADS::registerCreateShaders(oldType, newType);
+}
+
+void PrimitiveAccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
+{
+  BoundingVolumeHierarchyADS::registerTraverseShaders(oldTypeArg, newTypeArg);
+}
+
+void PrimitiveAccelerationDataStruct::create(ComputeInterface* compute)
+{
+  this->compute = compute;
+  initializeData();
+}
+
 void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primitiveEntity)
 {
   this->primitiveEntity = primitiveEntity;
-  this->vertexArray     = (*primitiveEntity)[EntityPrimitiveAttributePosition];
-  this->attributeArray  = (*primitiveEntity)[EntityPrimitiveAttributeIndex];
-
   this->primitiveCount  = primitiveEntity->getPrimitiveCount();
   this->vertexCount     = primitiveEntity->getVertexCount();
 
-  boundingBoxes.resize(primitiveCount, false);
+  primitiveInformation.host()->resize(1);
+
+  uint primOffset   = 0;
+  uint vertexOffset = 0;
+
+  for (uint i=0; i<RTPrimitiveCount; i++)
+  {
+    if (primitiveEntity->getPrimitiveType() == i)
+    {
+      primOffset    += primitiveEntity->getPrimitiveCount();
+      vertexOffset  += primitiveEntity->getVertexCount();
+    }
+
+    EncodedPrimitiveInfo primInfo;
+
+    setPrimitiveType(primInfo,         (RTPrimitiveType)i);
+    setPrimitiveIndexOffset(primInfo,  primOffset);
+    setPrimitiveVertexOffset(primInfo, vertexOffset);
+
+    primitiveInformation.host()->at(0).globalOffsets[i] = primInfo;
+  }
+
+  primitiveInformation.syncDevice();
+
+  BoundingVolumeHierarchyADS::bindBuffers((*primitiveEntity)[EntityPrimitiveAttributePosition], (*primitiveEntity)[EntityPrimitiveAttributeIndex], &primitiveInformation);
+
+  vector<string> oldType = {"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
+  vector<string> newType = {to_string(getRayTracingEntityType(primitiveEntity->getIdentity()))};
+
+  registerCreateShaders(&oldType, &newType);
+  registerTraverseShaders();
 }
 
 void PrimitiveAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
                                                   DeviceArray<RTSystemSettings>* systemSettings)
 {
   logComputeError("Bind buffers method is not available with PrimitiveAccelerationDataStruct!");
+}
+
+void PrimitiveAccelerationDataStruct::fullBuild()
+{
+  BoundingVolumeHierarchyADS::fullBuild();
 }

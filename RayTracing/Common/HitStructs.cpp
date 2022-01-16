@@ -4,9 +4,6 @@ uint getHitStructSize(HitStructType type)
 {
   switch (type)
   {
-    case HitStructDistanceIndex:
-      return sizeof(HitInfoIndex);
-      break;
     case HitStructDistanceIdentity:
       return sizeof(HitInfoIdentity);
       break;
@@ -28,9 +25,6 @@ string getHitStructName(HitStructType type)
 {
   switch (type)
   {
-    case HitStructDistanceIndex:
-      return "HitInfoIndex";
-      break;
     case HitStructDistanceIdentity:
       return "HitInfoIdentity";
       break;
@@ -52,10 +46,6 @@ void getHitStructDefines(vector<string>& oldType, vector<string>& newType, HitSt
 {
   switch (type)
   {
-  case HitStructDistanceIndex:
-    oldType.push_back("HitStructIndex");
-    newType.push_back("");
-    break;
   case HitStructDistanceIdentity:
     oldType.push_back("HitStructIdentity");
     newType.push_back("");

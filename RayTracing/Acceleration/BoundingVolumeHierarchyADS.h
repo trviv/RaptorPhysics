@@ -15,21 +15,36 @@ protected:
   ComputeKernel constructBinaryTree;
   ComputeKernel constructTreeBoundingBox;
 
-  DeviceArray<uint>        visitedInternalNodes;
-  DeviceArray<uint>        leafParentNodeIndices;
-  DeviceArray<uint>        nodeParentNodeIndices;
-  DeviceArray<XAB>         treeInternalNodeBoundingBoxes;
-  DeviceArray<BVHNodeInfo> treeInternalNodes;
-  DeviceArray<BVHLeafInfo> primitiveLeafData;
-  DeviceArray<BVHLeafInfo> primitiveLeafDataSorted;
+  DeviceArray<uint>         visitedInternalNodes;
+  DeviceArray<uint>         leafParentNodeIndices;
+  DeviceArray<uint>         nodeParentNodeIndices;
+  DeviceArray<XAB>          treeNodeBoundingBoxes;
+  DeviceArray<BVHNodeInfo>  treeInternalNodes;
+  DeviceArray<BVHLeafInfo>  primitiveLeafData;
+  DeviceArray<BVHLeafInfo>  primitiveLeafDataSorted;
+
+  const ComputeMemory*  pointerLeafParentNodeIndices;
+  const ComputeMemory*  pointerNodeParentNodeIndices;
+  const ComputeMemory*  pointerTreeNodeBoundingBoxes;
+  const ComputeMemory*  pointerTreeInternalNodes;
+
+  void createBuffers(ComputeInterface* compute);
+
+  void initializeData();
+
+  void updatePointers();
+
+  /*!@function Create Acceleration Data Structure creation shaders.*/
+  void registerCreateShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
+
+  /*!@function Create Acceleration Data Structure traverse shaders.*/
+  void registerTraverseShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 
 public:
 
   BoundingVolumeHierarchyADS();
 
   ~BoundingVolumeHierarchyADS();
-
-  void create(ComputeInterface* compute);
 
   void bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
                    DeviceArray<RTSystemSettings>* systemSettings);

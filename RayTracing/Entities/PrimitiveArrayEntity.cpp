@@ -336,11 +336,6 @@ RayTracingEntityId PrimitiveArrayEntity::getIdentity()const
   return identity;
 }
 
-const XAB& PrimitiveArrayEntity::getPrimBound()const
-{
-  return primBound;
-}
-
 void PrimitiveArrayEntity::update()
 {
 

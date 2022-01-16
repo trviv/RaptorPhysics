@@ -374,8 +374,18 @@ const Device float* extractPackedPointer(const Device float* buffer, const Packi
   return buffer + packingInfo.elementOffset;
 }
 
+DecodedPrimitiveInfo defaultPrimitiveInfo()
+{
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primitiveType = RTPrimitiveCount;
+  return primInfo;
+}
+
 inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* systemSettings, const uint index, Thread DecodedPrimitiveInfo* primInfo)
 {
+#ifdef RAY_TRACING_SINGLE_PRIMITIVE_ADS
+  *primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[RAY_TRACING_SINGLE_PRIMITIVE_ADS]);
+#else
   if (index >= primInfo->prevPrimitiveOffset && index < primInfo->primitiveOffset && primInfo->primitiveType < RTPrimitiveCount)
   {
     return;
@@ -400,6 +410,7 @@ inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* system
   primInfo->primitiveOffset     = -1;
   primInfo->vertexOffset        = -1;
   primInfo->prevPrimitiveOffset = 0;
+#endif
 }
 
 #endif
@@ -448,6 +459,42 @@ typedef struct DEFAULT_ALIGN
     };
   };
 } LightStruct;
+
+/*!
+@struct Primitive Instance Acceleratin Data Structure leaf information.
+*/
+typedef struct DEFAULT_ALIGN
+{
+  union
+  {
+    struct
+    {
+      XAB bounds;
+    };
+    struct
+    {
+      float reserved1[3];
+      uint  primitiveADSIndex;
+      float reserved2[3];
+      RayTracingEntityId primitiveInstance;
+    };
+  };
+} PrimitiveInstanceADSLeaf;
+
+
+#if defined(COMPUTE_SHADER_SCOPE)
+
+typedef struct
+{
+  const Device void* pointer;
+} RayTracingPointerType;
+
+typedef struct
+{
+  Const void* pointer;
+} RayTracingConstPointerType;
+
+#endif
 
 #pragma pack(pop)
 
