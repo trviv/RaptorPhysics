@@ -15,18 +15,11 @@ protected:
   bool primitiveChanged;
   bool primitiveInstanceChanged;
   bool primitiveInstanceTransformsChanged;
+  bool usePrimitiveInstancing;
 
   unordered_map<const PrimitiveAccelerationDataStruct*, vector<const RayTracingEntity*>> primitiveInstances;
 
-  DeviceArray<const ComputeMemory*>     primitiveADSLeafParentNodeIndices;
-  DeviceArray<const ComputeMemory*>     primitiveADSNodeParentNodeIndices;
-  DeviceArray<const ComputeMemory*>     primitiveADSLeafNodeBoundingBoxes;
-  DeviceArray<const ComputeMemory*>     primitiveADSTreeNodeBoundingBoxes;
-  DeviceArray<const ComputeMemory*>     primitiveADSTreeInternalNodes;
-  DeviceArray<const ComputeMemory*>     primitiveADSSystemSettings;
-  DeviceArray<const ComputeMemory*>     primitiveADSVertexArray;
-  DeviceArray<const ComputeMemory*>     primitiveADSAttributeArray;
-
+  DeviceArray<const ComputeMemory*>     primitiveADSResources;
   DeviceArray<float4>                   primitiveInstanceTransforms;
   DeviceArray<PrimitiveInstanceADSLeaf> primitiveInstanceNodes;
 
@@ -34,14 +27,18 @@ protected:
 
   void initializeData();
 
+  void updatePointers();
+
   /*!@function Create Acceleration Data Structure creation shaders.*/
   void registerCreateShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 
   void registerTraverseShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 
+  void registerResources(ComputeKernel& kernel);
+
 public:
 
-  PrimitiveInstanceAccelerationDataStruct();
+  PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing = true);
 
   ~PrimitiveInstanceAccelerationDataStruct();
 

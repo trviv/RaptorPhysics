@@ -1104,6 +1104,15 @@ void ComputeKernel::setArgs()
 }}
 #endif
 
+void ComputeKernel::registerResource(const ComputeMemory* resource)
+{
+#ifdef USE_OPENCL_COMPUTE
+  logComputeError("Register resource is not implemented!");
+#else
+  [getComputeEncoder() useResource:*resource usage:MTLResourceUsageRead];
+#endif
+}
+
 
 ComputeProgram::ComputeProgram()
 {

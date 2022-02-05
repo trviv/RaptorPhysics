@@ -23,11 +23,6 @@ protected:
   DeviceArray<BVHLeafInfo>  primitiveLeafData;
   DeviceArray<BVHLeafInfo>  primitiveLeafDataSorted;
 
-  const ComputeMemory*  pointerLeafParentNodeIndices;
-  const ComputeMemory*  pointerNodeParentNodeIndices;
-  const ComputeMemory*  pointerTreeNodeBoundingBoxes;
-  const ComputeMemory*  pointerTreeInternalNodes;
-
   void createBuffers(ComputeInterface* compute);
 
   void initializeData();
@@ -39,6 +34,8 @@ protected:
 
   /*!@function Create Acceleration Data Structure traverse shaders.*/
   void registerTraverseShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
+
+  void registerResources(ComputeKernel& kernel)const;
 
 public:
 

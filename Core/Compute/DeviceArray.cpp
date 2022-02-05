@@ -1,34 +1,41 @@
 #include "DeviceArray.h"
 
+#ifdef USE_METAL_COMPUTE
+
 template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer()
 {
-  if (!hostBuffer && !hostBuffer->size())
+  if (!hostBuffer || !hostBuffer->size())
   {
     logComputeError("Device array does not have a host buffer!");
+  }
+
+  if (typeid(ClassType) != typeid(const ComputeMemory*))
+  {
+    logComputeError("syncDevicePointerBuffer is only available with type ComputeMemory*!");
   }
 
   @autoreleasepool {
     MTLArgumentDescriptor* argumentDescriptor = [MTLArgumentDescriptor argumentDescriptor];
 
+    argumentDescriptor.index = 0;
+    argumentDescriptor.access = MTLArgumentAccessReadOnly;
     argumentDescriptor.dataType = MTLDataTypePointer;
-    argumentDescriptor.index    = 0;
-    argumentDescriptor.access   = MTLArgumentAccessReadOnly;
+    argumentDescriptor.arrayLength = host()->size();
 
     id <MTLArgumentEncoder> argumentEncoder = [compute->getDevice() newArgumentEncoderWithArguments:@[argumentDescriptor, ]];
 
-    resize((uint) (host()->size() * argumentEncoder.encodedLength) / sizeof(ClassType), true);
+    resize((uint)(host()->size() * argumentEncoder.encodedLength) / sizeof(ClassType), false);
 
-    [argumentEncoder setArgumentBuffer:*deviceBuffer offset:0];
+    [argumentEncoder setArgumentBuffer:*(device()) offset:device()->getOffset()];
 
     for (uint i=0; i<host()->size(); i++)
     {
-      if (typeid(ClassType) == typeid(const ComputeMemory*))
-      {
-        const ComputeMemory* memory = (const ComputeMemory*)host()->at(i);
-        [argumentEncoder setBuffer:*memory offset:memory->getOffset() atIndex:i];
-      }
+      const ComputeMemory* memory = (const ComputeMemory*)host()->at(i);
+      [argumentEncoder setBuffer:*memory offset:memory->getOffset() atIndex:i];
     }
   }
 }
 
 template class DeviceArray<const ComputeMemory*>;
+
+#endif

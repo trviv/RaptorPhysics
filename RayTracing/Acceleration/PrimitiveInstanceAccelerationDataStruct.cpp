@@ -1,9 +1,12 @@
 #include "PrimitiveInstanceAccelerationDataStruct.h"
 
 //#define DEBUG_PI_ADS
+#define RAY_TRAVERSAL_BVH_MAX_LEAFS 5
+#define BVH_ADS_PERSISTENT_MULTIPLIER 1
+#define RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE RAY_TRAVERSAL_BVH_MAX_LEAFS
 
-PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct()
-  :primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true)
+PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing)
+  :primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing)
 {
 }
 
@@ -36,14 +39,12 @@ void PrimitiveInstanceAccelerationDataStruct::initializeData()
   primitiveInstanceTransforms.create(compute);
   primitiveInstanceNodes.create(compute);
 
-  primitiveADSLeafParentNodeIndices.create(compute, NULL, true);
-  primitiveADSNodeParentNodeIndices.create(compute, NULL, true);
-  primitiveADSLeafNodeBoundingBoxes.create(compute, NULL, true);
-  primitiveADSTreeNodeBoundingBoxes.create(compute, NULL, true);
-  primitiveADSTreeInternalNodes.create(compute, NULL, true);
-  primitiveADSSystemSettings.create(compute, NULL, true);
-  primitiveADSVertexArray.create(compute, NULL, true);
-  primitiveADSAttributeArray.create(compute, NULL, true);
+  primitiveADSResources.create(compute, NULL, true);
+}
+
+void PrimitiveInstanceAccelerationDataStruct::updatePointers()
+{
+  primitiveADSResources.syncDevicePointerBuffer();
 }
 
 void PrimitiveInstanceAccelerationDataStruct::registerCreateShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
@@ -56,44 +57,91 @@ void PrimitiveInstanceAccelerationDataStruct::registerCreateShaders(const vector
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayTracingStruct.h");
 
-  registerShader(compute, "PrimitiveInstanceAccelerationDataStruct.shader", NULL, NULL);
+  registerShader(compute, "PrimitiveInstanceADSCreate.shader", NULL, NULL);
 
   updatePrimitiveInstanceData = programs.back().createKernel("updatePrimitiveInstanceData");
 }
 
 void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
 {
-  BoundingVolumeHierarchyADS::registerTraverseShaders(oldTypeArg, newTypeArg);
+  includeFiles.push_back("RayStructs.h");
+  includeFiles.push_back("HitStructs.h");
+  includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
+  includeFiles.push_back("AccelerationDataStructTraverse.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyADSTraverse.shader");
+
+  vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM"};
+  vector<string> newType = {"intersectRaysBVHPrimitiveInstances", "PrimitiveInstanceADSTraverse.shader"};
+
+  if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
+  if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());
+
+  BoundingVolumeHierarchyADS::registerTraverseShaders(&oldType, &newType);
+}
+
+void PrimitiveInstanceAccelerationDataStruct::registerResources(ComputeKernel& kernel)
+{
+  if (usePrimitiveInstancing)
+  {
+    for (auto& i : primitiveInstances)
+    {
+      i.first->registerResources(kernel);
+    }
+  }
+  else
+  {
+    kernel.registerResource(treeInternalNodes.device());
+    kernel.registerResource(leafParentNodeIndices.device());
+    kernel.registerResource(nodeParentNodeIndices.device());
+    kernel.registerResource(leafNodeBoundingBoxes.device());
+    kernel.registerResource(treeNodeBoundingBoxes.device());
+    kernel.registerResource(pointerVertexArray);
+    kernel.registerResource(pointerAttributeArray);
+    kernel.registerResource(pointerSystemSettings);
+  }
 }
 
 void PrimitiveInstanceAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
                                                           DeviceArray<RTSystemSettings>* systemSettings)
 {
-  logComputeError("Bind buffers method is not available with PrimitiveAccelerationDataStruct!");
+  if (usePrimitiveInstancing)
+  {
+    logComputeError("Bind buffers method is not available with PrimitiveAccelerationDataStruct!");
+  }
+  else
+  {
+    BoundingVolumeHierarchyADS::bindBuffers(vertexArray, attributeArray, systemSettings);
+  }
 }
 
 void PrimitiveInstanceAccelerationDataStruct::registerPrimitiveADS(const PrimitiveAccelerationDataStruct* primitiveEntityADS)
 {
-  if (primitiveInstances.count(primitiveEntityADS) != 0) return;
-
-  primitiveEntityADS->validateBuild();
-  primitiveInstances[primitiveEntityADS] = vector<const RayTracingEntity*>();
-  primitiveADSLeafParentNodeIndices.host()->push_back(primitiveEntityADS->pointerLeafParentNodeIndices);
-  primitiveADSNodeParentNodeIndices.host()->push_back(primitiveEntityADS->pointerNodeParentNodeIndices);
-  primitiveADSLeafNodeBoundingBoxes.host()->push_back(primitiveEntityADS->pointerLeafNodeBoundingBoxes);
-  primitiveADSTreeNodeBoundingBoxes.host()->push_back(primitiveEntityADS->pointerTreeNodeBoundingBoxes);
-  primitiveADSTreeInternalNodes.host()->push_back(primitiveEntityADS->pointerTreeInternalNodes);
-  primitiveADSSystemSettings.host()->push_back(primitiveEntityADS->pointerSystemSettings);
-  primitiveADSVertexArray.host()->push_back(primitiveEntityADS->pointerVertexArray);
-  primitiveADSAttributeArray.host()->push_back(primitiveEntityADS->pointerAttributeArray);
-
   needsRebuild = true;
   primitiveChanged = true;
   primitiveInstanceTransformsChanged = true;
+
+  if (!usePrimitiveInstancing && primitiveInstances.count(primitiveEntityADS) != 0) return;
+
+  primitiveEntityADS->validateBuild();
+  primitiveInstances[primitiveEntityADS] = vector<const RayTracingEntity*>();
+  primitiveADSResources.host()->push_back(treeInternalNodes.device());
+  primitiveADSResources.host()->push_back(leafParentNodeIndices.device());
+  primitiveADSResources.host()->push_back(nodeParentNodeIndices.device());
+  primitiveADSResources.host()->push_back(leafNodeBoundingBoxes.device());
+  primitiveADSResources.host()->push_back(treeNodeBoundingBoxes.device());
+  primitiveADSResources.host()->push_back(pointerVertexArray);
+  primitiveADSResources.host()->push_back(pointerAttributeArray);
+  primitiveADSResources.host()->push_back(pointerSystemSettings);
 }
 
 void PrimitiveInstanceAccelerationDataStruct::registerPrimitiveInstance(const RayTracingEntity* entityInstance)
 {
+  needsRebuild = true;
+  primitiveInstanceChanged = true;
+  primitiveInstanceTransformsChanged = true;
+
+  if (!usePrimitiveInstancing) return;
+
   const auto instanceIdentity = getRayTracingEntityId(entityInstance->getIdentity());
   for (auto& prim : primitiveInstances)
   {
@@ -103,14 +151,35 @@ void PrimitiveInstanceAccelerationDataStruct::registerPrimitiveInstance(const Ra
       primitiveCount++;
     }
   }
-  needsRebuild = true;
-  primitiveInstanceChanged = true;
-  primitiveInstanceTransformsChanged = true;
 }
 
 void PrimitiveInstanceAccelerationDataStruct::fullBuild()
 {
-  updatePointers();
+  if (!needsRebuild) return;
+
+  if (!usePrimitiveInstancing)
+  {
+    BoundingVolumeHierarchyADS::fullBuild();
+
+    primitiveADSResources.host()->resize(8);
+
+    primitiveADSResources.host()->at(0) = treeInternalNodes.device();
+    primitiveADSResources.host()->at(1) = leafParentNodeIndices.device();
+    primitiveADSResources.host()->at(2) = nodeParentNodeIndices.device();
+    primitiveADSResources.host()->at(3) = leafNodeBoundingBoxes.device();
+    primitiveADSResources.host()->at(4) = treeNodeBoundingBoxes.device();
+    primitiveADSResources.host()->at(5) = pointerVertexArray;
+    primitiveADSResources.host()->at(6) = pointerAttributeArray;
+    primitiveADSResources.host()->at(7) = pointerSystemSettings;
+
+    updatePointers();
+
+    primitiveChanged = false;
+    primitiveInstanceChanged = false;
+    primitiveInstanceTransformsChanged = false;
+
+    return;
+  }
 
   if (needsRebuild)
   {
@@ -149,24 +218,7 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
 
   if (primitiveInstanceTransformsChanged)
   {
-    primitiveADSLeafParentNodeIndices.syncDevicePointerBuffer();
-    primitiveADSNodeParentNodeIndices.syncDevicePointerBuffer();
-    primitiveADSLeafNodeBoundingBoxes.syncDevicePointerBuffer();
-    primitiveADSTreeNodeBoundingBoxes.syncDevicePointerBuffer();
-    primitiveADSTreeInternalNodes.syncDevicePointerBuffer();
-    primitiveADSSystemSettings.syncDevicePointerBuffer();
-    primitiveADSVertexArray.syncDevicePointerBuffer();
-    primitiveADSAttributeArray.syncDevicePointerBuffer();
-
-    pointerLeafParentNodeIndices = primitiveADSLeafParentNodeIndices.device();
-    pointerNodeParentNodeIndices = primitiveADSNodeParentNodeIndices.device();
-    pointerLeafNodeBoundingBoxes = primitiveADSLeafNodeBoundingBoxes.device();
-    pointerTreeNodeBoundingBoxes = primitiveADSTreeNodeBoundingBoxes.device();
-    pointerTreeInternalNodes     = primitiveADSTreeInternalNodes.device();
-    pointerSystemSettings        = primitiveADSSystemSettings.device();
-
-    pointerVertexArray    = primitiveADSVertexArray.device();
-    pointerAttributeArray = primitiveADSAttributeArray.device();
+    updatePointers();
   }
 
   needsRebuild = false;
@@ -189,5 +241,26 @@ void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits,
 void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                                                             const ComputeMemory* rayCount, IntersectionType intersectionType)
 {
-  BoundingVolumeHierarchyADS::intersectRays(hits, hitType, rays, rayType, rayCount, intersectionType);
+  validateBuild();
+  {
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * BVH_ADS_PERSISTENT_MULTIPLIER, 1, 1};
+    ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
+    workgroupSize[0] /= BVH_ADS_PERSISTENT_MULTIPLIER;
+
+    ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
+    intersectionKernel.setArg(hits, 0);
+    intersectionKernel.setArg(rays, 1);
+    intersectionKernel.setArg(rayCount, 2);
+    intersectionKernel.setArg(primitiveADSResources.device(), 3);
+    intersectionKernel.setArg(&primitiveCount, 4);
+    intersectionKernel.setArg(workgroupCount.device(), 5);
+    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 6);
+    registerResources(intersectionKernel);
+
+    compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
+  }
+#ifdef DEBUG_BVH_ADS
+    leafNodeBoundingBoxes.syncHost();
+    compute->sync();
+#endif
 }

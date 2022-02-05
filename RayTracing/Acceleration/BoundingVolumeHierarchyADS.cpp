@@ -27,7 +27,6 @@ void BoundingVolumeHierarchyADS::initializeData()
 
 void BoundingVolumeHierarchyADS::updatePointers()
 {
-  AccelerationDataStruct::updatePointers();
   pointerLeafParentNodeIndices = leafParentNodeIndices.device();
   pointerNodeParentNodeIndices = nodeParentNodeIndices.device();
   pointerLeafNodeBoundingBoxes = leafNodeBoundingBoxes.device();
@@ -57,6 +56,24 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
   includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
   includeFiles.push_back("AccelerationDataStructTraverse.shader");
 
+  string intersectFunctionName = "intersectRaysBVH";
+  string traverseShaderProgram = "BoundingVolumeHierarchyADSTraverse.shader";
+
+  if (oldTypeArg)
+  {
+    auto functionIter = find(oldTypeArg->begin(), oldTypeArg->end(), string("BVH_ADS_INTERSECT_RAY_BVH_FUNCTION"));
+    if (functionIter != oldTypeArg->end())
+    {
+      intersectFunctionName = newTypeArg->at(functionIter - oldTypeArg->begin());
+    }
+
+    functionIter = find(oldTypeArg->begin(), oldTypeArg->end(), string("ADS_TRAVERSAL_SHADER_PROGRAM"));
+    if (functionIter != oldTypeArg->end())
+    {
+      traverseShaderProgram = newTypeArg->at(functionIter - oldTypeArg->begin());
+    }
+  }
+
   for (int i=0; i<IntersectionTypeMax; i++)
   {
     for (int r=0; r<RayStructTypeMax; r++)
@@ -75,11 +92,23 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
         if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
         if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());
 
-        registerShader(compute, "BoundingVolumeHierarchyADSTraverse.shader", &oldType, &newType);
-        intersectRayKernels[i][r][h] = programs.back().createKernel("intersectRaysBVH");
+        registerShader(compute, traverseShaderProgram.c_str(), &oldType, &newType);
+        intersectRayKernels[i][r][h] = programs.back().createKernel(intersectFunctionName.c_str());
       }
     }
   }
+}
+
+void BoundingVolumeHierarchyADS::registerResources(ComputeKernel& kernel)const
+{
+  kernel.registerResource(treeInternalNodes.device());
+  kernel.registerResource(leafParentNodeIndices.device());
+  kernel.registerResource(nodeParentNodeIndices.device());
+  kernel.registerResource(leafNodeBoundingBoxes.device());
+  kernel.registerResource(treeNodeBoundingBoxes.device());
+  kernel.registerResource(pointerVertexArray);
+  kernel.registerResource(pointerAttributeArray);
+  kernel.registerResource(pointerSystemSettings);
 }
 
 void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
@@ -118,7 +147,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
     compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
 
 #ifdef DEBUG_BVH_ADS
-    boundingBoxes.syncHost();
+    leafNodeBoundingBoxes.syncHost();
     compute->sync();
 #endif
   }
@@ -127,7 +156,6 @@ void BoundingVolumeHierarchyADS::fullBuild()
   ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, pointerSystemSettings, pointerLeafNodeBoundingBoxes, primitiveCount);
 
 #ifdef DEBUG_BVH_ADS
-  systemSettings->syncHost();
   compute->sync();
 #endif
 
@@ -198,7 +226,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
   }
 
 #ifdef DEBUG_BVH_ADS
-  treeInternalNodeBoundingBoxes.syncHost();
+  treeNodeBoundingBoxes.syncHost();
   visitedInternalNodes.syncHost();
   compute->sync();
 #endif
@@ -237,7 +265,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
 #ifdef DEBUG_BVH_ADS
-    boundingBoxes.syncHost();
+    leafNodeBoundingBoxes.syncHost();
     compute->sync();
 #endif
   }
@@ -272,7 +300,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
 #ifdef DEBUG_BVH_ADS
-    boundingBoxes.syncHost();
+    leafNodeBoundingBoxes.syncHost();
     compute->sync();
 #endif
   }
