@@ -36,6 +36,10 @@ protected:
   ComputeKernel reorderRaysKernels[RayStructTypeMax];
   ComputeKernel updateCameraKernel;
 
+  ComputeMemory validRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
+  ComputeMemory currentWGCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
+  ComputeMemory currentRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
+
   vector<vector<RayTracingEntity*>> entitiyInstances;
   vector<RayTracingEntity*>         registeredEntities;
   vector<RayTracingEntity*>         registeredPrimitives[RTPrimitiveCount];

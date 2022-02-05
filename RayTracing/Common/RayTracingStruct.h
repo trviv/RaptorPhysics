@@ -481,20 +481,31 @@ typedef struct DEFAULT_ALIGN
   };
 } PrimitiveInstanceADSLeaf;
 
-
+typedef struct
+{
 #if defined(COMPUTE_SHADER_SCOPE)
-
-typedef struct
-{
-  const Device void* pointer;
-} RayTracingPointerType;
-
-typedef struct
-{
-  Const void* pointer;
-} RayTracingConstPointerType;
-
+  const Device BVHNodeInfo*     treeInternalNodes;
+  const Device uint*            leafParentNodeIndices;
+  const Device uint*            nodeParentNodeIndices;
+  const Device XAB*             treeLeafNodeBoundingBoxes;
+  const Device XAB*             treeInternalNodeBoundingBoxes;
+  const Device PrimitiveStruct* vertexArray;
+  const Device PrimitiveAttrib* attributeArray;
+  Const RTSystemSettings*       systemSettings;
+#else
+  const ComputeMemory*  pointerTreeInternalNodes;
+  const ComputeMemory*  pointerLeafParentNodeIndices;
+  const ComputeMemory*  pointerNodeParentNodeIndices;
+  const ComputeMemory*  pointerLeafNodeBoundingBoxes;
+  const ComputeMemory*  pointerTreeNodeBoundingBoxes;
+  /*!@member Composite array containing all positions.*/
+  const ComputeMemory*  pointerVertexArray;
+  /*!@member Composite array containing all attributes.*/
+  const ComputeMemory*  pointerAttributeArray;
+  /*!@member Pointer to ray tracing system settings .*/
+  ComputeMemory*        pointerSystemSettings;
 #endif
+} PrimitiveADSResources;
 
 #pragma pack(pop)
 

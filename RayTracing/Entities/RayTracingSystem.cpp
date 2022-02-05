@@ -135,8 +135,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   lights.create(compute);
   materials.create(compute);
 
-//  accelerationStruct = new AccelerationDataStruct();
-  accelerationStruct = usePrimitiveInstancing ? new PrimitiveInstanceAccelerationDataStruct() : new BoundingVolumeHierarchyADS();
+  accelerationStruct = new PrimitiveInstanceAccelerationDataStruct(usePrimitiveInstancing);
   accelerationStruct->create(compute);
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -207,6 +206,14 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 
   indirectCount.create(compute);
   indirectCount.resize(256/4*3*RAY_TRACING_SYSTEM_ARRAY_COUNT, false);
+
+  // initialize temporary arrays from single indirect array
+  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
+  {
+    validRayCount[i]   = ComputeMemory(*indirectCount.device(), 256*i*3,     4*4);
+    currentWGCount[i]  = ComputeMemory(*indirectCount.device(), 256*(i*3+1), 4*4);
+    currentRayCount[i] = ComputeMemory(*indirectCount.device(), 256*(i*3+2), 4*4);
+  }
 
   maxIterations = 3;
 }
@@ -413,18 +420,6 @@ void RayTracingSystem::render(bool updatePrimitives)
   }
 
   ComputeUtil* uintUtil = ComputeUtil::get(ComputeUtil::getUIntUtil(compute));
-
-  // initialize temporary arrays from single indirect array
-  ComputeMemory validRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
-  ComputeMemory currentWGCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
-  ComputeMemory currentRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
-
-  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
-  {
-    validRayCount[i]   = ComputeMemory(*indirectCount.device(), 256*i*3,     4*4);
-    currentWGCount[i]  = ComputeMemory(*indirectCount.device(), 256*(i*3+1), 4*4);
-    currentRayCount[i] = ComputeMemory(*indirectCount.device(), 256*(i*3+2), 4*4);
-  }
 
   RayStructType rayType   = RayStructPositionDirectionColor;
   HitStructType hitStruct = HitStructDistanceIndexIdentity;

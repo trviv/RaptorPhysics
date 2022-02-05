@@ -202,6 +202,8 @@ public:
   }
 
   void setArgs();
+
+  void registerResource(const ComputeMemory* resource);
 };
 
 

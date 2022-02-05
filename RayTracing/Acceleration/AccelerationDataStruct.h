@@ -16,7 +16,7 @@ extern string getIntersectionTypeName(IntersectionType type);
 /*!
 @class Base class for all acceleration structures.
 */
-class AccelerationDataStruct : public ShaderEntity
+class AccelerationDataStruct : public ShaderEntity, protected PrimitiveADSResources
 {
 protected:
   static uint accXABComputeUtilId;
@@ -26,15 +26,6 @@ protected:
 
   ComputeKernel createPrimitiveBoundingBoxes;
   ComputeKernel intersectRayKernels[IntersectionTypeMax][RayStructTypeMax][HitStructTypeMax];
-
-  /*!@member Composite array containing all positions.*/
-  const ComputeMemory*  pointerVertexArray;
-  /*!@member Composite array containing all attributes.*/
-  const ComputeMemory*  pointerAttributeArray;
-  /*!@member Pointer to ray tracing system settings .*/
-  ComputeMemory*        pointerSystemSettings;
-
-  const ComputeMemory*  pointerLeafNodeBoundingBoxes;
 
   /*!@member Per primitive bounding box array.*/
   DeviceArray<XAB>  leafNodeBoundingBoxes;
@@ -53,7 +44,7 @@ protected:
 
   virtual void validateBuild()const;
 
-  virtual void updatePointers();
+  void updatePointers();
 
   virtual void initializeData();
 
