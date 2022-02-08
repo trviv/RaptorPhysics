@@ -26,31 +26,6 @@ bool RayTracingSystem::isAvailable()
   return camera;
 }
 
-void RayTracingSystem::registerPrimitive(RayTracingEntity* entity)
-{
-  RTPrimitiveType primType = RTPrimitiveCount;
-  switch ((RayTracingEntityType)getRayTracingEntityType(entity->getIdentity()))
-  {
-    case RayTracingEntitySpheres:
-      primType = PrimitiveSphere;
-      break;
-    case RayTracingEntityIndexedTriangles:
-      primType = PrimitiveIndexedTriangle;
-      break;
-    case RayTracingEntityIndexedQuads:
-      primType = PrimitiveIndexedQuad;
-      break;
-    case RayTracingEntityTriangles:
-      primType = PrimitiveTriangle;
-      entity->primInfo.vertexCount = entity->primInfo.primitiveCount * 3;
-      break;
-    default:
-      logComputeError("Invalid entity type sent for registration!");
-  }
-  entity->primInfo.primitiveType = primType;
-  registeredPrimitives[primType].push_back(entity);
-}
-
 void RayTracingSystem::composePrimitiveArray()
 {
   uint vertexOffset   = 0;
@@ -78,7 +53,7 @@ void RayTracingSystem::composePrimitiveArray()
 
       auto& prim = *rp[i];
       uint primBatchCount = mAlignBy(prim.primInfo.primitiveCount, primBatchSize);
-      uint primType = prim.primInfo.primitiveType;
+      uint primType = prim.getPrimitiveType();
 
       size_t workgroupSize[3], workgroupCount[3];
       compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
@@ -104,7 +79,7 @@ void RayTracingSystem::composePrimitiveArray()
       compute->sync();
 #endif
 
-      vertexOffset  += prim.primInfo.vertexCount;
+      vertexOffset  += prim.primInfo.getTotalVertexCount();
       primOffset    += prim.primInfo.primitiveCount;
     }
   }
@@ -240,7 +215,7 @@ void RayTracingSystem::commit()
       {
         case RayTracingEntityPrimArray:
         {
-          registerPrimitive(entity);
+          registeredPrimitives[entity->getPrimitiveType()].push_back(entity);
           break;
         }
         case RayTracingEntityLight:
@@ -250,7 +225,7 @@ void RayTracingSystem::commit()
           lights.host()->push_back(*light);
 
           // add a new primitive and material representing the area light
-          if (getRayTracingEntityType(light->getIdentity()) == RayTracingEntityLightArea)
+          if (light->getEntityType() == RayTracingEntityLightArea)
           {
             Material *newMaterial = new Material(MaterialTypePlastic);
             newMaterial->emissive = Half4(light->color.x, light->color.y, light->color.z, 1.f);
@@ -286,7 +261,7 @@ void RayTracingSystem::commit()
     for (const auto& primPtr : registeredPrimitives[i])
     {
       primOffset    += (*primPtr).primInfo.primitiveOffset;
-      vertexOffset  += (*primPtr).primInfo.vertexOffset;
+      vertexOffset  += (*primPtr).primInfo.getTotalVertexCount();
     }
 
     EncodedPrimitiveInfo primInfo;
@@ -331,7 +306,7 @@ MaterialId RayTracingSystem::registerMaterial(Material* material)
 
 RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
 {
-  const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(entity->getIdentity());
+  const RayTracingEntityType entityType = entity->getEntityType();
 
   RayTracingEntityId entityId;
   resetIdentity(entityId);
@@ -374,7 +349,6 @@ void RayTracingSystem::addEntityInstance(const RayTracingEntityId& registeredEnt
 {
   // get entity
   const uint entityId = getRayTracingEntityId(registeredEntityId);
-  const RayTracingEntityType entityType = (RayTracingEntityType)getRayTracingEntityType(registeredEntityId);
 
   for (uint instance = 0; instance < instanceCount; instance++)
   {

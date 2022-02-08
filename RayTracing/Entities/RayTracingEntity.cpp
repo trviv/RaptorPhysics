@@ -81,6 +81,11 @@ uint EntityPrimAttributes::getVertexCount()const
   return primInfo.vertexCount;
 }
 
+uint EntityPrimAttributes::getPrimitiveVertexCount()const
+{
+  return primInfo.getTotalVertexCount();
+}
+
 RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
   :compute(compute)
 {
@@ -111,7 +116,12 @@ const Matrix4& RayTracingEntity::getTransform()const
 
 RayTracingEntityType RayTracingEntity::getEntityCategory()const
 {
-  return getRayTracingEntityCategory((RayTracingEntityType)getRayTracingEntityType(getIdentity()));
+  return getRayTracingEntityCategory(getEntityType());
+}
+
+RayTracingEntityType RayTracingEntity::getEntityType()const
+{
+  return (RayTracingEntityType)getRayTracingEntityType(getIdentity());
 }
 
 MaterialId& RayTracingEntity::getMaterialId()
