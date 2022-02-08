@@ -12,7 +12,7 @@ Light::Light(RayTracingEntityType type)
 
 RayTracingEntity* Light::createCopy()const
 {
-  Light *newLight = new Light((RayTracingEntityType)getRayTracingEntityType(this->identity));
+  Light *newLight = new Light(getEntityType());
   *newLight = *this;
   return newLight;
 }
@@ -28,7 +28,7 @@ void Light::update()
   transform.transformPos(position);
   this->identity = id;
 
-  if (getRayTracingEntityType(id) == RayTracingEntityLightArea)
+  if (getEntityType() == RayTracingEntityLightArea)
   {
     Real3 normal = Real3(0.f, 0.f, 1.f);
     transform.transformDir(normal);

@@ -6,7 +6,7 @@ PrimitiveArrayEntity::PrimitiveArrayEntity(RayTracingEntityType type, uint primi
 {
   this->identity.identity = 0;
   setRayTracingEntityId(this->identity, type, 0);
-  this->primInfo.primitiveType  = type;
+  this->primInfo.primitiveType  = primTypeFromEntityType();
   this->primInfo.primitiveCount = primitiveCount;
   this->primBound.min = Real3(-1.f, -1.f, -1.f);
   this->primBound.max = Real3(1.f, 1.f, 1.f);
@@ -19,7 +19,7 @@ PrimitiveArrayEntity::~PrimitiveArrayEntity()
 
 RayTracingEntity* PrimitiveArrayEntity::createCopy()const
 {
-  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity((RayTracingEntityType)this->primInfo.primitiveType, primInfo.primitiveCount);
+  PrimitiveArrayEntity *newEntity = new PrimitiveArrayEntity(getEntityType(), primInfo.primitiveCount);
   *newEntity = *this;
   return newEntity;
 }
@@ -226,7 +226,7 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
     }
   }
 
-  if (primInfo.primitiveType == RayTracingEntityIndexedTriangles)
+  if (getEntityType() == RayTracingEntityIndexedTriangles)
   {
     vector<EdgeData> edges;
     vector<PrimitiveIndices> newPrimitiveIndices;
@@ -405,6 +405,29 @@ void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount, vector
 
 void PrimitiveArrayEntity::changeEntityType(RayTracingEntityType type)
 {
-  primInfo.primitiveType = type;
-  setRayTracingEntityId(identity, RayTracingEntityIndexedQuads, getRayTracingEntityId(identity));
+  setRayTracingEntityId(identity, type, getRayTracingEntityId(identity));
+  primInfo.primitiveType = primTypeFromEntityType();
+}
+
+RTPrimitiveType PrimitiveArrayEntity::primTypeFromEntityType()
+{
+  RTPrimitiveType primType = RTPrimitiveCount;
+  switch (getEntityType())
+  {
+    case RayTracingEntitySpheres:
+      primType = PrimitiveSphere;
+      break;
+    case RayTracingEntityIndexedTriangles:
+      primType = PrimitiveIndexedTriangle;
+      break;
+    case RayTracingEntityIndexedQuads:
+      primType = PrimitiveIndexedQuad;
+      break;
+    case RayTracingEntityTriangles:
+      primType = PrimitiveTriangle;
+      break;
+    default:
+      logComputeError("Invalid entity type sent for registration!");
+  }
+  return primType;
 }

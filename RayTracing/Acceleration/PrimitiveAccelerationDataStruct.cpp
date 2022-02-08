@@ -35,7 +35,7 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
 {
   this->primitiveEntity = primitiveEntity;
   this->primitiveCount  = primitiveEntity->getPrimitiveCount();
-  this->vertexCount     = primitiveEntity->getVertexCount();
+  this->vertexCount     = primitiveEntity->getPrimitiveVertexCount();
 
   primitiveInformation.host()->resize(1);
 
@@ -47,7 +47,7 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
     if (primitiveEntity->getPrimitiveType() == i)
     {
       primOffset    += primitiveEntity->getPrimitiveCount();
-      vertexOffset  += primitiveEntity->getVertexCount();
+      vertexOffset  += primitiveEntity->getPrimitiveVertexCount();
     }
 
     EncodedPrimitiveInfo primInfo;
@@ -64,7 +64,7 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
   BoundingVolumeHierarchyADS::bindBuffers((*primitiveEntity)[EntityPrimitiveAttributePosition], (*primitiveEntity)[EntityPrimitiveAttributeIndex], &primitiveInformation);
 
   vector<string> oldType = {"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
-  vector<string> newType = {to_string(getRayTracingEntityType(primitiveEntity->getIdentity()))};
+  vector<string> newType = {to_string(primitiveEntity->getEntityType())};
 
   registerCreateShaders(&oldType, &newType);
   registerTraverseShaders();

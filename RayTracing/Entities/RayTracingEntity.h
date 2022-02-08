@@ -46,6 +46,8 @@ public:
   uint getPrimitiveCount()const;
 
   uint getVertexCount()const;
+
+  uint getPrimitiveVertexCount()const;
 };
 
 
@@ -98,6 +100,8 @@ public:
 
   RayTracingEntityType getEntityCategory()const;
 
+  RayTracingEntityType getEntityType()const;
+
   MaterialId& getMaterialId();
 };
 
@@ -114,6 +118,8 @@ class PrimitiveArrayEntity : public RayTracingEntity
   void generateNeighbourBasedNormal(uint vertexCount, vector<Real3>* normals = NULL);
 
   void changeEntityType(RayTracingEntityType type);
+
+  RTPrimitiveType primTypeFromEntityType();
 
 public:
 

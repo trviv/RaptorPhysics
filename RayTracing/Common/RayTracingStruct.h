@@ -114,7 +114,7 @@ typedef struct IdentityInfo_t RayTracingEntityId;
 @struct Base data for a ray traced primitive.
 @note   Should have same structure as PositionStruct. May cause issues otherwise.
 */
-struct DEFAULT_ALIGN PrimitiveStruct_t
+typedef struct DEFAULT_ALIGN
 {
   union
   {
@@ -128,9 +128,7 @@ struct DEFAULT_ALIGN PrimitiveStruct_t
       IdentityInfo  identity;
     };
   };
-};
-
-typedef struct PrimitiveStruct_t PrimitiveStruct;
+} PrimitiveStruct;
 
 #ifndef COMPUTE_SHADER_SCOPE
 inline static void setRayTracingEntityId(IdentityInfo& identity, uint entityType, uint entityId)
@@ -199,7 +197,7 @@ inline IdentityInfo removeIdentityFlags(const IdentityInfo identity)
 }
 
 
-struct DEFAULT_ALIGN PrimitiveAttrib_t
+typedef struct DEFAULT_ALIGN
 {
 #ifdef COMPUTE_SHADER_SCOPE
   union
@@ -232,12 +230,10 @@ struct DEFAULT_ALIGN PrimitiveAttrib_t
     };
   };
 #endif
-};
-
-typedef struct PrimitiveAttrib_t PrimitiveAttrib;
+} PrimitiveAttrib;
 
 
-struct DEFAULT_ALIGN VertexAttrib_t
+typedef struct DEFAULT_ALIGN
 {
   union
   {
@@ -251,9 +247,7 @@ struct DEFAULT_ALIGN VertexAttrib_t
       float   radius;
     };
   };
-};
-
-typedef struct VertexAttrib_t VertexAttrib;
+} VertexAttrib;
 
 
 enum EntityPrimitiveAttributeType
@@ -295,7 +289,7 @@ enum RTPrimitiveType
 /*!
 @struct Encoded primitive offsets.
 */
-struct ALIGN(4) EncodedPrimitiveInfo_t
+typedef struct ALIGN(4)
 {
   union
   {
@@ -303,15 +297,13 @@ struct ALIGN(4) EncodedPrimitiveInfo_t
     uint count;
   };
   uint vertexOffset;
-};
-
-typedef struct EncodedPrimitiveInfo_t EncodedPrimitiveInfo;
+} EncodedPrimitiveInfo;
 
 
 /*!
 @struct Decoded primitive offsets.
 */
-struct DecodedPrimitiveInfo_t
+typedef struct
 {
   ushort primitiveType;
   uint prevPrimitiveOffset;
@@ -325,18 +317,18 @@ struct DecodedPrimitiveInfo_t
     uint vertexOffset;
     uint vertexCount;
   };
-};
 
-typedef struct DecodedPrimitiveInfo_t DecodedPrimitiveInfo;
+#ifndef COMPUTE_SHADER_SCOPE
+  uint getTotalVertexCount()const {return (primitiveType == PrimitiveTriangle ? primitiveCount * 3 : vertexCount);}
+#endif
+} DecodedPrimitiveInfo;
 
 
-struct DEFAULT_ALIGN RTSystemSettings_t
+typedef struct DEFAULT_ALIGN
 {
   XAB systemBound;
   EncodedPrimitiveInfo globalOffsets[RTPrimitiveCount];
-};
-
-typedef struct RTSystemSettings_t RTSystemSettings;
+} RTSystemSettings;
 
 
 #ifndef COMPUTE_SHADER_SCOPE
