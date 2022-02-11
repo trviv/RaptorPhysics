@@ -26,65 +26,6 @@ bool RayTracingSystem::isAvailable()
   return camera;
 }
 
-void RayTracingSystem::composePrimitiveArray()
-{
-  uint vertexOffset   = 0;
-  uint primOffset     = 0;
-  uint primBatchSize  = 8;
-
-  for (auto& rp : registeredPrimitives)
-  {
-    for (uint i=0; i<rp.size(); i++)
-    {
-      if (usePrimitiveInstancing)
-      {
-        if (i == 0)
-        {
-          PrimitiveAccelerationDataStruct* primitiveEntityADS = new PrimitiveAccelerationDataStruct();
-          primitiveEntityADS->create(compute);
-          primitiveEntityADS->bindEntity(rp[i]);
-          primitiveEntityADS->fullBuild();
-          ((PrimitiveInstanceAccelerationDataStruct*)accelerationStruct)->registerPrimitiveADS(primitiveEntityADS);
-        }
-
-        ((PrimitiveInstanceAccelerationDataStruct*)accelerationStruct)->registerPrimitiveInstance(rp[i]);
-        continue;
-      }
-
-      auto& prim = *rp[i];
-      uint primBatchCount = mAlignBy(prim.primInfo.primitiveCount, primBatchSize);
-      uint primType = prim.getPrimitiveType();
-
-      size_t workgroupSize[3], workgroupCount[3];
-      compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
-
-      collectPrimitives.setArg(vertexArray.device(), 0);
-      collectPrimitives.setArg(attributeArray.device(), 1);
-      collectPrimitives.setArg(vertexAttributeArray.device(), 2);
-      uint nextBindIndex = prim.bindToShader(collectPrimitives, 3);
-      collectPrimitives.setArg(&prim.getMaterialId(), nextBindIndex);
-      collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
-      collectPrimitives.setArg(&prim.primInfo.primitiveCount, nextBindIndex+2);
-      collectPrimitives.setArg(&primType, nextBindIndex+3);
-      collectPrimitives.setArg(&primOffset, nextBindIndex+4);
-      collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
-      collectPrimitives.setArg<Matrix4>(&prim.getTransform(), nextBindIndex+6);
-
-      compute->execute(collectPrimitives, workgroupSize, workgroupCount);
-
-#ifdef DEBUG_RAY_TRACING_SYSTEM
-      vertexArray.syncHost();
-      attributeArray.syncHost();
-      vertexAttributeArray.syncHost();
-      compute->sync();
-#endif
-
-      vertexOffset  += prim.primInfo.getTotalVertexCount();
-      primOffset    += prim.primInfo.primitiveCount;
-    }
-  }
-}
-
 void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 {
   this->compute = compute;
@@ -162,17 +103,12 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   maxPrimIndex = ComputeUtil::create(compute, maxPrimIndexSetting);
 
   accumulateColor = programs[0].createKernel("accumulateColor");
-  collectPrimitives = programs[0].createKernel("collectPrimitives");
-  transformPrimitives = programs[0].createKernel("transformPrimitives");
   updateCameraKernel = programs[0].createKernel("updateCameraKernel");
+  transformPrimitives = programs[0].createKernel("transformPrimitives");
 
+  randomUints.create(compute);
   colorOutputBuffer.create(compute);
   accumulatedColorBuffer.create(compute);
-  systemSettings.create(compute);
-  vertexArray.create(compute);
-  attributeArray.create(compute);
-  vertexAttributeArray.create(compute);
-  randomUints.create(compute);
 
   for (auto& i : registeredPrimitives)
   {
@@ -216,6 +152,17 @@ void RayTracingSystem::commit()
         case RayTracingEntityPrimArray:
         {
           registeredPrimitives[entity->getPrimitiveType()].push_back(entity);
+
+          if (entity == entitiyInstances[i].front())
+          {
+            PrimitiveAccelerationDataStruct *primitiveEntity = new PrimitiveAccelerationDataStruct();
+            primitiveEntity->create(compute);
+            primitiveEntity->bindEntity(registeredEntities[i]);
+            primitiveEntity->fullBuild();
+            accelerationStruct->registerPrimitiveADS(primitiveEntity);
+          }
+
+          accelerationStruct->registerPrimitiveInstance(entity);
           break;
         }
         case RayTracingEntityLight:
@@ -248,37 +195,6 @@ void RayTracingSystem::commit()
 
   lights.syncDevice();
   materials.syncDevice();
-
-  if (usePrimitiveInstancing) return;
-
-  systemSettings.host()->resize(1);
-  
-  uint primOffset   = 0;
-  uint vertexOffset = 0;
-
-  for (uint i=0; i<RTPrimitiveCount; i++)
-  {
-    for (const auto& primPtr : registeredPrimitives[i])
-    {
-      primOffset    += (*primPtr).primInfo.primitiveOffset;
-      vertexOffset  += (*primPtr).primInfo.getTotalVertexCount();
-    }
-
-    EncodedPrimitiveInfo primInfo;
-
-    setPrimitiveType(primInfo,         (RTPrimitiveType)i);
-    setPrimitiveIndexOffset(primInfo,  primOffset);
-    setPrimitiveVertexOffset(primInfo, vertexOffset);
-    systemSettings.host()->at(0).globalOffsets[i] = primInfo;
-  }
-
-  vertexArray.resize(vertexOffset, false);
-  attributeArray.resize(primOffset, false);
-  vertexAttributeArray.resize(vertexOffset, false);
-
-  systemSettings.syncDevice();
-
-  accelerationStruct->bindBuffers(vertexArray.device(), attributeArray.device(), &systemSettings);
 }
 
 uint RayTracingSystem::getPrimCount()const
@@ -389,14 +305,13 @@ void RayTracingSystem::render(bool updatePrimitives)
 {
   if (updatePrimitives)
   {
-    composePrimitiveArray();
     accelerationStruct->fullBuild();
   }
 
   ComputeUtil* uintUtil = ComputeUtil::get(ComputeUtil::getUIntUtil(compute));
 
   RayStructType rayType   = RayStructPositionDirectionColor;
-  HitStructType hitStruct = HitStructDistanceIndexIdentity;
+  HitStructType hitStruct = HitStructDistanceIndexIdentityNormal;
   RayStructType shadowRayType   = RayStructPositionDirectionColor;
   HitStructType shadowHitStruct = HitStructDistanceIdentity;
 
@@ -466,11 +381,7 @@ void RayTracingSystem::render(bool updatePrimitives)
         shadowRays[0].device(),
         rays[bufferIndex].device(),
         hits.device(),
-        randomUints.device(),
-        vertexArray.device(),
-        attributeArray.device(),
-        vertexAttributeArray.device()
-
+        randomUints.device()
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       shadeIntersectionKernel.setArgs(buffers, bufferCount);
@@ -481,7 +392,6 @@ void RayTracingSystem::render(bool updatePrimitives)
       shadeIntersectionKernel.setArg(materials.device(), bufferCount+4);
       shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount+5);
       shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
-      shadeIntersectionKernel.setArg(systemSettings.device(), bufferCount+7);
 
       compute->execute(shadeIntersectionKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
 

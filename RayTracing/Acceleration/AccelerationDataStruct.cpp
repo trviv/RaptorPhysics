@@ -114,10 +114,11 @@ uint AccelerationDataStruct::getPrimCount()const
 }
 
 void AccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
-                                         DeviceArray<RTSystemSettings>* systemSettings)
+                                         const ComputeMemory* vertexAttributeArray, DeviceArray<RTSystemSettings>* systemSettings)
 {
-  this->pointerVertexArray     = vertexArray;
-  this->pointerAttributeArray  = attributeArray;
+  this->pointerVertexArray = vertexArray;
+  this->pointerAttributeArray = attributeArray;
+  this->pointerVertexAttributeArray = vertexAttributeArray;
 
   if (systemSettings)
   {
@@ -178,8 +179,9 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 3);
     intersectionKernel.setArg(pointerVertexArray, 4);
     intersectionKernel.setArg(pointerAttributeArray, 5);
-    intersectionKernel.setArg(&primitiveCount, 6);
-    intersectionKernel.setArg(pointerSystemSettings, 7);
+    intersectionKernel.setArg(pointerVertexAttributeArray, 6);
+    intersectionKernel.setArg(&primitiveCount, 7);
+    intersectionKernel.setArg(pointerSystemSettings, 8);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
@@ -206,8 +208,9 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
     intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 3);
     intersectionKernel.setArg(pointerVertexArray, 4);
     intersectionKernel.setArg(pointerAttributeArray, 5);
-    intersectionKernel.setArg(&primitiveCount, 6);
-    intersectionKernel.setArg(pointerSystemSettings, 7);
+    intersectionKernel.setArg(pointerVertexAttributeArray, 6);
+    intersectionKernel.setArg(&primitiveCount, 7);
+    intersectionKernel.setArg(pointerSystemSettings, 8);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 

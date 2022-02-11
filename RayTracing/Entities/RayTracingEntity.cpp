@@ -27,7 +27,7 @@ EntityPrimAttributes::EntityPrimAttributes()
   }
 }
 
-uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)
+uint EntityPrimAttributes::bindToShader(ComputeKernel& kernel, uint startIndex)const
 {
   kernel.setArg(attributeBuffer[EntityPrimitiveAttributePosition], startIndex);
   kernel.setArg(&attributeInfo[EntityPrimitiveAttributePosition], startIndex+1);
@@ -71,19 +71,19 @@ RTPrimitiveType EntityPrimAttributes::getPrimitiveType()const
   return (RTPrimitiveType)primInfo.primitiveType;
 }
 
-uint EntityPrimAttributes::getPrimitiveCount()const
+const uint& EntityPrimAttributes::getPrimitiveCount()const
 {
   return primInfo.primitiveCount;
 }
 
-uint EntityPrimAttributes::getVertexCount()const
+const uint& EntityPrimAttributes::getVertexCount()const
 {
   return primInfo.vertexCount;
 }
 
 uint EntityPrimAttributes::getPrimitiveVertexCount()const
 {
-  return primInfo.getTotalVertexCount();
+  return primInfo.getPrimitiveVertexCount();
 }
 
 RayTracingEntity::RayTracingEntity(ComputeInterface* compute)
@@ -125,6 +125,11 @@ RayTracingEntityType RayTracingEntity::getEntityType()const
 }
 
 MaterialId& RayTracingEntity::getMaterialId()
+{
+  return materialId;
+}
+
+const MaterialId& RayTracingEntity::getMaterialId()const
 {
   return materialId;
 }

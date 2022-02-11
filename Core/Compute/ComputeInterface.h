@@ -183,6 +183,8 @@ public:
 
   void setArg(void* valuePtr, const size_t valueSize, uint index);
 
+  void setArg(const void* valuePtr, const size_t valueSize, uint index);
+
   template<class ArgType> void setArg(ArgType* valuePtr, uint index)
   {
     setArg(valuePtr, sizeof(ArgType), index);

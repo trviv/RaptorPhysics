@@ -5,7 +5,7 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   Device HitStruct*                   hits,
   const Device RayStruct*             rays,
   constantKernelInput(uint,           rayCount),
-  const Device PrimitiveADSResources*    pointers,
+  const Device PrimitiveADSResources* pointers,
   constantKernelInput(uint,           primitiveCount),
   atomicKernelInput(uint,             rayIndexAtomicBuffer),
   sharedMemKernelInput(uint,          sharedLeafNodeIndex, 6)
@@ -17,9 +17,8 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   if (index >= rayCount)
     return;
 
-  const float3 rayOrigin = rays[index].origin;
-  const float3 rayDirection = rays[index].direction;
-  const float3 invRayDirection = 1.f / rayDirection;
+  const RayStruct ray = rays[index];
+  const float3 invRayDirection = 1.f / ray.direction;
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   DecodedPrimitiveInfo primInfo;
@@ -31,12 +30,13 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     pointers[0].nodeParentNodeIndices,
     pointers[0].treeLeafNodeBoundingBoxes,
     pointers[0].treeInternalNodeBoundingBoxes,
-    rayOrigin, rayDirection, invRayDirection, sign,
+    ray.origin, ray.direction, invRayDirection, sign,
     pointers[0].vertexArray,
     pointers[0].attributeArray,
     pointers[0].systemSettings,
     &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
+    traversalSetHitNormal(ray, &hit, pointers[0].vertexArray, pointers[0].attributeArray, pointers[0].vertexAttributeArray, pointers[0].systemSettings);
 #ifdef IntersectionTypeClosest
   hits[index] = hit;
 #endif

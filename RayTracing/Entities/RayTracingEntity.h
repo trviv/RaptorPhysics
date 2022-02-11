@@ -35,7 +35,7 @@ protected:
 public:
   EntityPrimAttributes();
 
-  uint bindToShader(ComputeKernel& kernel, uint startIndex);
+  uint bindToShader(ComputeKernel& kernel, uint startIndex)const;
 
   void setAttribute(EntityPrimitiveAttributeType type, const ComputeMemory* attributeBuffer, PackingInfo attributePacking);
 
@@ -43,9 +43,9 @@ public:
 
   RTPrimitiveType getPrimitiveType()const;
 
-  uint getPrimitiveCount()const;
+  const uint& getPrimitiveCount()const;
 
-  uint getVertexCount()const;
+  const uint& getVertexCount()const;
 
   uint getPrimitiveVertexCount()const;
 };
@@ -103,6 +103,8 @@ public:
   RayTracingEntityType getEntityType()const;
 
   MaterialId& getMaterialId();
+
+  const MaterialId& getMaterialId()const;
 };
 
 

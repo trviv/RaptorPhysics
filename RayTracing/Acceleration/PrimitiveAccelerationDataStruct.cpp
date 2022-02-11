@@ -42,9 +42,11 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
   uint primOffset   = 0;
   uint vertexOffset = 0;
 
+  RTPrimitiveType primType = primitiveEntity->getPrimitiveType();
+
   for (uint i=0; i<RTPrimitiveCount; i++)
   {
-    if (primitiveEntity->getPrimitiveType() == i)
+    if (primType == i)
     {
       primOffset    += primitiveEntity->getPrimitiveCount();
       vertexOffset  += primitiveEntity->getPrimitiveVertexCount();
@@ -61,7 +63,8 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
 
   primitiveInformation.syncDevice();
 
-  BoundingVolumeHierarchyADS::bindBuffers((*primitiveEntity)[EntityPrimitiveAttributePosition], (*primitiveEntity)[EntityPrimitiveAttributeIndex], &primitiveInformation);
+  BoundingVolumeHierarchyADS::bindBuffers((*primitiveEntity)[EntityPrimitiveAttributePosition], (*primitiveEntity)[EntityPrimitiveAttributeIndex],
+                                          (*primitiveEntity)[EntityPrimitiveAttributeNormal], &primitiveInformation);
 
   vector<string> oldType = {"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
   vector<string> newType = {to_string(primitiveEntity->getEntityType())};
@@ -71,7 +74,7 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
 }
 
 void PrimitiveAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
-                                                  DeviceArray<RTSystemSettings>* systemSettings)
+                                                  const ComputeMemory* vertexAttributeArray, DeviceArray<RTSystemSettings>* systemSettings)
 {
   logComputeError("Bind buffers method is not available with PrimitiveAccelerationDataStruct!");
 }
