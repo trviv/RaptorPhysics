@@ -262,15 +262,15 @@ enum EntityPrimitiveAttributeType
 
 enum RayTracingEntityType
 {
-  RayTracingEntityCamera      = 0,
+  RayTracingEntityCamera            = 0,
 
-  RayTracingEntityLight       = 1,
-  RayTracingEntityLightPoint  = 1,
-  RayTracingEntityLightArea   = 2,
+  RayTracingEntityLight             = 1,
+  RayTracingEntityLightPoint        = 1,
+  RayTracingEntityLightArea         = 2,
 
-  RayTracingEntityPrimArray   = 4,
-  RayTracingEntitySpheres     = 4,
-  RayTracingEntityTriangles   = 5,
+  RayTracingEntityPrimArray         = 4,
+  RayTracingEntitySpheres           = 4,
+  RayTracingEntityTriangles         = 5,
   RayTracingEntityIndexedTriangles  = 6,
   RayTracingEntityIndexedQuads      = 7
 };
@@ -303,7 +303,7 @@ typedef struct ALIGN(4)
 /*!
 @struct Decoded primitive offsets.
 */
-typedef struct
+struct DEFAULT_ALIGN DecodedPrimitiveInfo
 {
   ushort primitiveType;
   uint prevPrimitiveOffset;
@@ -319,9 +319,9 @@ typedef struct
   };
 
 #ifndef COMPUTE_SHADER_SCOPE
-  uint getTotalVertexCount()const {return (primitiveType == PrimitiveTriangle ? primitiveCount * 3 : vertexCount);}
+  uint getPrimitiveVertexCount()const {return (primitiveType == PrimitiveTriangle ? primitiveCount * 3 : vertexCount);}
 #endif
-} DecodedPrimitiveInfo;
+};
 
 
 typedef struct DEFAULT_ALIGN
@@ -473,7 +473,7 @@ typedef struct DEFAULT_ALIGN
   };
 } PrimitiveInstanceADSLeaf;
 
-typedef struct
+struct ALIGN(4) PrimitiveADSResources
 {
 #if defined(COMPUTE_SHADER_SCOPE)
   const Device BVHNodeInfo*     treeInternalNodes;
@@ -483,6 +483,7 @@ typedef struct
   const Device XAB*             treeInternalNodeBoundingBoxes;
   const Device PrimitiveStruct* vertexArray;
   const Device PrimitiveAttrib* attributeArray;
+  const Device VertexAttrib*    vertexAttributeArray;
   Const RTSystemSettings*       systemSettings;
 #else
   const ComputeMemory*  pointerTreeInternalNodes;
@@ -494,10 +495,12 @@ typedef struct
   const ComputeMemory*  pointerVertexArray;
   /*!@member Composite array containing all attributes.*/
   const ComputeMemory*  pointerAttributeArray;
+  /*!@member Composite array containing vertex attribute data.*/
+  const ComputeMemory*  pointerVertexAttributeArray;
   /*!@member Pointer to ray tracing system settings .*/
   ComputeMemory*        pointerSystemSettings;
 #endif
-} PrimitiveADSResources;
+};
 
 #pragma pack(pop)
 

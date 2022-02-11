@@ -12,6 +12,7 @@ enum HitStructType
   HitStructDistanceIdentity,
   HitStructDistanceIndexIdentity,
   HitStructDistanceBVHHits,
+  HitStructDistanceIndexIdentityNormal,
   HitStructTypeMax
 };
 
@@ -19,17 +20,17 @@ enum HitStructType
 /*!
 @struct Hit Info containing distance information.
 */
-typedef struct ALIGN(8)
+struct ALIGN(8) HitInfoIdentity
 {
   float         distance;
   IdentityInfo  primitiveIdentity;
-} HitInfoIdentity;
+};
 
 
 /*!
 @struct Hit Info containing distance information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity_t
+struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity
 {
   float         distance;
   uint          primitiveIndex;
@@ -37,13 +38,11 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity_t
   uint          primitiveInternalIndex;
 };
 
-typedef struct HitInfoDistanceIndexIdentity_t HitInfoDistanceIndexIdentity;
-
 
 /*!
 @struct Hit Info containing distance and BVH information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceBVHHits_t
+struct DEFAULT_ALIGN HitInfoDistanceBVHHits
 {
   float         distance;
   uint          primitiveIndex;
@@ -51,7 +50,18 @@ struct DEFAULT_ALIGN HitInfoDistanceBVHHits_t
   uint          bvhHits;
 };
 
-typedef struct HitInfoDistanceBVHHits_t HitInfoDistanceBVHHits;
+
+/*!
+@struct Hit Info containing distance and BVH information.
+*/
+struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
+{
+  float         distance;
+  uint          primitiveIndex;
+  IdentityInfo  primitiveIdentity;
+  uint          primitiveInternalIndex;
+  float3        normal;
+};
 
 
 #ifdef COMPUTE_SHADER_SCOPE
@@ -62,24 +72,24 @@ typedef struct HitInfoDistanceBVHHits_t HitInfoDistanceBVHHits;
 #define setHitDistance(hitDistance, time)
 #endif
 
-#ifndef HitStructIdentity
+#ifdef HitStructIndex
 #define setHitPrimitiveIndex(hitPrimitiveIndex, index) hitPrimitiveIndex = index
+#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = index
 #else
 #define setHitPrimitiveIndex(hitPrimitiveIndex, index)
+#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index)
 #endif
 
-#ifndef HitStructIndex
+#ifdef HitStructIdentity
 #define setHitPrimitiveIdentity(hitPrimitiveIdentity, identity) hitPrimitiveIdentity = identity
 #else
 #define setHitPrimitiveIdentity(hitPrimitiveIdentity, identity)
 #endif
 
-#ifdef HitStructIndexIdentity
+#ifdef HitStructNormal
 #define setHitNormal(hitNormal, normal) hitNormal = normal
-#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = index
 #else
 #define setHitNormal(hitNormal, normal)
-#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index)
 #endif
 
 #if defined(HitStructBVHHits)

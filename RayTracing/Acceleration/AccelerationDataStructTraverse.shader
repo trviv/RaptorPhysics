@@ -145,6 +145,87 @@ inline bool earliestIntersection(
   return false;
 }
 
+void traversalSetHitNormal(
+  const RayStruct               ray,
+  Thread HitStruct*             hit,
+  const Device PrimitiveStruct* vertexArray,
+  const Device PrimitiveAttrib* attributeArray,
+  const Device VertexAttrib*    vertexAttributeArray,
+  Const RTSystemSettings*       systemSettings)
+{
+#if defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
+  if (hit->primitiveIndex == -1) return;
+
+  float3 hitNormal;
+  DecodedPrimitiveInfo primInfo;
+  primInfo.primitiveType = RTPrimitiveCount;
+  decodePrimitiveInfoFromSystemSettings(systemSettings, hit->primitiveIndex, &primInfo);
+
+  if (primInfo.primitiveType == PrimitiveSphere)
+  {
+    const float3 hitPoint = ray.origin + ray.direction * hit->distance;
+    setHitNormal(hitNormal, hitPoint - vertexArray[hit->primitiveIndex].position);
+  }
+  else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
+  {
+    PrimitiveAttrib attributes;
+    float3 vert0, edge1, edge2;
+    float3 normal0, normal1, normal2;
+
+    if (primInfo.primitiveType == PrimitiveTriangle)
+    {
+      const uint triIndex = primInfo.vertexOffset + (hit->primitiveIndex - primInfo.primitiveOffset)*3;
+      attributes.triangleIndex = constructUint3(triIndex, triIndex+1, triIndex+2);
+    }
+    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+    {
+      attributes = attributeArray[hit->primitiveIndex];
+    }
+    else if (primInfo.primitiveType == PrimitiveIndexedQuad)
+    {
+      attributes = attributeArray[hit->primitiveIndex];
+      if (hit->primitiveInternalIndex == 1)
+      {
+        attributes.quadIndex.y = attributes.quadIndex.x;
+        attributes.quadIndex.x = attributes.quadIndex.w;
+      }
+    }
+
+    vert0 = vertexArray[attributes.triangleIndex.x].position;
+    edge1 = vertexArray[attributes.triangleIndex.y].position;
+    edge2 = vertexArray[attributes.triangleIndex.z].position;
+
+    if (primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
+    {
+      edge1 -= vert0;
+      edge2 -= vert0;
+    }
+
+    if (isIdentityEntityFlat(hit->primitiveIdentity))
+    {
+      setHitNormal(hitNormal, cross(edge2, edge1));
+    }
+    else
+    {
+      const float3 tvec = ray.origin - vert0;
+      const float3 pvec = cross(ray.direction, edge2);
+      const float invDet= 1.f / dot(edge1, pvec);
+      const float3 qvec = cross(tvec, edge1);
+
+      const float u = dot(tvec, pvec) * invDet;
+      const float v = dot(ray.direction, qvec) * invDet;
+
+      normal0 = vertexAttributeArray[attributes.triangleIndex.x].normal;
+      normal1 = vertexAttributeArray[attributes.triangleIndex.y].normal;
+      normal2 = vertexAttributeArray[attributes.triangleIndex.z].normal;
+
+      setHitNormal(hitNormal, (1 - u - v) * normal0 + u * normal1 + v * normal2);
+    }
+  }
+  setHitNormal(hit->normal, normalize(hitNormal));
+#endif
+}
+
 /*
 @kernel Intersect rays with primitives and fill hit info.
 @param hits Hit info buffer.
@@ -163,6 +244,7 @@ Kernel void intersectRays(
   const Device XAB*             boundingBoxes,
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
+  const Device VertexAttrib*    vertexAttributeArray,
   constantKernelInput(uint,     primitiveCount),
   Const RTSystemSettings*       systemSettings
   KERNEL_GLOBAL_ARGUMENTS)
@@ -172,9 +254,8 @@ Kernel void intersectRays(
   if (index >= rayCount)
     return;
 
-  const float3 rayOrigin = rays[index].origin;
-  const float3 rayDirection = rays[index].direction;
-  const float3 invRayDirection = 1.f / rayDirection;
+  const RayStruct ray = rays[index];
+  const float3 invRayDirection = 1.f / ray.direction;
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
   HitStruct hit;
@@ -187,9 +268,9 @@ Kernel void intersectRays(
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {
-    if (rayXABIntersectTest(hit.distance, boundingBoxes[primIndex], rayOrigin, invRayDirection, sign))
+    if (rayXABIntersectTest(hit.distance, boundingBoxes[primIndex], ray.origin, invRayDirection, sign))
     {
-      if (earliestIntersection(&hit, primIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo))
+      if (earliestIntersection(&hit, primIndex, ray.origin, ray.direction, invRayDirection, sign, vertexArray, attributeArray, systemSettings, &primInfo))
       {
 #ifdef IntersectionTypeAny
         break;
@@ -198,6 +279,7 @@ Kernel void intersectRays(
     }
   }
 
+  traversalSetHitNormal(ray, &hit, vertexArray, attributeArray, vertexAttributeArray, systemSettings);
 #ifdef IntersectionTypeClosest
   hits[index] = hit;
 #endif

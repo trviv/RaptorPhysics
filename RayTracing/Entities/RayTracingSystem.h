@@ -28,13 +28,12 @@ protected:
   ComputeInterface*     compute;
   RayTracingAllocator*  allocator;
 
-  ComputeKernel collectPrimitives;
-  ComputeKernel transformPrimitives;
   ComputeKernel accumulateColor;
+  ComputeKernel updateCameraKernel;
+  ComputeKernel transformPrimitives;
+  ComputeKernel reorderRaysKernels[RayStructTypeMax];
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
-  ComputeKernel reorderRaysKernels[RayStructTypeMax];
-  ComputeKernel updateCameraKernel;
 
   ComputeMemory validRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
   ComputeMemory currentWGCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
@@ -72,27 +71,14 @@ protected:
   /*!@member Buffer holding indirect counts.*/
   DeviceArray<uint> indirectCount;
 
-  /*!@member Composite array containing all positions.*/
-  DeviceArray<PrimitiveStruct> vertexArray;
-
-  /*!@member Composite array containing all primitive attributes.*/
-  DeviceArray<PrimitiveAttrib> attributeArray;
-
-  /*!@member Composite array containing all vertex attributes.*/
-  DeviceArray<VertexAttrib>    vertexAttributeArray;
-
-  DeviceArray<RTSystemSettings> systemSettings;
-
   DeviceArray<uint> randomUints;
 
   /*!@member Acceleration struct for the system.*/
-  AccelerationDataStruct* accelerationStruct;
+  PrimitiveInstanceAccelerationDataStruct* accelerationStruct;
 
   uint newEntityId();
 
   uint newEntityInstanceId(uint entityIndex);
-
-  void composePrimitiveArray();
 
 public:
 

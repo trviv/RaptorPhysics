@@ -947,6 +947,28 @@ void ComputeKernel::setArg(void* valuePtr, size_t valueSize, uint argIndex)
 #endif
 }
 
+void ComputeKernel::setArg(const void* valuePtr, size_t valueSize, uint argIndex)
+{
+#ifdef USE_OPENCL_COMPUTE
+  ComputeStatus status = clSetKernelArg(ref, argIndex, valueSize, valuePtr);
+  computeCheckError(status, 0);
+#else
+  if (!setArgumentBuffer) @autoreleasepool
+  {
+    [getComputeEncoder() setBytes:valuePtr length:valueSize atIndex:argIndex];
+  }
+  else
+  {
+    ArgData data;
+    data.type = 4;
+    data.cptr = valuePtr;
+    data.size = (uint)valueSize;
+    data.index = argIndex;
+    args.push_back(data);
+  }
+#endif
+}
+
 void ComputeKernel::setArg(const ComputeMemory* buffer, uint index)
 {
   ComputeMemoryIdentifier ident = *buffer;
@@ -1053,6 +1075,9 @@ void ComputeKernel::setArgs()
             break;
           case 3:
             [argumentEncoder setBuffer:*((ComputeMemory*)arg.ptr) offset:((ComputeMemory*)arg.ptr)->getOffset() atIndex:index];
+            break;
+          case 4:
+            memcpy([argumentEncoder constantDataAtIndex:index], arg.cptr, arg.size);
             break;
           default:
             logComputeError("Unknown Argument type!");

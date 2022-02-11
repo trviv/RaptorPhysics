@@ -44,7 +44,7 @@ public:
   ~BoundingVolumeHierarchyADS();
 
   void bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,
-                   DeviceArray<RTSystemSettings>* systemSettings);
+                   const ComputeMemory* vertexAttributeArray, DeviceArray<RTSystemSettings>* systemSettings);
 
   void fullBuild();
 

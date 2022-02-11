@@ -13,6 +13,9 @@ uint getHitStructSize(HitStructType type)
     case HitStructDistanceBVHHits:
       return sizeof(HitInfoDistanceBVHHits);
       break;
+    case HitStructDistanceIndexIdentityNormal:
+      return sizeof(HitInfoDistanceIndexIdentityNormal);
+      break;
     default:
       return 0;
       break;
@@ -34,6 +37,9 @@ string getHitStructName(HitStructType type)
     case HitStructDistanceBVHHits:
       return "HitInfoDistanceBVHHits";
       break;
+    case HitStructDistanceIndexIdentityNormal:
+      return "HitInfoDistanceIndexIdentityNormal";
+      break;
     default:
       return "";
       break;
@@ -46,19 +52,30 @@ void getHitStructDefines(vector<string>& oldType, vector<string>& newType, HitSt
 {
   switch (type)
   {
-  case HitStructDistanceIdentity:
-    oldType.push_back("HitStructIdentity");
-    newType.push_back("");
-    break;
-  case HitStructDistanceIndexIdentity:
-    oldType.push_back("HitStructIndexIdentity");
-    newType.push_back("");
-    break;
-  case HitStructDistanceBVHHits:
-    oldType.push_back("HitStructBVHHits");
-    newType.push_back("");
-    break;
-  default:
-    break;
+    case HitStructDistanceIdentity:
+      oldType.push_back("HitStructIdentity");
+      newType.push_back("");
+      break;
+    case HitStructDistanceIndexIdentity:
+      oldType.push_back("HitStructIndex");
+      oldType.push_back("HitStructIdentity");
+      newType.push_back("");
+      newType.push_back("");
+      break;
+    case HitStructDistanceBVHHits:
+      oldType.push_back("HitStructIdentity");
+      oldType.push_back("HitStructBVHHits");
+      newType.push_back("");
+      newType.push_back("");
+      break;
+    case HitStructDistanceIndexIdentityNormal:
+      oldType.push_back("HitStructIndex");
+      oldType.push_back("HitStructIdentity");
+      oldType.push_back("HitStructNormal");
+      newType.push_back("");
+      newType.push_back("");
+      newType.push_back("");
+    default:
+      break;
   }
 }
