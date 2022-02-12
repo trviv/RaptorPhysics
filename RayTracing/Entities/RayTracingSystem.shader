@@ -20,7 +20,6 @@ Kernel void transformPrimitives(
   vertexBuffer[index + primitivePackingInfo.elementOffset] = vertexPos;
 }
 
-
 /*
 @kernel Shade ray intersection in a surface based on its material properties and visiblity info.
 @param colorOut Final color output.
