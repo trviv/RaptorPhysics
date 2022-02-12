@@ -29,6 +29,12 @@ protected:
 
   void updatePointers();
 
+  virtual void createLeafBoundingBoxes();
+
+  virtual void assignLeafMortonCode();
+
+  void constructTree();
+
   /*!@function Create Acceleration Data Structure creation shaders.*/
   void registerCreateShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 

@@ -34,6 +34,93 @@ void BoundingVolumeHierarchyADS::updatePointers()
   pointerTreeInternalNodes     = treeInternalNodes.device();
 }
 
+void BoundingVolumeHierarchyADS::createLeafBoundingBoxes()
+{
+  const uint primBatchSize = 8;
+  const uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
+
+  createPrimitiveBoundingBoxes.setArg(pointerLeafNodeBoundingBoxes, 0);
+  createPrimitiveBoundingBoxes.setArg(pointerVertexArray, 1);
+  createPrimitiveBoundingBoxes.setArg(pointerAttributeArray, 2);
+  createPrimitiveBoundingBoxes.setArg(pointerSystemSettings, 3);
+  createPrimitiveBoundingBoxes.setArg(&primBatchSize, 4);
+  createPrimitiveBoundingBoxes.setArg(&primitiveCount, 5);
+
+  compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+  leafNodeBoundingBoxes.syncHost();
+  compute->sync();
+#endif
+}
+
+void BoundingVolumeHierarchyADS::assignLeafMortonCode()
+{
+  const uint primBatchSize = 8;
+  const uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
+
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
+
+  // assign morton code to the particle bounding boxes
+  assignMortonCode.setArg(primitiveLeafData.device(), 0);
+  assignMortonCode.setArg(pointerVertexArray, 1);
+  assignMortonCode.setArg(pointerAttributeArray, 2);
+  assignMortonCode.setArg(pointerSystemSettings, 3);
+  assignMortonCode.setArg(&primBatchSize, 4);
+  assignMortonCode.setArg(&primitiveCount, 5);
+
+  compute->execute(assignMortonCode, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+  primitiveLeafData.syncHost();
+  compute->sync();
+#endif
+}
+
+void BoundingVolumeHierarchyADS::constructTree()
+{
+  size_t workgroupSize[3], workgroupCount[3];
+  compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
+
+  // create binary radix tree
+  constructBinaryTree.setArg(pointerTreeInternalNodes, 0);
+  constructBinaryTree.setArg(visitedInternalNodes.device(), 1);
+  constructBinaryTree.setArg(pointerLeafParentNodeIndices, 2);
+  constructBinaryTree.setArg(pointerNodeParentNodeIndices, 3);
+  constructBinaryTree.setArg(primitiveLeafDataSorted.device(), 4);
+  constructBinaryTree.setArg<uint>(&primitiveCount, 5);
+
+  compute->execute(constructBinaryTree, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+  treeInternalNodes.syncHost();
+  leafParentNodeIndices.syncHost();
+  nodeParentNodeIndices.syncHost();
+  compute->sync();
+#endif
+
+  // calculate bounding boxes for the tree
+  constructTreeBoundingBox.setArg(pointerTreeNodeBoundingBoxes, 0);
+  constructTreeBoundingBox.setArg(visitedInternalNodes.device(), 1);
+  constructTreeBoundingBox.setArg(pointerTreeInternalNodes, 2);
+  constructTreeBoundingBox.setArg(pointerLeafParentNodeIndices, 3);
+  constructTreeBoundingBox.setArg(pointerNodeParentNodeIndices, 4);
+  constructTreeBoundingBox.setArg(pointerLeafNodeBoundingBoxes, 5);
+  constructTreeBoundingBox.setArg<uint>(&primitiveCount, 6);
+
+  compute->execute(constructTreeBoundingBox, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+  treeNodeBoundingBoxes.syncHost();
+  visitedInternalNodes.syncHost();
+  compute->sync();
+#endif
+}
+
 void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
 {
   includeFiles.push_back("ComputeHeader.shader");
@@ -131,27 +218,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
 
   updatePointers();
 
-  uint primBatchSize = 8;
-  uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
-
-  {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
-
-    createPrimitiveBoundingBoxes.setArg(pointerLeafNodeBoundingBoxes, 0);
-    createPrimitiveBoundingBoxes.setArg(pointerVertexArray, 1);
-    createPrimitiveBoundingBoxes.setArg(pointerAttributeArray, 2);
-    createPrimitiveBoundingBoxes.setArg(pointerSystemSettings, 3);
-    createPrimitiveBoundingBoxes.setArg(&primBatchSize, 4);
-    createPrimitiveBoundingBoxes.setArg(&primitiveCount, 5);
-
-    compute->execute(createPrimitiveBoundingBoxes, workgroupSize, workgroupCount);
-
-#ifdef DEBUG_BVH_ADS
-    leafNodeBoundingBoxes.syncHost();
-    compute->sync();
-#endif
-  }
+  createLeafBoundingBoxes();
 
   // find bounding box for the simulation space
   ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, pointerSystemSettings, pointerLeafNodeBoundingBoxes, primitiveCount);
@@ -160,26 +227,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
   compute->sync();
 #endif
 
-  {
-    uint primBatchCount = mAlignBy(primitiveCount, primBatchSize);
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
-
-    // assign morton code to the particle bounding boxes
-    assignMortonCode.setArg(primitiveLeafData.device(), 0);
-    assignMortonCode.setArg(pointerVertexArray, 1);
-    assignMortonCode.setArg(pointerAttributeArray, 2);
-    assignMortonCode.setArg(pointerSystemSettings, 3);
-    assignMortonCode.setArg(&primBatchSize, 4);
-    assignMortonCode.setArg(&primitiveCount, 5);
-
-    compute->execute(assignMortonCode, workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_BVH_ADS
-  primitiveLeafData.syncHost();
-  compute->sync();
-#endif
+  assignLeafMortonCode();
 
   ComputeUtil::get(sortComputeUtilId)->radixSort32Bit(compute, primitiveLeafDataSorted.device(), primitiveLeafData.device(), primitiveCount);
 
@@ -188,49 +236,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
   compute->sync();
 #endif
 
-  {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
-
-    // create binary radix tree
-    constructBinaryTree.setArg(pointerTreeInternalNodes, 0);
-    constructBinaryTree.setArg(visitedInternalNodes.device(), 1);
-    constructBinaryTree.setArg(pointerLeafParentNodeIndices, 2);
-    constructBinaryTree.setArg(pointerNodeParentNodeIndices, 3);
-    constructBinaryTree.setArg(primitiveLeafDataSorted.device(), 4);
-    constructBinaryTree.setArg<uint>(&primitiveCount, 5);
-
-    compute->execute(constructBinaryTree, workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_BVH_ADS
-  treeInternalNodes.syncHost();
-  leafParentNodeIndices.syncHost();
-  nodeParentNodeIndices.syncHost();
-  compute->sync();
-#endif
-
-  {
-    size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
-
-    // calculate bounding boxes for the tree
-    constructTreeBoundingBox.setArg(pointerTreeNodeBoundingBoxes, 0);
-    constructTreeBoundingBox.setArg(visitedInternalNodes.device(), 1);
-    constructTreeBoundingBox.setArg(pointerTreeInternalNodes, 2);
-    constructTreeBoundingBox.setArg(pointerLeafParentNodeIndices, 3);
-    constructTreeBoundingBox.setArg(pointerNodeParentNodeIndices, 4);
-    constructTreeBoundingBox.setArg(pointerLeafNodeBoundingBoxes, 5);
-    constructTreeBoundingBox.setArg<uint>(&primitiveCount, 6);
-
-    compute->execute(constructTreeBoundingBox, workgroupSize, workgroupCount);
-  }
-
-#ifdef DEBUG_BVH_ADS
-  treeNodeBoundingBoxes.syncHost();
-  visitedInternalNodes.syncHost();
-  compute->sync();
-#endif
+  constructTree();
 
   needsRebuild = false;
 }

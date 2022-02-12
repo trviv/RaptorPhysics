@@ -2,7 +2,6 @@
 
 //#define DEBUG_RAY_TRACING_SYSTEM
 static uint rearrangeMultiplier = 1;
-static bool usePrimitiveInstancing = false;
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
 uint RayTracingSystem::maxPrimIndex = 0;
@@ -51,7 +50,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   lights.create(compute);
   materials.create(compute);
 
-  accelerationStruct = new PrimitiveInstanceAccelerationDataStruct(usePrimitiveInstancing);
+  accelerationStruct = new PrimitiveInstanceAccelerationDataStruct(true);
   accelerationStruct->create(compute);
 
   includeFiles.push_back("ComputeHeader.shader");

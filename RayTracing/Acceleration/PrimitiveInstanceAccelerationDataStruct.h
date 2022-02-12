@@ -22,7 +22,7 @@ protected:
 
   DeviceArray<const ComputeMemory*>     primitiveADSResources;
   DeviceArray<float4>                   primitiveInstanceTransforms;
-  DeviceArray<PrimitiveInstanceADSLeaf> primitiveInstanceNodes;
+  DeviceArray<PrimitiveInstanceADSLeaf>&primitiveInstanceNodes;
   vector<const RayTracingEntity*>       primitiveInstancesPerType[RTPrimitiveCount];
 
   /*!@member Composite array containing all positions.*/
@@ -42,6 +42,10 @@ protected:
   void initializeData();
 
   void updatePointers();
+
+  void createLeafBoundingBoxes();
+
+  void assignLeafMortonCode();
 
   /*!@function Create Acceleration Data Structure creation shaders.*/
   void registerCreateShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);

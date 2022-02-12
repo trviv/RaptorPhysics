@@ -12,21 +12,19 @@ Kernel void updatePrimitiveInstanceData(
   Device PrimitiveInstanceADSLeaf*    primitiveInstanceNodes,
   Device float4*                      primitiveInstanceTransforms,
   const Device PrimitiveADSResources* primitiveADSResources,
-  //const Device RayTracingPointerType* primitiveADSTreeInternalNodeBoundingBoxes,
   constantKernelInput(uint,           primitiveInstanceCount)
-  KERNEL_THREAD_ARGUMENTS
-  KERNEL_THREADGROUP_ARGUMENTS)
+  KERNEL_GLOBAL_ARGUMENTS)
 {
-  const uint index = threadLocalIndex();
+  const uint index = threadIndex();
 
   if (index >= primitiveInstanceCount) return;
 
-  PrimitiveInstanceADSLeaf leafNode           = primitiveInstanceNodes[index];
-  const uint primitiveADSIndex                = leafNode.primitiveADSIndex;
-  const RayTracingEntityId primitiveInstance  = leafNode.primitiveInstance;
+  PrimitiveInstanceADSLeaf leafNode = primitiveInstanceNodes[index];
+
+  const uint primitiveADSIndex = leafNode.primitiveADSIndex;
+  const RayTracingEntityId primitiveInstance = leafNode.primitiveInstance;
 
   const uint instanceIndex        = getRayTracingInstanceId(primitiveInstance);
-  //const XAB primitiveBoundingBox  = ((const Device XAB*)primitiveADSTreeInternalNodeBoundingBoxes[primitiveADSIndex].pointer)[0];
   const XAB primitiveBoundingBox  = primitiveADSResources[primitiveADSIndex].treeInternalNodeBoundingBoxes[0];
   const float4x4 transform        = unpackDeviceFloat3x4To4x4(&primitiveInstanceTransforms[index * 3]);
 
@@ -60,6 +58,48 @@ Kernel void updatePrimitiveInstanceData(
   (((Thread float4*)&invTransform)[2]).w = (((Thread float4*)&invTransform)[3]).z;
 
   packFloat4x4ToDevice3x4(invTransform, &primitiveInstanceTransforms[(primitiveInstanceCount + index) * 3])
+}
+
+/*
+@kernel Compute and store morton code for each primitive.
+@param bvhLeafs Particle position and index data for bounding volume hierarchy.
+@param vertexArray Primitive position array.
+@param systemSettings Settings for the ray tracing system.
+@param primitiveBatchSize Primitives processed per thread.
+@param primitiveCount Total primitives in the buffer.
+*/
+Kernel void primitiveADSAssignMortonCode(
+  Device BVHLeafInfo*                     bvhLeafs,
+  const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes,
+  Const RTSystemSettings*                 systemSettings,
+  constantKernelInput(uint,               primitiveCount)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index >= primitiveCount) return;
+
+  const float3 inverseMergedBoxSize = 1024.f / (systemSettings->systemBound.max - systemSettings->systemBound.min);
+  const float3 mergedBoxCenter = (systemSettings->systemBound.min + systemSettings->systemBound.max) * 0.5f;
+
+  const XAB bounds = primitiveInstanceNodes[index].bounds;
+  const float3 center = (bounds.max + bounds.min) * 0.5f;
+
+  // Quantize into integer coordinates
+  // floor() is needed to prevent the center cell, at (0,0,0) from being twice the size
+  const float3 positionRelativeToCenter = (center - mergedBoxCenter) * inverseMergedBoxSize;
+
+  int3 quantizedPosition = convertInt3(select(floor(positionRelativeToCenter), positionRelativeToCenter, positionRelativeToCenter >= 0.0f));
+
+  // Clamp coordinates into [-512, 511], then convert range from [-512, 511] to [0, 1023]
+  quantizedPosition = max(constructInt3(-512), min(quantizedPosition, constructInt3(511))) + constructInt3(512);
+
+  //Interleave bits(assign a morton code, also known as a z-curve)
+  BVHLeafInfo bvhLeaf;
+  bvhLeaf.mortonCode = encode32BitMortonCode(quantizedPosition);
+  bvhLeaf.index = index;
+
+  bvhLeafs[index] = bvhLeaf;
 }
 
 /*

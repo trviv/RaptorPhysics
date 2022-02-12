@@ -1,5 +1,7 @@
 #include "PrimitiveAccelerationDataStruct.h"
 
+//#define DEBUG_BVH_ADS
+
 PrimitiveAccelerationDataStruct::PrimitiveAccelerationDataStruct()
 {
   primitiveEntity = NULL;
@@ -82,4 +84,9 @@ void PrimitiveAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArr
 void PrimitiveAccelerationDataStruct::fullBuild()
 {
   BoundingVolumeHierarchyADS::fullBuild();
+
+#ifdef DEBUG_BVH_ADS
+  primitiveInformation.syncHost();
+  compute->sync();
+#endif
 }
