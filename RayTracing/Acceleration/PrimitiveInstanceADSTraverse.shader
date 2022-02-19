@@ -2,19 +2,20 @@
 #define PRIMITIVE_INSTANCE_ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 
 Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
-  Device HitStruct*                   hits,
-  const Device RayStruct*             rays,
-  constantKernelInput(uint,           rayCount),
-  const Device BVHNodeInfo*           treeInternalNodes,
-  const Device uint*                  leafParentNodeIndices,
-  const Device uint*                  nodeParentNodeIndices,
-  const Device XAB*                   treeLeafNodeBoundingBoxes,
-  const Device XAB*                   treeInternalNodeBoundingBoxes,
-  const Device PrimitiveADSResources* pointers,
-  const Device float4*                primitiveInstanceTransforms,
-  constantKernelInput(uint,           primitiveCount),
-  atomicKernelInput(uint,             rayIndexAtomicBuffer),
-  sharedMemKernelInput(uint,          sharedLeafNodeIndex, 12)
+  Device HitStruct*                       hits,
+  const Device RayStruct*                 rays,
+  constantKernelInput(uint,               rayCount),
+  const Device BVHNodeInfo*               treeInternalNodes,
+  const Device uint*                      leafParentNodeIndices,
+  const Device uint*                      nodeParentNodeIndices,
+  const Device XAB*                       treeLeafNodeBoundingBoxes,
+  const Device XAB*                       treeInternalNodeBoundingBoxes,
+  const Device PrimitiveADSResources*     pointers,
+  const Device float4x4*                  primitiveInstanceTransforms,
+  const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes,
+  constantKernelInput(uint,               primitiveCount),
+  atomicKernelInput(uint,                 rayIndexAtomicBuffer),
+  sharedMemKernelInput(uint,              sharedLeafNodeIndex, 13)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -53,19 +54,20 @@ Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
 }
 
 Kernel void intersectRaysBVHPrimitiveInstances(
-  Device HitStruct*                   hits,
-  const Device RayStruct*             rays,
-  constantKernelInput(uint,           rayCount),
-  const Device BVHNodeInfo*           treeInternalNodes,
-  const Device uint*                  leafParentNodeIndices,
-  const Device uint*                  nodeParentNodeIndices,
-  const Device XAB*                   treeLeafNodeBoundingBoxes,
-  const Device XAB*                   treeInternalNodeBoundingBoxes,
-  const Device PrimitiveADSResources* pointers,
-  const Device float4*                primitiveInstanceTransforms,
-  constantKernelInput(uint,           primitiveCount),
-  atomicKernelInput(uint,             rayIndexAtomicBuffer),
-  sharedMemKernelInput(uint,          sharedLeafNodeIndex, 12)
+  Device HitStruct*                       hits,
+  const Device RayStruct*                 rays,
+  constantKernelInput(uint,               rayCount),
+  const Device BVHNodeInfo*               treeInternalNodes,
+  const Device uint*                      leafParentNodeIndices,
+  const Device uint*                      nodeParentNodeIndices,
+  const Device XAB*                       treeLeafNodeBoundingBoxes,
+  const Device XAB*                       treeInternalNodeBoundingBoxes,
+  const Device PrimitiveADSResources*     pointers,
+  const Device float4x4*                  primitiveInstanceTransforms,
+  const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes,
+  constantKernelInput(uint,               primitiveCount),
+  atomicKernelInput(uint,                 rayIndexAtomicBuffer),
+  sharedMemKernelInput(uint,              sharedLeafNodeIndex, 13)
   KERNEL_THREAD_ARGUMENTS
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -78,7 +80,6 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   initializeHit(&finalHit);
 
   finalHit.distance = rays[index].maxDistance;
-  uint closestPrimitiveADSIndex = -1;
 
 #if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0
   Shared uint *leafNodeIndex = sharedLeafNodeIndex;
@@ -96,16 +97,17 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     float3 invRayDirection = 1.f / ray.direction;
     bool3 sign = selectInput3(invRayDirection < 0.f);
 
-    stacklessTraverseBinaryTree(finalHit.distance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, ray.origin, ray.direction, invRayDirection, sign, 0, 0, 0, 0, threadLocalIndex(), sharedLeafNodeIndex);
+    stacklessTraverseBinaryTree(finalHit.distance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, ray.origin, ray.direction, invRayDirection, sign, 0, 0, 0, 0, localIndex, sharedLeafNodeIndex);
 
-    if (leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS] == -1) break;
+    if (leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_TRAVERSE_STATE] == -1) break;
 
-    const uint primitiveADSIndex = leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 3];
-    const float4x4 transform = unpackDeviceFloat3x4To4x4(&primitiveInstanceTransforms[primitiveADSIndex * 3]);
+    const uint primitiveADSIndex  = leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_CURRENT_NODE];
+    const float4x4 invTransform   = primitiveInstanceTransforms[primitiveCount + primitiveADSIndex];
 
-    ray.origin    = mulMatrixVec(transform, constructFloat4(ray.origin, 1.f)).xyz;
-    ray.direction = mulMatrixVec(transform, constructFloat4(ray.direction, 0.f)).xyz;
+    ray.origin = mulMatrixVec(invTransform, constructFloat4(ray.origin, 1.f)).xyz;
+    ray.direction = mulMatrixVec(invTransform, constructFloat4(ray.direction, 0.f)).xyz;
     invRayDirection = 1.f / ray.direction;
+    sign = selectInput3(invRayDirection < 0.f);
 
     DecodedPrimitiveInfo primInfo;
     primInfo.primitiveType = RTPrimitiveCount;
@@ -126,9 +128,11 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     if (hit.distance < finalHit.distance)
     {
       finalHit = hit;
-      closestPrimitiveADSIndex = primitiveADSIndex;
 
-      traversalSetHitNormal(ray, &finalHit, pointers[closestPrimitiveADSIndex].vertexArray, pointers[closestPrimitiveADSIndex].attributeArray, pointers[closestPrimitiveADSIndex].vertexAttributeArray, pointers[closestPrimitiveADSIndex].systemSettings);
+      traversalSetHitNormal(ray, &finalHit, pointers[primitiveADSIndex].vertexArray, pointers[primitiveADSIndex].attributeArray, pointers[primitiveADSIndex].vertexAttributeArray, pointers[primitiveADSIndex].systemSettings);
+
+      setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveADSIndex], constructFloat4(finalHit.normal, 0.f)).xyz));
+      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveInstance);
     }
   }
   while (true);

@@ -36,43 +36,17 @@ void PrimitiveAccelerationDataStruct::create(ComputeInterface* compute)
 void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primitiveEntity)
 {
   this->primitiveEntity = primitiveEntity;
-  this->primitiveCount  = primitiveEntity->getPrimitiveCount();
-  this->vertexCount     = primitiveEntity->getPrimitiveVertexCount();
-
-  primitiveInformation.host()->resize(1);
-
-  uint primOffset   = 0;
-  uint vertexOffset = 0;
-
-  RTPrimitiveType primType = primitiveEntity->getPrimitiveType();
-
-  for (uint i=0; i<RTPrimitiveCount; i++)
-  {
-    if (primType == i)
-    {
-      primOffset    += primitiveEntity->getPrimitiveCount();
-      vertexOffset  += primitiveEntity->getPrimitiveVertexCount();
-    }
-
-    EncodedPrimitiveInfo primInfo;
-
-    setPrimitiveType(primInfo,         (RTPrimitiveType)i);
-    setPrimitiveIndexOffset(primInfo,  primOffset);
-    setPrimitiveVertexOffset(primInfo, vertexOffset);
-
-    primitiveInformation.host()->at(0).globalOffsets[i] = primInfo;
-  }
-
-  primitiveInformation.syncDevice();
-
-  BoundingVolumeHierarchyADS::bindBuffers((*primitiveEntity)[EntityPrimitiveAttributePosition], (*primitiveEntity)[EntityPrimitiveAttributeIndex],
-                                          (*primitiveEntity)[EntityPrimitiveAttributeNormal], &primitiveInformation);
-
-  vector<string> oldType = {"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
-  vector<string> newType = {to_string(primitiveEntity->getEntityType())};
+  vector<string> oldType = {};//{"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
+  vector<string> newType = {};//{to_string(primitiveEntity->getEntityType())};
 
   registerCreateShaders(&oldType, &newType);
   registerTraverseShaders();
+
+  primitiveInstancesPerType[primitiveEntity->getPrimitiveType()].push_back(primitiveEntity);
+
+  resizePrimitiveArray();
+  BoundingVolumeHierarchyADS::bindBuffers(vertexArray.device(), attributeArray.device(), vertexAttributeArray.device(), &systemSettings);
+  composePrimitiveArray();
 }
 
 void PrimitiveAccelerationDataStruct::bindBuffers(const ComputeMemory* vertexArray, const ComputeMemory* attributeArray,

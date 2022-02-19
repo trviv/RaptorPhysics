@@ -14,13 +14,17 @@ protected:
 public:
   /// Default constructor ( unused )
   Matrix4()
-  {}
+  {
+    ((real*)this)[15] = 1;
+  }
 
   /// Construct using a Matrix 3 and position
   Matrix4(const Matrix3& mat,
     const Real3& position)
     :Matrix3(mat), pos(position)
-  {}
+  {
+    ((real*)this)[15] = 1;
+  }
 
   /// Copy constructor
   Matrix4(const Matrix4& mat)
@@ -31,7 +35,7 @@ public:
   /// Assignment operator
   void  operator=(const Matrix4& mat)
   {
-    Matrix3::operator=(mat);  pos = mat.pos;
+    memcpy(this, &mat, sizeof(real) * 16);
   }
 
   /// Multiplication operator
@@ -84,12 +88,14 @@ public:
     const Real3& pos)
   {
     Matrix3::operator=(mat);  this->pos = pos;
+    ((real*)this)[15] = 1;
   }
 
   /// Set matrix to identity matrix
   void  setIdentity()
   {
     Matrix3::setIdentity(); pos.set(0, 0, 0);
+    ((real*)this)[15] = 1;
   }
 
   /// Set matrix to multiplication of given matrix ( = a x b )

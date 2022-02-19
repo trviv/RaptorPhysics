@@ -37,17 +37,21 @@ class Real3 : public float3
 public:
   /// Default constructor
   Real3()
-  {}
+  {
+    memset(this, 0, sizeof(real) * 4);
+  }
 
   /// Copy one value to all
   Real3(const real& val)
   {
+    memset(this, 0, sizeof(real) * 4);
     *this = val;
   }
 
   /// Copy constructor
   Real3(const Real3& val)
   {
+    memset(this, 0, sizeof(real) * 4);
     *this = val;
   }
 
@@ -58,6 +62,7 @@ public:
   /// Copy different values
   Real3(const real& x, const real& y, const real& z)
   {
+    memset(this, 0, sizeof(real) * 4);
     set(x, y, z);
   }
 
@@ -70,7 +75,7 @@ public:
   /// Assignment operator
   Real3& operator=(const Real3& val)
   {
-    set(val.x, val.y, val.z); return *this;
+    memcpy(this, &val, sizeof(real) * 4); return *this;
   }
 
   /// Addition operator (for vector)

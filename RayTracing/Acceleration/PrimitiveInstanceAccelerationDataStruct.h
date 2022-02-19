@@ -10,7 +10,6 @@ class PrimitiveInstanceAccelerationDataStruct : public BoundingVolumeHierarchyAD
 {
 protected:
 
-  ComputeKernel collectPrimitives;
   ComputeKernel updatePrimitiveInstanceData;
 
   bool primitiveChanged;
@@ -21,21 +20,8 @@ protected:
   unordered_map<const PrimitiveAccelerationDataStruct*, vector<const RayTracingEntity*>> primitiveInstances;
 
   DeviceArray<const ComputeMemory*>     primitiveADSResources;
-  DeviceArray<float4>                   primitiveInstanceTransforms;
+  DeviceArray<Matrix4>                  primitiveInstanceTransforms;
   DeviceArray<PrimitiveInstanceADSLeaf>&primitiveInstanceNodes;
-  vector<const RayTracingEntity*>       primitiveInstancesPerType[RTPrimitiveCount];
-
-  /*!@member Composite array containing all positions.*/
-  DeviceArray<PrimitiveStruct>  vertexArray;
-
-  /*!@member Composite array containing all primitive attributes.*/
-  DeviceArray<PrimitiveAttrib>  attributeArray;
-
-  /*!@member Composite array containing all vertex attributes.*/
-  DeviceArray<VertexAttrib>     vertexAttributeArray;
-
-  /*!@member Primitive data for the whole system.*/
-  DeviceArray<RTSystemSettings> systemSettings;
 
   void validateBuild()const;
 
@@ -53,10 +39,6 @@ protected:
   void registerTraverseShaders(const vector<string>* oldType = NULL, const vector<string>* newType = NULL);
 
   void registerResources(ComputeKernel& kernel);
-
-  void resizePrimitiveArray();
-
-  void composePrimitiveArray();
 
 public:
 
