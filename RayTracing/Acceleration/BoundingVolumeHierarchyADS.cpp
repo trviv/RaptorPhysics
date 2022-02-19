@@ -1,11 +1,8 @@
 #include "BoundingVolumeHierarchyADS.h"
 
 //#define DEBUG_BVH_ADS
-#define RAY_TRAVERSAL_BVH_MAX_LEAFS 5
-#define BVH_ADS_PERSISTENT_MULTIPLIER 1
-#define RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE RAY_TRAVERSAL_BVH_MAX_LEAFS
 
-BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS()
+BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS():maxBVHLeafs(5),sharedMemoryStride(5),bvhPersistentMultiplier(1)
 {
 }
 
@@ -23,6 +20,16 @@ void BoundingVolumeHierarchyADS::initializeData()
   treeInternalNodes.create(compute);
   primitiveLeafData.create(compute);
   primitiveLeafDataSorted.create(compute);
+
+  vertexArray.create(compute);
+  attributeArray.create(compute);
+  vertexAttributeArray.create(compute);
+  systemSettings.create(compute);
+
+  for (auto i : primitiveInstancesPerType)
+  {
+    i.clear();
+  }
 }
 
 void BoundingVolumeHierarchyADS::updatePointers()
@@ -130,6 +137,7 @@ void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* old
 
   registerShader(compute, "BoundingVolumeHierarchyADSCreate.shader", oldType, newType);
 
+  collectPrimitives            = programs[0].createKernel("collectPrimitives");
   createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
   assignMortonCode             = programs[0].createKernel("assignMortonCode");
   constructBinaryTree          = programs[0].createKernel("constructBinaryTree");
@@ -169,8 +177,8 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
       {
         vector<string> oldType = {getIntersectionTypeName((IntersectionType)i), "RayStruct", "HitStruct", "BVH_ADS_PERSISTENT_MULTIPLIER",
           "RAY_TRAVERSAL_BVH_MAX_LEAFS", "RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE"};
-        vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(BVH_ADS_PERSISTENT_MULTIPLIER),
-          to_string(RAY_TRAVERSAL_BVH_MAX_LEAFS), to_string(RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE)};
+        vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(bvhPersistentMultiplier),
+          to_string(maxBVHLeafs), to_string(sharedMemoryStride)};
 //        oldType.push_back("STACKLESS_TRAVERSE_EARLY_CHILD");
 //        newType.push_back("");
         getRayStructDefines(oldType, newType, (RayStructType)r);
@@ -212,6 +220,80 @@ void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, c
   primitiveLeafDataSorted.resize(primitiveCount, false);
 }
 
+void BoundingVolumeHierarchyADS::resizePrimitiveArray()
+{
+  systemSettings.host()->resize(1);
+
+  uint primOffset   = 0;
+  uint vertexOffset = 0;
+
+  for (uint i=0; i<RTPrimitiveCount; i++)
+  {
+    for (const auto& primInstance : primitiveInstancesPerType[i])
+    {
+      primOffset    += primInstance->getPrimitiveCount();
+      vertexOffset  += primInstance->getPrimitiveVertexCount();
+    }
+
+    EncodedPrimitiveInfo primInfo;
+
+    setPrimitiveType(primInfo,         (RTPrimitiveType)i);
+    setPrimitiveIndexOffset(primInfo,  primOffset);
+    setPrimitiveVertexOffset(primInfo, vertexOffset);
+    systemSettings.host()->at(0).globalOffsets[i] = primInfo;
+  }
+
+  vertexArray.resize(vertexOffset, false);
+  attributeArray.resize(primOffset, false);
+  vertexAttributeArray.resize(vertexOffset, false);
+
+  systemSettings.syncDevice();
+}
+
+void BoundingVolumeHierarchyADS::composePrimitiveArray()
+{
+  uint vertexOffset   = 0;
+  uint primOffset     = 0;
+  uint primBatchSize  = 8;
+
+  for (const auto& primInstances : primitiveInstancesPerType)
+  {
+    for (const auto& primInstance : primInstances)
+    {
+      const auto& prim = *primInstance;
+      uint primBatchCount = mAlignBy(prim.getPrimitiveCount(), primBatchSize);
+      uint primType = prim.getPrimitiveType();
+
+      size_t workgroupSize[3], workgroupCount[3];
+      compute->configureSize(workgroupSize, workgroupCount, primBatchCount);
+
+      collectPrimitives.setArg(vertexArray.device(), 0);
+      collectPrimitives.setArg(attributeArray.device(), 1);
+      collectPrimitives.setArg(vertexAttributeArray.device(), 2);
+      uint nextBindIndex = prim.bindToShader(collectPrimitives, 3);
+      collectPrimitives.setArg(&prim.getMaterialId(), nextBindIndex);
+      collectPrimitives.setArg(&primBatchSize, nextBindIndex+1);
+      collectPrimitives.setArg(&prim.getPrimitiveCount(), nextBindIndex+2);
+      collectPrimitives.setArg(&primType, nextBindIndex+3);
+      collectPrimitives.setArg(&primOffset, nextBindIndex+4);
+      collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
+      collectPrimitives.setArg<const Matrix4>(&prim.getTransform(), nextBindIndex+6);
+
+      compute->execute(collectPrimitives, workgroupSize, workgroupCount);
+
+#ifdef DEBUG_BVH_ADS
+      vertexArray.syncHost();
+      attributeArray.syncHost();
+      vertexAttributeArray.syncHost();
+      compute->sync();
+#endif
+
+      vertexOffset  += prim.getPrimitiveVertexCount();
+      primOffset    += prim.getPrimitiveCount();
+    }
+  }
+}
+
 void BoundingVolumeHierarchyADS::fullBuild()
 {
   if (!needsRebuild) return;
@@ -224,6 +306,7 @@ void BoundingVolumeHierarchyADS::fullBuild()
   ComputeUtil::get(accXABComputeUtilId)->sum1D(compute, pointerSystemSettings, pointerLeafNodeBoundingBoxes, primitiveCount);
 
 #ifdef DEBUG_BVH_ADS
+  systemSettings.syncHost();
   compute->sync();
 #endif
 
@@ -247,10 +330,11 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
   validateBuild();
   {
     size_t workgroupSize[3], workgroupCount[3];
-    compute->configureSize(workgroupSize, workgroupCount, mAlignBy(rayCount, BVH_ADS_PERSISTENT_MULTIPLIER));
-#if BVH_ADS_PERSISTENT_MULTIPLIER > 1
-    ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
-#endif
+    compute->configureSize(workgroupSize, workgroupCount, mAlignBy(rayCount, bvhPersistentMultiplier));
+    if (bvhPersistentMultiplier > 1)
+    {
+      ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
+    }
 
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
@@ -268,7 +352,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(pointerSystemSettings, 11);
     intersectionKernel.setArg(&primitiveCount, 12);
     intersectionKernel.setArg(visitedInternalNodes.device(), 13);
-    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 14);
+    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 14);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);
 
@@ -284,9 +368,9 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
 {
   validateBuild();
   {
-    size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * BVH_ADS_PERSISTENT_MULTIPLIER, 1, 1};
+    size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * bvhPersistentMultiplier, 1, 1};
     ComputeUtil::get(sortComputeUtilId)->configureWorkgroupCount(compute, workgroupCount.device(), rayCount, workgroupSize);
-    workgroupSize[0] /= BVH_ADS_PERSISTENT_MULTIPLIER;
+    workgroupSize[0] /= bvhPersistentMultiplier;
 
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
 
@@ -304,7 +388,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(pointerSystemSettings, 11);
     intersectionKernel.setArg(&primitiveCount, 12);
     intersectionKernel.setArg(workgroupCount.device(), 13);
-    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE, (size_t)4), 14);
+    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 14);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);
 
