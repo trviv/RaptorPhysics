@@ -169,8 +169,7 @@ Kernel void updatePrimitiveInstanceData(
               matrix[8] * matrix[2] * matrix[5];
 
   const float invDet = 1.f / (matrix[0] * inv[0] + matrix[1] * inv[4] + matrix[2] * inv[8] + matrix[3] * inv[12]);
-
-  primitiveInstanceTransforms[primitiveInstanceCount + index] = invTransform * det;
+  primitiveInstanceTransforms[primitiveInstanceCount + index] = invTransform * invDet;
 }
 
 /*

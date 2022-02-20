@@ -144,6 +144,22 @@ inline stringList tokenize(const string& input, const string delimiter = " \t\r\
   return tokens;
 }
 
+inline string join(const vector<string>* stringList, const char* delim = " ")
+{
+  string ret;
+
+  if (!stringList || !stringList->size()) return  ret;
+
+  ret = stringList->at(0);
+
+  for (int i=1; i<stringList->size(); i++)
+  {
+    ret += delim + stringList->at(i);
+  }
+
+  return ret;
+}
+
 #ifdef USE_METAL_COMPUTE
 #ifndef DISABLE_PROFILING
 #define ALWAYS_END_ENCODERS
@@ -171,6 +187,7 @@ static id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
 unordered_map<id<MTLComputePipelineState>, id<MTLFunction>> kernelNameMap;
 unordered_map<string, uintPairList> kernelNameArgumentBufferMap;
 static double  lastExecutionTime = 0.f;
+unordered_map<string, ComputeProgram> cachedPrograms;
 
 // 128 bytes aligned
 uint alignAllocSize(uint minimumSize)
@@ -178,8 +195,11 @@ uint alignAllocSize(uint minimumSize)
   return ((minimumSize & 0x7F) > 0) ? ((minimumSize & (~0x7F)) + 0x80) : minimumSize;
 }
 
+pthread_mutex_t memMutex;
+
 static id<MTLBuffer> getTempBuffer(uint minimumSize)
 { @autoreleasepool {
+  pthread_mutex_lock(&memMutex);
   // find a suitable candidate if available
   uint smallerSizeDifference = -1;
   uint biggerSizeDifference = -1;
@@ -228,6 +248,7 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
     }
   }
 
+  id<MTLBuffer> retBuffer = nullptr;
   // if both found
   if (smallerSizeDifference != -1 && biggerSizeDifference != -1)
   {
@@ -235,44 +256,49 @@ static id<MTLBuffer> getTempBuffer(uint minimumSize)
     if (smallerSizeDifference < biggerSizeDifference)
     {
       tempBuffers[smallerBufferIndex] = pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
-      return tempBuffers[smallerBufferIndex].second;
+      retBuffer = tempBuffers[smallerBufferIndex].second;
     }
     // if bigger is closer in size return it
     else
     {
       tempBuffers[biggerBufferIndex].first = TEMP_BUFFER_OCCUPIED_FLAG;
-      return tempBuffers[biggerBufferIndex].second;
+      retBuffer = tempBuffers[biggerBufferIndex].second;
     }
   }
   else if (biggerSizeDifference != -1)
   {
     tempBuffers[biggerBufferIndex].first = TEMP_BUFFER_OCCUPIED_FLAG;
-    return tempBuffers[biggerBufferIndex].second;
+    retBuffer = tempBuffers[biggerBufferIndex].second;
   }
   else if (smallerSizeDifference != -1)
   {
     tempBuffers[smallerBufferIndex] = pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]);
-    return tempBuffers[smallerBufferIndex].second;
+    retBuffer = tempBuffers[smallerBufferIndex].second;
   }
   else
   {
     tempBuffers.push_back(pair<ushort, id<MTLBuffer>>(TEMP_BUFFER_OCCUPIED_FLAG, [device newBufferWithLength:minimumSize options:MTLResourceStorageModeShared]));
-    return tempBuffers.back().second;
+    retBuffer = tempBuffers.back().second;
   }
-  return nil;
+
+  pthread_mutex_unlock(&memMutex);
+  return retBuffer;
 }}
 
 static void freeTempBuffer(id<MTLBuffer> buffer)
 { @autoreleasepool {
+  pthread_mutex_lock(&memMutex);
   for (int i=0; i<tempBuffers.size(); i++)
   {
     // if not occupied
     if (tempBuffers[i].second == buffer)
     {
       tempBuffers[i].first = 0;
+      pthread_mutex_unlock(&memMutex);
       return;
     }
   }
+  pthread_mutex_unlock(&memMutex);
 }}
 
 static id<MTLBlitCommandEncoder> getBlitEncoder()
@@ -1461,32 +1487,50 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
 ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, const vector<string>* oldType,
   const vector<string>* newType, const vector<string>* includeFiles)
 {
-  std::string data = "\n";
-  if (oldType)
-  {
-    for (uint i = 0; i < oldType->size(); i++)
-    {
-      data += "#define " + (*oldType)[i] + " " + (*newType)[i] + "\n";
-    }
-  }
-  logComputeMessage("Template types%s", data.c_str());
-  if (includeFiles)
-  {
-    for (uint i = 0; i < includeFiles->size(); i++)
-    {
-      data += IOInterface::readFile((*includeFiles)[i].c_str()) + "\n";
-    }
-  }
-  data += IOInterface::readFile(fileName);
-  data += "\n";
-
   logComputeMessage("Compiling File: %s", fileName);
-  return createProgram(data.c_str(), data.size());
+  return createTemplateProgram(IOInterface::readFile(fileName), oldType, newType, includeFiles);
 }
 
 ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode, const vector<string>* oldType,
   const vector<string>* newType, const vector<string>* includeFiles)
 {
+  string programSignature;
+
+  if ((oldType == NULL) ^ (newType == NULL))
+  {
+    logComputeError("Old and New type inconsistent for the program!");
+  }
+  if (oldType && oldType->size() != newType->size())
+  {
+    logComputeError("Different lengths for Old and New types for the program!");
+  }
+
+  if (oldType)
+  {
+    vector<string> sortedData = *oldType;
+    sort(sortedData.begin(), sortedData.end());
+    programSignature += join(&sortedData, "_");
+  }
+
+  if (newType)
+  {
+    vector<string> sortedData = *newType;
+    sort(sortedData.begin(), sortedData.end());
+    programSignature += join(&sortedData, "_");
+  }
+
+  if (includeFiles)
+  {
+    vector<string> sortedData = *includeFiles;
+    sort(sortedData.begin(), sortedData.end());
+    programSignature += join(&sortedData, "_");
+  }
+
+  if (cachedPrograms.count(programSignature))
+  {
+    return cachedPrograms[programSignature];
+  }
+
   std::string data = "\n";
   if (oldType)
   {
@@ -1506,7 +1550,10 @@ ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode,
   data += sourceCode;
   data += "\n";
 
-  return createProgram(data.c_str(), data.size());
+  ComputeProgram program = createProgram(data.c_str(), data.size());
+  cachedPrograms[programSignature] = program;
+
+  return program;
 }
 
 #ifdef ENABLE_CL_PROFILING
@@ -1664,7 +1711,7 @@ void ComputeInterface::copyToHost(const ComputeMemory* source, size_t sourceOffs
   if (waitForFinish)
   {
     sync();
-    freeTempBuffer(tempBuffer);
+//    freeTempBuffer(tempBuffer);
   }}
 #endif
 }
@@ -1690,7 +1737,7 @@ void ComputeInterface::copyFromHost(ComputeMemory* destination, size_t destinati
   if (waitForFinish)
   {
     sync();
-    freeTempBuffer(tempBuffer);
+//    freeTempBuffer(tempBuffer);
   }}
 #else
   memcpy((char*)(id<MTLBuffer>(*destination)).contents + (destinationOffset + destination->getOffset()), hostPtr, sizeInBytes);
