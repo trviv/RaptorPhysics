@@ -112,7 +112,7 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     DecodedPrimitiveInfo primInfo;
     primInfo.primitiveType = RTPrimitiveCount;
 
-    HitStruct hit = stacklessTraverseBinaryTree(finalHit.distance,
+    const HitStruct hit = stacklessTraverseBinaryTree(finalHit.distance,
       pointers[primitiveADSIndex].treeInternalNodes,
       pointers[primitiveADSIndex].leafParentNodeIndices,
       pointers[primitiveADSIndex].nodeParentNodeIndices,
@@ -128,8 +128,11 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     if (hit.distance < finalHit.distance)
     {
       finalHit = hit;
+#ifdef IntersectionTypeAny
+      break;
+#endif
 
-      traversalSetHitNormal(ray, &finalHit, pointers[primitiveADSIndex].vertexArray, pointers[primitiveADSIndex].attributeArray, pointers[primitiveADSIndex].vertexAttributeArray, pointers[primitiveADSIndex].systemSettings);
+      traversalSetHitNormal(ray, &finalHit, pointers[primitiveADSIndex].vertexArray, pointers[primitiveADSIndex].attributeArray, pointers[primitiveADSIndex].vertexAttributeArray, pointers[primitiveADSIndex].systemSettings, false);
 
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveADSIndex], constructFloat4(finalHit.normal, 0.f)).xyz));
       setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveInstance);
