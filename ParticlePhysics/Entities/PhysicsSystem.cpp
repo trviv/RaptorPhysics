@@ -40,7 +40,7 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
   kernels.push_back(programs[0].createKernel("endStep"));
   kernels.push_back(programs[0].createKernel("integrateDifferentiateStep"));
 
-  systemSettings.create(compute, NULL);
+  systemSettings.create(compute, NULL, true);
   systemSettings.resize(1, false);
   systemSettings.host()->resize(1);
   systemSettings.host()->at(0).systemBound.min = Real3(-20.f, 0.f, -20.f);

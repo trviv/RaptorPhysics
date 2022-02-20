@@ -244,6 +244,8 @@ class ComputeInterface
 
   friend class ComputeHeap;
 
+  ComputeProgram createProgram(const char* sourceCode, size_t sourceSize);
+
 public:
 
   ComputeHeap heap;
@@ -253,9 +255,6 @@ public:
   ~ComputeInterface();
 
   void create(int deviceIndex = -1);
-
-
-  ComputeProgram createProgram(const char* sourceCode, size_t sourceSize);
 
   ComputeProgram createTemplateProgram(const char* fileName, const vector<string>* oldType = NULL,
     const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
