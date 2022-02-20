@@ -89,6 +89,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
   return select(0.f, normalize(incident * eta + normal * (eta * abs(dotNI) - sqrt(k))), k > 0.f);
 }
 #define sinCos(phi, cosPhi) sincos(phi, &cosPhi)
+#define swapFloat(a, b)     {float t = a; a = b; b = t;}
 
 #define atomicLoad(location)          atomic_or  ((Device uint*)location, 0)
 #define atomicStore(location, value)  atomic_xchg((Device uint*)location, value)
@@ -208,6 +209,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
   return select(0.f, normalize(incident * eta + normal * (eta * abs(dotNI) - sqrt(k))), k > 0.f);
 }
 #define sinCos(phi, cosPhi) sincos(phi, cosPhi)
+#define swapFloat(a, b)     {float t = a; a = b; b = t;}
 
 #define atomicLoad(location)          atomic_fetch_or_explicit((Device atomic_uint*)location, 0, memory_order_relaxed)
 #define atomicStore(location, value)  atomic_exchange_explicit((Device atomic_uint*)location, value, memory_order_relaxed)

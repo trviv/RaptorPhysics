@@ -254,27 +254,24 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
     {
       if (!instances.second.size()) continue;
 
+      const auto& primitiveADS = instances.first;
       adsIndex++;
-      primitiveADSResources.host()->push_back(instances.first->treeInternalNodes.device());
-      primitiveADSResources.host()->push_back(instances.first->leafParentNodeIndices.device());
-      primitiveADSResources.host()->push_back(instances.first->nodeParentNodeIndices.device());
-      primitiveADSResources.host()->push_back(instances.first->leafNodeBoundingBoxes.device());
-      primitiveADSResources.host()->push_back(instances.first->treeNodeBoundingBoxes.device());
-      primitiveADSResources.host()->push_back(instances.first->pointerVertexArray);
-      primitiveADSResources.host()->push_back(instances.first->pointerAttributeArray);
-      primitiveADSResources.host()->push_back(instances.first->pointerVertexAttributeArray);
-      primitiveADSResources.host()->push_back(instances.first->pointerSystemSettings);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerTreeInternalNodes);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerLeafParentNodeIndices);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerNodeParentNodeIndices);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerLeafNodeBoundingBoxes);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerTreeNodeBoundingBoxes);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerVertexArray);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerAttributeArray);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerVertexAttributeArray);
+      primitiveADSResources.host()->push_back(primitiveADS->pointerSystemSettings);
 
       for (const auto& instance : instances.second)
       {
-        real invMatrix[16];
-        Matrix4::invert(invMatrix, (const real*)&instance->getTransform());
-
         (*primitiveInstanceTransforms.host())[instanceIndex] = instance->getTransform();
-        (*primitiveInstanceTransforms.host())[primitiveCount + instanceIndex] = ((Matrix4*)invMatrix)[0];
 
         PrimitiveInstanceADSLeaf nodeData;
-        nodeData.bounds             = instances.first->primitiveEntity->getPrimBound();
+        nodeData.bounds             = primitiveADS->primitiveEntity->getPrimBound();
         nodeData.primitiveADSIndex  = adsIndex;
         nodeData.primitiveInstance  = instance->getMaterialId();
         (*primitiveInstanceNodes.host())[instanceIndex] = nodeData;

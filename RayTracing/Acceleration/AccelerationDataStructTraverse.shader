@@ -151,12 +151,12 @@ void traversalSetHitNormal(
   const Device PrimitiveStruct* vertexArray,
   const Device PrimitiveAttrib* attributeArray,
   const Device VertexAttrib*    vertexAttributeArray,
-  Const RTSystemSettings*       systemSettings)
+  Const RTSystemSettings*       systemSettings,
+  const bool                    normalizeHit = true)
 {
 #if defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
   if (hit->primitiveIndex == -1) return;
 
-  float3 hitNormal;
   DecodedPrimitiveInfo primInfo;
   primInfo.primitiveType = RTPrimitiveCount;
   decodePrimitiveInfoFromSystemSettings(systemSettings, hit->primitiveIndex, &primInfo);
@@ -164,7 +164,7 @@ void traversalSetHitNormal(
   if (primInfo.primitiveType == PrimitiveSphere)
   {
     const float3 hitPoint = ray.origin + ray.direction * hit->distance;
-    setHitNormal(hitNormal, hitPoint - vertexArray[hit->primitiveIndex].position);
+    setHitNormal(hit->normal, hitPoint - vertexArray[hit->primitiveIndex].position);
   }
   else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
   {
@@ -203,7 +203,7 @@ void traversalSetHitNormal(
 
     if (isIdentityEntityFlat(hit->primitiveIdentity))
     {
-      setHitNormal(hitNormal, cross(edge2, edge1));
+      setHitNormal(hit->normal, cross(edge2, edge1));
     }
     else
     {
@@ -219,10 +219,10 @@ void traversalSetHitNormal(
       normal1 = vertexAttributeArray[attributes.triangleIndex.y].normal;
       normal2 = vertexAttributeArray[attributes.triangleIndex.z].normal;
 
-      setHitNormal(hitNormal, (1 - u - v) * normal0 + u * normal1 + v * normal2);
+      setHitNormal(hit->normal, (1 - u - v) * normal0 + u * normal1 + v * normal2);
     }
   }
-  setHitNormal(hit->normal, normalize(hitNormal));
+  if (normalizeHit) setHitNormal(hit->normal, normalize(hit->normal));
 #endif
 }
 

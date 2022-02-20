@@ -277,15 +277,21 @@ public:
       invMatrix[i] = inv[i] * det;
     }
 
-    invMatrix[3] = inv[12];
-    invMatrix[7] = inv[13];
-    invMatrix[11] = inv[14];
-
-    invMatrix[12] = inv[3] * det;
-    invMatrix[13] = inv[7] * det;
-    invMatrix[14] = inv[11] * det;
+    swap(invMatrix[3], invMatrix[12]);
+    swap(invMatrix[7], invMatrix[13]);
+    swap(invMatrix[11], invMatrix[14]);
 
     return true;
+  }
+
+  Matrix4 inverse()const
+  {
+    Matrix4 ret;
+    invert((real*)&ret, (const real*)this);
+    swap(((real*)&ret)[3], ((real*)&ret)[12]);
+    swap(((real*)&ret)[7], ((real*)&ret)[13]);
+    swap(((real*)&ret)[11], ((real*)&ret)[14]);
+    return ret;
   }
 
   // transform a 4 element vector and return a Real3 value
