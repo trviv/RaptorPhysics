@@ -136,7 +136,7 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     {
       finalHit = hit;
 
-      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveInstance);
+      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveIdentity);
 
       traversalSetHitNormal(localRay, &finalHit, primitiveResources[primitiveADSIndex].vertexArray, primitiveResources[primitiveADSIndex].attributeArray, primitiveResources[primitiveADSIndex].vertexAttributeArray, primitiveResources[primitiveADSIndex].systemSettings, false);
 

@@ -22,7 +22,7 @@ Kernel void updatePrimitiveInstanceData(
   PrimitiveInstanceADSLeaf leafNode = primitiveInstanceNodes[index];
 
   const uint primitiveADSIndex = leafNode.primitiveADSIndex;
-  const RayTracingEntityId primitiveInstance = leafNode.primitiveInstance;
+  const RayTracingEntityId primitiveIdentity = leafNode.primitiveIdentity;
 
   const XAB primitiveBoundingBox  = primitiveADSResources[primitiveADSIndex].systemSettings[0].systemBound;
   const float4x4 transform        = primitiveInstanceTransforms[index];
@@ -47,7 +47,7 @@ Kernel void updatePrimitiveInstanceData(
   leafNode.bounds.min = newMin;
   leafNode.bounds.max = newMax;
   leafNode.primitiveADSIndex = primitiveADSIndex;
-  leafNode.primitiveInstance = primitiveInstance;
+  leafNode.primitiveIdentity = primitiveIdentity;
 
   primitiveInstanceNodes[index] = leafNode;
 

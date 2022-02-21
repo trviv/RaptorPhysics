@@ -160,6 +160,31 @@ inline string join(const vector<string>* stringList, const char* delim = " ")
   return ret;
 }
 
+inline string join(const vector<string>& stringList, const char* delim = " ")
+{
+  return join(&stringList, delim);
+}
+
+inline vector<string> unique(const vector<string>* stringList, const char* delim = " ")
+{
+  vector<string> ret;
+
+  if (!stringList || !stringList->size()) return  ret;
+
+  ret = *stringList;
+  sort(ret.begin(), ret.end());
+
+  int endPos = 0;
+  for (int i=1; i<ret.size(); i++)
+  {
+    if (ret[endPos] == ret[i]) continue;
+
+    ret[endPos++] = ret[i-1];
+  }
+
+  return ret;
+}
+
 #ifdef USE_METAL_COMPUTE
 #ifndef DISABLE_PROFILING
 #define ALWAYS_END_ENCODERS
@@ -1505,26 +1530,10 @@ ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode,
     logComputeError("Different lengths for Old and New types for the program!");
   }
 
-  if (oldType)
-  {
-    vector<string> sortedData = *oldType;
-    sort(sortedData.begin(), sortedData.end());
-    programSignature += join(&sortedData, "_");
-  }
-
-  if (newType)
-  {
-    vector<string> sortedData = *newType;
-    sort(sortedData.begin(), sortedData.end());
-    programSignature += join(&sortedData, "_");
-  }
-
-  if (includeFiles)
-  {
-    vector<string> sortedData = *includeFiles;
-    sort(sortedData.begin(), sortedData.end());
-    programSignature += join(&sortedData, "_");
-  }
+  programSignature += to_string(std::hash<std::string>{}(sourceCode))+"_";
+  programSignature += join(unique(oldType), "_");
+  programSignature += join(unique(newType), "_");
+  programSignature += join(unique(includeFiles), "_");
 
   if (cachedPrograms.count(programSignature))
   {

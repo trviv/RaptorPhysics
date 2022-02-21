@@ -55,10 +55,17 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 
   includeFiles.push_back("ComputeHeader.shader");
   includeFiles.push_back("ComputeShared.h");
+  includeFiles.push_back("RayTracingStruct.h");
+
+  registerShader(compute, "RayTracingSystemUtil.shader", NULL, NULL);
+
+  accumulateColor = programs.back().createKernel("accumulateColor");
+  updateCameraKernel = programs.back().createKernel("updateCameraKernel");
+  transformPrimitives = programs.back().createKernel("transformPrimitives");
+
   includeFiles.push_back("RayStructs.h");
   includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("MaterialStruct.h");
-  includeFiles.push_back("RayTracingStruct.h");
   includeFiles.push_back("Light.shader");
 
   const vector<string> rayUtilIncludeFiles = {"RayStructs.h"};
@@ -72,7 +79,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
       vector<string> newType = {getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(rearrangeMultiplier)};
       getRayStructDefines(oldType, newType, (RayStructType)r);
       getHitStructDefines(oldType, newType, (HitStructType)h);
-      registerShader(compute, "RayTracingSystem.shader", &oldType, &newType);
+      registerShader(compute, "RayTracingSystemPipeline.shader", &oldType, &newType);
       shadeIntersectionKernels[r][h] = programs.back().createKernel("shadeIntersection");
       processShadowRaysKernels[r][h] = programs.back().createKernel("processShadowRays");
     }
@@ -100,10 +107,6 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   maxPrimIndexSetting[ComputeUtilSkipParallelPrimitives]  = "1";
 
   maxPrimIndex = ComputeUtil::create(compute, maxPrimIndexSetting);
-
-  accumulateColor = programs[0].createKernel("accumulateColor");
-  updateCameraKernel = programs[0].createKernel("updateCameraKernel");
-  transformPrimitives = programs[0].createKernel("transformPrimitives");
 
   randomUints.create(compute);
   colorOutputBuffer.create(compute);
