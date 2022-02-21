@@ -57,7 +57,7 @@ void AccelerationDataStruct::registerCreateShaders(const vector<string>* oldType
 
   registerShader(compute, "AccelerationDataStructCreate.shader", oldType, newType);
 
-  createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
+  createPrimitiveBoundingBoxes = programs.back().createKernel("createPrimitiveBoundingBoxes");
 }
 
 void AccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)

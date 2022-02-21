@@ -459,16 +459,13 @@ typedef struct DEFAULT_ALIGN
 {
   union
   {
-    struct
-    {
-      XAB bounds;
-    };
+    XAB bounds;
     struct
     {
       float reserved1[3];
       uint  primitiveADSIndex;
       float reserved2[3];
-      RayTracingEntityId primitiveInstance;
+      IdentityInfo primitiveIdentity;
     };
   };
 } PrimitiveInstanceADSLeaf;

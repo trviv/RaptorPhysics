@@ -367,7 +367,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   for (const string& kernelName : kernelNames)
   {
     logComputeMessage(kernelName.c_str());
-    util.kernels.push_back(util.programs[0].createKernel(kernelName.c_str()));
+    util.kernels.push_back(util.programs.back().createKernel(kernelName.c_str()));
   }
 
   logComputeMessage("\n");

@@ -137,11 +137,11 @@ void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* old
 
   registerShader(compute, "BoundingVolumeHierarchyADSCreate.shader", oldType, newType);
 
-  collectPrimitives            = programs[0].createKernel("collectPrimitives");
-  createPrimitiveBoundingBoxes = programs[0].createKernel("createPrimitiveBoundingBoxes");
-  assignMortonCode             = programs[0].createKernel("assignMortonCode");
-  constructBinaryTree          = programs[0].createKernel("constructBinaryTree");
-  constructTreeBoundingBox     = programs[0].createKernel("constructTreeBoundingBox");
+  collectPrimitives            = programs.back().createKernel("collectPrimitives");
+  createPrimitiveBoundingBoxes = programs.back().createKernel("createPrimitiveBoundingBoxes");
+  assignMortonCode             = programs.back().createKernel("assignMortonCode");
+  constructBinaryTree          = programs.back().createKernel("constructBinaryTree");
+  constructTreeBoundingBox     = programs.back().createKernel("constructTreeBoundingBox");
 }
 
 void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)

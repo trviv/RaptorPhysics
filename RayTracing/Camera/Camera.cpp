@@ -18,7 +18,7 @@ Camera::Camera(ComputeInterface* compute)
   vector<string> oldType = { "RayStruct"};
   vector<string> newType = { getRayStructName(RayStructPositionDirectionColor) };
   registerShader(compute, "Camera.shader", &oldType, &newType);
-  kernels.push_back(programs[0].createKernel("emitPrimaryRaysZWalkLocal"));
+  kernels.push_back(programs.back().createKernel("emitPrimaryRaysZWalkLocal"));
 
   deviceData = new DeviceArray<uint>(compute);
   deviceData->resize(sizeof(CameraStruct) / sizeof(uint), false);

@@ -262,7 +262,7 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
         PrimitiveInstanceADSLeaf nodeData;
         nodeData.bounds             = primitiveADS->primitiveEntity->getPrimBound();
         nodeData.primitiveADSIndex  = adsIndex;
-        nodeData.primitiveInstance  = instance->getMaterialId();
+        nodeData.primitiveIdentity  = instance->getMaterialId();
         (*primitiveInstanceNodes.host())[instanceIndex] = nodeData;
 
         instanceIndex++;
