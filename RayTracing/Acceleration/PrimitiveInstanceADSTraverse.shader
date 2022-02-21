@@ -10,7 +10,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
   const Device uint*                      nodeParentNodeIndices,
   const Device XAB*                       treeLeafNodeBoundingBoxes,
   const Device XAB*                       treeInternalNodeBoundingBoxes,
-  const Device PrimitiveADSResources*     pointers,
+  const Device PrimitiveADSResources*     primitiveResources,
   const Device float4x4*                  primitiveInstanceTransforms,
   const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes,
   constantKernelInput(uint,               primitiveCount),
@@ -28,22 +28,21 @@ Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
   const float3 invRayDirection = 1.f / ray.direction;
   const bool3 sign = selectInput3(invRayDirection < 0.f);
 
-  DecodedPrimitiveInfo primInfo;
-  primInfo.primitiveType = RTPrimitiveCount;
+  DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
   HitStruct hit = stacklessTraverseBinaryTree(rays[index].maxDistance,
-    pointers[0].treeInternalNodes,
-    pointers[0].leafParentNodeIndices,
-    pointers[0].nodeParentNodeIndices,
-    pointers[0].treeLeafNodeBoundingBoxes,
-    pointers[0].treeInternalNodeBoundingBoxes,
+    primitiveResources[0].treeInternalNodes,
+    primitiveResources[0].leafParentNodeIndices,
+    primitiveResources[0].nodeParentNodeIndices,
+    primitiveResources[0].treeLeafNodeBoundingBoxes,
+    primitiveResources[0].treeInternalNodeBoundingBoxes,
     ray.origin, ray.direction, invRayDirection, sign,
-    pointers[0].vertexArray,
-    pointers[0].attributeArray,
-    pointers[0].systemSettings,
+    primitiveResources[0].vertexArray,
+    primitiveResources[0].attributeArray,
+    primitiveResources[0].systemSettings,
     &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
-  traversalSetHitNormal(ray, &hit, pointers[0].vertexArray, pointers[0].attributeArray, pointers[0].vertexAttributeArray, pointers[0].systemSettings);
+  traversalSetHitNormal(ray, &hit, primitiveResources[0].vertexArray, primitiveResources[0].attributeArray, primitiveResources[0].vertexAttributeArray, primitiveResources[0].systemSettings);
 #ifdef IntersectionTypeClosest
   hits[index] = hit;
 #endif
@@ -62,7 +61,7 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   const Device uint*                      nodeParentNodeIndices,
   const Device XAB*                       treeLeafNodeBoundingBoxes,
   const Device XAB*                       treeInternalNodeBoundingBoxes,
-  const Device PrimitiveADSResources*     pointers,
+  const Device PrimitiveADSResources*     primitiveResources,
   const Device float4x4*                  primitiveInstanceTransforms,
   const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes,
   constantKernelInput(uint,               primitiveCount),
@@ -91,51 +90,61 @@ Kernel void intersectRaysBVHPrimitiveInstances(
 
   leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS] = -1;
 
+  const RayStruct worldRay = rays[index];
+  const float3 worldInvRayDirection = 1.f / worldRay.direction;
+  const bool3 worldSign = selectInput3(worldRay.direction < 0.f);
+
   do
   {
-    RayStruct ray = rays[index];
-    float3 invRayDirection = 1.f / ray.direction;
-    bool3 sign = selectInput3(invRayDirection < 0.f);
-
-    stacklessTraverseBinaryTree(finalHit.distance, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, ray.origin, ray.direction, invRayDirection, sign, 0, 0, 0, 0, localIndex, sharedLeafNodeIndex);
+    stacklessTraverseBinaryTree(finalHit.distance,
+      treeInternalNodes,
+      leafParentNodeIndices,
+      nodeParentNodeIndices,
+      treeLeafNodeBoundingBoxes,
+      treeInternalNodeBoundingBoxes,
+      worldRay.origin, worldRay.direction, worldInvRayDirection, worldSign,
+      0, 0, 0, 0, localIndex, sharedLeafNodeIndex);
 
     if (leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_TRAVERSE_STATE] == -1) break;
 
     const uint primitiveADSIndex  = leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_CURRENT_NODE];
     const float4x4 invTransform   = primitiveInstanceTransforms[primitiveCount + primitiveADSIndex];
 
-    ray.origin = mulMatrixVec(invTransform, constructFloat4(ray.origin, 1.f)).xyz;
-    ray.direction = mulMatrixVec(invTransform, constructFloat4(ray.direction, 0.f)).xyz;
-    invRayDirection = 1.f / ray.direction;
-    sign = selectInput3(invRayDirection < 0.f);
+    RayStruct localRay;
+    localRay.origin = mulMatrixVec(invTransform, constructFloat4(worldRay.origin, 1.f)).xyz;
+    localRay.direction = mulMatrixVec(invTransform, constructFloat4(worldRay.direction, 0.f)).xyz;
 
-    DecodedPrimitiveInfo primInfo;
-    primInfo.primitiveType = RTPrimitiveCount;
+    const float3 localInvRayDirection = 1.f / localRay.direction;
+    const bool3 localSign = selectInput3(localRay.direction < 0.f);
+
+    DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
     const HitStruct hit = stacklessTraverseBinaryTree(finalHit.distance,
-      pointers[primitiveADSIndex].treeInternalNodes,
-      pointers[primitiveADSIndex].leafParentNodeIndices,
-      pointers[primitiveADSIndex].nodeParentNodeIndices,
-      pointers[primitiveADSIndex].treeLeafNodeBoundingBoxes,
-      pointers[primitiveADSIndex].treeInternalNodeBoundingBoxes,
-      ray.origin, ray.direction, invRayDirection, sign,
-      pointers[primitiveADSIndex].vertexArray,
-      pointers[primitiveADSIndex].attributeArray,
-      pointers[primitiveADSIndex].systemSettings,
+      primitiveResources[primitiveADSIndex].treeInternalNodes,
+      primitiveResources[primitiveADSIndex].leafParentNodeIndices,
+      primitiveResources[primitiveADSIndex].nodeParentNodeIndices,
+      primitiveResources[primitiveADSIndex].treeLeafNodeBoundingBoxes,
+      primitiveResources[primitiveADSIndex].treeInternalNodeBoundingBoxes,
+      localRay.origin, localRay.direction, localInvRayDirection, localSign,
+      primitiveResources[primitiveADSIndex].vertexArray,
+      primitiveResources[primitiveADSIndex].attributeArray,
+      primitiveResources[primitiveADSIndex].systemSettings,
       &primInfo, localIndex, sharedLeafNodeIndex,
       true);
 
     if (hit.distance < finalHit.distance)
     {
       finalHit = hit;
+
+      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveInstance);
+
+      traversalSetHitNormal(localRay, &finalHit, primitiveResources[primitiveADSIndex].vertexArray, primitiveResources[primitiveADSIndex].attributeArray, primitiveResources[primitiveADSIndex].vertexAttributeArray, primitiveResources[primitiveADSIndex].systemSettings, false);
+
+      setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveADSIndex], constructFloat4(finalHit.normal, 0.f)).xyz));
+
 #ifdef IntersectionTypeAny
       break;
 #endif
-
-      traversalSetHitNormal(ray, &finalHit, pointers[primitiveADSIndex].vertexArray, pointers[primitiveADSIndex].attributeArray, pointers[primitiveADSIndex].vertexAttributeArray, pointers[primitiveADSIndex].systemSettings, false);
-
-      setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveADSIndex], constructFloat4(finalHit.normal, 0.f)).xyz));
-      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveInstance);
     }
   }
   while (true);

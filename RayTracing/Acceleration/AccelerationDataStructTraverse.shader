@@ -157,8 +157,7 @@ void traversalSetHitNormal(
 #if defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
   if (hit->primitiveIndex == -1) return;
 
-  DecodedPrimitiveInfo primInfo;
-  primInfo.primitiveType = RTPrimitiveCount;
+  DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
   decodePrimitiveInfoFromSystemSettings(systemSettings, hit->primitiveIndex, &primInfo);
 
   if (primInfo.primitiveType == PrimitiveSphere)
@@ -263,8 +262,7 @@ Kernel void intersectRays(
 
   hit.distance = rays[index].maxDistance;
 
-  DecodedPrimitiveInfo primInfo;
-  primInfo.primitiveType = RTPrimitiveCount;
+  DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
   {

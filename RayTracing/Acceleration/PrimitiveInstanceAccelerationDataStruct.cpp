@@ -151,15 +151,7 @@ void PrimitiveInstanceAccelerationDataStruct::registerResources(ComputeKernel& k
   }
   else
   {
-    kernel.registerResource(treeInternalNodes.device());
-    kernel.registerResource(leafParentNodeIndices.device());
-    kernel.registerResource(nodeParentNodeIndices.device());
-    kernel.registerResource(leafNodeBoundingBoxes.device());
-    kernel.registerResource(treeNodeBoundingBoxes.device());
-    kernel.registerResource(pointerVertexArray);
-    kernel.registerResource(pointerAttributeArray);
-    kernel.registerResource(pointerVertexAttributeArray);
-    kernel.registerResource(pointerSystemSettings);
+    BoundingVolumeHierarchyADS::registerResources(kernel);
   }
 }
 
@@ -216,11 +208,11 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
     BoundingVolumeHierarchyADS::fullBuild();
 
     primitiveADSResources.host()->resize(9);
-    primitiveADSResources.host()->at(0) = treeInternalNodes.device();
-    primitiveADSResources.host()->at(1) = leafParentNodeIndices.device();
-    primitiveADSResources.host()->at(2) = nodeParentNodeIndices.device();
-    primitiveADSResources.host()->at(3) = leafNodeBoundingBoxes.device();
-    primitiveADSResources.host()->at(4) = treeNodeBoundingBoxes.device();
+    primitiveADSResources.host()->at(0) = pointerTreeInternalNodes;
+    primitiveADSResources.host()->at(1) = pointerLeafParentNodeIndices;
+    primitiveADSResources.host()->at(2) = pointerNodeParentNodeIndices;
+    primitiveADSResources.host()->at(3) = pointerLeafNodeBoundingBoxes;
+    primitiveADSResources.host()->at(4) = pointerTreeNodeBoundingBoxes;
     primitiveADSResources.host()->at(5) = pointerVertexArray;
     primitiveADSResources.host()->at(6) = pointerAttributeArray;
     primitiveADSResources.host()->at(7) = pointerVertexAttributeArray;
@@ -232,15 +224,12 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
     primitiveInstanceChanged = false;
     primitiveInstanceTransformsChanged = false;
 
-
     // initialize just to have valid kernel input
     primitiveInstanceTransforms.resize(1, false);
     return;
   }
 
-  primitiveInstanceNodes.resize(primitiveCount, false);
   primitiveInstanceNodes.host()->resize(primitiveCount);
-  primitiveInstanceTransforms.resize(primitiveCount * 2, false);
   primitiveInstanceTransforms.host()->resize(primitiveCount * 2);
 
   if (primitiveInstanceChanged)
@@ -282,6 +271,8 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
 
     primitiveInstanceNodes.syncDevice();
     primitiveInstanceTransforms.syncDevice();
+
+    updatePointers();
 
 #ifdef DEBUG_PI_ADS
     primitiveInstanceTransforms.syncHost();
