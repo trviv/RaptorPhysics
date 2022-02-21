@@ -37,7 +37,7 @@ void PrimitiveAccelerationDataStruct::bindEntity(const RayTracingEntity* primiti
 {
   this->primitiveEntity = primitiveEntity;
   vector<string> oldType = {};//{"RAY_TRACING_SINGLE_PRIMITIVE_ADS"};
-  vector<string> newType = {};//{to_string(primitiveEntity->getEntityType())};
+  vector<string> newType = {};//{to_string(primitiveEntity->getPrimitiveType())};
 
   registerCreateShaders(&oldType, &newType);
   registerTraverseShaders();

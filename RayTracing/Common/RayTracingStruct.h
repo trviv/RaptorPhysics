@@ -378,7 +378,7 @@ inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* system
 #ifdef RAY_TRACING_SINGLE_PRIMITIVE_ADS
   *primInfo = decodePrimitiveInfo(systemSettings->globalOffsets[RAY_TRACING_SINGLE_PRIMITIVE_ADS]);
 #else
-  if (index >= primInfo->prevPrimitiveOffset && index < primInfo->primitiveOffset && primInfo->primitiveType < RTPrimitiveCount)
+  if (primInfo->primitiveType != RTPrimitiveCount && (index >= primInfo->prevPrimitiveOffset && index < primInfo->primitiveOffset && primInfo->primitiveType < RTPrimitiveCount))
   {
     return;
   }
@@ -398,7 +398,7 @@ inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* system
     prevPrimitiveOffset = primInfo->primitiveOffset;
   }
 
-  primInfo->primitiveType       = -1;
+  primInfo->primitiveType       = RTPrimitiveCount;
   primInfo->primitiveOffset     = -1;
   primInfo->vertexOffset        = -1;
   primInfo->prevPrimitiveOffset = 0;

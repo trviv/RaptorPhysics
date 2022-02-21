@@ -99,7 +99,7 @@ void BoundingVolumeHierarchyADS::constructTree()
   constructBinaryTree.setArg(pointerLeafParentNodeIndices, 2);
   constructBinaryTree.setArg(pointerNodeParentNodeIndices, 3);
   constructBinaryTree.setArg(primitiveLeafDataSorted.device(), 4);
-  constructBinaryTree.setArg<uint>(&primitiveCount, 5);
+  constructBinaryTree.setArg(&primitiveCount, 5);
 
   compute->execute(constructBinaryTree, workgroupSize, workgroupCount);
 
@@ -117,7 +117,7 @@ void BoundingVolumeHierarchyADS::constructTree()
   constructTreeBoundingBox.setArg(pointerLeafParentNodeIndices, 3);
   constructTreeBoundingBox.setArg(pointerNodeParentNodeIndices, 4);
   constructTreeBoundingBox.setArg(pointerLeafNodeBoundingBoxes, 5);
-  constructTreeBoundingBox.setArg<uint>(&primitiveCount, 6);
+  constructTreeBoundingBox.setArg(&primitiveCount, 6);
 
   compute->execute(constructTreeBoundingBox, workgroupSize, workgroupCount);
 
@@ -196,11 +196,11 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
 
 void BoundingVolumeHierarchyADS::registerResources(ComputeKernel& kernel)const
 {
-  kernel.registerResource(treeInternalNodes.device());
-  kernel.registerResource(leafParentNodeIndices.device());
-  kernel.registerResource(nodeParentNodeIndices.device());
-  kernel.registerResource(leafNodeBoundingBoxes.device());
-  kernel.registerResource(treeNodeBoundingBoxes.device());
+  kernel.registerResource(pointerTreeInternalNodes);
+  kernel.registerResource(pointerLeafParentNodeIndices);
+  kernel.registerResource(pointerNodeParentNodeIndices);
+  kernel.registerResource(pointerLeafNodeBoundingBoxes);
+  kernel.registerResource(pointerTreeNodeBoundingBoxes);
   kernel.registerResource(pointerVertexArray);
   kernel.registerResource(pointerAttributeArray);
   kernel.registerResource(pointerVertexAttributeArray);
@@ -277,7 +277,7 @@ void BoundingVolumeHierarchyADS::composePrimitiveArray()
       collectPrimitives.setArg(&primType, nextBindIndex+3);
       collectPrimitives.setArg(&primOffset, nextBindIndex+4);
       collectPrimitives.setArg(&vertexOffset, nextBindIndex+5);
-      collectPrimitives.setArg<const Matrix4>(&prim.getTransform(), nextBindIndex+6);
+      collectPrimitives.setArg(&prim.getTransform(), nextBindIndex+6);
 
       compute->execute(collectPrimitives, workgroupSize, workgroupCount);
 
