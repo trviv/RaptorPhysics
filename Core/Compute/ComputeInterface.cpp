@@ -1531,8 +1531,8 @@ ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode,
   }
 
   programSignature += to_string(std::hash<std::string>{}(sourceCode))+"_";
-  programSignature += join(unique(oldType), "_");
-  programSignature += join(unique(newType), "_");
+  programSignature += join(oldType, "_");
+  programSignature += join(newType, "_");
   programSignature += join(unique(includeFiles), "_");
 
   if (cachedPrograms.count(programSignature))

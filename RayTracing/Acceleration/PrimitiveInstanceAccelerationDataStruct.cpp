@@ -1,12 +1,15 @@
 #include "PrimitiveInstanceAccelerationDataStruct.h"
 
 //#define DEBUG_PI_ADS
+//#define TRAVERSAL_STATE_IN_SHARED_MEMORY
 
 PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing)
   :primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
   primitiveInstanceNodes((DeviceArray<PrimitiveInstanceADSLeaf>&)leafNodeBoundingBoxes)
 {
+#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
   sharedMemoryStride = usePrimitiveInstancing ? sharedMemoryStride + 4 : sharedMemoryStride;
+#endif
 }
 
 PrimitiveInstanceAccelerationDataStruct::~PrimitiveInstanceAccelerationDataStruct()
@@ -133,6 +136,11 @@ void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vect
     oldType.push_back("PRIMITIVE_INSTANCE_TRAVERSAL");
     newType.push_back("");
   }
+
+#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
+  oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
+  newType.push_back("");
+#endif
 
   if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
   if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());

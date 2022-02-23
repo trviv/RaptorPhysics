@@ -145,7 +145,7 @@ inline bool earliestIntersection(
   return false;
 }
 
-void traversalSetHitNormal(
+inline void traversalSetHitNormal(
   const RayStruct               ray,
   Thread HitStruct*             hit,
   const Device PrimitiveStruct* vertexArray,
@@ -225,6 +225,20 @@ void traversalSetHitNormal(
 #endif
 }
 
+inline void traversalStoreHit(
+  Device HitStruct*       deviceHit,
+  const Thread HitStruct  threadHit)
+{
+#ifdef IntersectionTypeClosest
+  *deviceHit = threadHit;
+#endif
+#ifdef IntersectionTypeAny
+  setHitDistance(deviceHit->distance, threadHit.distance);
+  setHitPrimitiveIndex(deviceHit->primitiveIndex, threadHit.primitiveIndex);
+  setHitPrimitiveIdentity(deviceHit->primitiveIdentity, threadHit.primitiveIdentity);
+#endif
+}
+
 /*
 @kernel Intersect rays with primitives and fill hit info.
 @param hits Hit info buffer.
@@ -255,13 +269,9 @@ Kernel void intersectRays(
 
   const RayStruct ray = rays[index];
   const float3 invRayDirection = 1.f / ray.direction;
-  const bool3 sign = selectInput3(invRayDirection < 0.f);
+  const bool3 sign = selectInput3(ray.direction < 0.f);
 
-  HitStruct hit;
-  initializeHit(&hit);
-
-  hit.distance = rays[index].maxDistance;
-
+  HitStruct hit = defaultHit(rays[index].maxDistance);
   DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
   for (uint primIndex = 0; primIndex < primitiveCount; primIndex++)
@@ -278,13 +288,7 @@ Kernel void intersectRays(
   }
 
   traversalSetHitNormal(ray, &hit, vertexArray, attributeArray, vertexAttributeArray, systemSettings);
-#ifdef IntersectionTypeClosest
-  hits[index] = hit;
-#endif
-#ifdef IntersectionTypeAny
-  setHitPrimitiveIndex(hits[index].primitiveIndex, hit.primitiveIndex);
-  setHitPrimitiveIdentity(hits[index].primitiveIdentity, hit.primitiveIdentity);
-#endif
+  traversalStoreHit(&hits[index], hit);
 }
 
 #endif

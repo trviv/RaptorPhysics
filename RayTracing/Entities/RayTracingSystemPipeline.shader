@@ -54,9 +54,7 @@ Kernel void shadeIntersection(
     }
     colorType4 finalColor = colorOut[ray.rayIndex];
     finalColor.xyz += material.emissive.xyz * ray.color.xyz;
-#if defined(HitStructBVHHits)
-    finalColor = hit.bvhHits * 0.001f;
-#endif
+    setBVHHit(finalColor, hit.bvhHits * 0.001f);
     finalColor.w = 1.f;
     colorOut[ray.rayIndex] = finalColor;
   }
