@@ -66,11 +66,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
 
 #ifdef COMPUTE_SHADER_SCOPE
 
-#ifdef IntersectionTypeClosest
 #define setHitDistance(hitDistance, time) hitDistance = time
-#else
-#define setHitDistance(hitDistance, time)
-#endif
 
 #ifdef HitStructIndex
 #define setHitPrimitiveIndex(hitPrimitiveIndex, index) hitPrimitiveIndex = index
@@ -92,7 +88,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
 #define setHitNormal(hitNormal, normal)
 #endif
 
-#if defined(HitStructBVHHits)
+#ifdef HitStructBVHHits
 #define addBVHHit(hitBVHHits, hitCount) hitBVHHits += hitCount
 #define setBVHHit(hitBVHHits, hitCount) hitBVHHits = hitCount
 #else
@@ -100,15 +96,14 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
 #define setBVHHit(hitBVHHits, hitCount)
 #endif
 
-
-inline void initializeHit(Thread HitStruct* hit)
+inline HitStruct defaultHit(const float maxDistance = INFINITY)
 {
-  hit->distance = INFINITY;
-  setHitPrimitiveIndex(hit->primitiveIndex, -1);
-  setHitPrimitiveIdentity(hit->primitiveIdentity.identity, -1);
-#if defined(HitStructBVHHits)
-  setBVHHit(hit->bvhHits, 0);
-#endif
+  HitStruct hit;
+  setHitDistance(hit.distance, maxDistance);
+  setHitPrimitiveIndex(hit.primitiveIndex, -1);
+  setHitPrimitiveIdentity(hit.primitiveIdentity.identity, -1);
+  setBVHHit(hit.bvhHits, 0);
+  return hit;
 }
 
 #else

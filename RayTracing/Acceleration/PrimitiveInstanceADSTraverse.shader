@@ -26,7 +26,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
 
   const RayStruct ray = rays[index];
   const float3 invRayDirection = 1.f / ray.direction;
-  const bool3 sign = selectInput3(invRayDirection < 0.f);
+  const bool3 sign = selectInput3(ray.direction < 0.f);
 
   DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
@@ -43,13 +43,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
     &primInfo, threadLocalIndex(), sharedLeafNodeIndex);
 
   traversalSetHitNormal(ray, &hit, primitiveResources[0].vertexArray, primitiveResources[0].attributeArray, primitiveResources[0].vertexAttributeArray, primitiveResources[0].systemSettings);
-#ifdef IntersectionTypeClosest
-  hits[index] = hit;
-#endif
-#ifdef IntersectionTypeAny
-  setHitPrimitiveIndex(hits[index].primitiveIndex, hit.primitiveIndex);
-  setHitPrimitiveIdentity(hits[index].primitiveIdentity, hit.primitiveIdentity);
-#endif
+  traversalStoreHit(&hits[index], hit);
 }
 
 Kernel void intersectRaysBVHPrimitiveInstances(
@@ -75,20 +69,21 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   if (index >= rayCount)
     return;
 
-  HitStruct finalHit;
-  initializeHit(&finalHit);
+  HitStruct finalHit = defaultHit(rays[index].maxDistance);
 
-  finalHit.distance = rays[index].maxDistance;
-
-#if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0
+#if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0 && defined(TRAVERSAL_STATE_IN_SHARED_MEMORY)
   Shared uint *leafNodeIndex = sharedLeafNodeIndex;
-#else
-  uint leafNodeIndex[RAY_TRAVERSAL_BVH_MAX_LEAFS];
 #endif
 
   const ushort localIndex = threadLocalIndex();
 
-  leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS] = -1;
+  Thread BVHTraversalState *traversalState = 0;
+#ifndef TRAVERSAL_STATE_IN_SHARED_MEMORY
+  BVHTraversalState traversalStateObj;
+  traversalState = &traversalStateObj;
+#endif
+
+  BVH_TRAVERSAL_TRAVERSE_STATE = 0;
 
   const RayStruct worldRay = rays[index];
   const float3 worldInvRayDirection = 1.f / worldRay.direction;
@@ -103,12 +98,14 @@ Kernel void intersectRaysBVHPrimitiveInstances(
       treeLeafNodeBoundingBoxes,
       treeInternalNodeBoundingBoxes,
       worldRay.origin, worldRay.direction, worldInvRayDirection, worldSign,
-      0, 0, 0, 0, localIndex, sharedLeafNodeIndex);
+      0, 0, 0, 0, localIndex, sharedLeafNodeIndex, true, traversalState);
 
-    if (leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_TRAVERSE_STATE] == -1) break;
+    if (BVH_TRAVERSAL_TRAVERSE_STATE == 0) break;
 
-    const uint primitiveADSIndex  = leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + BVH_TRAVERSAL_CURRENT_NODE];
-    const float4x4 invTransform   = primitiveInstanceTransforms[primitiveCount + primitiveADSIndex];
+    const uint primitiveInstance = BVH_TRAVERSAL_CURRENT_NODE;
+    const uint primitiveADSIndex = primitiveInstanceNodes[primitiveInstance].primitiveADSIndex;
+    const float4x4 invTransform = primitiveInstanceTransforms[primitiveCount + primitiveInstance];
+    const PrimitiveADSResources primitiveADSResource = primitiveResources[primitiveADSIndex];
 
     RayStruct localRay;
     localRay.origin = mulMatrixVec(invTransform, constructFloat4(worldRay.origin, 1.f)).xyz;
@@ -120,27 +117,23 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
     const HitStruct hit = stacklessTraverseBinaryTree(finalHit.distance,
-      primitiveResources[primitiveADSIndex].treeInternalNodes,
-      primitiveResources[primitiveADSIndex].leafParentNodeIndices,
-      primitiveResources[primitiveADSIndex].nodeParentNodeIndices,
-      primitiveResources[primitiveADSIndex].treeLeafNodeBoundingBoxes,
-      primitiveResources[primitiveADSIndex].treeInternalNodeBoundingBoxes,
+      primitiveADSResource.treeInternalNodes,
+      primitiveADSResource.leafParentNodeIndices,
+      primitiveADSResource.nodeParentNodeIndices,
+      primitiveADSResource.treeLeafNodeBoundingBoxes,
+      primitiveADSResource.treeInternalNodeBoundingBoxes,
       localRay.origin, localRay.direction, localInvRayDirection, localSign,
-      primitiveResources[primitiveADSIndex].vertexArray,
-      primitiveResources[primitiveADSIndex].attributeArray,
-      primitiveResources[primitiveADSIndex].systemSettings,
-      &primInfo, localIndex, sharedLeafNodeIndex,
-      true);
+      primitiveADSResource.vertexArray,
+      primitiveADSResource.attributeArray,
+      primitiveADSResource.systemSettings,
+      &primInfo, localIndex, sharedLeafNodeIndex);
 
     if (hit.distance < finalHit.distance)
     {
       finalHit = hit;
-
-      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveADSIndex].primitiveIdentity);
-
-      traversalSetHitNormal(localRay, &finalHit, primitiveResources[primitiveADSIndex].vertexArray, primitiveResources[primitiveADSIndex].attributeArray, primitiveResources[primitiveADSIndex].vertexAttributeArray, primitiveResources[primitiveADSIndex].systemSettings, false);
-
-      setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveADSIndex], constructFloat4(finalHit.normal, 0.f)).xyz));
+      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveInstance].primitiveIdentity);
+      traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
+      setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
 
 #ifdef IntersectionTypeAny
       break;
@@ -149,13 +142,7 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   }
   while (true);
 
-#ifdef IntersectionTypeClosest
-  hits[index] = finalHit;
-#endif
-#ifdef IntersectionTypeAny
-  setHitPrimitiveIndex(hits[index].primitiveIndex, finalHit.primitiveIndex);
-  setHitPrimitiveIdentity(hits[index].primitiveIdentity, finalHit.primitiveIdentity);
-#endif
+  traversalStoreHit(&hits[index], finalHit);
 }
 
 #endif
