@@ -1,6 +1,163 @@
 #ifndef PRIMITIVE_INSTANCE_ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 #define PRIMITIVE_INSTANCE_ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 
+struct BVHTraversalState
+{
+  uint traverseState;
+  uint currNodeIndex;
+  uint parentNodeIndex;
+  uint nextNodeIndex;
+};
+
+#if RAY_TRAVERSAL_BVH_MAX_LEAFS == 0
+#undef TRAVERSAL_STATE_IN_SHARED_MEMORY
+#endif
+
+#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
+#define BVH_TRAVERSAL_TRAVERSE_STATE  leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS]
+#define BVH_TRAVERSAL_NEXT_NODE       leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 1]
+#define BVH_TRAVERSAL_PARENT_NODE     leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 2]
+#define BVH_TRAVERSAL_CURRENT_NODE    leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 3]
+#else
+#define BVH_TRAVERSAL_TRAVERSE_STATE  traversalState->traverseState
+#define BVH_TRAVERSAL_NEXT_NODE       traversalState->nextNodeIndex
+#define BVH_TRAVERSAL_PARENT_NODE     traversalState->parentNodeIndex
+#define BVH_TRAVERSAL_CURRENT_NODE    traversalState->currNodeIndex
+#endif
+
+inline HitStruct stacklessTraverseInstancedBinaryTree(
+  float                     currentTime,
+  const Device BVHNodeInfo* treeInternalNodes,
+  const Device uint*        leafParentNodeIndices,
+  const Device uint*        nodeParentNodeIndices,
+  const Device XAB*         treeLeafNodeBoundingBoxes,
+  const Device XAB*         treeInternalNodeBoundingBoxes,
+  const float3              rayOrigin,
+  const float3              rayDirection,
+  const float3              invRayDirection,
+  const bool3               sign,
+  const ushort              localIndex,
+  Shared uint*              sharedLeafNodeIndex,
+  Thread BVHTraversalState* traversalState)
+{
+  HitStruct hit          = defaultHit(currentTime);
+  const uint rootNode    = setBVHInternalNodeMarker(false, 0);
+
+  ushort traverseState;
+  BVHNodeInfo parentNode;
+
+  uint parentNodeIndex;
+  uint currNodeIndex;
+  ushort nearPlane;
+
+#if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0
+  Shared uint *leafNodeIndex = sharedLeafNodeIndex;
+#elif RAY_TRAVERSAL_BVH_MAX_LEAFS > 0
+  uint leafNodeIndex[RAY_TRAVERSAL_BVH_MAX_LEAFS];
+#endif
+
+  if (BVH_TRAVERSAL_TRAVERSE_STATE != 0)
+  {
+    traverseState   = BVH_TRAVERSAL_TRAVERSE_STATE;
+    currNodeIndex   = BVH_TRAVERSAL_NEXT_NODE;
+    parentNodeIndex = BVH_TRAVERSAL_PARENT_NODE;
+    if (parentNodeIndex != rootNode)
+    {
+      parentNode    = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
+    }
+    nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
+    BVH_TRAVERSAL_TRAVERSE_STATE = 0;
+  }
+  else
+  {
+    traverseState   = BVH_TRAVERSAL_FROM_PARENT;
+    parentNode      = treeInternalNodes[0];
+    parentNodeIndex = rootNode;
+    nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
+    currNodeIndex   = parentNode.child[nearPlane];
+  }
+
+  // main intersection loop
+  while (currNodeIndex != rootNode)
+  {
+    // when going to parent from child
+    if (traverseState == BVH_TRAVERSAL_FROM_CHILD)
+    {
+      // fetch parent index
+      if (isBVHLeafNode(currNodeIndex))
+      {
+        parentNodeIndex = leafParentNodeIndices[currNodeIndex];
+      }
+      else
+      {
+        parentNodeIndex = nodeParentNodeIndices[removeBVHInternalNodeMarker(currNodeIndex)];
+      }
+
+      // fetch parent node, since it will be available otherwise
+      parentNode = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
+      nearPlane = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
+
+      // if near is processed
+      const bool stateIsLeft = (currNodeIndex == parentNode.child[nearPlane]);
+      traverseState = select(BVH_TRAVERSAL_FROM_CHILD, BVH_TRAVERSAL_FROM_SIBLING, stateIsLeft);
+      currNodeIndex = select(parentNodeIndex, parentNode.child[nearPlane^1], stateIsLeft);
+      continue;
+    }
+
+    // when coming from parent or sibling
+    const bool stateIsSibling = (traverseState == BVH_TRAVERSAL_FROM_SIBLING);
+    traverseState = select(BVH_TRAVERSAL_FROM_SIBLING, BVH_TRAVERSAL_FROM_CHILD, stateIsSibling);
+
+    const bool isLeaf = isBVHLeafNode(currNodeIndex);
+    const uint noNodeCurrNodeIndex = removeBVHInternalNodeMarker(currNodeIndex);
+
+    XAB boundingBox;
+    if (isLeaf)
+    {
+      boundingBox = treeLeafNodeBoundingBoxes[currNodeIndex];
+    }
+    else
+    {
+      boundingBox = treeInternalNodeBoundingBoxes[noNodeCurrNodeIndex];
+    }
+
+    const bool intersectsBVH = rayXABIntersectTest(hit.distance, boundingBox, rayOrigin, invRayDirection, sign);
+
+    // switch to parent or sibling when internal node is not intersecting
+    const uint nextNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
+
+    if (intersectsBVH)
+    {
+      // if leaf mark for test
+      if (isLeaf)
+      {
+        BVH_TRAVERSAL_TRAVERSE_STATE  = traverseState;
+        BVH_TRAVERSAL_NEXT_NODE       = nextNodeIndex;
+        BVH_TRAVERSAL_PARENT_NODE     = parentNodeIndex;
+        BVH_TRAVERSAL_CURRENT_NODE    = currNodeIndex;
+        return hit;
+      }
+      // if internal node move to the node
+      else
+      {
+        // if internal node test bounding box for intersection
+        addBVHHit(hit.bvhHits, 1);
+
+        parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
+        nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
+        parentNodeIndex = currNodeIndex;
+        currNodeIndex   = parentNode.child[nearPlane];
+        traverseState   = BVH_TRAVERSAL_FROM_PARENT;
+
+        continue;
+      }
+    }
+    currNodeIndex = nextNodeIndex;
+  }
+
+  return hit;
+}
+
 Kernel void intersectRaysBVHPrimitiveInstancesFlattened(
   Device HitStruct*                       hits,
   const Device RayStruct*                 rays,
@@ -91,19 +248,20 @@ Kernel void intersectRaysBVHPrimitiveInstances(
 
   do
   {
-    stacklessTraverseBinaryTree(finalHit.distance,
+    stacklessTraverseInstancedBinaryTree(finalHit.distance,
       treeInternalNodes,
       leafParentNodeIndices,
       nodeParentNodeIndices,
       treeLeafNodeBoundingBoxes,
       treeInternalNodeBoundingBoxes,
       worldRay.origin, worldRay.direction, worldInvRayDirection, worldSign,
-      0, 0, 0, 0, localIndex, sharedLeafNodeIndex, true, traversalState);
+      localIndex, sharedLeafNodeIndex, traversalState);
 
     if (BVH_TRAVERSAL_TRAVERSE_STATE == 0) break;
 
     const uint primitiveInstance = BVH_TRAVERSAL_CURRENT_NODE;
     const uint primitiveADSIndex = primitiveInstanceNodes[primitiveInstance].primitiveADSIndex;
+    const IdentityInfo primitiveIdentity = primitiveInstanceNodes[primitiveInstance].primitiveIdentity;
     const float4x4 invTransform = primitiveInstanceTransforms[primitiveCount + primitiveInstance];
     const PrimitiveADSResources primitiveADSResource = primitiveResources[primitiveADSIndex];
 
@@ -131,13 +289,13 @@ Kernel void intersectRaysBVHPrimitiveInstances(
     if (hit.distance < finalHit.distance)
     {
       finalHit = hit;
-      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveInstanceNodes[primitiveInstance].primitiveIdentity);
+      setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveIdentity);
       traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
 
-#ifdef IntersectionTypeAny
-      break;
-#endif
+//#ifdef IntersectionTypeAny
+//      break;
+//#endif
     }
   }
   while (true);

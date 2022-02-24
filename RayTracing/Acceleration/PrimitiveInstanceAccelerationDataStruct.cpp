@@ -1,7 +1,7 @@
 #include "PrimitiveInstanceAccelerationDataStruct.h"
 
 //#define DEBUG_PI_ADS
-//#define TRAVERSAL_STATE_IN_SHARED_MEMORY
+#define TRAVERSAL_STATE_IN_SHARED_MEMORY
 
 PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing)
   :primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
@@ -131,12 +131,6 @@ void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vect
   vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM"};
   vector<string> newType = {usePrimitiveInstancing ? "intersectRaysBVHPrimitiveInstances" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader"};
 
-  if (usePrimitiveInstancing)
-  {
-    oldType.push_back("PRIMITIVE_INSTANCE_TRAVERSAL");
-    newType.push_back("");
-  }
-
 #ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
   oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
   newType.push_back("");
@@ -243,8 +237,9 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
   if (primitiveInstanceChanged)
   {
     primitiveADSResources.host()->clear();
+
+    uint adsIndex = 0;
     uint instanceIndex = 0;
-    uint adsIndex = -1;
     const uint matrixSize = 4 * sizeof(float) * 4;
 
     for (const auto& instances : primitiveInstances)
@@ -252,7 +247,7 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
       if (!instances.second.size()) continue;
 
       const auto& primitiveADS = instances.first;
-      adsIndex++;
+
       primitiveADSResources.host()->push_back(primitiveADS->pointerTreeInternalNodes);
       primitiveADSResources.host()->push_back(primitiveADS->pointerLeafParentNodeIndices);
       primitiveADSResources.host()->push_back(primitiveADS->pointerNodeParentNodeIndices);
@@ -275,6 +270,7 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
 
         instanceIndex++;
       }
+      adsIndex++;
     }
 
     primitiveInstanceNodes.syncDevice();
