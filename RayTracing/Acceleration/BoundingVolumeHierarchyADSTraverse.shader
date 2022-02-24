@@ -5,30 +5,6 @@
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3
 
-struct BVHTraversalState
-{
-  uint traverseState;
-  uint currNodeIndex;
-  uint parentNodeIndex;
-  uint nextNodeIndex;
-};
-
-#if RAY_TRAVERSAL_BVH_MAX_LEAFS == 0
-#undef TRAVERSAL_STATE_IN_SHARED_MEMORY
-#endif
-
-#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
-#define BVH_TRAVERSAL_TRAVERSE_STATE  leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS]
-#define BVH_TRAVERSAL_NEXT_NODE       leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 1]
-#define BVH_TRAVERSAL_PARENT_NODE     leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 2]
-#define BVH_TRAVERSAL_CURRENT_NODE    leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + RAY_TRAVERSAL_BVH_MAX_LEAFS + 3]
-#else
-#define BVH_TRAVERSAL_TRAVERSE_STATE  traversalState->traverseState
-#define BVH_TRAVERSAL_NEXT_NODE       traversalState->nextNodeIndex
-#define BVH_TRAVERSAL_PARENT_NODE     traversalState->parentNodeIndex
-#define BVH_TRAVERSAL_CURRENT_NODE    traversalState->currNodeIndex
-#endif
-
 short Const int16ComplementaryMasks[16] = {
   ~(1 << 0),  ~(1 << 1),  ~(1 << 2),  ~(1 << 3),  ~(1 << 4),  ~(1 << 5),  ~(1 << 6),  ~(1 << 7),
   ~(1 << 8),  ~(1 << 9),  ~(1 << 10), ~(1 << 11), ~(1 << 12), ~(1 << 13), ~(1 << 14), (short)~(1 << 15)
@@ -199,8 +175,7 @@ inline HitStruct stacklessTraverseBinaryTree2(
     if (earliestIntersection(&hit, leafNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
     {
 #ifdef IntersectionTypeAny
-      currNodeIndex = rootNode;
-      break;
+      return hit;
 #endif
     }
   }
@@ -265,9 +240,7 @@ inline HitStruct stacklessTraverseBinaryTree(
   Const RTSystemSettings*       systemSettings,
   Thread DecodedPrimitiveInfo*  primInfo,
   const ushort                  localIndex,
-  Shared uint*                  sharedLeafNodeIndex,
-  const bool                    isPrimitiveInstanceADS = false,
-  Thread BVHTraversalState*     traversalState = 0)
+  Shared uint*                  sharedLeafNodeIndex)
 {
   HitStruct hit          = defaultHit(currentTime);
   const uint rootNode    = setBVHInternalNodeMarker(false, 0);
@@ -285,20 +258,6 @@ inline HitStruct stacklessTraverseBinaryTree(
   Shared uint *leafNodeIndex = sharedLeafNodeIndex;
 #elif RAY_TRAVERSAL_BVH_MAX_LEAFS > 0
   uint leafNodeIndex[RAY_TRAVERSAL_BVH_MAX_LEAFS];
-#endif
-
-#ifdef PRIMITIVE_INSTANCE_TRAVERSAL
-  if (isPrimitiveInstanceADS && BVH_TRAVERSAL_TRAVERSE_STATE != 0)
-  {
-    traverseState   = BVH_TRAVERSAL_TRAVERSE_STATE;
-    currNodeIndex   = BVH_TRAVERSAL_NEXT_NODE;
-    parentNodeIndex = BVH_TRAVERSAL_PARENT_NODE;
-    if (parentNodeIndex != rootNode)
-    {
-      parentNode    = treeInternalNodes[removeBVHInternalNodeMarker(parentNodeIndex)];
-    }
-    BVH_TRAVERSAL_TRAVERSE_STATE = 0;
-  }
 #endif
 
   ushort leafCount = 0;
@@ -355,66 +314,42 @@ inline HitStruct stacklessTraverseBinaryTree(
       // switch to parent or sibling when internal node is not intersecting
       const uint nextNodeIndex = select(parentNode.child[nearPlane^1], parentNodeIndex, stateIsSibling);
 
-      // if current node is leaf, mark for test
-      if (isLeaf)
+      if (intersectsBVH)
       {
-#ifdef PRIMITIVE_INSTANCE_TRAVERSAL
-        if (isPrimitiveInstanceADS)
-        {
-          if (intersectsBVH)
-          {
-            BVH_TRAVERSAL_TRAVERSE_STATE  = traverseState;
-            BVH_TRAVERSAL_NEXT_NODE       = nextNodeIndex;
-            BVH_TRAVERSAL_PARENT_NODE     = parentNodeIndex;
-            BVH_TRAVERSAL_CURRENT_NODE    = currNodeIndex;
-            return hit;
-          }
-          currNodeIndex = nextNodeIndex;
-          continue;
-        }
-#endif
-        if (intersectsBVH)
+        // if leaf mark for test
+        if (isLeaf)
         {
 #if RAY_TRAVERSAL_BVH_MAX_LEAFS == 0
           if (earliestIntersection(&hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
           {
 #ifdef IntersectionTypeAny
-            currNodeIndex = rootNode;
-            break;
+            return hit;
 #endif
           }
-          currNodeIndex = nextNodeIndex;
-          continue;
 #else
           leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + leafCount++] = currNodeIndex;
 #endif
         }
-        currNodeIndex = nextNodeIndex;
-        if (leafCount != RAY_TRAVERSAL_BVH_MAX_LEAFS)
-        {
-          continue;
-        }
-        break;
-      }
-      else
-      {
-        // if internal node test bounding box for intersection
-        if (intersectsBVH)
-        {
-          addBVHHit(hit.bvhHits, 1);
-        }
+        // if internal node move to the node
         else
         {
-          currNodeIndex = nextNodeIndex;
+          addBVHHit(hit.bvhHits, 1);
+
+          parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
+          nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
+          parentNodeIndex = currNodeIndex;
+          currNodeIndex   = parentNode.child[nearPlane];
+          traverseState   = BVH_TRAVERSAL_FROM_PARENT;
+
           continue;
         }
       }
 
-      parentNode      = treeInternalNodes[noNodeCurrNodeIndex];
-      nearPlane       = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign).z;
-      parentNodeIndex = currNodeIndex;
-      currNodeIndex   = parentNode.child[nearPlane];
-      traverseState   = BVH_TRAVERSAL_FROM_PARENT;
+      currNodeIndex = nextNodeIndex;
+      if (leafCount == RAY_TRAVERSAL_BVH_MAX_LEAFS)
+      {
+        break;
+      }
     }
 
 #if RAY_TRAVERSAL_BVH_MAX_LEAFS > 0
@@ -424,8 +359,7 @@ inline HitStruct stacklessTraverseBinaryTree(
       if (earliestIntersection(&hit, leafNodeIndex[localIndex * RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE + i], rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
       {
 #ifdef IntersectionTypeAny
-        currNodeIndex = rootNode;
-        break;
+        return hit;
 #endif
       }
     }
@@ -517,7 +451,7 @@ inline HitStruct stackTraverseBinaryTree(
       if (earliestIntersection(&hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
       {
 #ifdef IntersectionTypeAny
-        break;
+        return hit;
 #endif
       }
     }
