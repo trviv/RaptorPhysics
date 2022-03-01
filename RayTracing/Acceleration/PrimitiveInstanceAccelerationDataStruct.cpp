@@ -3,8 +3,8 @@
 //#define DEBUG_PI_ADS
 #define TRAVERSAL_STATE_IN_SHARED_MEMORY
 
-PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing)
-  :primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
+PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(CreationMethod treeCreationMethod, bool usePrimitiveInstancing)
+  :BoundingVolumeHierarchyADS(treeCreationMethod), primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
   primitiveInstanceNodes((DeviceArray<PrimitiveInstanceADSLeaf>&)leafNodeBoundingBoxes)
 {
 #ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY

@@ -28,10 +28,7 @@ inline bool rayXABIntersectTest(const float timeIn, const XAB xab, const float3 
   const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
   const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
   const float tmaxOut = minComp3(select(t1, t0, sign));
-  if (tmaxOut <= MIN_TIME)
-  {
-    return false;
-  }
+  if (tmaxOut <= MIN_TIME) return false;
   const float tminOut = maxComp3(select(t0, t1, sign));
   return tminOut < timeIn && tminOut < tmaxOut;
 }
@@ -41,12 +38,9 @@ inline float rayXABIntersectTime(const float timeIn, const XAB xab, const float3
   const float3 t0 = (xab.min - rayOrigin) * invRayDirection;
   const float3 t1 = (xab.max - rayOrigin) * invRayDirection;
   const float tmaxOut = minComp3(select(t1, t0, sign));
-  if (tmaxOut <= MIN_TIME)
-  {
-    return -1.f;
-  }
+  if (tmaxOut <= MIN_TIME) return INFINITY;
   const float tminOut = maxComp3(select(t0, t1, sign));
-  return select(-1.f, tminOut, tminOut < timeIn && tminOut < tmaxOut);
+  return select(INFINITY, tminOut, tminOut < timeIn && tminOut < tmaxOut);
 }
 
 inline bool rayXABIntersectInOut(Thread float* timeIn, Thread float* timeOut, const XAB xab, const float3 rayOrigin, const float3 invRayDirection, const bool3 sign)
@@ -406,6 +400,23 @@ inline void decodePrimitiveInfoFromSystemSettings(Const RTSystemSettings* system
 }
 
 #endif
+
+
+/*!
+@struct Primitive Instance Acceleratin Data Structure leaf information.
+*/
+typedef struct DEFAULT_ALIGN
+{
+  union
+  {
+    float3 center;
+    struct
+    {
+      float reserved[3];
+      int   clusterIndex;
+    };
+  };
+} BVHClusterStruct;
 
 
 /*!

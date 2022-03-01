@@ -85,6 +85,8 @@ public:
 
   void prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);
 
+  void prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* length, uint maxLength);
+
   void bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length);
 
   void radixSort32Bit(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, uint length);
