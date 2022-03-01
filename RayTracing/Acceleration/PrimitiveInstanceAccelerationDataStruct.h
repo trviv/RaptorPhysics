@@ -42,7 +42,7 @@ protected:
 
 public:
 
-  PrimitiveInstanceAccelerationDataStruct(bool usePrimitiveInstancing = true);
+  PrimitiveInstanceAccelerationDataStruct(CreationMethod treeCreationMethod, bool usePrimitiveInstancing = true);
 
   ~PrimitiveInstanceAccelerationDataStruct();
 

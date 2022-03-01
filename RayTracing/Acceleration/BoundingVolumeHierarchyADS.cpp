@@ -2,8 +2,18 @@
 
 //#define DEBUG_BVH_ADS
 
-BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS():maxBVHLeafs(5),sharedMemoryStride(5),bvhPersistentMultiplier(1)
+BoundingVolumeHierarchyADS::BoundingVolumeHierarchyADS(CreationMethod treeCreationMethod)
+  :maxBVHLeafs(5),sharedMemoryStride(5),bvhPersistentMultiplier(1),treeCreationMethod(treeCreationMethod)
 {
+  switch (treeCreationMethod)
+  {
+    case MaximizingParallelism:
+      treeDataPtr = new MaximizingParallelismTreeData();
+      break;
+    case LocallyOrderedClustering:
+      treeDataPtr = new LocallyOrderedClusteringTreeData();
+      break;
+  }
 }
 
 BoundingVolumeHierarchyADS::~BoundingVolumeHierarchyADS()
@@ -13,13 +23,24 @@ BoundingVolumeHierarchyADS::~BoundingVolumeHierarchyADS()
 void BoundingVolumeHierarchyADS::initializeData()
 {
   AccelerationDataStruct::initializeData();
-  visitedInternalNodes.create(compute);
+
+  switch (treeCreationMethod)
+  {
+    case MaximizingParallelism:
+      initializeDataMaxParallelTree();
+      break;
+    case LocallyOrderedClustering:
+      initializeDataLocallyOrderedTree();
+      break;
+  }
+
   leafParentNodeIndices.create(compute);
   nodeParentNodeIndices.create(compute);
   treeNodeBoundingBoxes.create(compute);
   treeInternalNodes.create(compute);
   primitiveLeafData.create(compute);
   primitiveLeafDataSorted.create(compute);
+  rayCounter.create(compute);
 
   vertexArray.create(compute);
   attributeArray.create(compute);
@@ -90,42 +111,15 @@ void BoundingVolumeHierarchyADS::assignLeafMortonCode()
 
 void BoundingVolumeHierarchyADS::constructTree()
 {
-  size_t workgroupSize[3], workgroupCount[3];
-  compute->configureSize(workgroupSize, workgroupCount, primitiveCount);
-
-  // create binary radix tree
-  constructBinaryTree.setArg(pointerTreeInternalNodes, 0);
-  constructBinaryTree.setArg(visitedInternalNodes.device(), 1);
-  constructBinaryTree.setArg(pointerLeafParentNodeIndices, 2);
-  constructBinaryTree.setArg(pointerNodeParentNodeIndices, 3);
-  constructBinaryTree.setArg(primitiveLeafDataSorted.device(), 4);
-  constructBinaryTree.setArg(&primitiveCount, 5);
-
-  compute->execute(constructBinaryTree, workgroupSize, workgroupCount);
-
-#ifdef DEBUG_BVH_ADS
-  treeInternalNodes.syncHost();
-  leafParentNodeIndices.syncHost();
-  nodeParentNodeIndices.syncHost();
-  compute->sync();
-#endif
-
-  // calculate bounding boxes for the tree
-  constructTreeBoundingBox.setArg(pointerTreeNodeBoundingBoxes, 0);
-  constructTreeBoundingBox.setArg(visitedInternalNodes.device(), 1);
-  constructTreeBoundingBox.setArg(pointerTreeInternalNodes, 2);
-  constructTreeBoundingBox.setArg(pointerLeafParentNodeIndices, 3);
-  constructTreeBoundingBox.setArg(pointerNodeParentNodeIndices, 4);
-  constructTreeBoundingBox.setArg(pointerLeafNodeBoundingBoxes, 5);
-  constructTreeBoundingBox.setArg(&primitiveCount, 6);
-
-  compute->execute(constructTreeBoundingBox, workgroupSize, workgroupCount);
-
-#ifdef DEBUG_BVH_ADS
-  treeNodeBoundingBoxes.syncHost();
-  visitedInternalNodes.syncHost();
-  compute->sync();
-#endif
+  switch (treeCreationMethod)
+  {
+    case MaximizingParallelism:
+      constructMaxParallelTree();
+      break;
+    case LocallyOrderedClustering:
+      constructLocallyOrderedTree();
+      break;
+  }
 }
 
 void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
@@ -134,14 +128,33 @@ void BoundingVolumeHierarchyADS::registerCreateShaders(const vector<string>* old
   includeFiles.push_back("ComputeShared.h");
   includeFiles.push_back("RayTracingStruct.h");
   includeFiles.push_back("AccelerationDataStructCreate.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
 
-  registerShader(compute, "BoundingVolumeHierarchyADSCreate.shader", oldType, newType);
+  switch (treeCreationMethod)
+  {
+    case MaximizingParallelism:
+    {
+      MaximizingParallelismTreeData* treePtr = (MaximizingParallelismTreeData*)treeDataPtr;
+      registerShader(compute, "BoundingVolumeHierarchyCreateMaxParallel.shader", oldType, newType);
+      treePtr->constructBinaryTree      = programs.back().createKernel("constructBinaryTreeMaximizingParallelism");
+      treePtr->constructTreeBoundingBox = programs.back().createKernel("constructTreeBoundingBoxMaximizingParallelism");
+      break;
+    }
+    case LocallyOrderedClustering:
+    {
+      LocallyOrderedClusteringTreeData* treePtr = (LocallyOrderedClusteringTreeData*)treeDataPtr;
+      registerShader(compute, "BoundingVolumeHierarchyCreateLocallyOrdered.shader", oldType, newType);
+      treePtr->createLeafClusters = programs.back().createKernel("createLeafClustersLocallyOrdered");
+      treePtr->findNearestCluster = programs.back().createKernel("findNearestClusterLocallyOrdered");
+      treePtr->mergeClusters      = programs.back().createKernel("mergeClustersLocallyOrdered");
+      treePtr->compactClusters    = programs.back().createKernel("compactClustersLocallyOrdered");
+      break;
+    }
+  }
 
   collectPrimitives            = programs.back().createKernel("collectPrimitives");
   createPrimitiveBoundingBoxes = programs.back().createKernel("createPrimitiveBoundingBoxes");
   assignMortonCode             = programs.back().createKernel("assignMortonCode");
-  constructBinaryTree          = programs.back().createKernel("constructBinaryTree");
-  constructTreeBoundingBox     = programs.back().createKernel("constructTreeBoundingBox");
 }
 
 void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
@@ -211,13 +224,23 @@ void BoundingVolumeHierarchyADS::bindBuffers(const ComputeMemory* vertexArray, c
                                              const ComputeMemory* vertexAttributeArray, DeviceArray<RTSystemSettings>* systemSettings)
 {
   AccelerationDataStruct::bindBuffers(vertexArray, attributeArray, vertexAttributeArray, systemSettings);
-  visitedInternalNodes.resize(primitiveCount, false);
   leafParentNodeIndices.resize(primitiveCount, false);
   nodeParentNodeIndices.resize(primitiveCount, false);
   treeNodeBoundingBoxes.resize(primitiveCount - 1, false);
   treeInternalNodes.resize(primitiveCount - 1, false);
   primitiveLeafData.resize(primitiveCount, false);
   primitiveLeafDataSorted.resize(primitiveCount, false);
+  rayCounter.resize(1, false);
+
+  switch (treeCreationMethod)
+  {
+    case MaximizingParallelism:
+      resizeBuffersMaxParallelTree();
+      break;
+    case LocallyOrderedClustering:
+      resizeBuffersLocallyOrderedTree();
+      break;
+  }
 }
 
 void BoundingVolumeHierarchyADS::resizePrimitiveArray()
@@ -333,7 +356,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     compute->configureSize(workgroupSize, workgroupCount, mAlignBy(rayCount, bvhPersistentMultiplier));
     if (bvhPersistentMultiplier > 1)
     {
-      ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, visitedInternalNodes.device(), 1);
+      ComputeUtil::get(sortComputeUtilId)->clearBuffer(compute, rayCounter.device(), 1);
     }
 
     ComputeKernel& intersectionKernel = intersectRayKernels[intersectionType][rayType][hitType];
@@ -351,7 +374,7 @@ void BoundingVolumeHierarchyADS::intersectRays(ComputeMemory* hits, HitStructTyp
     intersectionKernel.setArg(pointerTreeNodeBoundingBoxes, 10);
     intersectionKernel.setArg(pointerSystemSettings, 11);
     intersectionKernel.setArg(&primitiveCount, 12);
-    intersectionKernel.setArg(visitedInternalNodes.device(), 13);
+    intersectionKernel.setArg(rayCounter.device(), 13);
     intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 14);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount);

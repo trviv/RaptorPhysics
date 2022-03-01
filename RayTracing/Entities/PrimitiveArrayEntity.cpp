@@ -269,11 +269,10 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
 
       if (prim1.i0 == -1 || prim1.i3 != -1) continue;
 
-//      uint j = (uint)(lower_bound(edges.begin(), edges.end(), edge1, compEdgeDataSearch) - edges.begin());
-      for (uint j=i+1 ; j<edges.size(); j++)
+      uint j = (uint)(lower_bound(edges.begin(), edges.end(), edge1, compEdgeDataSearch) - edges.begin());
+      for ( ; j<edges.size(); j++)
       {
         const auto& edge2 = edges[j];
-//        if (edge2.i0 != edge1.i1) break;
         if (edge1.i0 == edge2.i1 && edge1.i1 == edge2.i0 && edge1.i2 != edge2.i2)
         {
           auto& prim2 = primitiveIndices[edge2.primitiveIndex];
@@ -288,6 +287,7 @@ void PrimitiveArrayEntity::createMesh(const string fileName)
             break;
           }
         }
+        if (edge2.i0 > edge1.i1) break;
       }
     }
 

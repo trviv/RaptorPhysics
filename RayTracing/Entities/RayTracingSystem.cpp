@@ -50,7 +50,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   lights.create(compute);
   materials.create(compute);
 
-  accelerationStruct = new PrimitiveInstanceAccelerationDataStruct(true);
+  accelerationStruct = new PrimitiveInstanceAccelerationDataStruct(BoundingVolumeHierarchyADS::CreationMethod::LocallyOrderedClustering, true);
   accelerationStruct->create(compute);
 
   includeFiles.push_back("ComputeHeader.shader");
@@ -157,7 +157,7 @@ void RayTracingSystem::commit()
 
           if (entity == entitiyInstances[i].front())
           {
-            PrimitiveAccelerationDataStruct *primitiveEntity = new PrimitiveAccelerationDataStruct();
+            PrimitiveAccelerationDataStruct *primitiveEntity = new PrimitiveAccelerationDataStruct(BoundingVolumeHierarchyADS::CreationMethod::LocallyOrderedClustering);
             primitiveEntity->create(compute);
             primitiveEntity->bindEntity(registeredEntities[i]);
             primitiveEntity->fullBuild();

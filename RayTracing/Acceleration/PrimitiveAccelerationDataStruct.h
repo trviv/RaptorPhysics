@@ -27,7 +27,7 @@ protected:
 
 public:
 
-  PrimitiveAccelerationDataStruct();
+  PrimitiveAccelerationDataStruct(CreationMethod treeCreationMethod);
 
   ~PrimitiveAccelerationDataStruct();
 

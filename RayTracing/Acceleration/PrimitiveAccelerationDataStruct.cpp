@@ -2,7 +2,8 @@
 
 //#define DEBUG_BVH_ADS
 
-PrimitiveAccelerationDataStruct::PrimitiveAccelerationDataStruct()
+PrimitiveAccelerationDataStruct::PrimitiveAccelerationDataStruct(CreationMethod treeCreationMethod)
+  :BoundingVolumeHierarchyADS(treeCreationMethod)
 {
   primitiveEntity = NULL;
 }

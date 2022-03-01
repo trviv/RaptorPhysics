@@ -647,7 +647,10 @@ void ComputeUtil::compactSparseArrayAndCopy(ComputeInterface* compute, ComputeMe
 
     localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
     ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
+  }
 
+  if (!localArrays[UtilTempIndirectWorkgroupCount])
+  {
     localArrays[UtilTempIndirectWorkgroupCount] = new DeviceArray<uint>();
     ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->create(compute, NULL);
     ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->resize(4, false);
@@ -742,7 +745,56 @@ void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destina
   groupSum->syncHost();
   compute->sync();
 #endif
+}
 
+void ComputeUtil::prefixScan1D(ComputeInterface* compute, ComputeMemory* destination, ComputeMemory* source, ComputeMemory* length, uint maxLength)
+{
+  if (!localArrays[UtilTempPrefixGroupSum])
+  {
+    localArrays[UtilTempPrefixGroupSum] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum])->create(compute, NULL);
+
+    localArrays[UtilTempPrefixGroupStatus] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus])->create(compute, NULL);
+  }
+
+  if (!localArrays[UtilTempIndirectWorkgroupCount])
+  {
+    localArrays[UtilTempIndirectWorkgroupCount] = new DeviceArray<uint>();
+    ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->create(compute, NULL);
+    ((DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount])->resize(4, false);
+  }
+
+  DeviceArray<uint>* groupSum = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupSum];
+  DeviceArray<uint>* groupStatus = (DeviceArray<uint>*)localArrays[UtilTempPrefixGroupStatus];
+
+  size_t workgroupSize[3] = {this->maxWorkgroupSize * batchSize, 1, 1 };
+
+  DeviceArray<uint>* workgroupCount = (DeviceArray<uint>*)localArrays[UtilTempIndirectWorkgroupCount];
+  this->configureWorkgroupCount(compute, workgroupCount->device(), length, workgroupSize);
+
+  uint groupCount = mAlignBy(maxLength, this->maxWorkgroupSize * batchSize);
+
+  groupSum->resize(groupCount * 2 * this->structMemberSize/sizeof(uint), false);
+  groupStatus->resize(groupCount, false);
+
+  clearBuffer(compute, groupStatus->device(), groupCount);
+
+  ComputeMemory* buffers[] = { destination, source, groupSum->device(), groupStatus->device() };
+
+  const uint kernelIndex = kernelIndices[COMPUTE_UTIL_PREFIX_SUM_1D_KERNEL];
+
+  kernels[kernelIndex].setArgs(buffers, sizeof(buffers) / sizeof(ComputeMemory*));
+  kernels[kernelIndex].setArg(length, sizeof(buffers) / sizeof(ComputeMemory*));
+
+  workgroupSize[0] = this->maxWorkgroupSize;
+
+  compute->execute(kernels[kernelIndex], workgroupSize, workgroupCount->device(), 0);
+
+#ifdef DEBUG_PREFIX_SCAN
+  groupSum->syncHost();
+  compute->sync();
+#endif
 }
 
 void ComputeUtil::bitonicSort32Bit(ComputeInterface* compute, ComputeMemory* array1D, uint length)
