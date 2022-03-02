@@ -128,8 +128,10 @@ void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vect
   includeFiles.push_back("AccelerationDataStructTraverse.shader");
   includeFiles.push_back("BoundingVolumeHierarchyADSTraverse.shader");
 
-  vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM"};
-  vector<string> newType = {usePrimitiveInstancing ? "intersectRaysBVHPrimitiveInstances" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader"};
+  vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM",
+    "PRIMITIVE_INSTANCE_ADS_PRIMITIVE_TRAVERSAL"};
+  vector<string> newType = {usePrimitiveInstancing ? "intersectRaysBVHPrimitiveInstancesStacked" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader",
+    "stackTraverseBinaryTree"};
 
 #ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
   oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
