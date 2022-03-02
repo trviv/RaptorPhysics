@@ -28,7 +28,7 @@ inline uint setBVHInternalNodeMarker(const bool isLeaf, uint index)
 #endif
 }
 
-inline uint removeBVHInternalNodeMarker(uint index)
+inline uint removeBVHInternalNodeMarker(const uint index)
 {
 #ifdef BOUNDING_VOLUME_HIERARCHY_ADS_DEBUG_TREE_CREATION
   return select(index - 1000000000, index, index < 1000000000);
