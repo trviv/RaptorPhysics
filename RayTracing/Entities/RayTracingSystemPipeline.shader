@@ -61,6 +61,7 @@ Kernel void shadeIntersection(
 
   childRay = ray;
   childRay.origin = shadowRay.origin;
+  childRay.maxDistance = 0.f;
 
   if (materialType == MaterialTypeReflective)
   {
@@ -98,12 +99,9 @@ Kernel void shadeIntersection(
   {
     childRay.maxDistance = select(INFINITY, 0.f, maxComp3(childRay.color) < MIN_TIME);
     childRay.rayIndex = ray.rayIndex;
-    rays[index] = childRay;
   }
-  else
-  {
-    rays[index].maxDistance = 0.f;
-  }
+
+  rays[index] = childRay;
 
   for (ushort i=lightOffset; i<lightCount; i++)
   {
@@ -122,12 +120,9 @@ Kernel void shadeIntersection(
         shadowRay.color.xyz = constructColor3(lightColor.xyz) * ray.color.xyz * shadeMaterialAtIntersection(material, direction, ray.direction, hit, hitNormal).xyz;
         shadowRay.maxDistance = select(maxDistance, 0.f, maxComp3(shadowRay.color) < MIN_TIME);
       }
-      shadowRays[index + rayCount * i] = shadowRay;
     }
-    else
-    {
-      shadowRays[index + rayCount * i].maxDistance = 0.f;
-    }
+
+    shadowRays[index + rayCount * i] = shadowRay;
   }
 #endif
 }

@@ -429,8 +429,8 @@ inline HitStruct stacklessTraverseBinaryTree(
   return hit;
 }
 
-inline HitStruct stackTraverseBinaryTreeWithInput(
-  float                         currentTime,
+inline HitStruct stackTraverseBinaryTreeWithInputs(
+  Thread HitStruct*             hit,
   const Device BVHNodeInfo*     treeInternalNodes,
   const Device uint*            leafParentNodeIndices,
   const Device uint*            nodeParentNodeIndices,
@@ -449,8 +449,6 @@ inline HitStruct stackTraverseBinaryTreeWithInput(
   const short                   stackBase,
   Thread uint*                  traversalStack)
 {
-  HitStruct hit = defaultHit(currentTime);
-
   short stackTop = stackBase+1;
 
   traversalStack[stackBase] = setBVHInternalNodeMarker(false, 0);
@@ -462,10 +460,10 @@ inline HitStruct stackTraverseBinaryTreeWithInput(
 
     if (isBVHLeafNode(currNodeIndex))
     {
-      if (earliestIntersection(&hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
+      if (earliestIntersection(hit, currNodeIndex, rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo))
       {
 #ifdef IntersectionTypeAny
-        stackTop = 0;
+        stackTop = stackBase;
 #endif
       }
       continue;
@@ -478,17 +476,17 @@ inline HitStruct stackTraverseBinaryTreeWithInput(
     if (isBVHLeafNode(node.childLeft))  leftBoundingBox = treeLeafNodeBoundingBoxes[node.childLeft];
     else                                leftBoundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(node.childLeft)];
 
-    float leftDist = hit.distance;
+    float leftDist = hit->distance;
     const bool addNear = rayXABIntersectEarliest(&leftDist, leftBoundingBox, rayOrigin, invRayDirection, sign);
-    addBVHHit(hit.bvhHits, addNear);
+    addBVHHit(hit->bvhHits, addNear);
 
     XAB rightBoundingBox;
     if (isBVHLeafNode(node.childRight)) rightBoundingBox = treeLeafNodeBoundingBoxes[node.childRight];
     else                                rightBoundingBox = treeInternalNodeBoundingBoxes[removeBVHInternalNodeMarker(node.childRight)];
 
-    float rightDist = hit.distance;
+    float rightDist = hit->distance;
     const bool addFar = rayXABIntersectEarliest(&rightDist, rightBoundingBox, rayOrigin, invRayDirection, sign);
-    addBVHHit(hit.bvhHits, addFar);
+    addBVHHit(hit->bvhHits, addFar);
 
     const bool swapChilds = addNear && addFar && leftDist < rightDist;
 
@@ -496,7 +494,7 @@ inline HitStruct stackTraverseBinaryTreeWithInput(
     if (addFar)  traversalStack[stackTop++] = getChildNode(node, !swapChilds);
   }
 
-  return hit;
+  return *hit;
 }
 
 inline HitStruct stackTraverseBinaryTree(
@@ -518,8 +516,9 @@ inline HitStruct stackTraverseBinaryTree(
   Shared uint*                  sharedLeafNodeIndex)
 {
   uint traversalStack[48];
+  HitStruct hit = defaultHit(currentTime);
 
-  return stackTraverseBinaryTreeWithInput(currentTime, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes,
+  return stackTraverseBinaryTreeWithInputs(&hit, treeInternalNodes, leafParentNodeIndices, nodeParentNodeIndices, treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes,
     rayOrigin, rayDirection, invRayDirection, sign, vertexArray, attributeArray, systemSettings, primInfo, localIndex, sharedLeafNodeIndex, 0, traversalStack);
 }
 
