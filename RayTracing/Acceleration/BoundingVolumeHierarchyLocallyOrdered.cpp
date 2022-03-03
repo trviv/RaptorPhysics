@@ -35,7 +35,7 @@ void BoundingVolumeHierarchyADS::constructLocallyOrderedTree()
   (*treePtr->clusterCounters.host())[17] = 0;
   treePtr->clusterCounters.syncDevice();
 
-  const int searchRadius  = 128;
+  const int searchRadius  = 512;
 
   {
     size_t workgroupSize[3], workgroupCount[3];

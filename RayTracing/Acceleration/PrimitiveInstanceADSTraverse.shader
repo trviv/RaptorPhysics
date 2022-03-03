@@ -170,7 +170,7 @@ inline short stackTraverseInstancedBinaryTree(
   const float3              invRayDirection,
   const bool3               sign,
   Thread uint*              traversalStack,
-  Thread short              stackTop,
+  const short               stackTop,
   Thread uint*              primitiveADSInstance)
 {
   HitStruct hit = defaultHit(currentTime);
@@ -282,8 +282,6 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   if (index >= rayCount)
     return;
 
-  HitStruct finalHit = defaultHit(rays[index].maxDistance);
-
 #if RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE > 0 && defined(TRAVERSAL_STATE_IN_SHARED_MEMORY)
   Shared uint *leafNodeIndex = sharedLeafNodeIndex;
 #endif
@@ -301,6 +299,8 @@ Kernel void intersectRaysBVHPrimitiveInstances(
   const RayStruct worldRay = rays[index];
   const float3 worldInvRayDirection = 1.f / worldRay.direction;
   const bool3 worldSign = selectInput3(worldRay.direction < 0.f);
+
+  HitStruct finalHit = defaultHit(worldRay.maxDistance);
 
   do
   {
@@ -382,19 +382,20 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
   if (index >= rayCount)
     return;
 
-  HitStruct finalHit = defaultHit(rays[index].maxDistance);
-
   const ushort localIndex = threadLocalIndex();
 
   const RayStruct worldRay = rays[index];
   const float3 worldInvRayDirection = 1.f / worldRay.direction;
   const bool3 worldSign = selectInput3(worldRay.direction < 0.f);
 
+  HitStruct finalHit = defaultHit(worldRay.maxDistance);
+
   uint traversalStack[48];
   traversalStack[0] = setBVHInternalNodeMarker(false, 0);
 
   short stackTop = 1;
-  uint primitiveInstance = -1;
+  uint primitiveInstance;
+  float minTime = finalHit.distance;
 
   do
   {
@@ -423,7 +424,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
 
     DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
 
-    const HitStruct hit = stackTraverseBinaryTreeWithInput(finalHit.distance,
+    stackTraverseBinaryTreeWithInputs(&finalHit,
       primitiveADSResource.treeInternalNodes,
       primitiveADSResource.leafParentNodeIndices,
       primitiveADSResource.nodeParentNodeIndices,
@@ -435,9 +436,9 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
       primitiveADSResource.systemSettings,
       &primInfo, localIndex, sharedLeafNodeIndex, stackTop, traversalStack);
 
-    if (hit.distance < finalHit.distance)
+    if (minTime > finalHit.distance)
     {
-      finalHit = hit;
+      minTime = finalHit.distance;
       setHitPrimitiveIdentity(finalHit.primitiveIdentity, primitiveIdentity);
       traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
