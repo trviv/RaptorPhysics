@@ -363,7 +363,6 @@ void RayTracingSystem::render(bool updatePrimitives)
 
   for (uint iteration=0; iteration<maxIterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
-    uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
     accelerationStruct->intersectRays(hits.device(), hitStruct, rays[bufferIndex].device(), rayType, &currentRayCount[bufferIndex], IntersectionTypeClosest);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
@@ -371,6 +370,8 @@ void RayTracingSystem::render(bool updatePrimitives)
     hits.syncHost();
     compute->sync();
 #endif
+
+    uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
 
     {
       ushort lightOffset = 0;

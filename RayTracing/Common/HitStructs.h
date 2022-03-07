@@ -36,7 +36,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity
   float         distance;
   uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
-  uint          primitiveInternalIndex;
+  uint          dummy;
 };
 
 
@@ -55,13 +55,16 @@ struct DEFAULT_ALIGN HitInfoDistanceBVHHits
 /*!
 @struct Hit Info containing distance and normal information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
+struct ALIGN(8) HitInfoDistanceIndexIdentityNormal
 {
   float         distance;
   uint          primitiveIndex;
+#ifdef COMPUTE_SHADER_SCOPE
+  packed_float3 normal;
   IdentityInfo  primitiveIdentity;
-  uint          primitiveInternalIndex;
+#else
   float3        normal;
+#endif
 };
 
 
@@ -72,10 +75,13 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
 {
   float         distance;
   uint          primitiveIndex;
-  IdentityInfo  primitiveIdentity;
-  uint          primitiveInternalIndex;
-  float3        normal;
   float         u, v;
+#ifdef COMPUTE_SHADER_SCOPE
+  packed_float3 normal;
+  IdentityInfo  primitiveIdentity;
+#else
+  float3        normal;
+#endif
 };
 
 
@@ -84,11 +90,15 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
 #define setHitDistance(hitDistance, time) hitDistance = time
 
 #ifdef HitStructIndex
-#define setHitPrimitiveIndex(hitPrimitiveIndex, index) hitPrimitiveIndex = index
-#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = index
+#define setHitPrimitiveIndex(hitPrimitiveIndex, index)              hitPrimitiveIndex = ((index & 0x7FFFFFFF) | (hitPrimitiveIndex & 0x80000000))
+#define getHitPrimitiveIndex(hitPrimitiveIndex)                     (hitPrimitiveIndex & 0x7FFFFFFF)
+#define setHitPrimitiveInternalIndex(primitiveInternalIndex, index) primitiveInternalIndex = ((primitiveInternalIndex & 0x7FFFFFFF) | (index << 31))
+#define getHitPrimitiveInternalIndex(primitiveInternalIndex)        (primitiveInternalIndex >> 31)
 #else
 #define setHitPrimitiveIndex(hitPrimitiveIndex, index)
+#define getHitPrimitiveIndex(hitPrimitiveIndex)
 #define setHitPrimitiveInternalIndex(primitiveInternalIndex, index)
+#define getHitPrimitiveInternalIndex(primitiveInternalIndex)
 #endif
 
 #ifdef HitStructIdentity
@@ -122,6 +132,7 @@ inline HitStruct defaultHit(const float maxDistance = INFINITY)
   HitStruct hit;
   setHitDistance(hit.distance, maxDistance);
   setHitPrimitiveIndex(hit.primitiveIndex, -1);
+  setHitPrimitiveInternalIndex(hit.primitiveIndex, 1);
   setHitPrimitiveIdentity(hit.primitiveIdentity.identity, -1);
   setBVHHit(hit.bvhHits, 0);
   return hit;
