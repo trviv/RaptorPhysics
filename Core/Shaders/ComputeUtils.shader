@@ -168,7 +168,9 @@ Kernel void clearIntegerBuffer(
 
   if (writeSize >= BatchSize)
   {
-#if BatchSize == 4
+#if BatchSize == 2
+    ((Device uint2*)destination)[threadIndex()] = value;
+#elif BatchSize == 4
     ((Device uint4*)destination)[threadIndex()] = value;
 #elif BatchSize == 8
     ((Device commonUint8*)destination)[threadIndex()] = value;
@@ -202,7 +204,9 @@ Kernel void copyBuffer(
 
   if (writeSize >= BatchSize)
   {
-#if BatchSize == 4
+#if BatchSize == 2
+    ((Device uint2*)(destination + destinationOffset))[threadIndex()] = ((Device uint2*)(source + sourceOffset))[threadIndex()];
+#elif BatchSize == 4
     ((Device uint4*)(destination + destinationOffset))[threadIndex()] = ((Device uint4*)(source + sourceOffset))[threadIndex()];
 #elif BatchSize == 8
     ((Device commonUint8*)(destination + destinationOffset))[threadIndex()] = ((Device commonUint8*)(source + sourceOffset))[threadIndex()];

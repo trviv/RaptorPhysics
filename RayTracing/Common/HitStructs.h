@@ -13,6 +13,7 @@ enum HitStructType
   HitStructDistanceIndexIdentity,
   HitStructDistanceBVHHits,
   HitStructDistanceIndexIdentityNormal,
+  HitStructDistanceIndexIdentityNormalUV,
   HitStructTypeMax
 };
 
@@ -52,7 +53,7 @@ struct DEFAULT_ALIGN HitInfoDistanceBVHHits
 
 
 /*!
-@struct Hit Info containing distance and BVH information.
+@struct Hit Info containing distance and normal information.
 */
 struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
 {
@@ -61,6 +62,20 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
   IdentityInfo  primitiveIdentity;
   uint          primitiveInternalIndex;
   float3        normal;
+};
+
+
+/*!
+@struct Hit Info containing distance, normal and UV information.
+*/
+struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
+{
+  float         distance;
+  uint          primitiveIndex;
+  IdentityInfo  primitiveIdentity;
+  uint          primitiveInternalIndex;
+  float3        normal;
+  float         u, v;
 };
 
 
@@ -94,6 +109,12 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormal
 #else
 #define addBVHHit(hitBVHHits, hitCount)
 #define setBVHHit(hitBVHHits, hitCount)
+#endif
+
+#ifdef HitStructUV
+#define setHitUV(hitUV, uv) hitUV = uv
+#else
+#define setHitUV(hitUV, uv)
 #endif
 
 inline HitStruct defaultHit(const float maxDistance = INFINITY)

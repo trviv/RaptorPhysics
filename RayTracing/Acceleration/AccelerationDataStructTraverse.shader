@@ -25,6 +25,8 @@ bool triangleIntersection(
       if (time > MIN_TIME && time < hit->distance)
       {
         setHitDistance(hit->distance, time);
+        setHitUV(hit->u, u);
+        setHitUV(hit->v, v);
         return true;
       }
     }
@@ -214,6 +216,9 @@ inline void traversalSetHitNormal(
       const float u = dot(tvec, pvec) * invDet;
       const float v = dot(ray.direction, qvec) * invDet;
 
+      setHitUV(hit->u, u);
+      setHitUV(hit->v, v);
+
       normal0 = vertexAttributeArray[attributes.triangleIndex.x].normal;
       normal1 = vertexAttributeArray[attributes.triangleIndex.y].normal;
       normal2 = vertexAttributeArray[attributes.triangleIndex.z].normal;
@@ -233,9 +238,10 @@ inline void traversalStoreHit(
   *deviceHit = threadHit;
 #endif
 #ifdef IntersectionTypeAny
-  setHitDistance(deviceHit->distance, threadHit.distance);
-  setHitPrimitiveIndex(deviceHit->primitiveIndex, threadHit.primitiveIndex);
-  setHitPrimitiveIdentity(deviceHit->primitiveIdentity, threadHit.primitiveIdentity);
+  *deviceHit = threadHit;
+  //setHitDistance(deviceHit->distance, threadHit.distance);
+  //setHitPrimitiveIndex(deviceHit->primitiveIndex, threadHit.primitiveIndex);
+  //setHitPrimitiveIdentity(deviceHit->primitiveIdentity, threadHit.primitiveIdentity);
 #endif
 }
 

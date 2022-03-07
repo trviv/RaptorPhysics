@@ -382,16 +382,16 @@ void RayTracingSystem::render(bool updatePrimitives)
         colorOutputBuffer.device(),
         shadowRays[0].device(),
         rays[bufferIndex].device(),
-        hits.device(),
-        randomUints.device()
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       shadeIntersectionKernel.setArgs(buffers, bufferCount);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)hits.device(), bufferCount++);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)randomUints.device(), bufferCount++);
       shadeIntersectionKernel.setArg(&currentRayCount[bufferIndex], bufferCount);
-      shadeIntersectionKernel.setArg(lights.device(), bufferCount+1);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)lights.device(), bufferCount+1);
       shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
       shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
-      shadeIntersectionKernel.setArg(materials.device(), bufferCount+4);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)materials.device(), bufferCount+4);
       shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount+5);
       shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
 

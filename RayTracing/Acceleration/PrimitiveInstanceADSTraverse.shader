@@ -170,15 +170,16 @@ inline short stackTraverseInstancedBinaryTree(
   const float3              invRayDirection,
   const bool3               sign,
   Thread uint*              traversalStack,
-  const short               stackTop,
+  short                     stackTop,
   Thread uint*              primitiveADSInstance)
 {
   HitStruct hit = defaultHit(currentTime);
+  uint lastNodeIndex = -1;
 
   // break if the stack is empty
   while (stackTop > 0)
   {
-    uint currNodeIndex = traversalStack[--stackTop];
+    BVH_STACK_TRAVERSAL_POP_STACK;
 
     if (isBVHLeafNode(currNodeIndex))
     {
@@ -207,8 +208,7 @@ inline short stackTraverseInstancedBinaryTree(
 
     const bool swapChilds = addNear && addFar && leftDist < rightDist;
 
-    if (addNear) traversalStack[stackTop++] = getChildNode(node, swapChilds);
-    if (addFar)  traversalStack[stackTop++] = getChildNode(node, !swapChilds);
+    BVH_STACK_TRAVERSAL_PUSH_STACK;
   }
 
   return -1;
@@ -390,12 +390,13 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
 
   HitStruct finalHit = defaultHit(worldRay.maxDistance);
 
-  uint traversalStack[48];
-  traversalStack[0] = setBVHInternalNodeMarker(false, 0);
+  short stackTop = 0;
+  uint traversalStack[64];
 
-  short stackTop = 1;
   uint primitiveInstance;
   float minTime = finalHit.distance;
+
+  traversalStack[stackTop++] = setBVHInternalNodeMarker(false, 0);
 
   do
   {
@@ -443,9 +444,9 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
       traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
 
-#ifdef IntersectionTypeAny
-      break;
-#endif
+//#ifdef IntersectionTypeAny
+//      break;
+//#endif
     }
   }
   while (true);
@@ -487,10 +488,11 @@ Kernel void intersectRaysBVHPrimitiveInstancesSingleTraversal(
 
   HitStruct hit = defaultHit(rays[index].maxDistance);
 
-  short stackTop = 1;
+  const short stackBase = 0;
+  short stackTop = stackBase+1;
   uint traversalStack[48];
 
-  traversalStack[0] = setBVHInternalNodeMarker(false, 0);
+  BVH_STACK_TRAVERSAL_INITIALIZE_STACK;
 
   RayStruct ray = worldRay;
   float3 invRayDirection = worldInvRayDirection;
@@ -522,7 +524,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesSingleTraversal(
       continue;
     }
 
-    uint currNodeIndex = traversalStack[--stackTop];
+    BVH_STACK_TRAVERSAL_POP_STACK;
 
     if (isBVHLeafNode(currNodeIndex))
     {
@@ -555,7 +557,12 @@ Kernel void intersectRaysBVHPrimitiveInstancesSingleTraversal(
 
         isTopTree = false;
         stackOffset = stackTop;
+#ifdef BVH_STACK_TRAVERSAL_CACHE_LAST_NODE
+        lastNodeIndex = setBVHInternalNodeMarker(false, 0);
+        stackTop++;
+#else
         traversalStack[stackTop++] = setBVHInternalNodeMarker(false, 0);
+#endif
 
         primInfo = defaultPrimitiveInfo();
       }
@@ -583,8 +590,7 @@ Kernel void intersectRaysBVHPrimitiveInstancesSingleTraversal(
 
     const bool swapChilds = addNear && addFar && leftDist < rightDist;
 
-    if (addNear) traversalStack[stackTop++] = getChildNode(node, swapChilds);
-    if (addFar)  traversalStack[stackTop++] = getChildNode(node, !swapChilds);
+    BVH_STACK_TRAVERSAL_PUSH_STACK;
   }
 
   traversalStoreHit(&hits[index], hit);

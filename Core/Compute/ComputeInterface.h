@@ -270,7 +270,7 @@ public:
 
   void copyBufferToTexture(const ComputeMemory* source, ComputeTexture* destination, size_t sourceOffset = 0, size_t destinationSlice = 0, size_t destinationLevel = 0);
 
-  void setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
+  void setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize);
 
   void copyToHost(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, void* hostPtr, bool waitForFinish);
 

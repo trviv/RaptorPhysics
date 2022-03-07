@@ -2,6 +2,7 @@
 
 //#define DEBUG_PI_ADS
 #define TRAVERSAL_STATE_IN_SHARED_MEMORY
+//#define TRAVERSAL_USES_SHARED_MEMORY
 
 PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(CreationMethod treeCreationMethod, bool usePrimitiveInstancing)
   :BoundingVolumeHierarchyADS(treeCreationMethod), primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
@@ -339,7 +340,11 @@ void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits,
     intersectionKernel.setArg(primitiveInstanceNodes.device(), 10);
     intersectionKernel.setArg(&primitiveCount, 11);
     intersectionKernel.setArg(workgroupCount.device(), 12);
+#ifdef TRAVERSAL_USES_SHARED_MEMORY
     intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 13);
+#else
+    intersectionKernel.setSharedMemArg(4 * 4, 13);
+#endif
     registerResources(intersectionKernel);
 
     compute->execute(intersectionKernel, workgroupSize, workgroupCount.device(), 0);

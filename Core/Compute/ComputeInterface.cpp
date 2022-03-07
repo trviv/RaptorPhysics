@@ -1029,6 +1029,7 @@ void ComputeKernel::setArg(const ComputeMemory* buffer, uint index)
   if (!setArgumentBuffer) @autoreleasepool
   {
     [getComputeEncoder() setBuffer:ident offset:buffer->getOffset() atIndex:index];
+    [getComputeEncoder() useResource:ident usage:MTLResourceUsageRead];
   }
   else
   {
@@ -1692,7 +1693,7 @@ void ComputeInterface::copyTexture(const ComputeTexture* source, ComputeTexture*
 #endif
 }
 
-void ComputeInterface::setBuffer(const ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
+void ComputeInterface::setBuffer(ComputeMemory* source, size_t sourceOffset, size_t sizeInBytes, const void* hostValue, size_t hostValueSize)
 {
 #ifdef USE_OPENCL_COMPUTE
   ComputeStatus status = clEnqueueFillBuffer(queue, *source, hostValue, hostValueSize, sourceOffset, sizeInBytes, 0, NULL, NULL);
