@@ -31,23 +31,21 @@ Kernel void shadeIntersection(
 
 #if defined(RayStructColor) && defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
   HitStruct hit = hits[index];
-  RayStruct ray = rays[index];
-  RayStruct shadowRay;
+  RayStruct ray;
   RayStruct childRay;
 
   const MaterialId materialId = hit.primitiveIdentity;
   MaterialStruct material;
-  ushort materialType = -1;
-
-  const uint pixelRandomValue = camera->frameIndex + randomUints[index];
+  MaterialTypes materialType = MaterialTypeMax;
 
   float3 hitNormal;
   if (hit.primitiveIndex != -1)
   {
-    shadowRay.origin = ray.origin + ray.direction * hit.distance;
+    ray = rays[index];
+    ray.origin = ray.origin + ray.direction * hit.distance;
     hitNormal = hit.normal;
     material = materials[removeIdentityFlags(materialId).identity];
-    materialType = select(getMaterialType(material), (ushort)-1, isIdentityEntityNoShadow(materialId));
+    materialType = (MaterialTypes)select(getMaterialType(material), (ushort)MaterialTypeMax, isIdentityEntityNoShadow(materialId));
     if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hitNormal) >= 0.f)
     {
       hitNormal = -hitNormal;
@@ -60,8 +58,13 @@ Kernel void shadeIntersection(
   }
 
   childRay = ray;
-  childRay.origin = shadowRay.origin;
   childRay.maxDistance = 0.f;
+
+  uint pixelRandomValue;
+  if (materialType != MaterialTypeMax)
+  {
+    pixelRandomValue = camera->frameIndex + randomUints[index];
+  }
 
   if (materialType == MaterialTypeReflective)
   {
@@ -91,11 +94,11 @@ Kernel void shadeIntersection(
     }
     else
     {
-      materialType = -1;
+      materialType = MaterialTypeMax;
     }
   }
 
-  if (materialType != (ushort)-1)
+  if (materialType != MaterialTypeMax)
   {
     childRay.maxDistance = select(INFINITY, 0.f, maxComp3(childRay.color) < MIN_TIME);
     childRay.rayIndex = ray.rayIndex;
@@ -103,6 +106,8 @@ Kernel void shadeIntersection(
 
   rays[index] = childRay;
 
+  RayStruct shadowRay;
+  shadowRay.origin = ray.origin;
   for (ushort i=lightOffset; i<lightCount; i++)
   {
     shadowRay.color = constructColor4(0.f);

@@ -120,7 +120,7 @@ inline bool earliestIntersection(
 
     if (isIntersecting)
     {
-      setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 0);
+      setHitPrimitiveInternalIndex(hit->primitiveIndex, 0);
     }
 
     if (quadIndex.w != -1)
@@ -130,7 +130,7 @@ inline bool earliestIntersection(
 
       if (triangleIntersection(hit, vert0, edge1.position, edge2.position, rayOrigin, rayDirection))
       {
-        setHitPrimitiveInternalIndex(hit->primitiveInternalIndex, 1);
+        setHitPrimitiveInternalIndex(hit->primitiveIndex, 1);
         isIntersecting = true;
       }
     }
@@ -159,13 +159,14 @@ inline void traversalSetHitNormal(
 #if defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
   if (hit->primitiveIndex == -1) return;
 
+  const uint primitiveIndex = getHitPrimitiveIndex(hit->primitiveIndex);
   DecodedPrimitiveInfo primInfo = defaultPrimitiveInfo();
-  decodePrimitiveInfoFromSystemSettings(systemSettings, hit->primitiveIndex, &primInfo);
+  decodePrimitiveInfoFromSystemSettings(systemSettings, primitiveIndex, &primInfo);
 
   if (primInfo.primitiveType == PrimitiveSphere)
   {
     const float3 hitPoint = ray.origin + ray.direction * hit->distance;
-    setHitNormal(hit->normal, hitPoint - vertexArray[hit->primitiveIndex].position);
+    setHitNormal(hit->normal, hitPoint - vertexArray[primitiveIndex].position);
   }
   else if (primInfo.primitiveType == PrimitiveTriangle || primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
   {
@@ -175,20 +176,15 @@ inline void traversalSetHitNormal(
 
     if (primInfo.primitiveType == PrimitiveTriangle)
     {
-      const uint triIndex = primInfo.vertexOffset + (hit->primitiveIndex - primInfo.primitiveOffset)*3;
+      const uint triIndex = primInfo.vertexOffset + (primitiveIndex - primInfo.primitiveOffset)*3;
       attributes.triangleIndex = constructUint3(triIndex, triIndex+1, triIndex+2);
     }
-    else if (primInfo.primitiveType == PrimitiveIndexedTriangle)
+    else if (primInfo.primitiveType == PrimitiveIndexedTriangle || primInfo.primitiveType == PrimitiveIndexedQuad)
     {
-      attributes = attributeArray[hit->primitiveIndex];
-    }
-    else if (primInfo.primitiveType == PrimitiveIndexedQuad)
-    {
-      attributes = attributeArray[hit->primitiveIndex];
-      if (hit->primitiveInternalIndex == 1)
+      attributes = attributeArray[primitiveIndex];
+      if (primInfo.primitiveType == PrimitiveIndexedQuad && getHitPrimitiveInternalIndex(hit->primitiveIndex) == 1)
       {
-        attributes.quadIndex.y = attributes.quadIndex.x;
-        attributes.quadIndex.x = attributes.quadIndex.w;
+        attributes.quadIndex.yz = attributes.quadIndex.zw;
       }
     }
 
@@ -213,11 +209,11 @@ inline void traversalSetHitNormal(
       const float invDet= 1.f / dot(edge1, pvec);
       const float3 qvec = cross(tvec, edge1);
 
-      const float u = dot(tvec, pvec) * invDet;
-      const float v = dot(ray.direction, qvec) * invDet;
+      float u = dot(tvec, pvec) * invDet;
+      float v = dot(ray.direction, qvec) * invDet;
 
-      setHitUV(hit->u, u);
-      setHitUV(hit->v, v);
+      setHitUV(u, hit->u);
+      setHitUV(v, hit->v);
 
       normal0 = vertexAttributeArray[attributes.triangleIndex.x].normal;
       normal1 = vertexAttributeArray[attributes.triangleIndex.y].normal;
