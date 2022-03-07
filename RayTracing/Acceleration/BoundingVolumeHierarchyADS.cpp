@@ -194,6 +194,8 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
           to_string(maxBVHLeafs), to_string(sharedMemoryStride)};
 //        oldType.push_back("STACKLESS_TRAVERSE_EARLY_CHILD");
 //        newType.push_back("");
+        oldType.push_back("BVH_STACK_TRAVERSAL_CACHE_LAST_NODE");
+        newType.push_back("");
         getRayStructDefines(oldType, newType, (RayStructType)r);
         getHitStructDefines(oldType, newType, (HitStructType)h);
 

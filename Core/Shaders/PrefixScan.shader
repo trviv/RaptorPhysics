@@ -145,18 +145,16 @@ Kernel void prefixGroupScanKernel(
 {
   const ushort localIndex = threadLocalIndex();
 
+  Shared uint threadGroupIndexShared;
   Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
-  const uint index = threadIndex();
-  const uint threadGroupIndex = threadGroupIndex();
 
-  //if (localIndex == 0)
-  //{
-  //  ((Shared uint*)localArray1D)[0] = atomicAdd(&statusBuffer[threadGroupCount()-1], 1);
-  //}
-  //localMemBarrier();
-  //const uint threadGroupIndex = ((Shared uint*)localArray1D)[0];
-  //const uint index = localIndex + threadGroupIndex * threadGroupSize();
-  //localMemBarrier();
+  if (localIndex == 0)
+  {
+    threadGroupIndexShared = atomicAdd(&statusBuffer[threadGroupCount()-1], 1);
+  }
+  localMemBarrier();
+  const uint threadGroupIndex = threadGroupIndexShared;
+  const uint index = localIndex + threadGroupIndex * threadGroupSize();
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -187,7 +185,7 @@ Kernel void prefixGroupScanKernel(
     }
     else
     {
-      writeAndWait(&sumBuffer[(threadGroupIndex << 1) + 1], lastSum);
+      writeAndWait(&sumBuffer[threadGroupIndex * 2 + 1], lastSum);
       atomicStore(&statusBuffer[threadGroupIndex], PREFIX_SCAN_STATUS_FINAL);
     }
 
@@ -214,7 +212,7 @@ Kernel void prefixGroupScanKernel(
     if (threadGroupIndex && threadGroupIndex < (threadGroupCount() - 1))
     {
       ADD_FUNCTION(lastSum, previousSum);
-      writeAndWait(&sumBuffer[(threadGroupIndex << 1) + 1], lastSum);
+      writeAndWait(&sumBuffer[threadGroupIndex * 2 + 1], lastSum);
       atomicStore(&statusBuffer[threadGroupIndex], PREFIX_SCAN_STATUS_FINAL);
     }
 
@@ -357,10 +355,18 @@ Kernel void compactSparseArrayAndCopy(
   KERNEL_THREAD_ARGUMENTS
   KERNEL_THREADGROUP_ARGUMENTS)
 {
-  const uint index = threadIndex();
   const ushort localIndex = threadLocalIndex();
 
+  Shared uint threadGroupIndexShared;
   Shared MemberStructType localArray1D[PREFIX_SCAN_SHARED_SIZE];
+
+  if (localIndex == 0)
+  {
+    threadGroupIndexShared = atomicAdd(&statusBuffer[threadGroupCount()-1], 1);
+  }
+  localMemBarrier();
+  const uint threadGroupIndex = threadGroupIndexShared;
+  const uint index = localIndex + threadGroupIndex * threadGroupSize();
 
   // read the values
   MemberStructType originalValues[BatchSize];
@@ -391,21 +397,21 @@ Kernel void compactSparseArrayAndCopy(
     localArray1D[0] = 0;
 
     // save current value as partial sum, or final sum for the first threadgroup
-    if (threadGroupIndex())
+    if (threadGroupIndex)
     {
-      writeAndWait(&sumBuffer[threadGroupIndex() << 1], prefixSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_PARTIAL);
+      writeAndWait(&sumBuffer[threadGroupIndex << 1], prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex, PREFIX_SCAN_STATUS_PARTIAL);
     }
     else
     {
-      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], prefixSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+      writeAndWait(&sumBuffer[threadGroupIndex * 2 + 1], prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex, PREFIX_SCAN_STATUS_FINAL);
     }
 
-    int prevGroupIndex = threadGroupIndex() - 1;
+    int prevGroupIndex = threadGroupIndex - 1;
     INIT_POLL();
     // get prefix sum from previous threadgroups
-    while (threadGroupIndex() && prevGroupIndex > -1 && !POLL_TIMEOUT())
+    while (threadGroupIndex && prevGroupIndex > -1 && !POLL_TIMEOUT())
     {
       const uint status = atomicLoad(statusBuffer + prevGroupIndex);
       if (status == PREFIX_SCAN_STATUS_PARTIAL)
@@ -422,14 +428,14 @@ Kernel void compactSparseArrayAndCopy(
     }
 
     // save final sum for this threadgroup, if not first or very last
-    if (threadGroupIndex() && threadGroupIndex() < (threadGroupCount() - 1))
+    if (threadGroupIndex && threadGroupIndex < (threadGroupCount() - 1))
     {
-      writeAndWait(&sumBuffer[(threadGroupIndex() << 1) + 1], localArray1D[0] + prefixSum);
-      atomicStore(statusBuffer + threadGroupIndex(), PREFIX_SCAN_STATUS_FINAL);
+      writeAndWait(&sumBuffer[threadGroupIndex * 2 + 1], localArray1D[0] + prefixSum);
+      atomicStore(statusBuffer + threadGroupIndex, PREFIX_SCAN_STATUS_FINAL);
     }
 
     // save the sum from last threadgroup to the output array
-    if (threadGroupIndex() == (threadGroupCount() - 1))
+    if (threadGroupIndex == (threadGroupCount() - 1))
     {
       compactArrayCount[0] = constructUint3(localArray1D[0] + prefixSum, 1, 1);
     }
