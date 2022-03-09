@@ -3,6 +3,7 @@
 //#define DEBUG_PI_ADS
 #define TRAVERSAL_STATE_IN_SHARED_MEMORY
 //#define TRAVERSAL_USES_SHARED_MEMORY
+#define BVH_TRAVERSAL_SHARED_ELEMENTS 67
 
 PrimitiveInstanceAccelerationDataStruct::PrimitiveInstanceAccelerationDataStruct(CreationMethod treeCreationMethod, bool usePrimitiveInstancing)
   :BoundingVolumeHierarchyADS(treeCreationMethod), primitiveChanged(true), primitiveInstanceChanged(true), primitiveInstanceTransformsChanged(true), usePrimitiveInstancing(usePrimitiveInstancing),
@@ -127,15 +128,21 @@ void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vect
   includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
   includeFiles.push_back("AccelerationDataStructTraverse.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyStacklessTraverse.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyStackTraverse.shader");
   includeFiles.push_back("BoundingVolumeHierarchyADSTraverse.shader");
 
   vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM",
-    "PRIMITIVE_INSTANCE_ADS_PRIMITIVE_TRAVERSAL"};
+    "PRIMITIVE_INSTANCE_ADS_PRIMITIVE_TRAVERSAL", "BVH_TRAVERSAL_SHARED_ELEMENTS"};
   vector<string> newType = {usePrimitiveInstancing ? "intersectRaysBVHPrimitiveInstancesStacked" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader",
-    "stackTraverseBinaryTree"};
+    "stackTraverseBinaryTree", to_string(BVH_TRAVERSAL_SHARED_ELEMENTS)};
 
 #ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
   oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
+  newType.push_back("");
+#endif
+#ifdef TRAVERSAL_USES_SHARED_MEMORY
+  oldType.push_back("TRAVERSAL_USES_SHARED_MEMORY");
   newType.push_back("");
 #endif
 
@@ -341,7 +348,8 @@ void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits,
     intersectionKernel.setArg(&primitiveCount, 11);
     intersectionKernel.setArg(workgroupCount.device(), 12);
 #ifdef TRAVERSAL_USES_SHARED_MEMORY
-    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 13);
+//    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 13);
+    intersectionKernel.setSharedMemArg(4 * max((workgroupSize[0] * workgroupSize[1] * workgroupSize[2] / 32), (size_t)4) * BVH_TRAVERSAL_SHARED_ELEMENTS, 13);
 #else
     intersectionKernel.setSharedMemArg(4 * 4, 13);
 #endif
