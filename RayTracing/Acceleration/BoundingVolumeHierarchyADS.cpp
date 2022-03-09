@@ -163,23 +163,23 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
   includeFiles.push_back("HitStructs.h");
   includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
   includeFiles.push_back("AccelerationDataStructTraverse.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyStacklessTraverse.shader");
+  includeFiles.push_back("BoundingVolumeHierarchyStackTraverse.shader");
 
-  string intersectFunctionName = "intersectRaysBVH";
-  string traverseShaderProgram = "BoundingVolumeHierarchyADSTraverse.shader";
+  string intersectFunctionName  = "intersectRaysBVH";
+  string traverseShaderProgram  = "BoundingVolumeHierarchyADSTraverse.shader";
+  string traverseSharedElements = "67";
 
   if (oldTypeArg)
   {
     auto functionIter = find(oldTypeArg->begin(), oldTypeArg->end(), string("BVH_ADS_INTERSECT_RAY_BVH_FUNCTION"));
-    if (functionIter != oldTypeArg->end())
-    {
-      intersectFunctionName = newTypeArg->at(functionIter - oldTypeArg->begin());
-    }
+    if (functionIter != oldTypeArg->end())  intersectFunctionName = newTypeArg->at(functionIter - oldTypeArg->begin());
 
     functionIter = find(oldTypeArg->begin(), oldTypeArg->end(), string("ADS_TRAVERSAL_SHADER_PROGRAM"));
-    if (functionIter != oldTypeArg->end())
-    {
-      traverseShaderProgram = newTypeArg->at(functionIter - oldTypeArg->begin());
-    }
+    if (functionIter != oldTypeArg->end())  traverseShaderProgram = newTypeArg->at(functionIter - oldTypeArg->begin());
+
+    functionIter = find(oldTypeArg->begin(), oldTypeArg->end(), string("BVH_TRAVERSAL_SHARED_ELEMENTS"));
+    if (functionIter != oldTypeArg->end())  traverseSharedElements = newTypeArg->at(functionIter - oldTypeArg->begin());
   }
 
   for (int i=0; i<IntersectionTypeMax; i++)
@@ -189,9 +189,9 @@ void BoundingVolumeHierarchyADS::registerTraverseShaders(const vector<string>* o
       for (int h=0; h<HitStructTypeMax; h++)
       {
         vector<string> oldType = {getIntersectionTypeName((IntersectionType)i), "RayStruct", "HitStruct", "BVH_ADS_PERSISTENT_MULTIPLIER",
-          "RAY_TRAVERSAL_BVH_MAX_LEAFS", "RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE"};
+          "RAY_TRAVERSAL_BVH_MAX_LEAFS", "RAY_TRAVERSAL_SHARED_MEMORY_INDEX_STRIDE", "BVH_TRAVERSAL_SHARED_ELEMENTS"};
         vector<string> newType = {"", getRayStructName((RayStructType)r), getHitStructName((HitStructType)h), to_string(bvhPersistentMultiplier),
-          to_string(maxBVHLeafs), to_string(sharedMemoryStride)};
+          to_string(maxBVHLeafs), to_string(sharedMemoryStride), traverseSharedElements};
 //        oldType.push_back("STACKLESS_TRAVERSE_EARLY_CHILD");
 //        newType.push_back("");
         oldType.push_back("BVH_STACK_TRAVERSAL_CACHE_LAST_NODE");
