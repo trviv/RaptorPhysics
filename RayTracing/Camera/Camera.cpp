@@ -79,9 +79,10 @@ void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
 
   // create primary rays
   {
-    size_t workgroupSize[3], workgroupCount[3];
-    uint size[3] = {width, height, 1};
-    compute->configureSize(workgroupSize, workgroupCount, size, 1024);
+    size_t workgroupSize[3] = {16, 16, 1}, workgroupCount[3];
+    workgroupCount[0] = mAlignBy(width, workgroupSize[0]);
+    workgroupCount[1] = mAlignBy(height, workgroupSize[1]);
+    workgroupCount[2] = 1;
 
     ComputeMemory* buffers[] = {
       rays.device()

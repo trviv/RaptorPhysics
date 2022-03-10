@@ -434,7 +434,7 @@ void RayTracingSystem::render(bool updatePrimitives)
 
     if (iteration < (maxIterations-1))
     {
-      const bool reorderRays = true;
+      const bool reorderRays = false;
 
       ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT],
         reorderRays ? rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device() : rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(),
