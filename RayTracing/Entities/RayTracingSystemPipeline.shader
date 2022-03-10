@@ -43,18 +43,19 @@ Kernel void shadeIntersection(
   {
     ray = rays[index];
     ray.origin = ray.origin + ray.direction * hit.distance;
-    hitNormal = hit.normal;
     material = materials[removeIdentityFlags(materialId).identity];
     materialType = (MaterialTypes)select(getMaterialType(material), (ushort)MaterialTypeMax, isIdentityEntityNoShadow(materialId));
-    if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hitNormal) >= 0.f)
-    {
-      hitNormal = -hitNormal;
-    }
     colorType4 finalColor = colorOut[ray.rayIndex];
     finalColor.xyz += material.emissive.xyz * ray.color.xyz;
     setBVHHit(finalColor, hit.bvhHits * 0.001f);
     finalColor.w = 1.f;
     colorOut[ray.rayIndex] = finalColor;
+
+    hitNormal = hit.normal;
+    if (isIdentityEntityTwoSided(materialId) && dot(ray.direction, hitNormal) >= 0.f)
+    {
+      hitNormal = -hitNormal;
+    }
   }
 
   childRay = ray;

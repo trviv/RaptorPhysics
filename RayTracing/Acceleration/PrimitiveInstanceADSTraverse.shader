@@ -374,9 +374,9 @@ Kernel void intersectRaysBVHPrimitiveInstances(
       traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
 
-//#ifdef IntersectionTypeAny
-//      break;
-//#endif
+#ifdef IntersectionTypeAny
+      break;
+#endif
     }
   }
   while (true);
@@ -478,9 +478,9 @@ Kernel void intersectRaysBVHPrimitiveInstancesStacked(
       traversalSetHitNormal(localRay, &finalHit, primitiveADSResource.vertexArray, primitiveADSResource.attributeArray, primitiveADSResource.vertexAttributeArray, primitiveADSResource.systemSettings, false);
       setHitNormal(finalHit.normal, normalize(mulMatrixVec(primitiveInstanceTransforms[primitiveInstance], constructFloat4(finalHit.normal, 0.f)).xyz));
 
-//#ifdef IntersectionTypeAny
-//      break;
-//#endif
+#ifdef IntersectionTypeAny
+      break;
+#endif
     }
   }
   while (true);
