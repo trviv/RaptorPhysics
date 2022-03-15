@@ -29,10 +29,6 @@ void PhysicsSystem::init(ComputeInterface* compute, const uint maxParticles)
     solversUint[i] = NULL;
   }
 
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("ParticleStruct.h");
-
   vector<string> newType = { "uint", "float", "float3" };
   vector<string> oldType = { "IndexType", "CoefficientType", "VariableType" };
   registerShader(compute, "PhysicsSystem.shader", &oldType, &newType);

@@ -1,6 +1,9 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_STACK_TRAVERSE_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_STACK_TRAVERSE_SHADER_H
 
+#include "AccelerationDataStructTraverse.shader"
+#include "BoundingVolumeHierarchyADSCreate.shader"
+
 struct BVHNodeIntersectionData
 {
   BVHNodeInfo node;

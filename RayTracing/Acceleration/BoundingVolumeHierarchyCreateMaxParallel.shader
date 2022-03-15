@@ -1,6 +1,8 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_CREATE_MAX_PARALLEL_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_CREATE_MAX_PARALLEL_SHADER_H
 
+#include "BoundingVolumeHierarchyADSCreate.shader"
+
 /*
 @kernel Create tree from the leaf data.
 @param treeInternalNodes Binary radix tree internal connectivity data.

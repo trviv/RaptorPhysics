@@ -1,6 +1,8 @@
 #ifndef FLUID_SOLVER_PCISPH_SHADER
 #define FLUID_SOLVER_PCISPH_SHADER
 
+#include "FluidSolverPBF.shader"
+
 /*
 @kernel Predict position and velocity for the next step.
 @param particlesNextPosition Next particle positions.
@@ -136,7 +138,7 @@ Kernel void calculatePressure(
 @param occupiedCellCount Total active grid cells.
 */
 //#autoArgumentBuffer
-Kernel void calculateForces(
+Kernel void calculateForcesPCISPH(
   Device ParticleForce*               particlesPressureForce,
   const Device float*                 particlesDensity,
   const Device float*                 particlesPressure,

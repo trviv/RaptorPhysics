@@ -19,6 +19,8 @@ class RayTracingSystem : protected ShaderEntity
 {
   friend class ReaderScene;
 
+  bool intersectInRayTracingShaders;
+
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
   static uint maxPrimIndex;
@@ -34,6 +36,8 @@ protected:
   ComputeKernel reorderRaysKernels[RayStructTypeMax];
   ComputeKernel shadeIntersectionKernels[RayStructTypeMax][HitStructTypeMax];
   ComputeKernel processShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
+  ComputeKernel intersectAndShadeKernels[RayStructTypeMax][HitStructTypeMax];
+  ComputeKernel intersectAndProcessShadowRaysKernels[RayStructTypeMax][HitStructTypeMax];
 
   ComputeMemory validRayCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];
   ComputeMemory currentWGCount[RAY_TRACING_SYSTEM_ARRAY_COUNT];

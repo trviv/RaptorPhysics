@@ -121,6 +121,8 @@ public:
 
   void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                      const ComputeMemory* rayCount, IntersectionType intersectionType);
+
+  void appendTraversalSettings(vector<string>& oldType, vector<string>& newType)const;
 };
 
 #endif

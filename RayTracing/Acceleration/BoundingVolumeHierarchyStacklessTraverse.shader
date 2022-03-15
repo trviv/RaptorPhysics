@@ -1,6 +1,9 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_STACKLESS_TRAVERSE_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_STACKLESS_TRAVERSE_SHADER_H
 
+#include "AccelerationDataStructTraverse.shader"
+#include "BoundingVolumeHierarchyADSCreate.shader"
+
 #define BVH_TRAVERSAL_FROM_PARENT   1
 #define BVH_TRAVERSAL_FROM_CHILD    2
 #define BVH_TRAVERSAL_FROM_SIBLING  3

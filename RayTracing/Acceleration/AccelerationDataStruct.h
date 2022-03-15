@@ -3,6 +3,8 @@
 
 #include <Common/RayTracingStruct.h>
 #include <Entities/RayTracingEntity.h>
+#include <Common/HitStructs.h>
+#include <Common/MaterialStruct.h>
 
 enum IntersectionType
 {
@@ -74,6 +76,8 @@ public:
 
   virtual void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                              const ComputeMemory* rayCount, IntersectionType intersectionType);
+
+  virtual void appendTraversalSettings(vector<string>& oldType, vector<string>& newType)const;
 };
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef GRID_SOLVER_SHADER
 #define GRID_SOLVER_SHADER
 
+#include "CollisionSolver.shader"
+
 //#define GRID_SOLVER_SEPARATE_LOOPS
 //#define DEBUG_GRID_SOLVER_SCATTER
 

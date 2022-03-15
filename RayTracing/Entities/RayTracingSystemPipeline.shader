@@ -1,6 +1,10 @@
 #ifndef RAY_TRACING_SYSTEM_PIPELINE_SHADER
 #define RAY_TRACING_SYSTEM_PIPELINE_SHADER
 
+#include "PrimitiveInstanceADSTraverse.shader"
+#include "MaterialStruct.h"
+#include "Light.shader"
+
 /*
 @kernel Shade ray intersection in a surface based on its material properties and visiblity info.
 @param colorOut Final color output.
@@ -9,11 +13,12 @@
 @param hits Hit info buffer.
 @param rayCount Ray count.
 */
-Kernel void shadeIntersection(
+inline void shadeIntersectionAndSave(
   Device colorType4*            colorOut,
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
-  const Device HitStruct*       hits,
+  RayStruct                     ray,
+  const HitStruct               hit,
   const Device uint*            randomUints,
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
@@ -21,17 +26,10 @@ Kernel void shadeIntersection(
   constantKernelInput(ushort,   lightCount),
   const Device MaterialStruct*  materials,
   Const CameraStruct*           camera,
-  constantKernelInput(uint,     iteration)
-  KERNEL_GLOBAL_ARGUMENTS)
+  constantKernelInput(uint,     iteration),
+  const uint                    index)
 {
-  const uint index = threadIndex();
-
-  if (index >= rayCount)
-    return;
-
 #if defined(RayStructColor) && defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
-  HitStruct hit = hits[index];
-  RayStruct ray;
   RayStruct childRay;
 
   const MaterialId materialId = hit.primitiveIdentity;
@@ -41,7 +39,6 @@ Kernel void shadeIntersection(
   float3 hitNormal;
   if (hit.primitiveIndex != -1)
   {
-    ray = rays[index];
     ray.origin = ray.origin + ray.direction * hit.distance;
     material = materials[removeIdentityFlags(materialId).identity];
     materialType = (MaterialTypes)select(getMaterialType(material), (ushort)MaterialTypeMax, isIdentityEntityNoShadow(materialId));
@@ -131,6 +128,77 @@ Kernel void shadeIntersection(
     shadowRays[index + rayCount * i] = shadowRay;
   }
 #endif
+}
+
+inline void processShadowRay(
+  Device colorType4*  colorOut,
+  const RayStruct     shadowRay,
+  const HitStruct     shadowHit)
+{
+#ifdef RayStructColor
+#ifdef HitStructIndex
+  if (shadowHit.primitiveIndex == -1)
+#endif
+#ifdef HitStructIdentity
+  if (isIdentityEntityNoShadow(shadowHit.primitiveIdentity))
+#endif
+  {
+    colorType4 finalColor = colorOut[shadowRay.rayIndex];
+    finalColor.xyz += shadowRay.color.xyz;
+    finalColor.w = 1.f;
+
+    colorOut[shadowRay.rayIndex] = finalColor;
+  }
+#endif
+}
+
+Kernel void shadeIntersection(
+  Device colorType4*            colorOut,
+  Device RayStruct*             shadowRays,
+  Device RayStruct*             rays,
+  const Device HitStruct*       hits,
+  const Device uint*            randomUints,
+  constantKernelInput(uint,     rayCount),
+  Const LightStruct*            lights,
+  constantKernelInput(ushort,   lightOffset),
+  constantKernelInput(ushort,   lightCount),
+  const Device MaterialStruct*  materials,
+  Const CameraStruct*           camera,
+  constantKernelInput(uint,     iteration)
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index >= rayCount)
+    return;
+
+  shadeIntersectionAndSave(colorOut, shadowRays, rays, rays[index], hits[index], randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, index);
+}
+
+Kernel void intersectAndShade(
+  Device colorType4*            colorOut,
+  Device RayStruct*             shadowRays,
+  Device RayStruct*             rays,
+  const Device uint*            randomUints,
+  constantKernelInput(uint,     rayCount),
+  Const LightStruct*            lights,
+  constantKernelInput(ushort,   lightOffset),
+  constantKernelInput(ushort,   lightCount),
+  const Device MaterialStruct*  materials,
+  Const CameraStruct*           camera,
+  constantKernelInput(uint,     iteration),
+  Const PrimitiveInstanceADSResources*  primitiveInstanceADSResources
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
+
+  if (index >= rayCount)
+    return;
+
+  const RayStruct ray = rays[index];
+  const HitStruct hit = intersectRayPrimitiveInstanceADS(ray, primitiveInstanceADSResources);
+
+  shadeIntersectionAndSave(colorOut, shadowRays, rays, ray, hit, randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, index);
 }
 
 inline void bitonicSortSharedUshort2(
@@ -225,24 +293,25 @@ Kernel void processShadowRays(
   if (index >= rayCount)
     return;
 
-  const HitStruct shadowHit = hits[index];
+  processShadowRay(colorOut, shadowRays[index], hits[index]);
+}
 
-#ifdef RayStructColor
-#ifdef HitStructIndex
-  if (shadowHit.primitiveIndex == -1)
-#endif
-#ifdef HitStructIdentity
-  if (isIdentityEntityNoShadow(shadowHit.primitiveIdentity))
-#endif
-  {
-    const RayStruct shadowRay = shadowRays[index];
-    colorType4 finalColor = colorOut[shadowRay.rayIndex];
-    finalColor.xyz += shadowRay.color.xyz;
-    finalColor.w = 1.f;
+Kernel void intersectAndProcessShadowRays(
+  Device colorType4*                    colorOut,
+  const Device RayStruct*               shadowRays,
+  constantKernelInput(uint,             rayCount),
+  Const PrimitiveInstanceADSResources*  primitiveInstanceADSResources
+  KERNEL_GLOBAL_ARGUMENTS)
+{
+  const uint index = threadIndex();
 
-    colorOut[shadowRay.rayIndex] = finalColor;
-  }
-#endif
+  if (index >= rayCount)
+    return;
+
+  const RayStruct shadowRay = shadowRays[index];
+  const HitStruct shadowHit = intersectRayPrimitiveInstanceADS(shadowRay, primitiveInstanceADSResources);
+
+  processShadowRay(colorOut, shadowRay, shadowHit);
 }
 
 #endif

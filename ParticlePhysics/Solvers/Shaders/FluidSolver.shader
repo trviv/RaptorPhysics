@@ -1,6 +1,9 @@
 #ifndef FLUID_SOLVER_SHADER
 #define FLUID_SOLVER_SHADER
 
+#include "UniformGridCollisionSolver.shader"
+#include "FluidSolverCommon.h"
+
 #define FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD 0.1f
 
 /*

@@ -246,7 +246,7 @@ public:
     return deviceBuffer;
   }
 
-  void syncDevicePointerBuffer();
+  void syncDevicePointerBuffer(const uint deviceByteOffset = 0);
 };
 
 #endif

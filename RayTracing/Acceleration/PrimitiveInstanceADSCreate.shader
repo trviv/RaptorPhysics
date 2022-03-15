@@ -1,6 +1,9 @@
 #ifndef PRIMITIVE_INSTANCE_ACCELERATION_DATA_STRUCT_CREATE_SHADER
 #define PRIMITIVE_INSTANCE_ACCELERATION_DATA_STRUCT_CREATE_SHADER
 
+#include "BoundingVolumeHierarchyCreateLocallyOrdered.shader"
+#include "BoundingVolumeHierarchyCreateMaxParallel.shader"
+
 /*
 @kernel Update per instance data based on instance transform.
 @param primitiveInstanceNodes Primitive instance node data.

@@ -51,20 +51,12 @@ void AccelerationDataStruct::updatePointers()
 
 void AccelerationDataStruct::registerCreateShaders(const vector<string>* oldType, const vector<string>* newType)
 {
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("RayTracingStruct.h");
-
   registerShader(compute, "AccelerationDataStructCreate.shader", oldType, newType);
-
   createPrimitiveBoundingBoxes = programs.back().createKernel("createPrimitiveBoundingBoxes");
 }
 
 void AccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
 {
-  includeFiles.push_back("RayStructs.h");
-  includeFiles.push_back("HitStructs.h");
-
   for (int i=0; i<IntersectionTypeMax; i++)
   {
     for (int r=0; r<RayStructTypeMax; r++)
@@ -220,3 +212,6 @@ void AccelerationDataStruct::intersectRays(ComputeMemory* hits, HitStructType hi
 #endif
   }
 }
+
+void AccelerationDataStruct::appendTraversalSettings(vector<string>& oldType, vector<string>& newType)const
+{}

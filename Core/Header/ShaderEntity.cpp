@@ -4,10 +4,9 @@ ShaderEntity::ShaderEntity()
 {
   programs.clear();
   kernels.clear();
-  includeFiles.clear();
 }
 
-void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType)
+void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType, const vector<string>* includeFiles)
 {
   vector<string> localOld, localNew;
 
@@ -33,5 +32,5 @@ void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileNam
   localNew.push_back("");
 #endif
 
-  programs.push_back(compute->createTemplateProgram(fileName, &localOld, &localNew, &includeFiles));
+  programs.push_back(compute->createTemplateProgram(fileName, &localOld, &localNew, includeFiles));
 }

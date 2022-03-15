@@ -1,4 +1,5 @@
 #include "ComputeInterface.h"
+#include <unordered_set>
 
 #define CREATE_SUB_BUFFER
 //#define ENABLE_CL_PROFILING
@@ -190,7 +191,7 @@ inline vector<string> unique(const vector<string>* stringList, const char* delim
 #define ALWAYS_END_ENCODERS
 #endif
 
-#define USE_ARGUMENT_BUFFERS
+//#define USE_ARGUMENT_BUFFERS
 
 #if __has_feature(objc_arc)
 #define retainComputeObj(obj)
@@ -1448,7 +1449,103 @@ void ComputeInterface::create(int deviceIndex)
 #endif
 }
 
-ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t sourceSize)
+string parseSource(const char* sourceCode, const vector<string>* includeFiles = NULL)
+{
+  string finalSource;
+
+  stack<bool>   sourceSeen;
+  stack<string> sources;
+  stack<string> sourceName;
+
+  unordered_set<string> processedFiles;
+
+  sourceSeen.push(false);
+  sources.push(sourceCode);
+  sourceName.push("Base Shader");
+
+  for (uint i = 0; includeFiles && i < includeFiles->size(); i++)
+  {
+    sourceSeen.push(false);
+    sources.push(IOInterface::readFile((*includeFiles)[i].c_str()));
+    sourceName.push((*includeFiles)[i].c_str());
+  }
+
+  const string includeString = "#include";
+
+  // loop while there are remaining source
+  while (sources.size())
+  {
+    // if osurce processed, add it to the final shader
+    if (sourceSeen.top())
+    {
+      logComputeMessage("Including header: %s", sourceName.top().c_str());
+      finalSource += sources.top();
+      sourceSeen.pop();
+      sources.pop();
+      sourceName.pop();
+      continue;
+    }
+
+    size_t startPos = 0;
+    vector<string> includeList;
+
+    string& localSource = sources.top();
+    sourceSeen.top() = true;
+
+    do
+    {
+      size_t currPos = localSource.find(includeString, startPos);
+
+      if (currPos == localSource.npos) break;
+
+      // if valid include
+      if (currPos < 2 || localSource[currPos - 1] != '/')
+      {
+        string includeLine = localSource.substr(currPos, localSource.find("\n", currPos) - currPos);
+        string includeName;
+
+        stringList tokens = tokenize(includeLine, "\"");
+        if (tokens.size() == 0)
+        {
+          tokens = tokenize(includeLine, "<");
+          includeName = tokenize(tokens.back(), ">")[0];
+        }
+        else
+        {
+          includeName = tokens.back();
+        }
+
+        // modify the source to commend out the include
+        localSource[currPos]   = '/';
+        localSource[currPos+1] = '/';
+
+        // add include to list of includes
+        includeList.push_back(includeName);
+      }
+
+      startPos = currPos + includeString.size();
+    }
+    while (true);
+
+    // add includes found in the source to stack
+    while (includeList.size())
+    {
+      // if file exist and is not seen yet add it to the stack
+      if (processedFiles.count(includeList.back()) == 0 && IOInterface::checkFileExist(includeList.back().c_str()))
+      {
+        sources.push(IOInterface::readFile(includeList.back().c_str()));
+        sourceName.push(includeList.back().c_str());
+        sourceSeen.push(false);
+        processedFiles.insert(includeList.back());
+      }
+      includeList.pop_back();
+    }
+  }
+
+  return finalSource;
+}
+
+ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t sourceSize, const vector<string>* oldType, const vector<string>* newType, const vector<string>* includeFiles)
 {
   ComputeStatus status;
 #ifdef USE_OPENCL_COMPUTE
@@ -1471,16 +1568,30 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
   log[0] = NULL;
   @autoreleasepool {
   NSError *error = nil;
-  NSString *source = @"#include <metal_stdlib>\nusing namespace metal;\n";
+
+  vector<string> localOldType = oldType ? *oldType : vector<string>();
+  vector<string> localNewType = newType ? *newType : vector<string>();
+
+  NSString *source = @"";
   if ([deviceId supportsFamily:MTLGPUFamilyApple6])
   {
-    source = [source stringByAppendingString:@"#define USE_SIMD_COMPUTE"];
+    localOldType.push_back("USE_SIMD_COMPUTE");
+    localNewType.push_back("");
   }
+
+  string defines;
+  for (uint i = 0; i < localOldType.size(); i++)
+  {
+    defines += "#define " + localOldType[i] + " " + localNewType[i] + "\n";
+  }
+
+  string finalSource = defines + parseSource(sourceCode, includeFiles);
+
 #ifdef USE_ARGUMENT_BUFFERS
-  source = [source stringByAppendingString:[NSString stringWithUTF8String:processAutoArgumentBuffers(sourceCode).c_str()]];
-#else
-  source = [source stringByAppendingString:[NSString stringWithUTF8String:sourceCode]];
+  finalSource = processAutoArgumentBuffers(finalSource);
 #endif
+
+  source = [source stringByAppendingString:[NSString stringWithUTF8String:finalSource.c_str()]];
   ComputeProgramIdentifier programId = [deviceId newLibraryWithSource:source options:0 error:&error];
   program = ComputeProgram(programId);
   // Allocate memory for the log
@@ -1514,6 +1625,27 @@ ComputeProgram ComputeInterface::createTemplateProgram(const char* fileName, con
   const vector<string>* newType, const vector<string>* includeFiles)
 {
   logComputeMessage("Compiling File: %s", fileName);
+//  string command = "";
+//
+//  command +=
+//  "val="+string(fileName)+"\n"
+//  "SCRIPT_FILE_NAME=$val\n"
+//  "IFS='.' read -ra fname <<< `$val`\n"
+//  "INCLUDE_INPUT_PATH_0=/Users/vivek/Projects/ParticlePhysics/build/build_macos/Tests/Debug/Tests.app/Contents/Resources/\n"
+//  "SCRIPT_INPUT_FILE_0=$INCLUDE_INPUT_PATH_0/$SCRIPT_FILE_NAME\n"
+//  "SCRIPT_OUTPUT_FILE_0=$INCLUDE_INPUT_PATH_0/${fname[0]}.air\n"
+//  "SCRIPT_OUTPUT_FILE_1=$INCLUDE_INPUT_PATH_0/${fname[0]}.metallib\n"
+//  "xcrun -sdk iphoneos metal -x metal -dynamiclib -fvisibility=hidden $SCRIPT_INPUT_FILE_0 -o $SCRIPT_OUTPUT_FILE_0 -I $INCLUDE_INPUT_PATH_0 -D COMPUTE_SHADER_SCOPE "
+////  "xcrun -sdk iphoneos metal -x metal $SCRIPT_INPUT_FILE_0 -o $SCRIPT_OUTPUT_FILE_0 -I $INCLUDE_INPUT_PATH_0 -D COMPUTE_SHADER_SCOPE\n"
+////  "xcrun -sdk iphoneos metallib $SCRIPT_OUTPUT_FILE_0 -o $SCRIPT_OUTPUT_FILE_1\n"
+//  ;
+//
+//  for (int i=0; oldType && i<oldType->size(); i++)
+//  {
+//    command += " -D '"+oldType->at(i)+"="+newType->at(i)+"'";
+//  }
+//
+//  system(command.c_str());
   return createTemplateProgram(IOInterface::readFile(fileName), oldType, newType, includeFiles);
 }
 
@@ -1541,26 +1673,7 @@ ComputeProgram ComputeInterface::createTemplateProgram(const string& sourceCode,
     return cachedPrograms[programSignature];
   }
 
-  std::string data = "\n";
-  if (oldType)
-  {
-    for (uint i = 0; i < oldType->size(); i++)
-    {
-      data += "#define " + (*oldType)[i] + " " + (*newType)[i] + "\n";
-    }
-  }
-  logComputeMessage("Template types%s", data.c_str());
-  if (includeFiles)
-  {
-    for (uint i = 0; i < includeFiles->size(); i++)
-    {
-      data += IOInterface::readFile((*includeFiles)[i].c_str()) + "\n";
-    }
-  }
-  data += sourceCode;
-  data += "\n";
-
-  ComputeProgram program = createProgram(data.c_str(), data.size());
+  ComputeProgram program = createProgram(sourceCode.c_str(), sourceCode.size(), oldType, newType, includeFiles);
   cachedPrograms[programSignature] = program;
 
   return program;

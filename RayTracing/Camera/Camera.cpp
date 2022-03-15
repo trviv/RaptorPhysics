@@ -10,11 +10,6 @@ Camera::Camera(ComputeInterface* compute)
   samples = 1;
   buffer = NULL;
 
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("RayStructs.h");
-  includeFiles.push_back("RayTracingStruct.h");
-
   vector<string> oldType = { "RayStruct"};
   vector<string> newType = { getRayStructName(RayStructPositionDirectionColor) };
   registerShader(compute, "Camera.shader", &oldType, &newType);

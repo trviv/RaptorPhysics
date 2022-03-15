@@ -38,11 +38,6 @@ EntitySolver<IndexType, CoefficientType, VariableType>::EntitySolver(ComputeInte
   this->entityLocations.create(compute, allocator->getHeap(COMPUTE_HEAP_SECTIONS));
 
   this->iterations = 1;
-
-  this->includeFiles.push_back("ComputeHeader.shader");
-  this->includeFiles.push_back("ComputeShared.h");
-  this->includeFiles.push_back("ConstrainStruct.h");
-  this->includeFiles.push_back("ParticleStruct.h");
 }
 
 template<class IndexType, class CoefficientType, class VariableType>

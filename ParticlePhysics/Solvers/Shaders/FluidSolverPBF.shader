@@ -1,6 +1,8 @@
 #ifndef FLUID_SOLVER_PBF_SHADER
 #define FLUID_SOLVER_PBF_SHADER
 
+#include "FluidSolver.shader"
+
 inline float scorrFunction(const float r, const float h)
 {
   const float corrK = 0.01f;
