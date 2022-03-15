@@ -105,23 +105,6 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
   vector<string> newType;
   vector<string> kernelNames;
 
-  util.includeFiles.push_back("ComputeHeader.shader");
-  util.includeFiles.push_back("ComputeShared.h");
-
-  if (includeFiles)
-  {
-    for (auto i : *includeFiles)
-    {
-      util.includeFiles.push_back(i);
-    }
-  }
-
-  util.includeFiles.push_back("ComputeUtilsShared.h");
-  util.includeFiles.push_back("PrefixScan.shader");
-  util.includeFiles.push_back("Reduce.shader");
-  util.includeFiles.push_back("ComplexReduce.shader");
-  util.includeFiles.push_back("RadixSort.shader");
-
   string key;
 
   for (uint i = 0; i < ComputeUtilMaxKey; i++)
@@ -132,11 +115,6 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
       oldType.push_back(getKeyName((ComputeUtilKey)i));
       newType.push_back(dataMap[(ComputeUtilKey)i]);
     }
-  }
-
-  for (const string& include : util.includeFiles)
-  {
-    key += ":" + include;
   }
 
   vector<string>::iterator pos = find(computeConfig.begin(), computeConfig.end(), key);
@@ -362,7 +340,7 @@ uint ComputeUtil::create(ComputeInterface* compute, map<ComputeUtilKey, string>&
     }
   }
 
-  util.registerShader(compute, "ComputeUtils.shader", &oldType, &newType);
+  util.registerShader(compute, "ComputeUtils.shader", &oldType, &newType, includeFiles);
 
   for (const string& kernelName : kernelNames)
   {

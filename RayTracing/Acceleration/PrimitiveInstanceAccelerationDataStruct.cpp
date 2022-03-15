@@ -42,6 +42,7 @@ void PrimitiveInstanceAccelerationDataStruct::initializeData()
 
   primitiveInstanceTransforms.create(compute);
   primitiveADSResources.create(compute, NULL, true);
+  primitiveInstanceADSResources.create(compute, NULL, true);
 }
 
 void PrimitiveInstanceAccelerationDataStruct::updatePointers()
@@ -106,13 +107,6 @@ void PrimitiveInstanceAccelerationDataStruct::assignLeafMortonCode()
 void PrimitiveInstanceAccelerationDataStruct::registerCreateShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
 {
   BoundingVolumeHierarchyADS::registerCreateShaders();
-
-  includeFiles.clear();
-
-  includeFiles.push_back("ComputeHeader.shader");
-  includeFiles.push_back("ComputeShared.h");
-  includeFiles.push_back("RayTracingStruct.h");
-
   registerShader(compute, "PrimitiveInstanceADSCreate.shader", NULL, NULL);
 
   updatePrimitiveInstanceData = programs.back().createKernel("updatePrimitiveInstanceData");
@@ -124,27 +118,8 @@ void PrimitiveInstanceAccelerationDataStruct::registerCreateShaders(const vector
 
 void PrimitiveInstanceAccelerationDataStruct::registerTraverseShaders(const vector<string>* oldTypeArg, const vector<string>* newTypeArg)
 {
-  includeFiles.push_back("RayStructs.h");
-  includeFiles.push_back("HitStructs.h");
-  includeFiles.push_back("BoundingVolumeHierarchyADSCreate.shader");
-  includeFiles.push_back("AccelerationDataStructTraverse.shader");
-  includeFiles.push_back("BoundingVolumeHierarchyStacklessTraverse.shader");
-  includeFiles.push_back("BoundingVolumeHierarchyStackTraverse.shader");
-  includeFiles.push_back("BoundingVolumeHierarchyADSTraverse.shader");
-
-  vector<string> oldType = {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM",
-    "PRIMITIVE_INSTANCE_ADS_PRIMITIVE_TRAVERSAL", "BVH_TRAVERSAL_SHARED_ELEMENTS"};
-  vector<string> newType = {usePrimitiveInstancing ? "intersectRaysBVHPrimitiveInstancesStacked" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader",
-    "stackTraverseBinaryTree", to_string(BVH_TRAVERSAL_SHARED_ELEMENTS)};
-
-#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
-  oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
-  newType.push_back("");
-#endif
-#ifdef TRAVERSAL_USES_SHARED_MEMORY
-  oldType.push_back("TRAVERSAL_USES_SHARED_MEMORY");
-  newType.push_back("");
-#endif
+  vector<string> oldType, newType;
+  appendTraversalSettings(oldType, newType);
 
   if (oldTypeArg) oldType.insert(oldType.end(), oldTypeArg->begin(), oldTypeArg->end());
   if (newTypeArg) newType.insert(newType.end(), newTypeArg->begin(), newTypeArg->end());
@@ -160,6 +135,15 @@ void PrimitiveInstanceAccelerationDataStruct::registerResources(ComputeKernel& k
     {
       i.first->registerResources(kernel);
     }
+
+    kernel.registerResource(pointerTreeInternalNodes);
+    kernel.registerResource(pointerLeafParentNodeIndices);
+    kernel.registerResource(pointerNodeParentNodeIndices);
+    kernel.registerResource(pointerLeafNodeBoundingBoxes);
+    kernel.registerResource(pointerTreeNodeBoundingBoxes);
+    kernel.registerResource(primitiveADSResources.device());
+    kernel.registerResource(primitiveInstanceTransforms.device());
+    kernel.registerResource(primitiveInstanceNodes.device());
   }
   else
   {
@@ -304,6 +288,19 @@ void PrimitiveInstanceAccelerationDataStruct::fullBuild()
     pointerSystemSettings = systemSettings.device();
 
     BoundingVolumeHierarchyADS::fullBuild();
+
+    primitiveInstanceADSResources.host()->resize(8);
+    primitiveInstanceADSResources.host()->at(0) = pointerTreeInternalNodes;
+    primitiveInstanceADSResources.host()->at(1) = pointerLeafParentNodeIndices;
+    primitiveInstanceADSResources.host()->at(2) = pointerNodeParentNodeIndices;
+    primitiveInstanceADSResources.host()->at(3) = pointerLeafNodeBoundingBoxes;
+    primitiveInstanceADSResources.host()->at(4) = pointerTreeNodeBoundingBoxes;
+    primitiveInstanceADSResources.host()->at(5) = primitiveADSResources.device();
+    primitiveInstanceADSResources.host()->at(6) = primitiveInstanceTransforms.device();
+    primitiveInstanceADSResources.host()->at(7) = primitiveInstanceNodes.device();
+
+    primitiveInstanceADSResources.syncDevicePointerBuffer(4);
+    compute->copyFromHost(primitiveInstanceADSResources.device(), 0, 4, &primitiveCount, false);
   }
 
   needsRebuild = false;
@@ -337,21 +334,13 @@ void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits,
     intersectionKernel.setArg(hits, 0);
     intersectionKernel.setArg(rays, 1);
     intersectionKernel.setArg(rayCount, 2);
-    intersectionKernel.setArg(pointerTreeInternalNodes, 3);
-    intersectionKernel.setArg(pointerLeafParentNodeIndices, 4);
-    intersectionKernel.setArg(pointerNodeParentNodeIndices, 5);
-    intersectionKernel.setArg(pointerLeafNodeBoundingBoxes, 6);
-    intersectionKernel.setArg(pointerTreeNodeBoundingBoxes, 7);
-    intersectionKernel.setArg(primitiveADSResources.device(), 8);
-    intersectionKernel.setArg(primitiveInstanceTransforms.device(), 9);
-    intersectionKernel.setArg(primitiveInstanceNodes.device(), 10);
-    intersectionKernel.setArg(&primitiveCount, 11);
-    intersectionKernel.setArg(workgroupCount.device(), 12);
+    intersectionKernel.setArg(primitiveInstanceADSResources.device(), 3);
+    intersectionKernel.setArg(workgroupCount.device(), 4);
 #ifdef TRAVERSAL_USES_SHARED_MEMORY
 //    intersectionKernel.setSharedMemArg(4 * max(workgroupSize[0] * workgroupSize[1] * workgroupSize[2] * sharedMemoryStride, (size_t)4), 13);
-    intersectionKernel.setSharedMemArg(4 * max((workgroupSize[0] * workgroupSize[1] * workgroupSize[2] / 32), (size_t)4) * BVH_TRAVERSAL_SHARED_ELEMENTS, 13);
+    intersectionKernel.setSharedMemArg(4 * max((workgroupSize[0] * workgroupSize[1] * workgroupSize[2] / 32), (size_t)4) * BVH_TRAVERSAL_SHARED_ELEMENTS, 5);
 #else
-    intersectionKernel.setSharedMemArg(4 * 4, 13);
+    intersectionKernel.setSharedMemArg(4 * 4, 5);
 #endif
     registerResources(intersectionKernel);
 
@@ -360,5 +349,28 @@ void PrimitiveInstanceAccelerationDataStruct::intersectRays(ComputeMemory* hits,
 #ifdef DEBUG_PI_ADS
     leafNodeBoundingBoxes.syncHost();
     compute->sync();
+#endif
+}
+
+void PrimitiveInstanceAccelerationDataStruct::encodePrimitiveADS(ComputeKernel& kernel, const uint index)
+{
+  kernel.setArg((const ComputeMemory*)primitiveInstanceADSResources.device(), index);
+  registerResources(kernel);
+}
+
+void PrimitiveInstanceAccelerationDataStruct::appendTraversalSettings(vector<string>& oldType, vector<string>& newType)const
+{
+  BoundingVolumeHierarchyADS::appendTraversalSettings(oldType, newType);
+
+  oldType.insert(oldType.end(), {"BVH_ADS_INTERSECT_RAY_BVH_FUNCTION", "ADS_TRAVERSAL_SHADER_PROGRAM", "PRIMITIVE_INSTANCE_ADS_PRIMITIVE_TRAVERSAL", "BVH_TRAVERSAL_SHARED_ELEMENTS"});
+  newType.insert(newType.end(), {usePrimitiveInstancing ? "intersectRaysPrimitiveInstances" : "intersectRaysBVHPrimitiveInstancesFlattened", "PrimitiveInstanceADSTraverse.shader", "stackTraverseBinaryTree", to_string(BVH_TRAVERSAL_SHARED_ELEMENTS)});
+
+#ifdef TRAVERSAL_STATE_IN_SHARED_MEMORY
+  oldType.push_back("TRAVERSAL_STATE_IN_SHARED_MEMORY");
+  newType.push_back("");
+#endif
+#ifdef TRAVERSAL_USES_SHARED_MEMORY
+  oldType.push_back("TRAVERSAL_USES_SHARED_MEMORY");
+  newType.push_back("");
 #endif
 }

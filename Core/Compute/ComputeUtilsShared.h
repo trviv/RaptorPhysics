@@ -11,6 +11,9 @@
 
 #ifdef COMPUTE_SHADER_SCOPE
 
+#include "ComputeHeader.shader"
+#include "ComputeShared.h"
+
 #ifdef StructMember
 #define STRUCT_MEMBER           .StructMember
 #else

@@ -18,9 +18,6 @@ FluidSolver::FluidSolver(ComputeInterface* compute, SharedAllocator* allocator, 
   gridSize = 64;
   gridSizeExp = mCeilExpOf2(gridSize);
 
-  includeFiles.push_back("UniformGridCollisionSolver.shader");
-  includeFiles.push_back("FluidSolverCommon.h");
-
   if (!noCreate)
   {
     create(compute);

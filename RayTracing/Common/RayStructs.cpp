@@ -5,7 +5,7 @@ uint getRayStructSize(RayStructType type)
   switch (type)
   {
     case RayStructPositionDirection:
-      return sizeof(Ray);
+      return sizeof(RayBase);
       break;
     case RayStructPositionDirectionColor:
       return sizeof(RayColor);
@@ -23,7 +23,7 @@ string getRayStructName(RayStructType type)
   switch (type)
   {
     case RayStructPositionDirection:
-      return "Ray";
+      return "RayBase";
       break;
     case RayStructPositionDirectionColor:
       return "RayColor";
@@ -40,11 +40,15 @@ void getRayStructDefines(vector<string>& oldType, vector<string>& newType, RaySt
 {
   switch (type)
   {
-  case RayStructPositionDirectionColor:
-    oldType.push_back("RayStructColor");
-    newType.push_back("");
-    break;
-  default:
-    break;
+    case RayStructPositionDirection:
+      oldType.push_back("RayStructBase");
+      newType.push_back("");
+      break;
+    case RayStructPositionDirectionColor:
+      oldType.push_back("RayStructColor");
+      newType.push_back("");
+      break;
+    default:
+      break;
   }
 }

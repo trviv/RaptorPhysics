@@ -1,6 +1,8 @@
 #ifndef LBVH_SOLVER_SHADER
 #define LBVH_SOLVER_SHADER
 
+#include "CollisionSolver.shader"
+
 //#define DEBUG_TREE_CREATION
 //#define DEBUG_TRAVERSAL
 

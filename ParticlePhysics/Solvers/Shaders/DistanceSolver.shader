@@ -1,6 +1,8 @@
 #ifndef DISTANCE_SOLVER_SHADER
 #define DISTANCE_SOLVER_SHADER
 
+#include "ParticleStruct.h"
+
 #define successiveOverRealaxation 1.5f
 
 #define DISTANCE_SOLVER_CACHE_VALUES

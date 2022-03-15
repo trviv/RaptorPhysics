@@ -1,6 +1,12 @@
 #ifndef COMPUTE_UTILS_H
 #define COMPUTE_UTILS_H
 
+#include "ComputeUtilsShared.h"
+#include "PrefixScan.shader"
+#include "Reduce.shader"
+#include "ComplexReduce.shader"
+#include "RadixSort.shader"
+
 #ifdef StructType
 
 Kernel void bandwidthReadTest(

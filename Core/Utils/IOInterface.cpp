@@ -46,7 +46,6 @@ string getCurrentDir(void)
   {
     currentPath[len] = '\0';
   }
-  logComputeMessage("\nCurrent Execution Path: %s\n", executablePath);
   std::string ret = std::string(currentPath);
   delete[] currentPath;
   return ret.substr(0, ret.find_last_of("\\/"));

@@ -1,6 +1,8 @@
 #ifndef RIGID_SOLVER_SHADER
 #define RIGID_SOLVER_SHADER
 
+#include "ParticleStruct.h"
+
 /*
 @kernel Compute covariance matrix.
 @param matrixData Matrix data output.

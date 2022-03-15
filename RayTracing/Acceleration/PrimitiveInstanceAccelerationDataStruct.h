@@ -22,6 +22,7 @@ protected:
   DeviceArray<const ComputeMemory*>     primitiveADSResources;
   DeviceArray<Matrix4>                  primitiveInstanceTransforms;
   DeviceArray<PrimitiveInstanceADSLeaf>&primitiveInstanceNodes;
+  DeviceArray<const ComputeMemory*>     primitiveInstanceADSResources;
 
   void validateBuild()const;
 
@@ -62,6 +63,10 @@ public:
 
   void intersectRays(ComputeMemory* hits, HitStructType hitType, const ComputeMemory* rays, RayStructType rayType,
                      const ComputeMemory* rayCount, IntersectionType intersectionType);
+
+  void encodePrimitiveADS(ComputeKernel& kernel, const uint index);
+
+  void appendTraversalSettings(vector<string>& oldType, vector<string>& newType)const;
 };
 
 #endif

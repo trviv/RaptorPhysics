@@ -3,6 +3,9 @@
 
 #ifndef COMPUTE_SHADER_SCOPE
 #include <Core.h>
+#else
+#include "ComputeShared.h"
+#include "ConstrainStruct.h"
 #endif
 
 #define PHYSICS_SOLVER_ID_MASK    0xF0000000

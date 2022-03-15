@@ -2,7 +2,7 @@
 
 #ifdef USE_METAL_COMPUTE
 
-template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer()
+template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer(const uint deviceByteOffset)
 {
   if (!hostBuffer || !hostBuffer->size())
   {
@@ -24,9 +24,9 @@ template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer()
 
     id <MTLArgumentEncoder> argumentEncoder = [compute->getDevice() newArgumentEncoderWithArguments:@[argumentDescriptor, ]];
 
-    resize((uint)(host()->size() * argumentEncoder.encodedLength) / sizeof(ClassType), false);
+    resize((uint)((host()->size() + deviceByteOffset) * argumentEncoder.encodedLength) / sizeof(ClassType), false);
 
-    [argumentEncoder setArgumentBuffer:*(device()) offset:device()->getOffset()];
+    [argumentEncoder setArgumentBuffer:*(device()) offset:device()->getOffset() + deviceByteOffset];
 
     for (uint i=0; i<host()->size(); i++)
     {

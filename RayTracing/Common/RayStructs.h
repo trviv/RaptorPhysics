@@ -3,6 +3,9 @@
 
 #ifndef COMPUTE_SHADER_SCOPE
 #include <Core.h>
+#else
+#include "ComputeHeader.shader"
+#include "ComputeShared.h"
 #endif
 
 #pragma pack(push, 4)
@@ -20,6 +23,12 @@ enum RayStructType
 */
 struct DEFAULT_ALIGN Ray_t
 {
+#ifdef COMPUTE_SHADER_SCOPE
+  packed_float3 origin;
+  float         maxDistance;
+  packed_float3 direction;
+  uint          rayIndex;
+#else
   union
   {
     struct
@@ -35,15 +44,22 @@ struct DEFAULT_ALIGN Ray_t
       uint    rayIndex;
     };
   };
+#endif
 };
 
-typedef struct Ray_t Ray;
+typedef struct Ray_t RayBase;
 
 /*!
 @struct Ray containing origin and direction.
 */
 struct DEFAULT_ALIGN RayColor_t
 {
+#ifdef COMPUTE_SHADER_SCOPE
+  packed_float3 origin;
+  float         maxDistance;
+  packed_float3 direction;
+  uint          rayIndex;
+#else
   union
   {
     struct
@@ -59,6 +75,7 @@ struct DEFAULT_ALIGN RayColor_t
       uint    rayIndex;
     };
   };
+#endif
   colorType4 color;
 };
 

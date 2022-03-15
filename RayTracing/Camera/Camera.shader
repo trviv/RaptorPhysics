@@ -1,6 +1,9 @@
 #ifndef CAMERA_SHADER
 #define CAMERA_SHADER
 
+#include "RayStructs.h"
+#include "RayTracingStruct.h"
+
 inline RayStruct sampleCameraAtPixel(Const CameraStruct* camera, float pixelX, float pixelY)
 {
   RayStruct worldRay;

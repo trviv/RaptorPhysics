@@ -1,6 +1,8 @@
 #ifndef RAY_TRACING_SYSTEM_UTIL_SHADER
 #define RAY_TRACING_SYSTEM_UTIL_SHADER
 
+#include "RayTracingStruct.h"
+
 Kernel void transformPrimitives(
   Device PrimitiveStruct*           vertexBuffer,
   constantKernelInput(PackingInfo,  primitivePackingInfo),

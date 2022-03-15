@@ -4,6 +4,8 @@
 #ifndef COMPUTE_SHADER_SCOPE
 #include <Vector/Real3.h>
 #include <Vector/Half4.h>
+#else
+#include "ComputeHeader.shader"
 #endif
 
 #pragma pack(push, 4)

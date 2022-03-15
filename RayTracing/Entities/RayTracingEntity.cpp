@@ -6,7 +6,7 @@ RayTracingAllocator::RayTracingAllocator(ComputeInterface* compute)
 
 void RayTracingAllocator::create(uint initialRays)
 {
-  rayHeap.create(initialRays * sizeof(Ray));
+  rayHeap.create(initialRays * sizeof(RayBase));
 }
 
 ComputeHeap* RayTracingAllocator::getHeap(RayTracingHeapEnum type)

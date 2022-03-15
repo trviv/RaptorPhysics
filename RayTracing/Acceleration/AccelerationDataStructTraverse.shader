@@ -1,6 +1,11 @@
 #ifndef ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 #define ACCELERATION_DATA_STRUCT_TRAVERSE_SHADER
 
+#include "ComputeHeader.shader"
+#include "ComputeShared.h"
+#include "RayTracingStruct.h"
+#include "HitStructs.h"
+
 bool triangleIntersection(
   Thread HitStruct* hit,
   const PrimitiveStruct vert0,

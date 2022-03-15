@@ -1,11 +1,7 @@
 #ifndef RAY_TRACING_STRUCT_H
 #define RAY_TRACING_STRUCT_H
 
-#ifndef COMPUTE_SHADER_SCOPE
 #include "RayStructs.h"
-#include "HitStructs.h"
-#include "MaterialStruct.h"
-#endif
 
 #pragma pack(push, 4)
 
@@ -507,6 +503,30 @@ struct ALIGN(4) PrimitiveADSResources
   const ComputeMemory*  pointerVertexAttributeArray;
   /*!@member Pointer to ray tracing system settings .*/
   ComputeMemory*        pointerSystemSettings;
+#endif
+};
+
+struct ALIGN(4) PrimitiveInstanceADSResources
+{
+  uint  primitiveCount;
+#if defined(COMPUTE_SHADER_SCOPE)
+  const Device BVHNodeInfo*               treeInternalNodes;
+  const Device uint*                      leafParentNodeIndices;
+  const Device uint*                      nodeParentNodeIndices;
+  const Device XAB*                       treeLeafNodeBoundingBoxes;
+  const Device XAB*                       treeInternalNodeBoundingBoxes;
+  const Device PrimitiveADSResources*     primitiveADSResources;
+  const Device float4x4*                  primitiveInstanceTransforms;
+  const Device PrimitiveInstanceADSLeaf*  primitiveInstanceNodes;
+#else
+  const ComputeMemory* pointerTreeInternalNodes;
+  const ComputeMemory* pointerLeafParentNodeIndices;
+  const ComputeMemory* pointerNodeParentNodeIndices;
+  const ComputeMemory* pointerLeafNodeBoundingBoxes;
+  const ComputeMemory* pointerTreeNodeBoundingBoxes;
+  const ComputeMemory* primitiveADSResources;
+  const ComputeMemory* primitiveInstanceTransforms;
+  const ComputeMemory* primitiveInstanceNodes;
 #endif
 };
 

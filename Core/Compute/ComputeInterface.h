@@ -244,7 +244,7 @@ class ComputeInterface
 
   friend class ComputeHeap;
 
-  ComputeProgram createProgram(const char* sourceCode, size_t sourceSize);
+  ComputeProgram createProgram(const char* sourceCode, size_t sourceSize, const vector<string>* oldType = NULL, const vector<string>* newType = NULL, const vector<string>* includeFiles = NULL);
 
 public:
 

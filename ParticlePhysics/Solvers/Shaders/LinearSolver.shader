@@ -1,6 +1,8 @@
 #ifndef LINEAR_SOLVER_SHADER
 #define LINEAR_SOLVER_SHADER
 
+#include "ParticleStruct.h"
+
 Kernel void linearSolver(
   Device VariableType*    newValues,
   Const ConstrainStruct*  constrainNodes,

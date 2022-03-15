@@ -1,6 +1,10 @@
 #ifndef ACCELERATION_DATA_STRUCT_CREATE_SHADER
 #define ACCELERATION_DATA_STRUCT_CREATE_SHADER
 
+#include "ComputeHeader.shader"
+#include "ComputeShared.h"
+#include "RayTracingStruct.h"
+
 /*
 @kernel Calculate bounding box for individual primitives.
 @param boundingBoxes Bounding box for primitives.

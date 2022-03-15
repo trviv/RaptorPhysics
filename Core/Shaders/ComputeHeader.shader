@@ -124,6 +124,9 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
 
 #else
 
+#include <metal_stdlib>
+using namespace metal;
+
 #define ASSUME_FLEXIBLE_VECTOR_ALIGNMENT
 
 #define constantKernelInput(type, variableName) Const type& variableName

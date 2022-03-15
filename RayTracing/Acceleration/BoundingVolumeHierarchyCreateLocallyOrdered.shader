@@ -1,6 +1,8 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_CREATE_LOCALLY_ORDERED_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_CREATE_LOCALLY_ORDERED_SHADER_H
 
+#include "BoundingVolumeHierarchyADSCreate.shader"
+
 /*
 @kernel Create initial clusters using leaf data.
 @param clusterNodes Cluster nodes data.

@@ -34,7 +34,7 @@ void FluidSolverPCISPH::create(ComputeInterface* compute)
   reorderBoundaryParticles        = programs[0].createKernel("reorderBoundaryParticles");
   kernels.push_back(programs[0].createKernel("predictionStep"));
   kernels.push_back(programs[0].createKernel("calculatePressure"));
-  kernels.push_back(programs[0].createKernel("calculateForces"));
+  kernels.push_back(programs[0].createKernel("calculateForcesPCISPH"));
   kernels.push_back(programs[0].createKernel("calculateBoundaryForces"));
 
   invMaxRadius.host()->push_back(-1.f);

@@ -1,6 +1,8 @@
 #ifndef COLLISION_SOLVER_SHADER
 #define COLLISION_SOLVER_SHADER
 
+#include "ParticleStruct.h"
+
 inline void atomicAddFloat3(Device float3 *destination, const float3 value)
 {
   Device uint *uintDestination = (Device uint*)destination;

@@ -1,6 +1,8 @@
 #ifndef PHYSICS_SYSTEM_SHADER
 #define PHYSICS_SYSTEM_SHADER
 
+#include "ParticleStruct.h"
+
 //#define DEBUG_PHYSICS_SYSTEM
 #define PHYSICS_SYSTEM_EULER
 //#define PHYSICS_SYSTEM_LEAP_FROG

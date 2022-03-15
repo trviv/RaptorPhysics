@@ -1,6 +1,9 @@
 #ifndef BOUNDING_VOLUME_HIERARCHY_ADS_TRAVERSE_SHADER_H
 #define BOUNDING_VOLUME_HIERARCHY_ADS_TRAVERSE_SHADER_H
 
+#include "BoundingVolumeHierarchyStacklessTraverse.shader"
+#include "BoundingVolumeHierarchyStackTraverse.shader"
+
 Kernel void intersectRaysBVH(
   Device HitStruct*             hits,
   const Device RayStruct*       rays,

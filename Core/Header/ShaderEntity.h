@@ -12,11 +12,10 @@ protected:
 
   vector<ComputeProgram>  programs;
   vector<ComputeKernel>   kernels;
-  vector<string>          includeFiles;
 
   ShaderEntity();
 
-  void registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType);
+  void registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType, const vector<string>* includeFiles = NULL);
 };
 
 #endif
