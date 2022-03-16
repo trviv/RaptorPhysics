@@ -5,7 +5,7 @@
 #include "MaterialStruct.h"
 #include "Light.shader"
 
-inline void saveValidIndexStruct(Device int* validRays, const bool isValid, const int index)
+inline void saveValidIndex(Device int* validRays, const bool isValid, const int index)
 {
   // offset valid indices by 1 and set 0 for invalid
 #ifdef USE_VALID_RAY_BUFFERS
@@ -126,7 +126,7 @@ inline void shadeIntersectionAndSave(
   if (iteration < (maxIterations - 1))
   {
     const bool childRayValid = (childRay.maxDistance != 0.f);
-    saveValidIndexStruct(validChildRays, childRayValid, index);
+    saveValidIndex(validChildRays, childRayValid, index);
 #ifdef USE_VALID_RAY_BUFFERS
     if (childRayValid)
 #endif
@@ -156,7 +156,7 @@ inline void shadeIntersectionAndSave(
 
     const int shadowIndex = index + rayCount * i;
     const bool shadowRayValid = (shadowRay.maxDistance != 0.f);
-    saveValidIndexStruct(validShadowRays, shadowRayValid, shadowIndex);
+    saveValidIndex(validShadowRays, shadowRayValid, shadowIndex);
 #ifdef USE_VALID_RAY_BUFFERS
     if (shadowRayValid)
 #endif
