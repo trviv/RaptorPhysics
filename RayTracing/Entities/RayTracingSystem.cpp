@@ -2,9 +2,10 @@
 
 //#define DEBUG_RAY_TRACING_SYSTEM
 static uint rearrangeMultiplier = 1;
+static bool useValidRayBuffers  = true;
+static bool reorderRays         = false;
 
 uint RayTracingSystem::rayComputeUtilId[RayStructTypeMax] = {0, 0};
-uint RayTracingSystem::maxPrimIndex = 0;
 
 RayTracingSystem::RayTracingSystem()
   :allocator(NULL), camera(NULL), currentCamera(NULL), intersectInRayTracingShaders(true)
@@ -36,7 +37,7 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
 //    allocator->create(maxRays);
   }
 
-  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+1; i++)
+  for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+(reorderRays); i++)
   {
     rays[i].create(compute);
   }
@@ -44,6 +45,11 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   for (uint i=0; i<2; i++)
   {
     shadowRays[i].create(compute);
+  }
+
+  for (uint i=0; i<4; i++)
+  {
+    validRays[i].create(compute);
   }
 
   hits.create(compute);
@@ -71,6 +77,13 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
       getRayStructDefines(oldType, newType, (RayStructType)r);
       getHitStructDefines(oldType, newType, (HitStructType)h);
       accelerationStruct->appendTraversalSettings(oldType, newType);
+
+      if (useValidRayBuffers)
+      {
+        oldType.push_back("USE_VALID_RAY_BUFFERS");
+        newType.push_back("");
+      }
+
       registerShader(compute, "RayTracingSystemPipeline.shader", &oldType, &newType);
       shadeIntersectionKernels[r][h] = programs.back().createKernel("shadeIntersection");
       processShadowRaysKernels[r][h] = programs.back().createKernel("processShadowRays");
@@ -91,16 +104,6 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
     rayComputeUtilId[r] = ComputeUtil::create(compute, rayUtilSetting, &rayUtilIncludeFiles);
     reorderRaysKernels[r] = programs.back().createKernel("reorderRays");
   }
-
-  map<ComputeUtilKey, string> maxPrimIndexSetting;
-  maxPrimIndexSetting[ComputeUtilStructType]              = "uint";
-  maxPrimIndexSetting[ComputeUtilOnlyReduce]              = "1";
-  maxPrimIndexSetting[ComputeUtilCustomAddFunction]       = "maxReduce";
-  maxPrimIndexSetting[ComputeUtilCustomReduceFunction]    = "maxReduceSimd";
-  maxPrimIndexSetting[ComputeUtilStructTypeIntegral]      = "1";
-  maxPrimIndexSetting[ComputeUtilSkipParallelPrimitives]  = "1";
-
-  maxPrimIndex = ComputeUtil::create(compute, maxPrimIndexSetting);
 
   randomUints.create(compute);
   colorOutputBuffer.create(compute);
@@ -320,7 +323,8 @@ void RayTracingSystem::render(bool updatePrimitives)
 
   uintUtil->clearBuffer(compute, colorOutputBuffer.device(), camera->width * camera->height * sizeof(colorType4) / sizeof(uint));
   uint rayCount = (rays[0].size() * 4) / getRayStructSize(rayType);
-  hits.resize(rayCount * getHitStructSize(hitStruct) / 4, false);
+
+  hits.resize((useValidRayBuffers ? rayCount : 1) * getHitStructSize(hitStruct) / 4, false);
 
   if (randomUints.size() != rayCount)
   {
@@ -333,7 +337,7 @@ void RayTracingSystem::render(bool updatePrimitives)
     randomUints.syncDevice();
   }
 
-  for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+1; i++)
+  for (uint i=1; i<RAY_TRACING_SYSTEM_ARRAY_COUNT+(reorderRays); i++)
   {
     rays[i].resize(rays[0].size(), false);
   }
@@ -341,6 +345,15 @@ void RayTracingSystem::render(bool updatePrimitives)
   for (uint i=0; i<2; i++)
   {
     shadowRays[i].resize(lights.size() * rayCount * getRayStructSize(shadowRayType) / 4, false);
+  }
+
+  if (validRays[0].size() == 0)
+  {
+    uint localRayCount = useValidRayBuffers ? rayCount : 1;
+    validRays[0].resize(localRayCount, false);
+    validRays[1].resize(localRayCount, false);
+    validRays[2].resize(lights.size() * localRayCount, false);
+    validRays[3].resize(lights.size() * localRayCount, false);
   }
 
   uint bufferIndex = 0;
@@ -357,141 +370,153 @@ void RayTracingSystem::render(bool updatePrimitives)
 
   for (uint iteration=0; iteration<maxIterations; iteration++, bufferIndex = (bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT)
   {
-    uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[bufferIndex], workgroupSize);
+    DeviceArray<uint>& currIterRays = rays[bufferIndex];
+    DeviceArray<uint>& nextIterRays = rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT];
+
+    DeviceArray<uint>& currShadowRays        = shadowRays[0];
+    DeviceArray<uint>& currShadowRaysCompact = useValidRayBuffers ? shadowRays[0] : shadowRays[1];
+
+    ComputeMemory* currIterRayCount = &currentRayCount[bufferIndex];
+    ComputeMemory* nextIterRayCount = &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT];
+
+    ComputeMemory* currIterWGCount  = &currentWGCount[bufferIndex];
+
+    DeviceArray<int>& validChildRays         = validRays[bufferIndex];
+    DeviceArray<int>& validChildRaysNextIter = validRays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT];
+    DeviceArray<int>& validShadowRays        = validRays[2];
+    DeviceArray<int>& validShadowRaysCompact = validRays[3];
+
+    uintUtil->configureWorkgroupCount(compute, currIterWGCount, currIterRayCount, workgroupSize);
 
     ushort lightOffset = 0;
     ushort lightCount = lights.size();
-
-    if (!intersectInRayTracingShaders)
-    {
-      accelerationStruct->intersectRays(hits.device(), hitStruct, rays[bufferIndex].device(), rayType, &currentRayCount[bufferIndex], IntersectionTypeClosest);
-
-#ifdef DEBUG_RAY_TRACING_SYSTEM
-      indirectCount.syncHost();
-      hits.syncHost();
-      compute->sync();
-#endif
-
-      ComputeKernel& shadeIntersectionKernel = shadeIntersectionKernels[rayType][hitStruct];
-
-      ComputeMemory* buffers[] = {
-        colorOutputBuffer.device(),
-        shadowRays[0].device(),
-        rays[bufferIndex].device(),
-      };
-      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-      shadeIntersectionKernel.setArgs(buffers, bufferCount);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)hits.device(), bufferCount++);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)randomUints.device(), bufferCount++);
-      shadeIntersectionKernel.setArg(&currentRayCount[bufferIndex], bufferCount);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)lights.device(), bufferCount+1);
-      shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
-      shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)materials.device(), bufferCount+4);
-      shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount+5);
-      shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
-
-      compute->execute(shadeIntersectionKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
-    }
-    else
-    {
-      ComputeKernel& shadeIntersectionKernel = intersectAndShadeKernels[rayType][hitStruct];
-
-      ComputeMemory* buffers[] = {
-        colorOutputBuffer.device(),
-        shadowRays[0].device(),
-        rays[bufferIndex].device(),
-      };
-      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-      shadeIntersectionKernel.setArgs(buffers, bufferCount);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)randomUints.device(), bufferCount++);
-      shadeIntersectionKernel.setArg(&currentRayCount[bufferIndex], bufferCount);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)lights.device(), bufferCount+1);
-      shadeIntersectionKernel.setArg(&lightOffset, bufferCount+2);
-      shadeIntersectionKernel.setArg(&lightCount, bufferCount+3);
-      shadeIntersectionKernel.setArg((const ComputeMemory*)materials.device(), bufferCount+4);
-      shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount+5);
-      shadeIntersectionKernel.setArg(&iteration, bufferCount+6);
-      accelerationStruct->encodePrimitiveADS(shadeIntersectionKernel, bufferCount+7);
-
-      compute->execute(shadeIntersectionKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
-    }
-
-#ifdef DEBUG_RAY_TRACING_SYSTEM
-    rays[bufferIndex].syncHost();
-    shadowRays[0].syncHost();
-    compute->sync();
-#endif
-
-    // use different buffers for source and destination
-    ComputeUtil::get(rayComputeUtilId[shadowRayType])->compactSparseArrayAndCopy(compute, &validRayCount[bufferIndex], shadowRays[1].device(), shadowRays[0].device(), &currentRayCount[bufferIndex], rayCount);
-
-    uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &validRayCount[bufferIndex], workgroupSize);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
     indirectCount.syncHost();
     compute->sync();
 #endif
 
-    if (!intersectInRayTracingShaders)
     {
-      accelerationStruct->intersectRays(hits.device(), shadowHitStruct, shadowRays[1].device(), shadowRayType, &validRayCount[bufferIndex], IntersectionTypeAny);
+      if (!intersectInRayTracingShaders)
+      {
+        accelerationStruct->intersectRays(hits.device(), hitStruct, currIterRays.device(), rayType, currIterRayCount, IntersectionTypeClosest);
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+        indirectCount.syncHost();
+        hits.syncHost();
+        compute->sync();
+#endif
+      }
 
-      ComputeKernel& processShadowRaysKernel = processShadowRaysKernels[shadowRayType][shadowHitStruct];
+      ComputeKernel& shadeIntersectionKernel = (intersectInRayTracingShaders ? intersectAndShadeKernels : shadeIntersectionKernels)[rayType][hitStruct];
 
       ComputeMemory* buffers[] = {
+        validChildRays.device(),
+        validShadowRays.device(),
         colorOutputBuffer.device(),
-        shadowRays[1].device(),
-        hits.device()
+        currShadowRays.device(),
+        useValidRayBuffers ? nextIterRays.device() : currIterRays.device(),
+        currIterRays.device(),
       };
-      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
-      processShadowRaysKernel.setArgs(buffers, bufferCount);
-      processShadowRaysKernel.setArg(&validRayCount[bufferIndex], bufferCount);
 
-      compute->execute(processShadowRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
+      uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
+      shadeIntersectionKernel.setArgs(buffers, bufferCount);
+      if (!intersectInRayTracingShaders) shadeIntersectionKernel.setArg((const ComputeMemory*)hits.device(), bufferCount++);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)randomUints.device(), bufferCount++);
+      shadeIntersectionKernel.setArg(currIterRayCount, bufferCount++);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)lights.device(), bufferCount++);
+      shadeIntersectionKernel.setArg(&lightOffset, bufferCount++);
+      shadeIntersectionKernel.setArg(&lightCount, bufferCount++);
+      shadeIntersectionKernel.setArg((const ComputeMemory*)materials.device(), bufferCount++);
+      shadeIntersectionKernel.setArg(currentCamera->device(), bufferCount++);
+      shadeIntersectionKernel.setArg(&iteration, bufferCount++);
+      shadeIntersectionKernel.setArg(&maxIterations, bufferCount++);
+      if (intersectInRayTracingShaders) accelerationStruct->encodePrimitiveADS(shadeIntersectionKernel, bufferCount++);
+
+      compute->execute(shadeIntersectionKernel, workgroupSize, currIterWGCount, 0);
+    }
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+    currIterRays.syncHost();
+    currShadowRays.syncHost();
+    validChildRays.syncHost();
+    validShadowRays.syncHost();
+    compute->sync();
+#endif
+
+    // use different buffers for source and destination
+    if (!useValidRayBuffers)
+    {
+      ComputeUtil::get(rayComputeUtilId[shadowRayType])->compactSparseArrayAndCopy(compute, &validRayCount[bufferIndex], currShadowRaysCompact.device(), currShadowRays.device(), &currentRayCount[bufferIndex], rayCount);
     }
     else
     {
-      ComputeKernel& processShadowRaysKernel = intersectAndProcessShadowRaysKernels[shadowRayType][shadowHitStruct];
+      ComputeUtil::get(ComputeUtil::getUIntUtil(compute))->compactSparseArrayAndCopy(compute, &validRayCount[bufferIndex], validShadowRaysCompact.device(), validShadowRays.device(), currIterRayCount, rayCount);
+    }
+
+    uintUtil->configureWorkgroupCount(compute, currIterWGCount, &validRayCount[bufferIndex], workgroupSize);
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+    indirectCount.syncHost();
+    validShadowRaysCompact.syncHost();
+    compute->sync();
+#endif
+
+    {
+      if (!intersectInRayTracingShaders)
+      {
+        accelerationStruct->intersectRays(hits.device(), shadowHitStruct, currShadowRaysCompact.device(), shadowRayType, &validRayCount[bufferIndex], IntersectionTypeAny);
+      }
+
+      ComputeKernel& processShadowRaysKernel = (intersectInRayTracingShaders ? intersectAndProcessShadowRaysKernels : processShadowRaysKernels)[shadowRayType][shadowHitStruct];
 
       ComputeMemory* buffers[] = {
         colorOutputBuffer.device(),
-        shadowRays[1].device(),
+        currShadowRaysCompact.device(),
       };
       uint bufferCount = sizeof(buffers) / sizeof(ComputeMemory*);
       processShadowRaysKernel.setArgs(buffers, bufferCount);
-      processShadowRaysKernel.setArg(&validRayCount[bufferIndex], bufferCount);
-      accelerationStruct->encodePrimitiveADS(processShadowRaysKernel, bufferCount+1);
+      if (!intersectInRayTracingShaders) processShadowRaysKernel.setArg(hits.device(), bufferCount++);
+      processShadowRaysKernel.setArg(validShadowRaysCompact.device(), bufferCount++);
+      processShadowRaysKernel.setArg(&validRayCount[bufferIndex], bufferCount++);
+      if (intersectInRayTracingShaders) accelerationStruct->encodePrimitiveADS(processShadowRaysKernel, bufferCount++);
 
-      compute->execute(processShadowRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
+      compute->execute(processShadowRaysKernel, workgroupSize, currIterWGCount, 0);
     }
+
+#ifdef DEBUG_RAY_TRACING_SYSTEM
+    colorOutputBuffer.syncHost();
+    compute->sync();
+#endif
 
     if (iteration < (maxIterations-1))
     {
-      const bool reorderRays = false;
-
-      ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT],
-        reorderRays ? rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device() : rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(),
-        rays[bufferIndex].device(), &currentRayCount[bufferIndex], rayCount);
+      if (!useValidRayBuffers)
+      {
+        ComputeUtil::get(rayComputeUtilId[rayType])->compactSparseArrayAndCopy(compute, nextIterRayCount, reorderRays ? rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device() : nextIterRays.device(), currIterRays.device(), currIterRayCount, rayCount);
+      }
+      else
+      {
+        ComputeUtil::get(ComputeUtil::getUIntUtil(compute))->compactSparseArrayAndCopy(compute, nextIterRayCount, validChildRaysNextIter.device(), validChildRays.device(), currIterRayCount, rayCount);
+      }
 
       if (reorderRays)
       {
         size_t workgroupSize[3] = {compute->maxThreadsPerGroup() * rearrangeMultiplier, 1, 1};
 
-        uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], &currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], workgroupSize);
+        uintUtil->configureWorkgroupCount(compute, &currentWGCount[bufferIndex], nextIterRayCount, workgroupSize);
 
         ComputeKernel& reorderRaysKernel = reorderRaysKernels[rayType];
 
-        reorderRaysKernel.setArg(rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 0);
+        reorderRaysKernel.setArg(nextIterRays.device(), 0);
         reorderRaysKernel.setArg(rays[RAY_TRACING_SYSTEM_ARRAY_COUNT].device(), 1);
-        reorderRaysKernel.setArg(&currentRayCount[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT], 2);
+        reorderRaysKernel.setArg(nextIterRayCount, 2);
         reorderRaysKernel.setSharedMemArg(sizeof(ushort)*2*workgroupSize[0]*workgroupSize[1]*workgroupSize[2], 3);
 
         workgroupSize[0] /= rearrangeMultiplier;
         compute->execute(reorderRaysKernel, workgroupSize, &currentWGCount[bufferIndex], 0);
 
 #ifdef DEBUG_RAY_TRACING_SYSTEM
-        rays[(bufferIndex+1)%RAY_TRACING_SYSTEM_ARRAY_COUNT].syncHost();
+        nextIterRays.syncHost();
         compute->sync();
 #endif
       }
