@@ -23,7 +23,6 @@ class RayTracingSystem : protected ShaderEntity
 
 protected:
   static uint rayComputeUtilId[RayStructTypeMax];
-  static uint maxPrimIndex;
 
   uint maxIterations;
 
@@ -68,6 +67,9 @@ protected:
 
   /*!@member Ray buffer for the scene.*/
   DeviceArray<uint> shadowRays[2];
+
+  /*!@member Buffers containg ray validity data.*/
+  DeviceArray<int>  validRays[4];
 
   /*!@member Ray hit information buffer for the scene.*/
   DeviceArray<uint> hits;

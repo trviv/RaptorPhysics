@@ -5,6 +5,24 @@
 #include "MaterialStruct.h"
 #include "Light.shader"
 
+inline void saveValidIndexStruct(Device int* validRays, const bool isValid, const int index)
+{
+  // offset valid indices by 1 and set 0 for invalid
+#ifdef USE_VALID_RAY_BUFFERS
+  validRays[index] = isValid ? index + 1 : 0;
+#endif
+}
+
+inline uint getValidRayIndex(const Device int* validRays, const uint index)
+{
+  // remove offset of 1
+#ifdef USE_VALID_RAY_BUFFERS
+  return validRays[index] - 1;
+#else
+  return index;
+#endif
+}
+
 /*
 @kernel Shade ray intersection in a surface based on its material properties and visiblity info.
 @param colorOut Final color output.
@@ -14,6 +32,8 @@
 @param rayCount Ray count.
 */
 inline void shadeIntersectionAndSave(
+  Device int*                   validChildRays,
+  Device int*                   validShadowRays,
   Device colorType4*            colorOut,
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
@@ -27,6 +47,7 @@ inline void shadeIntersectionAndSave(
   const Device MaterialStruct*  materials,
   Const CameraStruct*           camera,
   constantKernelInput(uint,     iteration),
+  constantKernelInput(uint,     maxIterations),
   const uint                    index)
 {
 #if defined(RayStructColor) && defined(HitStructIndex) && defined(HitStructIdentity) && defined(HitStructNormal)
@@ -102,7 +123,15 @@ inline void shadeIntersectionAndSave(
     childRay.rayIndex = ray.rayIndex;
   }
 
-  rays[index] = childRay;
+  if (iteration < (maxIterations - 1))
+  {
+    const bool childRayValid = (childRay.maxDistance != 0.f);
+    saveValidIndexStruct(validChildRays, childRayValid, index);
+#ifdef USE_VALID_RAY_BUFFERS
+    if (childRayValid)
+#endif
+    rays[index] = childRay;
+  }
 
   RayStruct shadowRay;
   shadowRay.origin = ray.origin;
@@ -125,7 +154,13 @@ inline void shadeIntersectionAndSave(
       }
     }
 
-    shadowRays[index + rayCount * i] = shadowRay;
+    const int shadowIndex = index + rayCount * i;
+    const bool shadowRayValid = (shadowRay.maxDistance != 0.f);
+    saveValidIndexStruct(validShadowRays, shadowRayValid, shadowIndex);
+#ifdef USE_VALID_RAY_BUFFERS
+    if (shadowRayValid)
+#endif
+    shadowRays[shadowIndex] = shadowRay;
   }
 #endif
 }
@@ -153,9 +188,12 @@ inline void processShadowRay(
 }
 
 Kernel void shadeIntersection(
+  Device int*                   validChildRays,
+  Device int*                   validShadowRays,
   Device colorType4*            colorOut,
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
+  const Device RayStruct*       inputRays,
   const Device HitStruct*       hits,
   const Device uint*            randomUints,
   constantKernelInput(uint,     rayCount),
@@ -164,7 +202,8 @@ Kernel void shadeIntersection(
   constantKernelInput(ushort,   lightCount),
   const Device MaterialStruct*  materials,
   Const CameraStruct*           camera,
-  constantKernelInput(uint,     iteration)
+  constantKernelInput(uint,     iteration),
+  constantKernelInput(uint,     maxIterations)
   KERNEL_GLOBAL_ARGUMENTS)
 {
   const uint index = threadIndex();
@@ -172,13 +211,16 @@ Kernel void shadeIntersection(
   if (index >= rayCount)
     return;
 
-  shadeIntersectionAndSave(colorOut, shadowRays, rays, rays[index], hits[index], randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, index);
+  shadeIntersectionAndSave(validChildRays, validShadowRays, colorOut, shadowRays, rays, inputRays[index], hits[index], randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, maxIterations, index);
 }
 
 Kernel void intersectAndShade(
+  Device int*                   validChildRays,
+  Device int*                   validShadowRays,
   Device colorType4*            colorOut,
   Device RayStruct*             shadowRays,
   Device RayStruct*             rays,
+  const Device RayStruct*       inputRays,
   const Device uint*            randomUints,
   constantKernelInput(uint,     rayCount),
   Const LightStruct*            lights,
@@ -187,6 +229,7 @@ Kernel void intersectAndShade(
   const Device MaterialStruct*  materials,
   Const CameraStruct*           camera,
   constantKernelInput(uint,     iteration),
+  constantKernelInput(uint,     maxIterations),
   Const PrimitiveInstanceADSResources*  primitiveInstanceADSResources
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -195,10 +238,18 @@ Kernel void intersectAndShade(
   if (index >= rayCount)
     return;
 
-  const RayStruct ray = rays[index];
+  uint rayIndex = index;
+#ifdef USE_VALID_RAY_BUFFERS
+  if (iteration > 0)
+  {
+    rayIndex = getValidRayIndex(validChildRays, index);
+  }
+#endif
+
+  const RayStruct ray = inputRays[rayIndex];
   const HitStruct hit = intersectRayPrimitiveInstanceADS(ray, primitiveInstanceADSResources);
 
-  shadeIntersectionAndSave(colorOut, shadowRays, rays, ray, hit, randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, index);
+  shadeIntersectionAndSave(validChildRays, validShadowRays, colorOut, shadowRays, rays, ray, hit, randomUints, rayCount, lights, lightOffset, lightCount, materials, camera, iteration, maxIterations, index);
 }
 
 inline void bitonicSortSharedUshort2(
@@ -285,6 +336,7 @@ Kernel void processShadowRays(
   Device colorType4*        colorOut,
   const Device RayStruct*   shadowRays,
   const Device HitStruct*   hits,
+  const Device int*         validShadowRays,
   constantKernelInput(uint, rayCount)
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -293,13 +345,15 @@ Kernel void processShadowRays(
   if (index >= rayCount)
     return;
 
-  processShadowRay(colorOut, shadowRays[index], hits[index]);
+  const uint rayIndex = getValidRayIndex(validShadowRays, index);
+  processShadowRay(colorOut, shadowRays[rayIndex], hits[rayIndex]);
 }
 
 Kernel void intersectAndProcessShadowRays(
-  Device colorType4*                    colorOut,
-  const Device RayStruct*               shadowRays,
-  constantKernelInput(uint,             rayCount),
+  Device colorType4*        colorOut,
+  const Device RayStruct*   shadowRays,
+  const Device int*         validShadowRays,
+  constantKernelInput(uint, rayCount),
   Const PrimitiveInstanceADSResources*  primitiveInstanceADSResources
   KERNEL_GLOBAL_ARGUMENTS)
 {
@@ -308,7 +362,8 @@ Kernel void intersectAndProcessShadowRays(
   if (index >= rayCount)
     return;
 
-  const RayStruct shadowRay = shadowRays[index];
+  const uint rayIndex = getValidRayIndex(validShadowRays, index);
+  const RayStruct shadowRay = shadowRays[rayIndex];
   const HitStruct shadowHit = intersectRayPrimitiveInstanceADS(shadowRay, primitiveInstanceADSResources);
 
   processShadowRay(colorOut, shadowRay, shadowHit);
