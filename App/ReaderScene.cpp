@@ -507,6 +507,10 @@ void ReaderScene::createInstances(MainSystem* system, const XMLElement* instance
 
     if (registeredRTEntities.count(identity))
     {
+      const uint entityId = getRayTracingEntityId(registeredRTEntities[identity]);
+      if (material.identity == -1 && system->rayTracingSystem.registeredEntities[entityId]->getEntityCategory() == RayTracingEntityPrimArray)
+        logComputeError("Material id not specified for %s!", identity.c_str());
+
       system->rayTracingSystem.addEntityInstance(registeredRTEntities[identity], material, count, &matrixTransforms[0]);
     }
   }
