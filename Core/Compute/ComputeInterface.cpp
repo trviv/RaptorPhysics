@@ -747,6 +747,7 @@ void logComputeError(const char* format, ...)
   va_start(args, format);
   printf("\nError: ");
   vprintf(format, args);
+  printf("\n");
 #endif
   assert(0);
 }

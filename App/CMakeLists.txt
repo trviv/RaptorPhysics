@@ -60,7 +60,9 @@ set (SOURCES_SHADER
   "${PROJECT_SOURCE_DIR}/Shared/Resources/fa-brands-400.ttf"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControl.png"
   "${PROJECT_SOURCE_DIR}/Shared/Resources/MoveControlBack.png"
-  "${PROJECT_SOURCE_DIR}/Shared/Resources/stanford-bunny-small.obj"
-  "${PROJECT_SOURCE_DIR}/Shared/Resources/stanford-bunny-large.obj")
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/models/stanford-bunny-large.obj"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/models/stanford-bunny-small.obj"
+  "${PROJECT_SOURCE_DIR}/Shared/Resources/models/lucy.obj"
+  )
 
 create_lib_and_exe()
