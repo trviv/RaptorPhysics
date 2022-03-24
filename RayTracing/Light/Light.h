@@ -17,6 +17,8 @@ public:
 
   RayTracingEntityId getIdentity()const;
 
+  void setIdentity(RayTracingEntityId identity);
+
   void update();
 };
 

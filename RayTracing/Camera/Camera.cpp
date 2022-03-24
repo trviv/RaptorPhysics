@@ -51,6 +51,11 @@ RayTracingEntityId Camera::getIdentity()const
   return IdentityInfo_t();
 }
 
+void Camera::setIdentity(RayTracingEntityId identity)
+{
+  logComputeError("Camera object does not carry an identity!");
+}
+
 const DeviceArray<uint>* Camera::getRayCount()const
 {
   return &rayCount;

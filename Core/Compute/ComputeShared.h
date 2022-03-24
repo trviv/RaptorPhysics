@@ -88,16 +88,23 @@ static SortNode32 defaultSortNode()
 */
 struct DEFAULT_ALIGN XAB_t
 {
+#ifdef COMPUTE_SHADER_SCOPE
+  packed_float3 min;
+  uint          reserved1;
+  packed_float3 max;
+  uint          reserved2;
+#else
   union
   {
     float3  min;
-    float   reserved1[4];
+    uint    reserved1[4];
   };
   union
   {
     float3  max;
-    float   reserved2[4];
+    uint    reserved2[4];
   };
+#endif
 };
 
 typedef struct XAB_t XAB;

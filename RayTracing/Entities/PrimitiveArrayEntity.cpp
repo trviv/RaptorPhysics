@@ -336,6 +336,11 @@ RayTracingEntityId PrimitiveArrayEntity::getIdentity()const
   return identity;
 }
 
+void PrimitiveArrayEntity::setIdentity(RayTracingEntityId identity)
+{
+  this->identity = identity;
+}
+
 void PrimitiveArrayEntity::update()
 {
 

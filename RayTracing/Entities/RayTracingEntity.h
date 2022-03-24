@@ -89,6 +89,8 @@ public:
 
   virtual RayTracingEntityId getIdentity()const = 0;
 
+  virtual void setIdentity(RayTracingEntityId identity) = 0;
+
   // Should be called while initializing, after transformations are done.
   virtual void update() = 0;
 
@@ -138,6 +140,8 @@ public:
   void createMesh(const string fileName);
 
   RayTracingEntityId getIdentity()const;
+
+  void setIdentity(RayTracingEntityId identity);
 
   void update();
 };
