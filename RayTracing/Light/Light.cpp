@@ -22,6 +22,11 @@ RayTracingEntityId Light::getIdentity()const
   return identity;
 }
 
+void Light::setIdentity(RayTracingEntityId identity)
+{
+  this->identity = identity;
+}
+
 void Light::update()
 {
   const auto id = this->identity;

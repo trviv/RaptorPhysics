@@ -36,6 +36,8 @@ public:
 
   RayTracingEntityId getIdentity()const;
 
+  void setIdentity(RayTracingEntityId identity);
+
   const DeviceArray<uint>* getRayCount()const;
 
   /*!@function Update camera struct values using these matrices.*/

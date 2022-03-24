@@ -228,6 +228,7 @@ RayTracingEntityId RayTracingSystem::registerEntity(RayTracingEntity* entity)
   setRayTracingEntityId(entityId, entityType, newEntityId());
   entitiyInstances.push_back(vector<RayTracingEntity*>());
   registeredEntities.push_back(entity);
+  entity->setIdentity(entityId);
 
   // transform primitive vertex data
   if (entity->getEntityCategory() == RayTracingEntityPrimArray)
