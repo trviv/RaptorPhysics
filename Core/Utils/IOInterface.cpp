@@ -51,18 +51,28 @@ string getCurrentDir(void)
   return ret.substr(0, ret.find_last_of("\\/"));
 }
 
-bool IOInterface::checkFileExist(const char* fileName)
+string IOInterface::getPath(const char* fileName)
 {
-  std::string directory = getCurrentDir();
+  const std::string directory = getCurrentDir();
 #if __APPLE__
 #if TARGET_OS_OSX
-  return access((directory + "/../Resources/" + fileName).c_str(), F_OK) != -1;
+  return directory + "/../Resources/" + fileName;
 #else
-  return access((directory + "/" + fileName).c_str(), F_OK) != -1;
+  return directory + "/" + fileName;
 #endif
 #else
+  return directory + "/" + fileName;
+#endif
+}
+
+bool IOInterface::checkFileExist(const char* fileName)
+{
+  const std::string path = getPath(fileName);
+#if __APPLE__
+  return access(path.c_str(), F_OK) != -1;
+#else
   struct stat buffer;
-  return stat((directory + "/" + fileName).c_str(), &buffer) == 0;
+  return stat(path.c_str(), &buffer) == 0;
 #endif
 }
 
@@ -73,19 +83,39 @@ bool IOInterface::checkImageExist(const char* fileName)
 
 std::string IOInterface::readFile(const char* fileName)
 {
-  std::string directory = getCurrentDir();
+  const std::string path = getPath(fileName);
   std::string data;
-  std::ifstream file;
-#if __APPLE__
-#if TARGET_OS_OSX
-  file.open(directory + "/../Resources/" + fileName, std::ios::binary);
-#else
-  file.open(directory + "/" + fileName, std::ios::binary);
-#endif
-#else
-  file.open(directory + "\\" + fileName, std::ios::binary);
-#endif
 
+  std::ifstream file;
+  file.open(path, std::ios::binary);
+  file.seekg(0, std::ios::end);
+  data.reserve((size_t)file.tellg());
+  file.seekg(0, std::ios::beg);
+  data.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+  file.close();
+
+  return data;
+}
+
+void IOInterface::writeFile(const char* fileName, const char* fileData, size_t fileDataSize)
+{
+  std::string path = getPath(fileName);
+
+  std::ofstream file;
+  file.open(path.c_str(), std::ios::binary);
+  file.write(fileData, fileDataSize);
+
+  file.close();
+}
+
+vector<char> IOInterface::readByteFile(const char* fileName)
+{
+  const std::string path = getPath(fileName);
+  vector<char> data;
+
+  std::ifstream file;
+  file.open(path, std::ios::binary);
   file.seekg(0, std::ios::end);
   data.reserve((size_t)file.tellg());
   file.seekg(0, std::ios::beg);

@@ -16,11 +16,17 @@ class IOInterface
 {
 public:
 
+  static string getPath(const char* fileName);
+
   static bool checkFileExist(const char* fileName);
 
   static bool checkImageExist(const char* fileName);
 
   static string readFile(const char* fileName);
+
+  static void writeFile(const char* fileName, const char* fileData, size_t fileDataSize);
+
+  static vector<char> readByteFile(const char* fileName);
 
   static bool readImageFile(const char *nameWithoutExtension, Texture *texture);
 

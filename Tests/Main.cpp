@@ -5,7 +5,7 @@
 static ComputeInterface* compute;
 
 static bool runOnlyFunctional = false;
-static int performanceInterations = 100;
+static int performanceInterations = 20;
 
 #if TARGET_OS_IPHONE
   const int roughElements = 12345678;
@@ -165,7 +165,7 @@ void testSetBuffer(ComputeInterface* compute)
   logComputeMessage("Clear bandwidth test:");
 
   DeviceArray<uint> data(compute, NULL);
-  const int elements = 1024 * 1024 * 128;
+  const int elements = 1024 * 1024 * 16;
   const uint iterations = runOnlyFunctional?0:performanceInterations;
 
   data.resize(elements, false);

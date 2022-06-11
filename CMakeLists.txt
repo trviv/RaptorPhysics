@@ -179,6 +179,7 @@ endif (WIN32)
 
 # include SDL on Apple
 if (APPLE)
+  set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Vulkan/Apple/MoltenVK/include")
   if (CREATE_IOS_PROJECT)
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/iOS/")
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/iOS/SDL2/")
@@ -192,13 +193,6 @@ if (APPLE)
 endif (APPLE)
 
 set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Half/")
-
-find_package(Vulkan)
-if (Vulkan_FOUND)
-  include_directories("${Vulkan_INCLUDE_DIR}")
-  link_directories("${Vulkan_LIBRARY}")
-  set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} vulkan-1)
-endif (Vulkan_FOUND)
 
 find_package(OpenCL)
 if (OPENCL_FOUND)
@@ -238,33 +232,39 @@ if (APPLE)
 
   endif (CREATE_IOS_PROJECT)
 
+  set(APPLE_SYSTEM_FRAMEWORK_PATH "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+
   # common frameworks
-  add_framework(Foundation Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-  add_framework(Metal Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+  add_framework(AVFoundation  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(CoreGraphics  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(CoreMedia     Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(CoreMotion    Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(CoreVideo     Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(Foundation    Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(IOKit         Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(IOSurface     Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(Metal         Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+  add_framework(QuartzCore    Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
 
   # mac frameworks
   if (NOT CREATE_IOS_PROJECT)
-    add_framework(GLKit Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(OpenCL Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(OpenGL Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(SDL2 Core "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
+    add_framework(AppKit  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(GLKit   Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(OpenCL  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(OpenGL  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(SDL2    Core "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
     set_target_properties(Core PROPERTIES LINK_FLAGS "-F${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
+    target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
 
   else (NOT CREATE_IOS_PROJECT)
-    add_framework(AudioToolbox Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(GameController Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(OpenGLES Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(QuartzCore Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-    add_framework(UiKit Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
+    add_framework(AudioToolbox    Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(GameController  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(OpenGLES        Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
+    add_framework(UiKit           Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
     target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/SDL/iOS/SDL2/libSDL2.a")
+    target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/ios-arm64/libMoltenVK.a")
 
   endif (NOT CREATE_IOS_PROJECT)
-
-  add_framework(AVFoundation Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-  add_framework(CoreVideo Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-  add_framework(CoreMedia Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-  add_framework(CoreGraphics Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
-  add_framework(CoreMotion Core "${APPLE_FRAMEWORK_PATH}/System/Library/Frameworks")
 
 endif (APPLE)
 

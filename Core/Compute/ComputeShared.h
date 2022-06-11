@@ -30,6 +30,15 @@ typedef float3 colorType3;
 
 #endif
 
+#ifdef USE_OPENCL_COMPUTE
+
+typedef struct ALIGN(4)
+{
+  float x, y, z;
+} packed_float3;
+
+#endif
+
 /*!
 @struct Data describing an array sub-part.
 */
@@ -364,7 +373,7 @@ ushort Const haltonPrimes[] = {
 // pixel, a random offset can be applied to 'i'.
 inline float getRandomNumber(uint index, const ushort dimension)
 {
-  float ret = 0;
+  float ret = 0.f;
   float f = 1.0f;
   uint b = haltonPrimes[dimension];
   const float invB  = 1.0f / b;
@@ -385,7 +394,7 @@ inline float getRandomNumber(uint index, const ushort dimension)
 inline float3 sampleCosineWeightedHemisphere(const float2 random)
 {
   float cosPhi;
-  const float phi = 6.283185307179586476925286766560 * random.x;
+  const float phi = 6.283185307179586476925286766560f * random.x;
   const float sinPhi = sinCos(phi, cosPhi);
   const float sinTheta = sqrt(1.0f - random.y);
   return constructFloat3(sinTheta * cosPhi, sqrt(random.y), sinTheta * sinPhi);
@@ -396,7 +405,7 @@ inline float3 sampleCosineWeightedHemisphere(const float2 random)
 inline float3 alignHemisphereWithNormal(const float3 sample, const float3 normal)
 {
   // Find an arbitrary direction perpendicular to the normal. This will become the "right" vector.
-  const float3 right = normalize(cross(normal, float3(0.0072f, 1.0f, 0.0034f)));
+  const float3 right = normalize(cross(normal, constructFloat3(0.0072f, 1.0f, 0.0034f)));
   // Find a third vector perpendicular to the previous two. This will be the "forward" vector.
   const float3 forward = cross(right, normal);
   // Map the direction on the unit hemisphere to the coordinate system aligned with the normal.
