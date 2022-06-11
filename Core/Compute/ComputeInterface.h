@@ -1,41 +1,47 @@
 #ifndef COMPUTE_INTERFACE_H
 #define COMPUTE_INTERFACE_H
 
-#include <Header/Math.h>
-#include <Utils/IOInterface.h>
+#include "ComputeShaderCommon.h"
 
 #ifdef __APPLE__
-#import <Foundation/Foundation.h>
-#ifdef USE_METAL_COMPUTE
-#import <Metal/Metal.h>
+  #import <Foundation/Foundation.h>
+  #if defined(USE_METAL_COMPUTE)
+    #import <Metal/Metal.h>
+  #elif defined(USE_VULKAN_COMPUTE)
+    #include <vulkan/vulkan.h>
+    #include <MoltenVK/vk_mvk_moltenvk.h>
+  #else
+    #define USE_OPENCL_COMPUTE
+    #include <OpenCL/cl.h>
+    #include <OpenCL/cl_ext.h>
+  #endif
 #else
-#define USE_OPENCL_COMPUTE
-#include <OpenCL/cl.h>
-#include <OpenCL/cl_ext.h>
+  #if defined(USE_VULKAN_COMPUTE)
+    #include <vulkan.h>
+  #else
+    #define USE_OPENCL_COMPUTE
+    #ifdef USE_MINICL
+      #include <MiniCL/cl.h>
+    #else
+      #include <CL/cl.h>
+      #ifdef _WIN32
+        #include <CL/cl.hpp>
+        #include "CL/cl_gl.h"
+      #endif
+    #endif
+  #endif
 #endif
-#else
-#define USE_OPENCL_COMPUTE
-#ifdef USE_MINICL
-#include <MiniCL/cl.h>
-#else
-#include <CL/cl.h>
-#ifdef _WIN32
-#include <CL/cl.hpp>
-#include "CL/cl_gl.h"
-#endif //_WIN32
-#endif
-#endif //__APPLE__
 
-#ifdef USE_METAL_COMPUTE
+#if defined(USE_METAL_COMPUTE)
 
-typedef uint                        ComputePlatformId;
-typedef uint                        ComputeDeviceType;
 typedef id<MTLDevice>               ComputeContext;
 typedef id<MTLDevice>               ComputeDeviceId;
 typedef id<MTLComputePipelineState> ComputeKernelIdentifier;
 typedef id<MTLLibrary>              ComputeProgramIdentifier;
 typedef id<MTLCommandQueue>         ComputeQueue;
+typedef id<MTLCommandBuffer>        ComputeCommandBuffer;
 typedef id<MTLBuffer>               ComputeMemoryIdentifier;
+typedef id<MTLBuffer>               ComputeBufferIdentifier;
 typedef uint                        ComputeStatus;
 typedef id<MTLTexture>              ComputeTextureIdentifier;
 
@@ -46,10 +52,28 @@ enum ComputeMemoryFlag
   KERNEL_R
 };
 
+#elif defined(USE_VULKAN_COMPUTE)
+
+typedef VkDevice        ComputeContext;
+typedef VkDevice        ComputeDeviceId;
+typedef VkPipeline      ComputeKernelIdentifier;
+typedef VkShaderModule  ComputeProgramIdentifier;
+typedef VkQueue         ComputeQueue;
+typedef VkCommandBuffer ComputeCommandBuffer;
+typedef VkDeviceMemory  ComputeMemoryIdentifier;
+typedef VkBuffer        ComputeBufferIdentifier;
+typedef VkResult        ComputeStatus;
+typedef uint            ComputeTextureIdentifier;
+
+enum ComputeMemoryFlag
+{
+  KERNEL_RW = 0,
+  KERNEL_W  = 0,
+  KERNEL_R  = 0,
+};
+
 #else
 
-typedef cl_platform_id    ComputePlatformId;
-typedef cl_device_type    ComputeDeviceType;
 typedef cl_context        ComputeContext;
 typedef cl_device_id      ComputeDeviceId;
 typedef cl_kernel         ComputeKernelIdentifier;
@@ -62,44 +86,71 @@ typedef cl_mem            ComputeTextureIdentifier;
 enum ComputeMemoryFlag
 {
   KERNEL_RW = CL_MEM_READ_WRITE,
-  KERNEL_W = CL_MEM_WRITE_ONLY,
-  KERNEL_R = CL_MEM_READ_ONLY
+  KERNEL_W  = CL_MEM_WRITE_ONLY,
+  KERNEL_R  = CL_MEM_READ_ONLY
 };
 
 #endif
 
-extern const char* getStatusMessage(ComputeStatus status);
-
 extern void logComputeMessage(const char* format, ...);
 extern void logComputeError(const char* format, ...);
 
+extern const char* getStatusMessage(ComputeStatus status);
 #define computeCheckError(a, b) if((a)!=(b)) { printf("Compute Error : %s\n", getStatusMessage(a)); assert((a) == (b)); }
+#define checkError(a) computeCheckError(a, 0)
 
 class ComputeInterface;
 
+#if defined(USE_VULKAN_COMPUTE)
+class ComputeMemory : private VkDescriptorBufferInfo
+
+#else
 class ComputeMemory
+
+#endif
 {
   ComputeMemoryIdentifier ref;
-  size_t offset;
-  size_t size;
-
   friend class ComputeHeap;
+
+#if defined(USE_VULKAN_COMPUTE)
+  VkDeviceSize& size = range;
+  ComputeBufferIdentifier& buf = buffer;
+
+public:
+
+  ComputeMemory(ComputeMemoryIdentifier ref, ComputeBufferIdentifier buf, size_t offset, size_t size);
+
+  operator const ComputeBufferIdentifier()const {return buf;}
+
+  const VkDescriptorBufferInfo* getDescriptorBufferInfo()const {return this;}
+
+#else
+
+  size_t size;
+  size_t offset;
+  ComputeBufferIdentifier buf;
+
+#endif
+
 public:
 
   ComputeMemory();
 
+  ComputeMemory(const ComputeMemory& ref);
+
   ComputeMemory(ComputeMemoryIdentifier ref, size_t offset = 0, size_t size = 0);
+
+  ComputeMemory(ComputeMemory* memory, size_t offset = 0, size_t size = 0);
+
+  ComputeMemory& operator = (const ComputeMemory& ref);
 
   ComputeMemoryFlag getFlag()const;
 
-  size_t getOffset()const;
+  size_t getOffset()const {return offset;}
 
-  size_t getSize()const;
+  size_t getSize()const {return size;}
 
-  operator const ComputeMemoryIdentifier()const
-  {
-    return ref;
-  }
+  operator const ComputeMemoryIdentifier()const {return ref;}
 };
 
 
@@ -115,14 +166,11 @@ public:
 
   ComputeTexture(ComputeTextureIdentifier ref, uint size[2], uint bytesPerPixel);
 
-  uint getBytesPerPixel()const;
+  uint getBytesPerPixel()const {return bytesPerPixel;}
 
-  const uint* getSize()const;
+  const uint* getSize()const {return size;}
 
-  operator const ComputeTextureIdentifier()const
-  {
-    return ref;
-  }
+  operator const ComputeTextureIdentifier()const {return ref;}
 };
 
 
@@ -145,25 +193,31 @@ public:
 
   void free(ComputeMemory* memory);
 
-  ComputeMemory* get()const
-  {
-    return heap;
-  }
+  ComputeMemory* get()const {return heap;}
 };
 
 
 class ComputeKernel
 {
+  ComputeInterface* compute;
   ComputeKernelIdentifier ref;
+
+  enum ArgDataType
+  {
+    ARG_DATA_HOST_PTR,
+    ARG_DATA_CONST_HOST_PTR,
+    ARG_DATA_DEVICE_PTR,
+    ARG_DATA_CONST_DEVICE_PTR,
+    ARG_DATA_SHARED_PTR,
+  };
 
   // argument data structure to defer setting argument
   struct ArgData
   {
-    uint type   = 0;
-    uint size   = 0;
-    uint index  = 0;
-    void* ptr   = NULL;
-    const void* cptr  = NULL;
+    ArgDataType type = ARG_DATA_HOST_PTR;
+    uint size        = 0;
+    uint index       = 0;
+    const void* cptr = NULL;
   };
 
   vector<ArgData> args;
@@ -173,11 +227,39 @@ class ComputeKernel
 
   uint mapArgumentIndex(uint index)const;
 
+  friend class ComputeProgram;
+
+#if defined(USE_VULKAN_COMPUTE)
+  ComputeProgramIdentifier  shaderModule;
+  VkDescriptorSetLayout     descriptorSetLayout;
+  VkDescriptorSet           descriptorSet;
+  VkPipelineLayout          pipelineLayout;
+
+  vector<VkWriteDescriptorSet>    computeWriteDescriptorSets;
+  vector<VkDescriptorBufferInfo>  descriptorBufferInfos;
+  vector<VkPushConstantRange>     pushConstantRanges;
+
+  void*   constantData;
+  string  name;
+  bool    usePushConstants;
+
+  void createPipeline();
+
 public:
 
-  ComputeKernel();
+  ComputeKernel(const ComputeKernel& ref);
 
-  ComputeKernel(ComputeKernelIdentifier ref);
+  ~ComputeKernel();
+
+  void setArgs(VkCommandBuffer commandBuffer);
+
+  operator const ComputeProgramIdentifier()const {return shaderModule;}
+
+#endif
+
+public:
+
+  ComputeKernel(ComputeKernelIdentifier ref = NULL, ComputeInterface* compute = NULL);
 
   void addArgumentBufferRange(uint startIndex, uint inclusiveEndIndex);
 
@@ -198,10 +280,7 @@ public:
 
   void setSharedMemArg(const size_t valueSize, uint index);
 
-  operator const ComputeKernelIdentifier()const
-  {
-    return ref;
-  }
+  operator const ComputeKernelIdentifier()const {return ref;}
 
   void setArgs();
 
@@ -211,22 +290,27 @@ public:
 
 class ComputeProgram
 {
+  ComputeInterface* compute;
   ComputeProgramIdentifier ref;
+  vector<FunctionArgs> kernelArgs;
+
+#if defined(USE_VULKAN_COMPUTE)
+  VkDescriptorPool descriptorPool;
+#endif
 
 public:
 
   ComputeProgram();
 
-  ComputeProgram(ComputeProgramIdentifier ref);
+  ComputeProgram(const ComputeProgram& ref);
+
+  ComputeProgram(ComputeProgramIdentifier ref, ComputeInterface* compute, const vector<FunctionArgs>& kernelArgs = {});
 
   ComputeKernel createKernel(const char* kernelName);
 
   bool isEmpty()const;
 
-  operator const ComputeProgramIdentifier()const
-  {
-    return ref;
-  }
+  operator const ComputeProgramIdentifier()const {return ref;}
 };
 
 
@@ -235,12 +319,72 @@ public:
 */
 class ComputeInterface
 {
-  ComputePlatformId platform;
   ComputeDeviceId   deviceId;
   ComputeContext    context;
   ComputeQueue      queue;
   size_t            simdGroupSize;
   size_t            maxThreadsPerWorkgroup;
+
+  double  executionTime = 0.f;
+  uint    deviceCount;
+
+#if defined(USE_VULKAN_COMPUTE)
+  vector<VkPhysicalDevice> devices;
+
+  /** @brief Properties of the physical device including limits that the application can check against */
+  VkPhysicalDeviceProperties properties;
+
+  /** @brief Features of the physical device that an application can use to check if a feature is supported */
+  VkPhysicalDeviceFeatures features;
+
+  /** @brief Features that have been enabled for use on the physical device */
+  VkPhysicalDeviceFeatures enabledFeatures;
+
+  /** @brief Memory types and heaps of the physical device */
+  VkPhysicalDeviceMemoryProperties memoryProperties;
+
+  /** @brief Queue family properties of the physical device */
+  vector<VkQueueFamilyProperties> queueFamilyProperties;
+
+  /** @brief List of extensions supported by the device */
+  vector<string> supportedExtensions;
+
+  VkCommandPool commandPool;
+
+  VkInstance instance;
+  VkDebugUtilsMessengerEXT debugMessenger;
+
+  VkSemaphore computeSemaphore;
+  VkFence computeFence;
+
+public:
+  VkPipelineCache pipelineCache;
+  uint getMemoryType(uint typeBits, const VkMemoryPropertyFlags properties)const;
+
+#else
+  vector<ComputeDeviceId> devices;
+
+#if defined(USE_METAL_COMPUTE)
+
+  id<MTLCommandQueue> commandQueue = nil;
+  id<MTLBlitCommandEncoder> currentBlitEncoder = nil;
+  id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
+
+  void endEncoders();
+
+public:
+  id<MTLBlitCommandEncoder>     getBlitEncoder();
+  id<MTLComputeCommandEncoder>  getComputeEncoder();
+
+#endif
+
+#endif
+
+private:
+  
+  bool commandBufferRecording;
+  ComputeCommandBuffer currentCommandBuffer {};
+  ComputeCommandBuffer getComputeCommandBuffer();
 
   friend class ComputeHeap;
 
@@ -293,9 +437,9 @@ public:
 
   void sync(bool waitOnFinish = true);
 
-  uint simdSize()const;
+  uint simdSize()const {return (uint)simdGroupSize;}
 
-  uint maxThreadsPerGroup()const;
+  uint maxThreadsPerGroup()const {return (uint)maxThreadsPerWorkgroup;}
 
   uint maxCores()const;
 
@@ -303,9 +447,9 @@ public:
 
   void endCapture();
 
-  double lastExecutionTime()const;
+  double lastExecutionTime()const {return executionTime;}
 
-  ComputeDeviceId getDevice();
+  ComputeDeviceId getDevice() {return deviceId;}
 
 #ifdef ENABLE_RENDERING
 

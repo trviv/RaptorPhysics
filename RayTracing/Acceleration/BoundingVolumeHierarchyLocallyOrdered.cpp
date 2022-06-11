@@ -21,9 +21,9 @@ void BoundingVolumeHierarchyADS::constructLocallyOrderedTree()
 {
   LocallyOrderedClusteringTreeData* treePtr = (LocallyOrderedClusteringTreeData*)treeDataPtr;
 
-  ComputeMemory clusterCount[2]         = {ComputeMemory(*treePtr->clusterCounters.device(), 0), ComputeMemory(*treePtr->clusterCounters.device(), 4*8)};
-  ComputeMemory clusterDispatchSize[2]  = {ComputeMemory(*treePtr->clusterCounters.device(), 4*4), ComputeMemory(*treePtr->clusterCounters.device(), 4*12)};
-  ComputeMemory internalNodeCount[2]    = {ComputeMemory(*treePtr->clusterCounters.device(), 4*16), ComputeMemory(*treePtr->clusterCounters.device(), 4*17)};
+  ComputeMemory clusterCount[2]         = {ComputeMemory(treePtr->clusterCounters.device(), 0), ComputeMemory(treePtr->clusterCounters.device(), 4*8)};
+  ComputeMemory clusterDispatchSize[2]  = {ComputeMemory(treePtr->clusterCounters.device(), 4*4), ComputeMemory(treePtr->clusterCounters.device(), 4*12)};
+  ComputeMemory internalNodeCount[2]    = {ComputeMemory(treePtr->clusterCounters.device(), 4*16), ComputeMemory(treePtr->clusterCounters.device(), 4*17)};
 
   (*treePtr->clusterCounters.host())[0] = primitiveCount;
   (*treePtr->clusterCounters.host())[1] = 1;

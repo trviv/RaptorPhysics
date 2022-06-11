@@ -27,7 +27,10 @@ void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileNam
   localNew.push_back("");
 #endif
 
-#ifdef USE_SIMD_COMPUTE
+#ifdef USE_VULKAN_COMPUTE
+  localOld.push_back("USE_METAL_COMPUTE");
+  localNew.push_back("");
+
   localOld.push_back("USE_SIMD_COMPUTE");
   localNew.push_back("");
 #endif

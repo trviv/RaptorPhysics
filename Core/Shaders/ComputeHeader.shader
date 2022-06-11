@@ -19,7 +19,6 @@
 #define threadGroupCountN(dim)  get_num_groups(dim)
 #define globalMemBarrier()  barrier(CLK_GLOBAL_MEM_FENCE)
 #define localMemBarrier()   barrier(CLK_LOCAL_MEM_FENCE)
-#define localMemFence()     mem_fence(CLK_LOCAL_MEM_FENCE)
 
 #define Kernel  __kernel
 #define Device  __global
@@ -87,7 +86,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
   }
   const float eta = etaI/etaT;
   const float k = 1.f - (eta * eta * (1.f - dotNI * dotNI));
-  return select(0.f, normalize(incident * eta + normal * (eta * abs(dotNI) - sqrt(k))), k > 0.f);
+  return select(constructFloat3(0.f), normalize(incident * eta + normal * (eta * fabs(dotNI) - sqrt(k))), selectInput3(k > 0.f));
 }
 #define sinCos(phi, cosPhi) sincos(phi, &cosPhi)
 #define swapFloat(a, b)     {float t = a; a = b; b = t;}
@@ -122,7 +121,7 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
 
 #define float4x4      float16
 
-#else
+#elif defined(USE_METAL_COMPUTE)
 
 #include <metal_stdlib>
 using namespace metal;
@@ -145,7 +144,6 @@ using namespace metal;
 #define threadGroupCountN(dim)  threadgroups_per_grid[dim]
 #define globalMemBarrier()  threadgroup_barrier(mem_flags::mem_device)
 #define localMemBarrier()   threadgroup_barrier(mem_flags::mem_threadgroup)
-#define localMemFence()     threadgroup_barrier(mem_flags::mem_none)
 
 #define Kernel  kernel
 #define Device  device

@@ -7,7 +7,7 @@
 #define ENV_APPLE       1   // for windows enviornment
 #define _I386_PARAM_H_
 #define USE_METAL_COMPUTE
-#define USE_SIMD_COMPUTE
+//#define USE_VULKAN_COMPUTE
 
 #else
 #define ENV_WIN         1   // for windows enviornment
@@ -20,6 +20,7 @@
 #define PREC_DOUBLE     0 //for using double as primary data type
 
 // common include files
+#include <stdlib.h>
 #include <map>
 #include <cmath>
 #include <math.h>
@@ -52,7 +53,6 @@
 
 #elif ENV_APPLE
 #include <_types.h>
-#include <stdlib.h>
 #include <termios.h>
 #include <pthread.h>
 #include <sys/time.h>
@@ -72,7 +72,6 @@
 #define DISABLE_PROFILING
 #define DISABLE_LOGGING
 #endif
-#undef USE_SIMD_COMPUTE
 #elif TARGET_OS_MAC
 #include <OpenGL/gl3.h>
 #else
