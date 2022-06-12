@@ -103,8 +103,8 @@ void Camera::emitPrimaryRays(DeviceArray<uint>& rays, RayStructType rayType)
 
 void Camera::setScale(real scale)
 {
-  width  = width * scale;
-  height = height * scale;
+  width  = (uint)(width * scale);
+  height = (uint)(height * scale);
 
   rayCount.host()->clear();
   rayCount.host()->reserve(4);

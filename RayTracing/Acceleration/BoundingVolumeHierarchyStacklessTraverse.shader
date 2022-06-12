@@ -107,7 +107,7 @@ inline HitStruct stacklessTraverseBinaryTree(
   ushort traverseState   = BVH_TRAVERSAL_FROM_PARENT;
   BVHNodeInfo parentNode = treeInternalNodes[0];
 
-  const uchar3 signBits  = select(constructUchar3(0), constructUchar3(1), sign);
+  //const uchar3 signBits  = select(constructUchar3(0), constructUchar3(1), sign);
   // flip near plane if 2 or more negatives are in the ray direction
   // a simple approach to possible get an intersection sooner
   ushort3 nearChilds     = getNearChilds(treeLeafNodeBoundingBoxes, treeInternalNodeBoundingBoxes, parentNode, rayOrigin, invRayDirection, currentTime, sign);

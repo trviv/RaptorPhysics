@@ -3,13 +3,13 @@
 
 #include "BoundingVolumeHierarchyADSTraverse.shader"
 
-struct BVHTraversalState
+typedef struct
 {
   uint traverseState;
   uint currNodeIndex;
   uint parentNodeIndex;
   uint nextNodeIndex;
-};
+} BVHTraversalState;
 
 #if RAY_TRAVERSAL_BVH_MAX_LEAFS == 0
 #undef TRAVERSAL_STATE_IN_SHARED_MEMORY

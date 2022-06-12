@@ -293,7 +293,7 @@ typedef struct ALIGN(4)
 /*!
 @struct Decoded primitive offsets.
 */
-struct DEFAULT_ALIGN DecodedPrimitiveInfo
+typedef struct DEFAULT_ALIGN
 {
   ushort primitiveType;
   uint prevPrimitiveOffset;
@@ -311,7 +311,7 @@ struct DEFAULT_ALIGN DecodedPrimitiveInfo
 #ifndef COMPUTE_SHADER_SCOPE
   uint getPrimitiveVertexCount()const {return (primitiveType == PrimitiveTriangle ? primitiveCount * 3 : vertexCount);}
 #endif
-};
+} DecodedPrimitiveInfo;
 
 
 typedef struct DEFAULT_ALIGN
@@ -477,7 +477,7 @@ typedef struct DEFAULT_ALIGN
   };
 } PrimitiveInstanceADSLeaf;
 
-struct ALIGN(4) PrimitiveADSResources
+typedef struct ALIGN(4)
 {
 #if defined(COMPUTE_SHADER_SCOPE)
   const Device BVHNodeInfo*     treeInternalNodes;
@@ -504,9 +504,9 @@ struct ALIGN(4) PrimitiveADSResources
   /*!@member Pointer to ray tracing system settings .*/
   ComputeMemory*        pointerSystemSettings;
 #endif
-};
+} PrimitiveADSResources;
 
-struct ALIGN(4) PrimitiveInstanceADSResources
+typedef struct ALIGN(4)
 {
   uint  primitiveCount;
 #if defined(COMPUTE_SHADER_SCOPE)
@@ -528,7 +528,7 @@ struct ALIGN(4) PrimitiveInstanceADSResources
   const ComputeMemory* primitiveInstanceTransforms;
   const ComputeMemory* primitiveInstanceNodes;
 #endif
-};
+} PrimitiveInstanceADSResources;
 
 #pragma pack(pop)
 

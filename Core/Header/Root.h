@@ -12,6 +12,7 @@
 #else
 #define ENV_WIN         1   // for windows enviornment
 #define ENV_APPLE       0   // for windows enviornment
+#define NOMINMAX
 
 #endif
 
@@ -112,7 +113,6 @@ typedef uint8_t   Byte;
 typedef uint16_t  ushort;
 typedef uint32_t  uint;
 typedef uint64_t  ulong;
-typedef uint16_t  half;
 
 #endif
 

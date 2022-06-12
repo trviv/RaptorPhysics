@@ -698,9 +698,9 @@ void ComputeInterface::create(int deviceIndex)
     logComputeMessage("  Platform name:    %s", name);
     logComputeMessage("  Platform version: %s", version);
 
-    platform = platforms[i];
+    cl_platform_id platform = platforms[i];
 
-    status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices, &deviceCount);
+    status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 8, devices.data(), &deviceCount);
     computeCheckError(status, 0);
 #else
 #if TARGET_OS_OSX
@@ -724,6 +724,9 @@ void ComputeInterface::create(int deviceIndex)
     {
       ComputeDeviceId deviceId = devices[j];
 #ifdef USE_OPENCL_COMPUTE
+      // skip device if null, happens on OpenCL
+      if (deviceId == NULL) continue;
+
       int     status;
       size_t  maxWorkgroupSize;
       size_t  maxComputeUnits;
@@ -740,6 +743,7 @@ void ComputeInterface::create(int deviceIndex)
       computeCheckError(status, 0);
       status = clGetDeviceInfo(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t) * 3, maxWorkitemSizes, NULL);
       computeCheckError(status, 0);
+      maxWorkgroupSize = 256;
 #else
 #if TARGET_OS_IPHONE
       // TODO: investigate 1024 thread group size not working with irregular reduce
@@ -844,10 +848,25 @@ ComputeProgram ComputeInterface::createProgram(const char* sourceCode, size_t so
 {
   ComputeStatus status;
 #ifdef USE_OPENCL_COMPUTE
-  ComputeProgram program(clCreateProgramWithSource(context, 1, (const char **)&sourceCode, (const size_t *)&sourceSize, &status));
+
+  stringArr localOldType = oldType ? *oldType : stringArr();
+  stringArr localNewType = newType ? *newType : stringArr();
+
+  string defines;
+  for (uint i = 0; i < localOldType.size(); i++)
+  {
+    defines += "#define " + localOldType[i] + " " + localNewType[i] + "\n";
+  }
+
+  string finalSource = defines + deepReadShaderSource(sourceCode, includeFiles);
+  auto ptr = finalSource.c_str();
+  sourceSize = finalSource.size();
+
+  ComputeProgram program(clCreateProgramWithSource(context, 1, (const char **)&ptr, (const size_t *)&sourceSize, &status), this);
   computeCheckError(status, 0);
 
-  status = clBuildProgram(program, 1, &deviceId, NULL, NULL, NULL);
+  const char* options = "-cl-std=CL1.2 -cl-mad-enable";
+  status = clBuildProgram(program, 1, &deviceId, options, NULL, NULL);
   // Determine the size of the log
   size_t logSize;
   clGetProgramBuildInfo(program, deviceId, CL_PROGRAM_BUILD_LOG, 0, NULL, &logSize);
@@ -1157,14 +1176,14 @@ void ComputeInterface::execute(ComputeKernel& kernel, const size_t workgroupSize
 {
 #ifdef USE_OPENCL_COMPUTE
   uint count = 0;
-  copyToHost(indirectBuffer, bufferOffset, 4, &count, true);
+  copyToHost(workgroupCount, bufferOffset, 4, &count, true);
 
-  size_t workgroupCount[3] = {count, 1, 1};
+  size_t workgroupCountLocal[3] = {count, 1, 1};
 
   const size_t workgroup[3] = {
-    workgroupSize[0] * workgroupCount[0],
-    workgroupSize[1] * workgroupCount[1],
-    workgroupSize[2] * workgroupCount[2] };
+    workgroupSize[0] * workgroupCountLocal[0],
+    workgroupSize[1] * workgroupCountLocal[1],
+    workgroupSize[2] * workgroupCountLocal[2] };
 
   ComputeStatus status;
 
