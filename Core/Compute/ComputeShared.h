@@ -30,14 +30,6 @@ typedef float3 colorType3;
 
 #endif
 
-#ifdef USE_OPENCL_COMPUTE
-
-typedef struct ALIGN(4)
-{
-  float x, y, z;
-} packed_float3;
-
-#endif
 
 /*!
 @struct Data describing an array sub-part.

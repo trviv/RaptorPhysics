@@ -35,5 +35,10 @@ void ShaderEntity::registerShader(ComputeInterface* compute, const char* fileNam
   localNew.push_back("");
 #endif
 
+#ifdef USE_OPENCL_COMPUTE
+  localOld.push_back("USE_OPENCL_COMPUTE");
+  localNew.push_back("");
+#endif
+
   programs.push_back(compute->createTemplateProgram(fileName, &localOld, &localNew, includeFiles));
 }

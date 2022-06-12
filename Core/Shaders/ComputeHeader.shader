@@ -111,6 +111,8 @@ inline float3 refractVector(const float3 incident, float3 normal, float etaI, fl
 
 #define ALIGN(n)            __attribute__((aligned(n))) __attribute__((packed))
 
+typedef float packed_float3 __attribute__((aligned(4))) __attribute__((ext_vector_type(3)));
+
 #define commonInt8    int8
 #define commonUint8   uint8
 #define commonFloat8  float8

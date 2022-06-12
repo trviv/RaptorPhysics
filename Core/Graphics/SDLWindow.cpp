@@ -714,14 +714,14 @@ void Window::start()
     char temp[32] = {NULL};
     if (statFrame->isShrunk())
     {
-      sprintf(temp, "%.f", ImGui::GetIO().Framerate);
+      sprintf_s(temp, "%.f", ImGui::GetIO().Framerate);
       statFrame->setText(temp);
     }
     else
     {
       if (ImStrnicmp("Frame Rate: ", statFrame->getText().c_str(), sizeof("Frame Rate:")) != 0)
       {
-        sprintf(temp, "Frame Rate:  %.f\n", ImGui::GetIO().Framerate);
+        sprintf_s(temp, "Frame Rate:  %.f\n", ImGui::GetIO().Framerate);
         statFrame->setText(temp + statFrame->getText());
       }
     }

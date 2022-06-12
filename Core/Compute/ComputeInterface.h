@@ -80,6 +80,7 @@ typedef cl_kernel         ComputeKernelIdentifier;
 typedef cl_program        ComputeProgramIdentifier;
 typedef cl_command_queue  ComputeQueue;
 typedef cl_mem            ComputeMemoryIdentifier;
+typedef cl_mem            ComputeBufferIdentifier;
 typedef cl_int            ComputeStatus;
 typedef cl_mem            ComputeTextureIdentifier;
 
@@ -370,6 +371,10 @@ public:
   id<MTLBlitCommandEncoder> currentBlitEncoder = nil;
   id<MTLComputeCommandEncoder> currentComputeEncoder = nil;
 
+  bool commandBufferRecording;
+  ComputeCommandBuffer currentCommandBuffer{};
+  ComputeCommandBuffer getComputeCommandBuffer();
+
   void endEncoders();
 
 public:
@@ -381,10 +386,6 @@ public:
 #endif
 
 private:
-  
-  bool commandBufferRecording;
-  ComputeCommandBuffer currentCommandBuffer {};
-  ComputeCommandBuffer getComputeCommandBuffer();
 
   friend class ComputeHeap;
 

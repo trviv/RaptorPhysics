@@ -1,10 +1,12 @@
 #include "ComputeShaderCommon.h"
+#include <stack>
 #include <unordered_set>
 #include "ComputeInterface.h"
 
 const char* kernelString = "Kernel ";
+const char* emptySpaces = " \t\r\n";
 
-string trim(const string& str, const char* delim = " ")
+string trim(const string& str, const char* delim = emptySpaces)
 {
   size_t first = str.find_first_not_of(delim);
   if (string::npos == first)
@@ -44,7 +46,7 @@ size_t skipComment(const string& input, size_t startIndex)
   return startIndex;
 }
 
-stringArr tokenize(const string& input, const string delimiter = " \t\r\n")
+stringArr tokenize(const string& input, const string delimiter = emptySpaces)
 {
   stringArr tokens;
   string temp;
@@ -230,7 +232,7 @@ string deepReadShaderSource(const char* sourceCode, const stringArr* includeFile
       // if valid include
       if (currPos < 2 || localSource[currPos - 1] != '/')
       {
-        string includeLine = localSource.substr(currPos, localSource.find("\n", currPos) - currPos);
+        string includeLine = trim(localSource.substr(currPos, localSource.find("\n", currPos) - currPos));
         string includeName;
 
         stringArr tokens = tokenize(includeLine, "\"");
@@ -587,7 +589,7 @@ string addKernelInputs(const FunctionInfo& kernelInfo)
 
   for (int i=0; i<kernelInfo.args.size(); i++)
   {
-    const string arg = trim(kernelInfo.args[i], " \t\r\n");
+    const string arg = trim(kernelInfo.args[i], emptySpaces);
     if (arg == "KERNEL_GLOBAL_ARGUMENTS")
     {}
     else if (arg == "KERNEL_THREAD_ARGUMENTS")
@@ -678,7 +680,7 @@ vector<FunctionArgs> getKernelArgs(const string& source)
 
     for (auto& arg : info.args)
     {
-      arg = trim(arg, " \t\r\n");
+      arg = trim(arg, emptySpaces);
     }
     kernelInfos.push_back(info);
 

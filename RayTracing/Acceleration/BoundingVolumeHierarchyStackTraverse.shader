@@ -4,12 +4,12 @@
 #include "AccelerationDataStructTraverse.shader"
 #include "BoundingVolumeHierarchyADSCreate.shader"
 
-struct BVHNodeIntersectionData
+typedef struct
 {
   BVHNodeInfo node;
   bool addNear;
   bool addFar;
-};
+} BVHNodeIntersectionData;
 
 inline BVHNodeIntersectionData getNodeIntersectionData(
   Thread HitStruct*         hit,
@@ -118,6 +118,7 @@ inline void pushNodeDataShared(
   Thread short* sharedTop,
   bool          diverged)
 {
+#ifdef USE_SIMD_COMPUTE
   const bool isFirst = simdIsFirst();
 
   if (bvhNodeIntersectionData.addFar && !diverged)
@@ -159,6 +160,7 @@ inline void pushNodeDataShared(
   {
     pushNodeData(bvhNodeIntersectionData, lastNodeIndex, traversalStack, stackTop);
   }
+#endif
 }
 
 inline uint popNodeData(
@@ -258,6 +260,7 @@ inline HitStruct stackTraverseBinaryTreeWithInputsShared(
   Shared uint*                  sharedLeafNodeIndex,
   const short                   sharedBase)
 {
+#ifdef USE_SIMD_COMPUTE
   short stackTop  = stackBase;
   short sharedTop = sharedBase;
 
@@ -288,6 +291,7 @@ inline HitStruct stackTraverseBinaryTreeWithInputsShared(
     const bool diverged = (stackTop > stackBase) || (initialActiveThreads != (((size_t)simd_active_threads_mask()) & 0xFFFFFFFF));
     pushNodeDataShared(bvhNodeIntersectionData, &lastNodeIndex, traversalStack, &stackTop, sharedLeafNodeIndex, &sharedTop, diverged);
   }
+#endif
 
   return *hit;
 }

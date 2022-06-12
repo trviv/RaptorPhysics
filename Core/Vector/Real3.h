@@ -397,7 +397,7 @@ static std::string operator << (const Real3& prefix, const std::string& suffix)
 {
   char str[1024];
   str[0] = '\0';
-  sprintf(str, "x: %f, y: %f, z: %f", prefix[0], prefix[1], prefix[2]);
+  sprintf_s(str, "x: %f, y: %f, z: %f", prefix[0], prefix[1], prefix[2]);
   return std::string(str) + suffix;
 }
 
@@ -405,7 +405,7 @@ static std::ostream& operator<<(std::ostream& prefix, const Real3& suffix)
 {
   char str[1024];
   str[0] = '\0';
-  sprintf(str, "x: %f, y: %f, z: %f", suffix[0], suffix[1], suffix[2]);
+  sprintf_s(str, "x: %f, y: %f, z: %f", suffix[0], suffix[1], suffix[2]);
   prefix << std::string(str).c_str();
   return prefix;
 }

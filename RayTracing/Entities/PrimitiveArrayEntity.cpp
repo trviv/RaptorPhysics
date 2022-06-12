@@ -392,7 +392,7 @@ void PrimitiveArrayEntity::generateNeighbourBasedNormal(uint vertexCount, vector
     }
   }
 
-  for (int i=0; i<vertexCount; i++)
+  for (uint i=0; i<vertexCount; i++)
   {
     Real3 normal = normals->at(i);
     float length = normal.length();

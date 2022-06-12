@@ -36,6 +36,13 @@ template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer(c
   }
 }
 
-template class DeviceArray<const ComputeMemory*>;
+#else
+
+template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer(const uint deviceByteOffset)
+{
+  logComputeError("syncDevicePointerBuffer function is not implemented!");
+}
 
 #endif
+
+template class DeviceArray<const ComputeMemory*>;

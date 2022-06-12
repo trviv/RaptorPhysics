@@ -24,6 +24,8 @@ if (APPLE)
   else (CREATE_IOS_PROJECT)
     set(PROJECT_PLATFORM_SUFFIX "_macos")
   endif (CREATE_IOS_PROJECT)
+else (APPLE)
+  set(CMAKE_GENERATOR_PLATFORM x64)
 endif (APPLE)
 #===============================================================================
 # End Apple Specific
@@ -151,6 +153,7 @@ macro(CREATE_LIB_AND_EXE)
     if (PROJECT_EXECUTABLE)
       add_executable(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+      add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${OTHER_RESOURCES} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
     else (PROJECT_EXECUTABLE)
       add_library(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -171,8 +174,14 @@ if (WIN32)
   include_directories("${CMAKE_SOURCE_DIR}/External/GLEW/include/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/SDL2/")
   if (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
     link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/x64/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x64")
+    set(OTHER_RESOURCES
+      "${CMAKE_SOURCE_DIR}/External/GLEW/bin/Release/x64/glew32.dll"
+      "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x64/SDL2.dll")
   else (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
     link_directories("${CMAKE_SOURCE_DIR}/External/GLEW/lib/Release/Win32/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x86")
+    set(OTHER_RESOURCES
+      "${CMAKE_SOURCE_DIR}/External/GLEW/bin/Release/Win32/glew32.dll"
+      "${CMAKE_SOURCE_DIR}/External/SDL/Win/lib/x86/SDL2.dll")
   endif (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
   set(ADDITIONAL_LIBRARY SDL2 SDL2main glew32 opengl32)
 endif (WIN32)

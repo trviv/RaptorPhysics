@@ -21,41 +21,41 @@ enum HitStructType
 /*!
 @struct Hit Info containing distance information.
 */
-struct ALIGN(8) HitInfoIdentity
+typedef struct ALIGN(8)
 {
   float         distance;
   IdentityInfo  primitiveIdentity;
-};
+} HitInfoIdentity;
 
 
 /*!
 @struct Hit Info containing distance information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceIndexIdentity
+typedef struct DEFAULT_ALIGN
 {
   float         distance;
   uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
   uint          dummy;
-};
+} HitInfoDistanceIndexIdentity;
 
 
 /*!
 @struct Hit Info containing distance and BVH information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceBVHHits
+typedef struct DEFAULT_ALIGN
 {
   float         distance;
   uint          primitiveIndex;
   IdentityInfo  primitiveIdentity;
   uint          bvhHits;
-};
+} HitInfoDistanceBVHHits;
 
 
 /*!
 @struct Hit Info containing distance and normal information.
 */
-struct ALIGN(8) HitInfoDistanceIndexIdentityNormal
+typedef struct ALIGN(8) 
 {
   float         distance;
   uint          primitiveIndex;
@@ -65,13 +65,13 @@ struct ALIGN(8) HitInfoDistanceIndexIdentityNormal
 #else
   float3        normal;
 #endif
-};
+} HitInfoDistanceIndexIdentityNormal;
 
 
 /*!
 @struct Hit Info containing distance, normal and UV information.
 */
-struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
+typedef struct DEFAULT_ALIGN
 {
   float         distance;
   uint          primitiveIndex;
@@ -82,7 +82,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
 #else
   float3        normal;
 #endif
-};
+} HitInfoDistanceIndexIdentityNormalUV;
 
 
 #ifdef COMPUTE_SHADER_SCOPE
@@ -127,7 +127,7 @@ struct DEFAULT_ALIGN HitInfoDistanceIndexIdentityNormalUV
 #define setHitUV(hitUV, uv)
 #endif
 
-inline HitStruct defaultHit(const float maxDistance = INFINITY)
+inline HitStruct defaultHit(const float maxDistance)
 {
   HitStruct hit;
   setHitDistance(hit.distance, maxDistance);
