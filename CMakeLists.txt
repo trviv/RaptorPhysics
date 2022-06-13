@@ -299,3 +299,8 @@ set(PROJECT_STRING Tests)
 add_subdirectory(Tests)
 set_target_properties(Tests PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.tests")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
+
+set(PROJECT_STRING PerfExplorer)
+add_subdirectory(PerfExplorer)
+set_target_properties(PerfExplorer PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.perfexplorer")
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")

@@ -16,6 +16,8 @@ protected:
   ShaderEntity();
 
   void registerShader(ComputeInterface* compute, const char* fileName, const vector<string>* oldType, const vector<string>* newType, const vector<string>* includeFiles = NULL);
+
+  void registerShaderFromSource(ComputeInterface* compute, const string& source, const vector<string>* oldType, const vector<string>* newType, const vector<string>* includeFiles = NULL);
 };
 
 #endif
