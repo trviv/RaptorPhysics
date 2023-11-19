@@ -292,15 +292,15 @@ set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ParticlePhysics)
 
 set(PROJECT_STRING App)
 add_subdirectory(App)
-set_target_properties(App PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.app")
+set_target_properties(App PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.app" MACOSX_BUNDLE_BUNDLE_NAME "App")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Mac Developer")
 
 set(PROJECT_STRING Tests)
 add_subdirectory(Tests)
-set_target_properties(Tests PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.tests")
+set_target_properties(Tests PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.tests" MACOSX_BUNDLE_BUNDLE_NAME "Tests")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
 
 set(PROJECT_STRING PerfExplorer)
 add_subdirectory(PerfExplorer)
-set_target_properties(PerfExplorer PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.perfexplorer")
+set_target_properties(PerfExplorer PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.perfexplorer" MACOSX_BUNDLE_BUNDLE_NAME "Perfexplorer")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
