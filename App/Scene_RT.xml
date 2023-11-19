@@ -16,40 +16,61 @@
       <render-solids-option value="true"/>
       <render-bounding-boxes-option value="false"/>
       <render-system-bound-option value="false"/>
-      <render-grid-heatmap-option value="true"/>
+      <render-grid-heatmap-option value="false"/>
       <reset-camera-up xyz="0.0f, 1.0f, 0.0f"/>
-      <!-- <reset-camera-front xyz="0.577350f, -0.577350f, -0.577350f"/>
-      <reset-camera-position xyz="-10.0f, 10.0f, 10.0f"/> -->
-      <reset-camera-front xyz="1.0f, -0.0f, -1.f"/>
-      <reset-camera-position xyz="-1.0f, 1.0f, 10.0f"/>
+      <reset-camera-front xyz="0.577350f, -0.577350f, -0.577350f"/>
+      <reset-camera-position xyz="-10.0f, 10.0f, 10.0f"/>
+      <!-- <reset-camera-front xyz="1.0f, -0.0f, -1.f"/>
+      <reset-camera-position xyz="-1.0f, 1.0f, 10.0f"/> -->
     </rendering>
-    <ray-tracing>
-      <simple-camera scale=".125" near-plane=""/>
+    <ray-tracing max-iterations="4">
+      <simple-camera scale=".5" near-plane=""/>
     </ray-tracing>
   </settings>
   
   <materials>
-    <plastic id="mat1">
-      <diffuse-color  rgba="1.f, 1.f, 1.f, 1.f"/>
-      <specular-color rgba="1.f, 1.f, 1.f, 1.f"/>
-      <emissive-color rgba="1.f, 1.f, 1.f, 1.f"/>
+    <plastic id="mat1" diffuse-shader="Lambert" specular-shader="Phong" specular-exponent="20">
+      <diffuse-color  rgba="0.2f, 0.2f, 0.2f, 1.0f"/>
+      <specular-color rgba="0.3f, 0.3f, 0.3f, 1.0f"/>
+      <emissive-color rgba="0.1f, 0.1f, 0.1f, 1.0f"/>
+    </plastic>
+    <reflective id="mirror1">
+      <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    </reflective>
+    <translucent id="trans1" refractive-index="3.0f">
+      <diffuse-color  rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <specular-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+      <emissive-color rgba="0.0f, 0.0f, 0.0f, 1.0f"/>
+    </translucent>
+    <plastic id="bluemat1" diffuse-shader="Lambert" specular-shader="BlinnPhong" specular-exponent="20">
+      <diffuse-color  rgba="0.1f, 0.1f, 0.4f, 1.0f"/>
+      <specular-color rgba="0.3f, 0.3f, 0.3f, 1.0f"/>
+      <emissive-color rgba="0.1f, 0.1f, 0.1f, 1.0f"/>
     </plastic>
   </materials>
 
   <entities>
     <cloth id="cloth1">
-      <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f" material="mat1"/>
+      <shape type="rectangle" sub-division="12, 24" dim="2.f, 4.f, 2.f" size="2.f" mass="1.f" material="mat1" two-sided="true"/>
     </cloth>
     <rigidbody id="cube1">
-      <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".2f" density="977.f" material="mat1"/>
+      <shape type="cuboid" dim="2.f, 2.f, 2.f" size=".4f" density="977.f" material="trans1" spatial-density="1"/>
+    </rigidbody>
+    <rigidbody id="cube2">
+      <shape type="cuboid" dim="1.5f, 1.5f, 1.5f" size=".2f" density="977.f" material="bluemat1"/>
     </rigidbody>
     <!-- <fluid id="fluid1">
-      <shape type="cuboid" dim="1.6f, 10.0f,  1.6f" size="0.04f" kernel-size="0.16f" density="977.f"/>
+      <shape type="cuboid" dim="1.6f, 20.0f,  1.6f" size="0.08f" kernel-size="0.32f" density="977.f"/>
     </fluid> -->
     <point-light id="light1">
       <shape type="void"/>
       <emissive-color xyz="1.f, 1.f, 1.f"/>
     </point-light>
+    <!-- <visual id="sphere1">
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="bluemat1"/>
+    </visual> -->
   </entities>
 
   <instances>
@@ -65,11 +86,16 @@
         <translate xyz="0.f, 0.f, 1.f"/>
       </transform>
     </cube1>
-    <cube1 count="1">
+    <cube2 count="1">
       <transform>
         <translate xyz="2.f, 0.f, 1.f"/>
       </transform>
-    </cube1>
+    </cube2>
+    <cube2 count="1">
+      <transform>
+        <translate xyz="2.f, 5.f, 1.f"/>
+      </transform>
+    </cube2>
     <light1 count="1">
       <transform>
         <translate xyz="0.f, 100.f, 0.f"/>
@@ -80,5 +106,11 @@
         <translate xyz="0.f, 20.f, 0.f"/>
       </transform>
     </fluid1> -->
+    <!-- <sphere1 count="1">
+      <transform>
+        <translate xyz="2.f, 0.f, 0.f"/>
+        <scale     xyz="1.0f, 1.0f, 1.0f"/>
+      </transform>
+    </sphere1> -->
   </instances>
 </scene>

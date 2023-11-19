@@ -21,7 +21,7 @@
       <reset-camera-front xyz="0.0f, 0.0f, -1.f"/>
       <reset-camera-position xyz="0.0f, 0.0f, 30.0f"/>
     </rendering>
-    <ray-tracing max-iterations="4">
+    <ray-tracing max-iterations="3">
       <simple-camera scale=".25" near-plane=""/>
     </ray-tracing>
   </settings>
@@ -65,37 +65,37 @@
   <!-- Entity definitions -->
   <entities>
     <visual id="front">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <visual id="back">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <visual id="top">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <visual id="bottom">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="white-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <visual id="left">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="red-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <visual id="right">
-      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f" material="blue-wall"/>
+      <shape type="cuboid" dim="1.f, 1.f, 1.f" size="1.f" mass="1.f"/>
     </visual>
     <area-light id="light1">
       <emissive-color xyz="1.f, 1.f, 1.f"/>
     </area-light>
     <visual id="sphere1">
-      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f" material="reflective1"/>
+      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f"/>
     </visual>
     <visual id="sphere2">
-      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f" material="translucent1"/>
+      <shape type="sphere" dim="1.f, 1.f, 1.f" size="4.f" mass="1.f"/>
     </visual>
   </entities>
 
   <!-- Instantiate entities -->
   <instances>
-    <front count="1">
+    <front count="1" material="white-wall">
       <transform>
         <translate  xyz="0.0f, 0.0f, -11.f"/>
         <scale      xyz="14.0f, 10.0f, 1.0f"/>
@@ -107,37 +107,37 @@
         <scale      xyz="14.0f, 10.0f, 1.0f"/>
       </transform>
     </back> -->
-    <top count="1">
+    <top count="1" material="white-wall">
       <transform>
         <translate  xyz="0.0f, 11.0f, 0.0f"/>
         <scale      xyz="14.0f, 1.0f, 10.0f"/>
       </transform>
     </top>
-    <bottom count="1">
+    <bottom count="1" material="white-wall">
       <transform>
         <translate  xyz="0.0f, -11.0f, 0.0f"/>
         <scale      xyz="14.0f, 1.0f, 10.0f"/>
       </transform>
     </bottom>
-    <left count="1">
+    <left count="1" material="red-wall">
       <transform>
         <translate  xyz="-13.0f, 0.0f, 0.0f"/>
         <scale      xyz="1.0f, 10.0f, 10.0f"/>
       </transform>
     </left>
-    <right count="1">
+    <right count="1" material="blue-wall">
       <transform>
         <translate  xyz="13.0f, 0.0f, 0.0f"/>
         <scale      xyz="1.0f, 10.0f, 10.0f"/>
       </transform>
     </right>
-    <sphere1 count="1">
+    <sphere1 count="1" material="reflective1">
       <transform>
         <translate  xyz="-5.5f, -6.0f, -3.0f"/>
         <!-- <scale      xyz="4.0f, 4.0f, 4.0f"/> -->
       </transform>
     </sphere1>
-    <sphere2 count="1">
+    <sphere2 count="1" material="translucent1">
       <transform>
         <translate  xyz="5.5f, -6.0f, 4.0f"/>
         <!-- <scale      xyz="4.0f, 4.0f, 4.0f"/> -->
