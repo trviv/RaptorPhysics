@@ -12,7 +12,10 @@ int main(int argc, char** argv)
   // Create main system
   MainSystem mainSystem(&compute);
   // Load scene
-  mainSystem.createFromFile("Scene_RT.xml");
+//  mainSystem.createFromFile("Scene_RT.xml");
+//  mainSystem.createFromFile("Scene_Fluid.xml");
+//  mainSystem.createFromFile("Cornell.xml");
+  mainSystem.createFromFile("Scene_Mesh.xml");
   // Start system
   mainSystem.start();
 
