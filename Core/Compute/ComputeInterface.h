@@ -45,7 +45,7 @@ typedef id<MTLBuffer>               ComputeBufferIdentifier;
 typedef uint                        ComputeStatus;
 typedef id<MTLTexture>              ComputeTextureIdentifier;
 
-enum ComputeMemoryFlag
+enum ComputeMemoryUsage
 {
   KERNEL_RW,
   KERNEL_W,
@@ -145,7 +145,7 @@ public:
 
   ComputeMemory& operator = (const ComputeMemory& ref);
 
-  ComputeMemoryFlag getFlag()const;
+  ComputeMemoryUsage getUsage()const;
 
   size_t getOffset()const {return offset;}
 
@@ -190,7 +190,7 @@ public:
 
   void create(size_t sizeInBytes);
 
-  ComputeMemory* alloc(size_t sizeInBytes, void* data = NULL, ComputeMemoryFlag flag = KERNEL_RW);
+  ComputeMemory* alloc(size_t sizeInBytes, void* data = NULL, ComputeMemoryUsage flag = KERNEL_RW);
 
   void free(ComputeMemory* memory);
 

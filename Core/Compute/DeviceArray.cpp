@@ -18,7 +18,7 @@ template<class ClassType> void DeviceArray<ClassType>::syncDevicePointerBuffer(c
     MTLArgumentDescriptor* argumentDescriptor = [MTLArgumentDescriptor argumentDescriptor];
 
     argumentDescriptor.index = 0;
-    argumentDescriptor.access = MTLArgumentAccessReadOnly;
+    argumentDescriptor.access = MTLBindingAccessReadOnly;
     argumentDescriptor.dataType = MTLDataTypePointer;
     argumentDescriptor.arrayLength = host()->size();
 

@@ -10,7 +10,7 @@
 #define ALWAYS_END_ENCODERS
 #endif
 
-#define USE_ARGUMENT_BUFFERS
+//#define USE_ARGUMENT_BUFFERS
 
 #if __has_feature(objc_arc)
 #define retainComputeObj(obj)
@@ -279,7 +279,7 @@ const char* getStatusMessage(ComputeStatus status)
 #endif
 }
 
-ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryFlag flag)
+ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryUsage flag)
 {
   sizeInBytes = mAlignBy(sizeInBytes, 16) * 16;
   ComputeMemory* ret;
