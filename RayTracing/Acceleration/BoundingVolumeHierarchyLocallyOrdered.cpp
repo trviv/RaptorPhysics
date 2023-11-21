@@ -22,17 +22,16 @@ void BoundingVolumeHierarchyADS::constructLocallyOrderedTree()
   LocallyOrderedClusteringTreeData* treePtr = (LocallyOrderedClusteringTreeData*)treeDataPtr;
 
   ComputeMemory clusterCount[2]         = {ComputeMemory(treePtr->clusterCounters.device(), 0), ComputeMemory(treePtr->clusterCounters.device(), 4*8)};
-  ComputeMemory clusterDispatchSize[2]  = {ComputeMemory(treePtr->clusterCounters.device(), 4*4), ComputeMemory(treePtr->clusterCounters.device(), 4*12)};
-  ComputeMemory internalNodeCount[2]    = {ComputeMemory(treePtr->clusterCounters.device(), 4*16), ComputeMemory(treePtr->clusterCounters.device(), 4*17)};
+  ComputeMemory clusterDispatchSize[2]  = {ComputeMemory(treePtr->clusterCounters.device(), 4*16), ComputeMemory(treePtr->clusterCounters.device(), 4*24)};
+  ComputeMemory internalNodeCount[2]    = {ComputeMemory(treePtr->clusterCounters.device(), 4*32), ComputeMemory(treePtr->clusterCounters.device(), 4*40)};
 
+  std::fill(treePtr->clusterCounters.host()->begin(), treePtr->clusterCounters.host()->end(), 0);
   (*treePtr->clusterCounters.host())[0] = primitiveCount;
   (*treePtr->clusterCounters.host())[1] = 1;
   (*treePtr->clusterCounters.host())[2] = 1;
   (*treePtr->clusterCounters.host())[8] = primitiveCount;
   (*treePtr->clusterCounters.host())[9] = 1;
   (*treePtr->clusterCounters.host())[10] = 1;
-  (*treePtr->clusterCounters.host())[16] = 0;
-  (*treePtr->clusterCounters.host())[17] = 0;
   treePtr->clusterCounters.syncDevice();
 
   const int searchRadius  = 512;
@@ -154,12 +153,12 @@ void BoundingVolumeHierarchyADS::resizeBuffersLocallyOrderedTree()
   treePtr->clusterValidFlags.resize(primitiveCount, false);
   treePtr->clusterNewFlags.resize(primitiveCount, false);
   treePtr->nearestNeighbourIndex.resize(primitiveCount, false);
-  treePtr->clusterCounters.resize(8+8+2, false);
+  treePtr->clusterCounters.resize(8*6, false);
   treePtr->clusterBoundingBoxes[0].resize(primitiveCount, false);
   treePtr->clusterBoundingBoxes[1].resize(primitiveCount, false);
   treePtr->clusterTempInternalNodes.resize(primitiveCount, false);
   treePtr->clusterNodes[0].resize(primitiveCount, false);
   treePtr->clusterNodes[1].resize(primitiveCount, false);
 
-  treePtr->clusterCounters.host()->resize(8+8+2);
+  treePtr->clusterCounters.host()->resize(8*6);
 }
