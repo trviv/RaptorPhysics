@@ -68,7 +68,7 @@ ComputeMemory& ComputeMemory::operator = (const ComputeMemory& ref)
   return *this;
 }
 
-ComputeMemoryFlag ComputeMemory::getFlag()const
+ComputeMemoryUsage ComputeMemory::getUsage()const
 {
 #ifdef USE_OPENCL_COMPUTE
   cl_mem_flags ret;
