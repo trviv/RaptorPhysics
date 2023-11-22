@@ -279,7 +279,29 @@ const char* getStatusMessage(ComputeStatus status)
 #endif
 }
 
-ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryUsage flag)
+MTLResourceOptions getResourceOption(ComputeMemoryStorage storage) {
+  switch(storage) {
+    case Default:
+#if TARGET_OS_IPHONE
+      return MTLResourceStorageModeShared;
+#else
+      return MTLResourceStorageModePrivate;
+#endif
+    case Private:
+      return MTLResourceStorageModePrivate;
+    case Shared:
+      return MTLResourceStorageModeShared;
+    case Managed:
+#if TARGET_OS_IPHONE
+      return MTLResourceStorageModeShared;
+#else
+      return MTLResourceStorageModeManaged;
+#endif
+  }
+  return MTLResourceStorageModePrivate;
+}
+
+ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryStorage storage, ComputeMemoryUsage flag)
 {
   sizeInBytes = mAlignBy(sizeInBytes, 16) * 16;
   ComputeMemory* ret;
@@ -292,11 +314,7 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryU
       0, sizeInBytes);
     computeCheckError(status, 0);
 #else
-#if TARGET_OS_IPHONE
-    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModeShared], 0, sizeInBytes);
-#else
-    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:MTLResourceStorageModePrivate], 0, sizeInBytes);
-#endif
+    ret = new ComputeMemory([compute->context newBufferWithLength:sizeInBytes options:getResourceOption(storage)], 0, sizeInBytes, storage);
 #endif
   }
   else
@@ -322,7 +340,7 @@ ComputeMemory* ComputeHeap::alloc(size_t sizeInBytes, void* data, ComputeMemoryU
 #endif
     computeCheckError(status, 0);
 #else
-    ret = new ComputeMemory(*heap, offset, sizeInBytes);
+    ret = new ComputeMemory(heap, offset, sizeInBytes);
 #endif
   }
   childs.push_back(ret);

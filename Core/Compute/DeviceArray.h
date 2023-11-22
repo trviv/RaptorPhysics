@@ -14,6 +14,7 @@ template<class ClassType> class DeviceArray : MemoryManaged
   mutable vector<ClassType>*  hostBuffer; //host memory
   uint  elements; //the number of elements allocated
   uint  allocated;
+  ComputeMemoryStorage storage;
 
   void allocDevice()
   {
@@ -52,6 +53,7 @@ public:
     elements = 0;
     allocated = 0;
     persistant = false;
+    storage = Default;
   }
 
   DeviceArray(ComputeInterface* compute, ComputeHeap* heap = NULL, bool persistantHeap = false) : DeviceArray()
@@ -64,7 +66,7 @@ public:
     logComputeError("Copying device array is not defined yet!");
   }
 
-  void create(ComputeInterface* compute, ComputeHeap* heap = NULL, bool persistantHeap = false)
+  void create(ComputeInterface* compute, ComputeHeap* heap = NULL, bool persistantHeap = false, ComputeMemoryStorage storage = Default)
   {
     if (this->compute)
     {
@@ -79,6 +81,7 @@ public:
     persistant = persistantHeap;
     this->compute = compute;
     this->heap = heap ? heap : (compute ? &compute->heap : NULL);
+    this->storage = storage;
   }
 
   //free device memory while destroying object
@@ -133,7 +136,7 @@ public:
       return;
     }
 
-    ComputeMemory* newArray = heap->alloc(sizeof(ClassType)*elements);
+    ComputeMemory* newArray = heap->alloc(sizeof(ClassType)*elements, nullptr, storage);
     if (deviceBuffer)
     {
       if (copyOld)

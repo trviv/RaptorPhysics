@@ -29,6 +29,7 @@ void logComputeError(const char* format, ...)
 ComputeMemory::ComputeMemory()
 {
   ref = NULL;
+  storage = Private;
   buf = NULL;
   offset = 0;
   size = 0;
@@ -36,15 +37,13 @@ ComputeMemory::ComputeMemory()
 
 ComputeMemory::ComputeMemory(const ComputeMemory& ref)
 {
-  this->ref = ref.ref;
-  this->buf = ref.buf;
-  this->offset = ref.offset;
-  this->size = ref.size;
+  *this = ref;
 }
 
-ComputeMemory::ComputeMemory(ComputeMemoryIdentifier ref, size_t offset, size_t size)
+ComputeMemory::ComputeMemory(ComputeMemoryIdentifier ref, size_t offset, size_t size, ComputeMemoryStorage storage)
 {
   this->ref = ref;
+  this->storage = storage;
   this->buf = NULL;
   this->offset = offset;
   this->size = size;
@@ -53,6 +52,7 @@ ComputeMemory::ComputeMemory(ComputeMemoryIdentifier ref, size_t offset, size_t 
 ComputeMemory::ComputeMemory(ComputeMemory* memory, size_t offset, size_t size)
 {
   this->ref = memory->ref;
+  this->storage = memory->storage;
   this->buf = memory->buf;
   this->offset = offset;
   this->size = size;
@@ -61,6 +61,7 @@ ComputeMemory::ComputeMemory(ComputeMemory* memory, size_t offset, size_t size)
 ComputeMemory& ComputeMemory::operator = (const ComputeMemory& ref)
 {
   this->ref = ref.ref;
+  this->storage = ref.storage;
   this->buf = ref.buf;
   this->offset = ref.offset;
   this->size = ref.size;

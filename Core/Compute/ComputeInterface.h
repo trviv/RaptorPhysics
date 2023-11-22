@@ -45,7 +45,7 @@ typedef id<MTLBuffer>               ComputeBufferIdentifier;
 typedef uint                        ComputeStatus;
 typedef id<MTLTexture>              ComputeTextureIdentifier;
 
-enum ComputeMemoryUsage
+enum ComputeMemoryUsage : uint8_t
 {
   KERNEL_RW,
   KERNEL_W,
@@ -65,7 +65,7 @@ typedef VkBuffer        ComputeBufferIdentifier;
 typedef VkResult        ComputeStatus;
 typedef uint            ComputeTextureIdentifier;
 
-enum ComputeMemoryFlag
+enum ComputeMemoryUsage : uint8_t
 {
   KERNEL_RW = 0,
   KERNEL_W  = 0,
@@ -84,7 +84,7 @@ typedef cl_mem            ComputeBufferIdentifier;
 typedef cl_int            ComputeStatus;
 typedef cl_mem            ComputeTextureIdentifier;
 
-enum ComputeMemoryFlag
+enum ComputeMemoryUsage : uint8_t
 {
   KERNEL_RW = CL_MEM_READ_WRITE,
   KERNEL_W  = CL_MEM_WRITE_ONLY,
@@ -92,6 +92,14 @@ enum ComputeMemoryFlag
 };
 
 #endif
+
+enum ComputeMemoryStorage : uint8_t
+{
+  Default,
+  Private,
+  Shared,
+  Managed
+};
 
 extern void logComputeMessage(const char* format, ...);
 extern void logComputeError(const char* format, ...);
@@ -104,13 +112,12 @@ class ComputeInterface;
 
 #if defined(USE_VULKAN_COMPUTE)
 class ComputeMemory : private VkDescriptorBufferInfo
-
 #else
 class ComputeMemory
-
 #endif
 {
   ComputeMemoryIdentifier ref;
+  ComputeMemoryStorage storage;
   friend class ComputeHeap;
 
 #if defined(USE_VULKAN_COMPUTE)
@@ -139,7 +146,7 @@ public:
 
   ComputeMemory(const ComputeMemory& ref);
 
-  ComputeMemory(ComputeMemoryIdentifier ref, size_t offset = 0, size_t size = 0);
+  ComputeMemory(ComputeMemoryIdentifier ref, size_t offset = 0, size_t size = 0, ComputeMemoryStorage storage = Default);
 
   ComputeMemory(ComputeMemory* memory, size_t offset = 0, size_t size = 0);
 
@@ -190,7 +197,7 @@ public:
 
   void create(size_t sizeInBytes);
 
-  ComputeMemory* alloc(size_t sizeInBytes, void* data = NULL, ComputeMemoryUsage flag = KERNEL_RW);
+  ComputeMemory* alloc(size_t sizeInBytes, void* data = NULL, ComputeMemoryStorage storage = Default, ComputeMemoryUsage flag = KERNEL_RW);
 
   void free(ComputeMemory* memory);
 

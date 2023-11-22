@@ -120,9 +120,9 @@ void RayTracingSystem::init(ComputeInterface* compute, const uint maxRays)
   // initialize temporary arrays from single indirect array
   for (uint i=0; i<RAY_TRACING_SYSTEM_ARRAY_COUNT; i++)
   {
-    validRayCount[i]   = ComputeMemory(*indirectCount.device(), 256*i*3,     4*4);
-    currentWGCount[i]  = ComputeMemory(*indirectCount.device(), 256*(i*3+1), 4*4);
-    currentRayCount[i] = ComputeMemory(*indirectCount.device(), 256*(i*3+2), 4*4);
+    validRayCount[i]   = ComputeMemory(indirectCount.device(), 256*i*3,     4*4);
+    currentWGCount[i]  = ComputeMemory(indirectCount.device(), 256*(i*3+1), 4*4);
+    currentRayCount[i] = ComputeMemory(indirectCount.device(), 256*(i*3+2), 4*4);
   }
 
   maxIterations = 3;
