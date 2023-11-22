@@ -41,8 +41,8 @@ void PrimitiveInstanceAccelerationDataStruct::initializeData()
   BoundingVolumeHierarchyADS::initializeData();
 
   primitiveInstanceTransforms.create(compute);
-  primitiveADSResources.create(compute, NULL, true);
-  primitiveInstanceADSResources.create(compute, NULL, true);
+  primitiveADSResources.create(compute, NULL, true, Shared);
+  primitiveInstanceADSResources.create(compute, NULL, true, Shared);
 }
 
 void PrimitiveInstanceAccelerationDataStruct::updatePointers()
