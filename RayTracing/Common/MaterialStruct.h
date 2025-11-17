@@ -1,5 +1,14 @@
+/*
+ * Copyright (c) Vivek Trivedi, 2025
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.md file in the root directory of this source tree.
+ */
+
 #ifndef MATERIAL_STRUCT_H
 #define MATERIAL_STRUCT_H
+
+#include "BxdfCommon.h"
 
 #define CompReflectance         components.y
 #define CompTranslucency        components.z
