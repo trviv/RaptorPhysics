@@ -1,6 +1,3 @@
-# RaptorPhysics
-GPGPU based Particle-based Physics Simulator and Ray Tracer.
-
 Raptor Physics
 ==============
 
@@ -24,4 +21,4 @@ Eﬃcient Stack-less BVH Traversal for Ray Tracing 2011
 
 ## License
 
-Raptor Physics is released under the MIT license, see [LICENSE.md](./LICENSE.md).
+Raptor Physics is released under the MIT license, see [LICENSE](./LICENSE).
