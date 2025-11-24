@@ -1,10 +1,3 @@
-/*
- * RaptorPhysics
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE.md file in the root directory of this source tree.
- */
-
 /* stb_image - v2.23 - public domain image loader - http://nothings.org/stb
                                   no warranty implied; use at your own risk
 

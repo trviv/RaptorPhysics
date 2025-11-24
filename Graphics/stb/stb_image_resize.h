@@ -1,10 +1,3 @@
-/*
- * RaptorPhysics
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE.md file in the root directory of this source tree.
- */
-
 /* stb_image_resize - v0.96 - public domain image resizing
    by Jorge L Rodriguez (@VinoBS) - 2014
    http://github.com/nothings/stb
