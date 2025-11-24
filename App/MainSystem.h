@@ -1,7 +1,15 @@
+/*
+ * Copyright (c) Vivek Trivedi, 2025
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.md file in the root directory of this source tree.
+ */
+
 #ifndef RENDERER_H
 #define RENDERER_H
 
 #include <Core.h>
+#include <Graphics.h>
 #include <UnifiedPhysics.h>
 #include <RayTracing.h>
 #include "ReaderScene.h"

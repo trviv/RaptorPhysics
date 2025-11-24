@@ -5,7 +5,6 @@
  * LICENSE.md file in the root directory of this source tree.
  */
 
-#include <Graphics/GLClass.h>
 #include "IOInterface.h"
 #include <Compute/ComputeInterface.h>
 
@@ -22,13 +21,6 @@
 #include <stdarg.h>
 #include <algorithm>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb/stb_image_resize.h"
-
-static unordered_map<string, ImFont*> fontDictionary;
-static unordered_map<string, uint> fontOffset;
 
 string getCurrentDir(void)
 {
@@ -83,11 +75,6 @@ bool IOInterface::checkFileExist(const char* fileName)
 #endif
 }
 
-bool IOInterface::checkImageExist(const char* fileName)
-{
-  return checkFileExist((fileName + string(".png")).c_str());
-}
-
 std::string IOInterface::readFile(const char* fileName)
 {
   const std::string path = getPath(fileName);
@@ -133,87 +120,3 @@ vector<char> IOInterface::readByteFile(const char* fileName)
   return data;
 }
 
-bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *texture)
-{
-  int imageWidth = 0;
-  int imageHeight = 0;
-  int comp;
-
-  string fileData = readFile((nameWithoutExtension+string(".png")).c_str());
-  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), (int)fileData.size(), &imageWidth, &imageHeight, &comp, 4);
-
-  if (imageData == NULL)
-  {
-    return false;
-  }
-
-  *texture = Texture(TEXTURE_FORMAT_UBYTE);
-
-  texture->init(imageWidth, imageHeight);
-  texture->gen((float*)imageData, Texture::COLOR_BUFFER_UCHAR);
-
-  stbi_image_free(imageData);
-
-  return true;
-}
-
-static ImWchar glyphRanges[] = {0xF000, (0xF000 + 0x3FF), 0};
-
-bool IOInterface::readImageFile(const char *nameWithoutExtension, Texture *texture, uint resizeWidth, uint resizeHeight)
-{
-  int imageWidth = 0;
-  int imageHeight = 0;
-  int comp;
-
-  string fileData = readFile((nameWithoutExtension+string(".png")).c_str());
-  unsigned char* imageData = stbi_load_from_memory((unsigned char*)fileData.c_str(), (int)fileData.size(), &imageWidth, &imageHeight, &comp, 4);
-
-  if (imageData == NULL)
-  {
-    return false;
-  }
-
-  *texture = Texture(TEXTURE_FORMAT_UBYTE);
-
-  vector<unsigned char> imageData2;
-  imageData2.resize(resizeWidth*resizeHeight*4);
-  stbir__resize_arbitrary(NULL, imageData, imageWidth, imageHeight, 0, &imageData2[0], resizeWidth, resizeHeight, 0,
-                          0, 0, 1, 1, NULL,
-                          4, -1, 0, STBIR_TYPE_UINT8, STBIR_FILTER_DEFAULT, STBIR_FILTER_DEFAULT,
-                          STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_COLORSPACE_LINEAR);
-  stbi_image_free(imageData);
-
-  texture->init(resizeWidth, resizeHeight);
-  texture->gen((float*)&imageData2[0], Texture::COLOR_BUFFER_UCHAR);
-
-  return true;
-}
-
-void* IOInterface::readFontFile(const char* font, float fontSize, void* fontConfig)
-{
-  if (font == NULL)
-  {
-    return NULL;
-  }
-
-  if (fontDictionary.find(font) == fontDictionary.end())
-  {
-    const ushort offset = 0xF000;
-    const string fontData = IOInterface::readFile((font+string(".ttf")).c_str());
-    const ImWchar start = offset;//static_cast<ImWchar>(offset + fontDictionary.size() * 0x0400);
-
-    fontDictionary[font] = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)fontData.c_str(), (int)fontData.size(), fontSize, (ImFontConfig*)fontConfig, glyphRanges);
-    fontOffset[font] = start;
-  }
-  return fontDictionary[font];
-}
-
-void* IOInterface::getFont(const char* font)
-{
-  return font ? fontDictionary[font] : NULL;
-}
-
-ushort IOInterface::getFontOffset(const char* font)
-{
-  return font ? fontOffset[font] : 0;
-}

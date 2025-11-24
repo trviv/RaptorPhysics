@@ -6,6 +6,10 @@
  */
 
 #include "UIElements.h"
+#include <Graphics/ImageLoader.h>
+#include <Graphics/FontLoader.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 #define TOGGLE_ANIMATION_SPEED    25.0f
 #define BUTTON_ROUNDNESS_FRACTION 0.125f
@@ -304,11 +308,11 @@ UIElement::UIElement(const string& identifier, const char* iconFont, ushort icon
 {
   alignment = UIObject::FloatX|UIObject::FloatY;
   this->identifier = identifier;
-  if (IOInterface::checkImageExist(identifier.c_str()))
+  if (ImageLoader::checkImageExist(identifier.c_str()))
   {
-    IOInterface::readImageFile(identifier.c_str(), &texture, 32, 32);
+    ImageLoader::readImageFile(identifier.c_str(), &texture, 32, 32);
   }
-  this->font = IOInterface::getFont(font);
+  this->font = FontLoader::getFont(font);
   this->autoWidth = false;
 }
 
@@ -346,7 +350,7 @@ string UIElement::getIconAsString(const char* iconFont, ushort iconId)
   string str;
   if (iconId)
   {
-    iconId = (iconId & 0xFFF) + IOInterface::getFontOffset(iconFont);
+    iconId = (iconId & 0xFFF) + FontLoader::getFontOffset(iconFont);
     const char iconCode[4] = {'\xEF', (char)(((iconId >> 6) & 0x3F) | 0x80), (char)((iconId & 0x3F) | 0x80), ' '};
     str.append(iconCode, 4);
   }

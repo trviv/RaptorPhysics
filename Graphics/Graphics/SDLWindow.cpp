@@ -6,9 +6,15 @@
  */
 
 #include "GLWindow.h"
+#include "ImageLoader.h"
+#include "FontLoader.h"
 
 #define NO_SDL_GLEXT
 #include <SDL2/SDL.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+#include <imgui/imgui_impl_sdl.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 int Window::del_time = 5;
 Window        *main_window = NULL;
@@ -250,17 +256,17 @@ void Window::init(int argc, char** argv, int width, int height,
   fontConfig.MergeMode = true;
   fontConfig.PixelSnapH = true;
   fontConfig.GlyphOffset.y = (iconFontSize - mainFontSize) * 0.5f;
-  IOInterface::readFontFile("fa-regular-400", iconFontSize, &fontConfig);
-  IOInterface::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
-  IOInterface::readFontFile("fa-brands-400", iconFontSize, &fontConfig);
+  FontLoader::readFontFile("fa-regular-400", iconFontSize, &fontConfig);
+  FontLoader::readFontFile("fa-solid-900", iconFontSize, &fontConfig);
+  FontLoader::readFontFile("fa-brands-400", iconFontSize, &fontConfig);
 
   ImGui::GetIO().Fonts->Build();
 
   controlWindowHeight = 128.0f;
   controlWindowSidePos = 96.0f;
   controlWindowBottomPos = 192.0f;
-  IOInterface::readImageFile("MoveControl", &moveControlImage, 96, 96);
-  IOInterface::readImageFile("MoveControlBack", &moveControlImageBack, 96, 96);
+  ImageLoader::readImageFile("MoveControl", &moveControlImage, 96, 96);
+  ImageLoader::readImageFile("MoveControlBack", &moveControlImageBack, 96, 96);
 
   uiFrames.cornerPadding[0][0] = 16.f;
   uiFrames.cornerPadding[0][1] = 16.f;

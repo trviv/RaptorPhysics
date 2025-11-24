@@ -6,6 +6,7 @@
  */
 
 #include "UIList.h"
+#include <imgui/imgui.h>
 
 UIObject::UIObject()
 {

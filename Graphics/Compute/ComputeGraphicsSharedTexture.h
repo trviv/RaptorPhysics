@@ -8,8 +8,8 @@
 #ifndef COMPUTE_GRAPHICS_SHARED_TEXTURE
 #define COMPUTE_GRAPHICS_SHARED_TEXTURE
 
-#include <Graphics/GLClass.h>
-#include "ComputeInterface.h"
+#include "../Graphics/GLClass.h"
+#include <Compute/ComputeInterface.h>
 
 #ifdef __APPLE__
 

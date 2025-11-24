@@ -12,6 +12,21 @@ set(PROJECT_EXECUTABLE FALSE)
 set(CMAKE_CXX_STANDARD 14)
 if (APPLE)
   set(CMAKE_CXX_FLAGS "-x objective-c++")
+
+  # Dynamically determine macOS version
+  execute_process(
+    COMMAND sw_vers -productVersion
+    OUTPUT_VARIABLE MACOS_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
+  # Extract major version (e.g., "15.1.0" -> "15.1")
+  string(REGEX REPLACE "^([0-9]+\\.[0-9]+).*" "\\1" MACOS_DEPLOYMENT_VERSION "${MACOS_VERSION}")
+
+  message(STATUS "Detected macOS version: ${MACOS_VERSION}")
+  message(STATUS "Setting deployment target to: ${MACOS_DEPLOYMENT_VERSION}")
+
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "${MACOS_DEPLOYMENT_VERSION}" CACHE STRING "Minimum macOS deployment version")
 endif (APPLE)
 
 # Apple specific script for code signing and branching projects
@@ -31,7 +46,7 @@ endif (APPLE)
 # End Apple Specific
 #===============================================================================
 
-project(ParticlePhysics${PROJECT_PLATFORM_SUFFIX})
+project(RaptorPhysics${PROJECT_PLATFORM_SUFFIX})
 
 set(CMAKE_BINARY_DIR "${CMAKE_BINARY_DIR}/bin")
 link_directories("${CMAKE_BINARY_DIR}")
@@ -133,7 +148,6 @@ macro(CREATE_LIB_AND_EXE)
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/Shared/plist.in"
         RESOURCE "${APPLE_RESOURCES}"
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon")
-        #XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
       if (CREATE_IOS_PROJECT)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
         add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND /usr/bin/codesign ARGS --deep --force --sign ${SIGNING_IDENTITY} --timestamp=none $<TARGET_FILE_DIR:${PROJECT_STRING}>)
@@ -146,7 +160,6 @@ macro(CREATE_LIB_AND_EXE)
     else (PROJECT_EXECUTABLE)
       add_library(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-      #XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
     endif (PROJECT_EXECUTABLE)
 
   else (APPLE)
@@ -170,6 +183,7 @@ endmacro(CREATE_LIB_AND_EXE)
 # End Macros
 #===============================================================================
 
+# include Freeglut and GLEW on Windows
 if (WIN32)
   include_directories("${CMAKE_SOURCE_DIR}/External/GLEW/include/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/" "${CMAKE_SOURCE_DIR}/External/SDL/Win/SDL2/")
   if (NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
@@ -188,7 +202,7 @@ endif (WIN32)
 
 # include SDL on Apple
 if (APPLE)
-  set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Vulkan/Apple/MoltenVK/include")
+  #set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Vulkan/Apple/MoltenVK/include")
   if (CREATE_IOS_PROJECT)
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/iOS/")
     set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/SDL/iOS/SDL2/")
@@ -213,6 +227,11 @@ endif (OPENCL_FOUND)
 set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} Core)
 set(PROJECT_STRING Core)
 add_subdirectory(Core)
+
+set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} Graphics)
+set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} Core)
+set(PROJECT_STRING Graphics)
+add_subdirectory(Graphics)
 
 # Apple frameworks
 if (APPLE)
@@ -263,7 +282,7 @@ if (APPLE)
     add_framework(OpenGL  Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
     add_framework(SDL2    Core "${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
     set_target_properties(Core PROPERTIES LINK_FLAGS "-F${CMAKE_SOURCE_DIR}/External/SDL/MacOS/")
-    target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
+    #target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
 
   else (NOT CREATE_IOS_PROJECT)
     add_framework(AudioToolbox    Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
@@ -271,14 +290,14 @@ if (APPLE)
     add_framework(OpenGLES        Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
     add_framework(UiKit           Core "${APPLE_SYSTEM_FRAMEWORK_PATH}")
     target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/SDL/iOS/SDL2/libSDL2.a")
-    target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/ios-arm64/libMoltenVK.a")
+    #target_link_libraries(Core "${CMAKE_SOURCE_DIR}/External/Vulkan/Apple/MoltenVK/MoltenVK.xcframework/ios-arm64/libMoltenVK.a")
 
   endif (NOT CREATE_IOS_PROJECT)
 
 endif (APPLE)
 
 set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} RayTracing)
-set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} Core)
+set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} Graphics)
 set(PROJECT_STRING RayTracing)
 add_subdirectory(RayTracing)
 
@@ -292,15 +311,15 @@ set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ParticlePhysics)
 
 set(PROJECT_STRING App)
 add_subdirectory(App)
-set_target_properties(App PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.app" MACOSX_BUNDLE_BUNDLE_NAME "App")
+set_target_properties(App PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "raptorphysics.app" MACOSX_BUNDLE_BUNDLE_NAME "App")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Mac Developer")
 
 set(PROJECT_STRING Tests)
 add_subdirectory(Tests)
-set_target_properties(Tests PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.tests" MACOSX_BUNDLE_BUNDLE_NAME "Tests")
+set_target_properties(Tests PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "raptorphysics.tests" MACOSX_BUNDLE_BUNDLE_NAME "Tests")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
 
 set(PROJECT_STRING PerfExplorer)
 add_subdirectory(PerfExplorer)
-set_target_properties(PerfExplorer PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "org.vivekprojects.particlephysics.perfexplorer" MACOSX_BUNDLE_BUNDLE_NAME "Perfexplorer")
+set_target_properties(PerfExplorer PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "raptorphysics.perfexplorer" MACOSX_BUNDLE_BUNDLE_NAME "Perfexplorer")
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")

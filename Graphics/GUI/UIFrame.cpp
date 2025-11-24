@@ -7,6 +7,8 @@
 
 #include "UIFrame.h"
 #include <algorithm>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 // Compact view options F065, F150,
 // Expanded view option F066

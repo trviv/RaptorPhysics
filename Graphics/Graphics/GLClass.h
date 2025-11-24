@@ -10,6 +10,8 @@
 
 #include <Utils/IOInterface.h>
 
+class Texture;
+
 static void CheckOpenGLError(const char* stmt, const char* fname, int line)
 {
   GLenum err = glGetError();
