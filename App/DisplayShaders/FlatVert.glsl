@@ -1,3 +1,10 @@
+/*
+ * RaptorPhysics
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.md file in the root directory of this source tree.
+ */
+
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec4 particlePos;
 layout (location = 2) in vec4 particleCollData;
