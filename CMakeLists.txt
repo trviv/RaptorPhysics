@@ -1,15 +1,25 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0079 NEW)
 cmake_policy(SET CMP0015 NEW)
+if (POLICY CMP0072)
+  cmake_policy(SET CMP0072 NEW)
+endif ()
 
 set(ADDITIONAL_INCLUDE_DIR)
 set(ADDITIONAL_LIBRARY)
 set(PROJECT_EXECUTABLE FALSE)
 
+# Detect Linux (UNIX is also true on Apple)
+if (UNIX AND NOT APPLE)
+  set(LINUX TRUE)
+endif ()
+
 #===============================================================================
-# Apple Specific
+# Platform Setup
 #===============================================================================
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if (APPLE)
   set(CMAKE_CXX_FLAGS "-x objective-c++")
 
@@ -39,11 +49,14 @@ if (APPLE)
   else (CREATE_IOS_PROJECT)
     set(PROJECT_PLATFORM_SUFFIX "_macos")
   endif (CREATE_IOS_PROJECT)
-else (APPLE)
+elseif (WIN32)
   set(CMAKE_GENERATOR_PLATFORM x64)
-endif (APPLE)
+  set(PROJECT_PLATFORM_SUFFIX "_win")
+elseif (LINUX)
+  set(PROJECT_PLATFORM_SUFFIX "_linux")
+endif ()
 #===============================================================================
-# End Apple Specific
+# End Platform Setup
 #===============================================================================
 
 project(RaptorPhysics${PROJECT_PLATFORM_SUFFIX})
@@ -118,7 +131,22 @@ macro(CREATE_LIB_AND_EXE)
   file(GLOB_RECURSE SOURCES_C "*.c" "*.cpp" "*.h")
   file(GLOB_RECURSE SOURCES_S "*.shader" "*.glsl")
 
-  set_source_files_properties(${SOURCES_S} PROPERTIES LANGUAGE METAL)
+  # Pick the right compute backend implementation per platform.
+  # ComputeInterfaceMetal.cpp is the Apple backend (Metal + Apple's OpenCL fallback).
+  # ComputeInterfaceOpenCL.cpp is the standalone OpenCL backend used elsewhere.
+  if (APPLE)
+    list(FILTER SOURCES_C EXCLUDE REGEX ".*ComputeInterfaceOpenCL\\.cpp$")
+  else ()
+    list(FILTER SOURCES_C EXCLUDE REGEX ".*ComputeInterfaceMetal\\.cpp$")
+  endif ()
+
+  if (APPLE)
+    set_source_files_properties(${SOURCES_S} PROPERTIES LANGUAGE METAL)
+  else ()
+    # Shader files are not compiled on non-Apple hosts; keep them in the
+    # project for IDE navigation only.
+    set_source_files_properties(${SOURCES_S} PROPERTIES HEADER_FILE_ONLY TRUE)
+  endif ()
 
   #code to get current directory name
   get_directory_property(CURRENT_DIRECTORY PARENT_DIRECTORY)
@@ -165,8 +193,12 @@ macro(CREATE_LIB_AND_EXE)
   else (APPLE)
     if (PROJECT_EXECUTABLE)
       add_executable(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
-      add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
-      add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${OTHER_RESOURCES} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+      if (SOURCES_SHADER)
+        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES_SHADER} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+      endif ()
+      if (OTHER_RESOURCES)
+        add_custom_command(TARGET ${PROJECT_STRING} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${OTHER_RESOURCES} $<TARGET_FILE_DIR:${PROJECT_STRING}>)
+      endif ()
     else (PROJECT_EXECUTABLE)
       add_library(${PROJECT_STRING} ${SOURCES_S} ${SOURCES_C})
       set_target_properties(${PROJECT_STRING} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -200,6 +232,24 @@ if (WIN32)
   set(ADDITIONAL_LIBRARY SDL2 SDL2main glew32 opengl32)
 endif (WIN32)
 
+# Linux: find SDL2, OpenGL, GLEW via the system package manager
+if (LINUX)
+  find_package(SDL2 REQUIRED)
+  find_package(OpenGL REQUIRED)
+  find_package(GLEW REQUIRED)
+
+  if (SDL2_INCLUDE_DIRS)
+    include_directories(${SDL2_INCLUDE_DIRS})
+  endif ()
+  if (TARGET SDL2::SDL2)
+    set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} SDL2::SDL2)
+  else ()
+    set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ${SDL2_LIBRARIES})
+  endif ()
+
+  set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} OpenGL::GL GLEW::GLEW pthread dl)
+endif (LINUX)
+
 # include SDL on Apple
 if (APPLE)
   #set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Vulkan/Apple/MoltenVK/include")
@@ -218,11 +268,13 @@ endif (APPLE)
 set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} "External/Half/")
 
 find_package(OpenCL)
-if (OPENCL_FOUND)
+if (OpenCL_FOUND OR OPENCL_FOUND)
   include_directories("${OpenCL_INCLUDE_DIR}")
-  link_directories("${OPENCL_INCLUDE_DIR}")
   set(ADDITIONAL_LIBRARY ${ADDITIONAL_LIBRARY} ${OpenCL_LIBRARY})
-endif (OPENCL_FOUND)
+  # Pin to OpenCL 1.2 — matches the -cl-std=CL1.2 used by createProgram and
+  # silences cl_version.h's default-version warning.
+  add_compile_definitions(CL_TARGET_OPENCL_VERSION=120)
+endif ()
 
 set(ADDITIONAL_INCLUDE_DIR ${ADDITIONAL_INCLUDE_DIR} Core)
 set(PROJECT_STRING Core)

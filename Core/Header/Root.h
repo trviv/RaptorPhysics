@@ -10,15 +10,22 @@
 
 // for apple platform
 #if __APPLE__
-#define ENV_WIN         0   // for windows enviornment
-#define ENV_APPLE       1   // for windows enviornment
+#define ENV_WIN         0
+#define ENV_APPLE       1
+#define ENV_LINUX       0
 #define _I386_PARAM_H_
 #define USE_METAL_COMPUTE
 //#define USE_VULKAN_COMPUTE
 
+#elif defined(__linux__)
+#define ENV_WIN         0
+#define ENV_APPLE       0
+#define ENV_LINUX       1
+
 #else
-#define ENV_WIN         1   // for windows enviornment
-#define ENV_APPLE       0   // for windows enviornment
+#define ENV_WIN         1
+#define ENV_APPLE       0
+#define ENV_LINUX       0
 #define NOMINMAX
 
 #endif
@@ -86,6 +93,16 @@
 #   error "Unknown Apple platform"
 #endif
 #endif
+
+#elif ENV_LINUX
+#include <termios.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <algorithm>
+
+#if REN_GL
+#include <GL/glew.h>
+#endif
 #endif
 
 #if PREC_DOUBLE
@@ -109,18 +126,22 @@ typedef double real;
 typedef float real;
 #endif
 
-#if ENV_APPLE
+#if ENV_APPLE || ENV_LINUX
 #undef M_PI
 #undef M_2_PI
 #undef M_PI_2
+#endif
 
-#else
+#if !ENV_APPLE
 typedef uint8_t   uchar;
 typedef uint8_t   Byte;
 typedef uint16_t  ushort;
+// uint/ulong are already provided on Linux via <sys/types.h>
+// when _GNU_SOURCE/_DEFAULT_SOURCE is set, so only define on Windows.
+#if ENV_WIN
 typedef uint32_t  uint;
 typedef uint64_t  ulong;
-
+#endif
 #endif
 
 #define M_PI_F    real(3.1415926535897932384626433832795)
@@ -138,6 +159,9 @@ typedef uint64_t  ulong;
 
 #elif ENV_APPLE
 #define FORCE_INLINE  __inline
+
+#elif ENV_LINUX
+#define FORCE_INLINE  inline __attribute__((always_inline))
 
 #endif
 

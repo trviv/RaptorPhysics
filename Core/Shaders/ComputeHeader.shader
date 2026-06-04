@@ -26,6 +26,11 @@
 #define threadGroupCountN(dim)  get_num_groups(dim)
 #define globalMemBarrier()  barrier(CLK_GLOBAL_MEM_FENCE)
 #define localMemBarrier()   barrier(CLK_LOCAL_MEM_FENCE)
+// Lighter-weight fence: just orders this thread's local-mem ops, doesn't
+// require all threads in the workgroup to reach it. Needed inside conditional
+// branches of wave-relative reductions where the compiler/scheduler may
+// otherwise reorder writes vs reads (e.g. RustICL on RDNA).
+#define localMemFence()     mem_fence(CLK_LOCAL_MEM_FENCE)
 
 #define Kernel  __kernel
 #define Device  __global
@@ -54,6 +59,7 @@
 #define constructFloat4x4   (float4x4)
 
 #define convertShort2(a)    convert_short2(a)
+#define convertShort3(a)    convert_short3(a)
 #define convertUshort4(a)   convert_ushort4(a)
 #define convertInt3(a)      convert_int3(a)
 #define asUchar4(x)         as_uchar4(x)
@@ -153,6 +159,7 @@ using namespace metal;
 #define threadGroupCountN(dim)  threadgroups_per_grid[dim]
 #define globalMemBarrier()  threadgroup_barrier(mem_flags::mem_device)
 #define localMemBarrier()   threadgroup_barrier(mem_flags::mem_threadgroup)
+#define localMemFence()     threadgroup_barrier(mem_flags::mem_threadgroup)
 
 #define Kernel  kernel
 #define Device  device
@@ -181,6 +188,7 @@ using namespace metal;
 #define constructFloat4x4   float4x4
 
 #define convertShort2(a)    short2(a)
+#define convertShort3(a)    short3(a)
 #define convertUshort4(a)   ushort4(a)
 #define convertInt3(a)      int3(a)
 #define asUchar4(x)         as_type<uchar4>(x)
@@ -343,8 +351,13 @@ typedef struct ALIGN(4)
   ((Device float4*)outMat)[2] = ((Thread float4*)&inMat)[2];\
 
 // this is just a safety measure to make sure the kernel ends and does not end up in an infinite loop
-#define INIT_POLL()     short poll_count = 0;
-#define POLL_TIMEOUT()  (poll_count++ >= 20000)
+// Original 'short' / 20000 cap is too tight for the inter-workgroup polling
+// chain when there are many workgroups (e.g. prefix scan over 64^3 grid
+// cells = 256 workgroups on NVIDIA). A timeout in that chain silently
+// drops a predecessor's contribution → wrong cell offsets → OOB writes
+// in the next kernel.
+#define INIT_POLL()     uint poll_count = 0;
+#define POLL_TIMEOUT()  (poll_count++ >= 10000000u)
 #define RESET_POLL()    poll_count = 0
 
 #ifndef ASSUME_FLEXIBLE_VECTOR_ALIGNMENT

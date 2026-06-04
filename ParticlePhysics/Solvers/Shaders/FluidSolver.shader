@@ -114,7 +114,7 @@ Kernel void calculateForces(
   }
 
   particleCollisionData[particleIndex].gradientMagnitude = colorGradientLength * timeStep;
-  particleCollisionData[particleIndex].transformedSdfGradient = encodeDirection(select(-colorGradient, constructFloat3(0.f), colorGradientLength <= FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD));
+  particleCollisionData[particleIndex].transformedSdfGradient = encodeDirection(colorGradientLength <= FLUID_SOLVER_COLOR_GRADIENT_THRESHOLD ? constructFloat3(0.f) : -colorGradient);
 
   particleForce[particleIndex].force = (pressureForce + viscosityForce + color) / sharedData.sharedInvMass;
 }

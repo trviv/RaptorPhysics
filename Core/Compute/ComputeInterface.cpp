@@ -7,6 +7,7 @@
 
 #include "ComputeInterface.h"
 #include <unordered_set>
+#include <cstdarg>
 
 static unordered_map<string, ComputeProgram> cachedPrograms;
 

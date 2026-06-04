@@ -12,34 +12,46 @@
 
 #ifndef USE_SIMD_COMPUTE
 
+// Barrier-based variant of the per-subgroup Hillis-Steele inclusive scan.
+// Same race story as subGroupReduce — wave-locked read/write fused into a
+// single expression breaks under non-Apple OpenCL compilers. Each step is
+// split into read-into-register, barrier, add-back, barrier. All workgroup
+// threads reach the barriers so it doesn't deadlock.
 const MemberStructType subGroupPrefixScan(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
   const ushort paddedLocalIndex = paddedIndex(localIndex);
-  if (subGroupLocalIndex >= 1)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 1)]);
-  }
-  if (subGroupLocalIndex >= 2)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 2)]);
-  }
-  if (subGroupLocalIndex >= 4)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 4)]);
-  }
-  if (subGroupLocalIndex >= 8)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 8)]);
-  }
-  if (subGroupLocalIndex >= 16)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 16)]);
-  }
+  MemberStructType partner;
+
+  if (subGroupLocalIndex >= 1)  COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 1)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 1)  ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
+
+  if (subGroupLocalIndex >= 2)  COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 2)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 2)  ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
+
+  if (subGroupLocalIndex >= 4)  COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 4)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 4)  ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
+
+  if (subGroupLocalIndex >= 8)  COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 8)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 8)  ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
+
+  if (subGroupLocalIndex >= 16) COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 16)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 16) ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
+
 #if ComputeSimdWidth > 32
-  if (subGroupLocalIndex >= 32)
-  {
-    ADD_FUNCTION(localArray[paddedLocalIndex], localArray[paddedIndex(localIndex - 32)]);
-  }
+  if (subGroupLocalIndex >= 32) COPY_FUNCTION(partner, localArray[paddedIndex(localIndex - 32)]);
+  localMemBarrier();
+  if (subGroupLocalIndex >= 32) ADD_FUNCTION(localArray[paddedLocalIndex], partner);
+  localMemBarrier();
 #endif
 
   return localArray[paddedLocalIndex];
@@ -49,27 +61,46 @@ MemberStructType groupPrefixScan(Shared MemberStructType* localArray, const usho
 {
   const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
   const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
+  const ushort numSubGroups   = elements >> ComputeSimdWidthExp;
 
+  // Pass 1: per-subgroup inclusive scan. All threads call.
   const MemberStructType subGroupSum = subGroupPrefixScan(localArray, localIndex, subGroupLocalIndex);
   localMemBarrier();
 
-  // copy last element from each sub group to first sub group's local space
+  // Save each subgroup's last element (= subgroup total) into the first
+  // numSubGroups slots, clear remaining slots in subgroup 0's range.
   if (subGroupLocalIndex == (ComputeSimdWidth - 1))
   {
     localArray[paddedIndex(subGroupIndex)] = subGroupSum;
   }
-  localMemBarrier();
-
-  // prefix scan first sub group
-  if (localIndex < (elements >> ComputeSimdWidthExp))
+  if (subGroupIndex == 0 && subGroupLocalIndex >= numSubGroups)
   {
-    const MemberStructType prev = localArray[paddedIndex(localIndex)];
-    subGroupPrefixScan(localArray, localIndex, localIndex);
-    localArray[paddedIndex(localIndex)] -= prev;
+    CLEAR_FUNCTION(localArray[paddedIndex(subGroupLocalIndex)], 0);
   }
   localMemBarrier();
 
-  // add scanned values to each return value
+  // Capture this slot's value before pass 2 mutates it (used to convert
+  // the inclusive scan back to exclusive).
+  MemberStructType prev = 0;
+  if (subGroupIndex == 0)
+  {
+    prev = localArray[paddedIndex(localIndex)];
+  }
+
+  // Pass 2: per-subgroup inclusive scan. ALL threads call so the workgroup
+  // barriers inside subGroupPrefixScan are reached. Only subgroup 0's
+  // slots [0..numSubGroups-1] are read by the caller.
+  subGroupPrefixScan(localArray, localIndex, subGroupLocalIndex);
+
+  // Make subgroup 0's first numSubGroups slots an exclusive prefix of the
+  // wave totals.
+  if (subGroupIndex == 0)
+  {
+    localArray[paddedIndex(localIndex)] = localArray[paddedIndex(localIndex)] - prev;
+  }
+  localMemBarrier();
+
+  // add scanned wave-prefix to each thread's per-wave inclusive scan
   return subGroupSum + localArray[paddedIndex(subGroupIndex)];
 }
 

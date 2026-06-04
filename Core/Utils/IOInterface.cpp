@@ -16,6 +16,7 @@
 #else
 #include <limits.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #define GetCurrentDir getcwd
 #endif
 #include <stdarg.h>
@@ -82,8 +83,16 @@ std::string IOInterface::readFile(const char* fileName)
 
   std::ifstream file;
   file.open(path, std::ios::binary);
+  if (!file.is_open())
+  {
+    return data;
+  }
   file.seekg(0, std::ios::end);
-  data.reserve((size_t)file.tellg());
+  const std::streampos end = file.tellg();
+  if (end > 0)
+  {
+    data.reserve((size_t)end);
+  }
   file.seekg(0, std::ios::beg);
   data.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
@@ -110,8 +119,16 @@ vector<char> IOInterface::readByteFile(const char* fileName)
 
   std::ifstream file;
   file.open(path, std::ios::binary);
+  if (!file.is_open())
+  {
+    return data;
+  }
   file.seekg(0, std::ios::end);
-  data.reserve((size_t)file.tellg());
+  const std::streampos end = file.tellg();
+  if (end > 0)
+  {
+    data.reserve((size_t)end);
+  }
   file.seekg(0, std::ios::beg);
   data.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 

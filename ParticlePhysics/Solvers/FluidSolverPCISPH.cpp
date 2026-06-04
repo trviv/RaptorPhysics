@@ -176,6 +176,7 @@ void FluidSolverPCISPH::solve(float timeStep)
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<ushort>(&gridSize, bufferCount);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<ushort>(&gridSizeExp, bufferCount + 1);
       kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<uint>(&particleCount, bufferCount + 2);
+      kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES].setArg<float>(&timeStep, bufferCount + 3);
 
       compute->execute(kernels[FLUID_COLLISION_SOLVER_PCISPH_CALC_FORCES], workgroupSize, workgroupCount);
     }
@@ -220,6 +221,7 @@ void FluidSolverPCISPH::solve(float timeStep)
     compute->sync();
 #endif
   }
+
 }
 
 void FluidSolverPCISPH::update()

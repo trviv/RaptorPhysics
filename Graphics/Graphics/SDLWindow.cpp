@@ -37,8 +37,11 @@ void SDL_CheckError()
   const char *sdl_error = SDL_GetError();
   if (sdl_error[0])
   {
-    std::cout << "Error: " << sdl_error << std::endl;
-    abort();
+    // SDL leaves error strings around even for non-fatal probe failures
+    // (e.g. GLX backend selection on xrdp). Surface them but don't abort.
+    fprintf(stderr, "SDL: %s\n", sdl_error);
+    fflush(stderr);
+    SDL_ClearError();
   }
 }
 
@@ -132,11 +135,22 @@ void constrainYawAndPitch(float& yaw, float& pitch)
 void Window::init(int argc, char** argv, int width, int height,
                   const char* name)
 {
-  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_JOYSTICK) < 0)
+  if (SDL_Init(SDL_INIT_VIDEO) < 0)
   {
-    printf ("SDL_Init failed: %s\n", SDL_GetError());
+    fprintf(stderr, "SDL_Init(VIDEO) failed: %s\n", SDL_GetError());
+    fflush(stderr);
     assert(0);
   }
+  // Joystick is optional — on some Linux installs it fails to load udev
+  // symbols at runtime. Continue without controllers in that case.
+  if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0)
+  {
+    fprintf(stderr, "SDL_InitSubSystem(JOYSTICK) failed (continuing without): %s\n", SDL_GetError());
+    fflush(stderr);
+  }
+  // Clear any leftover error string so SDL_CheckError() below doesn't abort
+  // on a stale message left by the optional joystick init.
+  SDL_ClearError();
 
   win_width = width;
   win_height = height;
@@ -156,8 +170,8 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   windowFlags |= SDL_WINDOW_MAXIMIZED;
 #else
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
@@ -174,12 +188,14 @@ void Window::init(int argc, char** argv, int width, int height,
   SDL_GL_MakeCurrent(sdl_window, gl_context);
   SDL_CheckError();
 
-#if ENV_WIN
+#if ENV_WIN || ENV_LINUX
   glewExperimental = true;
   if (glewInit() != GLEW_OK)
   {
     std::cout << "Glew Error..." << std::endl;
   }
+  // glewExperimental triggers a benign GL_INVALID_ENUM; clear it.
+  glGetError();
 #endif
 
   // Setup GUI
@@ -210,8 +226,8 @@ void Window::init(int argc, char** argv, int width, int height,
 
   down.set(0.f, 0.f, 0.f);
 
-  // enable joystick if found
-  if (SDL_NumJoysticks() >= 1)
+  // enable joystick if found (subsystem may have failed to init on Linux)
+  if (SDL_WasInit(SDL_INIT_JOYSTICK) && SDL_NumJoysticks() >= 1)
   {
     SDL_JoystickOpen(0);
   }

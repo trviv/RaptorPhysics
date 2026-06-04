@@ -99,8 +99,8 @@ template<class A, class B> A mAlignBy(A value, B alignWidth)
 
 static int32_t mlog2(int32_t x)
 {
-#if ENV_APPLE
-  return sizeof(int32_t) * CHAR_BIT - __builtin_clz(x) - 1;
+#if ENV_APPLE || ENV_LINUX
+  return sizeof(int32_t) * 8 - __builtin_clz(x) - 1;
 #else
   return __lzcnt(x);
 #endif

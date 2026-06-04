@@ -158,7 +158,8 @@ Kernel void reorderFluidParticles(
     {
       const uint particleIndex = gridCellParticleIndices[threadGlobalIndex];
       const ParticleStruct selfParticle = particlesPredictedOld[particleIndex];
-      const uint cellInternalSpatialIndex = encode16BitMortonCode(constructShort3(fract((selfParticle.position - systemBoundingBox->min) * invRadius[0]) * scale));
+      const float3 _fracInput = (selfParticle.position - systemBoundingBox->min) * invRadius[0];
+      const uint cellInternalSpatialIndex = encode16BitMortonCode(convertShort3((_fracInput - floor(_fracInput)) * scale));
 
       particleData = constructUint3(cellInternalSpatialIndex, particleIndex, gridParticleCellIndexOld[particleIndex]);
     }
@@ -527,7 +528,7 @@ inline float3 surfaceTensionAkinci(const float3 collisionVector, const float act
   float x = (h - actualDistance);
   x = x * x * x;
   float y = x * actualDistance * actualDistance * actualDistance;
-  return collisionVector * (selfParticleMass * otherParticleMass * sharedData.surfaceTensionCoeff * (32.f / (3.1415926535897932384626433832795 * h_9 * actualDistance)) * select(2.f * y - h_6 / 64.f, y, (2.f * actualDistance) > h));
+  return collisionVector * (selfParticleMass * otherParticleMass * sharedData.surfaceTensionCoeff * (32.f / (3.1415926535897932384626433832795f * h_9 * actualDistance)) * select(2.f * y - h_6 / 64.f, y, (2.f * actualDistance) > h));
 }
 
 /*inline float poly6Function(const float r, const float h)

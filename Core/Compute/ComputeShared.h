@@ -97,10 +97,12 @@ static SortNode32 defaultSortNode()
 struct DEFAULT_ALIGN XAB_t
 {
 #ifdef COMPUTE_SHADER_SCOPE
-  packed_float3 min;
-  uint          reserved1;
-  packed_float3 max;
-  uint          reserved2;
+  // Use plain float3 on the device too. Mesa RustICL doesn't honor the
+  // aligned(4) hint on packed_float3, so the old 'packed_float3 + uint'
+  // layout silently mismatched the host's 16-byte float3 union below — the
+  // result was that max.x always read back as 0 on AMD.
+  float3 min;
+  float3 max;
 #else
   union
   {

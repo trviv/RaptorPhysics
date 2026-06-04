@@ -33,17 +33,22 @@
 #endif
 
 #ifndef USE_SIMD_COMPUTE
+// Per-lane Hillis-Steele inclusive scan, barrier-split read-then-write so
+// non-Apple OpenCL compilers (NVIDIA, RustICL) can't reorder cross-lane
+// reads/writes. Every thread in the workgroup calls these helpers and
+// reaches every barrier.
 const RadixPackedType lanePrefixScanRadix(volatile Shared RadixPackedType* localArray1D, const ushort localIndex)
 {
   volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
 
-  *localArray1DPtr += *(localArray1DPtr - 1);
-  *localArray1DPtr += *(localArray1DPtr - 2);
-  *localArray1DPtr += *(localArray1DPtr - 4);
-  *localArray1DPtr += *(localArray1DPtr - 8);
-  *localArray1DPtr += *(localArray1DPtr - 16);
+  RadixPackedType v;
+  v = *(localArray1DPtr - 1);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr - 2);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr - 4);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr - 8);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr - 16); localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
 #if ComputeSimdWidth > 32
-  *localArray1DPtr += *(localArray1DPtr - 32);
+  v = *(localArray1DPtr - 32); localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
 #endif
 
   return localArray1D[localIndex];
@@ -53,14 +58,15 @@ void laneReduceRadix(volatile Shared StructType* localArray1D, const ushort loca
 {
   volatile Shared RadixPackedType *localArray1DPtr = localArray1D + localIndex;
 
+  RadixPackedType v;
 #if ComputeSimdWidth > 32
-  *localArray1DPtr += *(localArray1DPtr + 32);
+  v = *(localArray1DPtr + 32); localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
 #endif
-  *localArray1DPtr += *(localArray1DPtr + 16);
-  *localArray1DPtr += *(localArray1DPtr + 8);
-  *localArray1DPtr += *(localArray1DPtr + 4);
-  *localArray1DPtr += *(localArray1DPtr + 2);
-  *localArray1DPtr += *(localArray1DPtr + 1);
+  v = *(localArray1DPtr + 16); localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr + 8);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr + 4);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr + 2);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
+  v = *(localArray1DPtr + 1);  localMemBarrier(); *localArray1DPtr += v; localMemBarrier();
 }
 #endif
 

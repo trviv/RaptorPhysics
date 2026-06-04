@@ -315,7 +315,7 @@ Kernel void reorderRays(
     if (threadGlobalIndex < rayCount)
     {
       //const uint cellInternalSpatialIndex = encode32BitMortonCodeMath(constructInt3(511.f * (raysIn[threadGlobalIndex].direction + 1.f)));
-      const ushort cellInternalSpatialIndex = encode16BitMortonCodeMath(constructShort3(15.f * (raysIn[threadGlobalIndex].direction + 1.f)));
+      const ushort cellInternalSpatialIndex = encode16BitMortonCodeMath(convertShort3(15.f * (raysIn[threadGlobalIndex].direction + 1.f)));
       rayData = constructUshort2(cellInternalSpatialIndex, threadLocalIndex() + threadGroupSize() * i);
     }
     else

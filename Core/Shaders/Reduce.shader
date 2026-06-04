@@ -12,69 +12,56 @@
 
 #ifndef USE_SIMD_COMPUTE
 
+// Barrier-based variant of the per-subgroup tree reduction. The original
+// version relied on implicit SIMD lockstep so the read of partner-thread's
+// slot happened after the partner had written it. Apple's Metal compiler
+// preserves that ordering; OpenCL compilers (NVIDIA, RustICL) do not, so
+// the result was a race that produced subtly wrong sums and broke PCISPH
+// convergence. The fix splits each step into read-into-register, barrier,
+// then add-back, with a barrier at the end. Every thread in the workgroup
+// reaches every barrier so it cannot deadlock.
 void subGroupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex, const ushort subGroupLocalIndex)
 {
+  MemberStructType partner;
 #if ComputeSimdWidth > 32
-  if (subGroupLocalIndex < 32)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 32]);
-  }
+  if (subGroupLocalIndex < 32) COPY_FUNCTION(partner, localArray[localIndex + 32]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 32) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 #endif
 
-  if (subGroupLocalIndex < 16)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 16]);
-  }
+  if (subGroupLocalIndex < 16) COPY_FUNCTION(partner, localArray[localIndex + 16]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 16) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 
-  if (subGroupLocalIndex < 8)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 8]);
-  }
+  if (subGroupLocalIndex < 8) COPY_FUNCTION(partner, localArray[localIndex + 8]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 8) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 
-  if (subGroupLocalIndex < 4)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 4]);
-  }
+  if (subGroupLocalIndex < 4) COPY_FUNCTION(partner, localArray[localIndex + 4]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 4) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 
-  if (subGroupLocalIndex < 2)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 2]);
-  }
+  if (subGroupLocalIndex < 2) COPY_FUNCTION(partner, localArray[localIndex + 2]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 2) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 
-  if (subGroupLocalIndex < 1)
-  {
-    ADD_FUNCTION(localArray[localIndex], localArray[localIndex + 1]);
-  }
+  if (subGroupLocalIndex < 1) COPY_FUNCTION(partner, localArray[localIndex + 1]);
+  localMemBarrier();
+  if (subGroupLocalIndex < 1) ADD_FUNCTION(localArray[localIndex], partner);
+  localMemBarrier();
 }
 
 void groupReduce(volatile Shared MemberStructType* localArray, const ushort localIndex)
 {
-//  // log n iterations
-//  for (uchar i=0; i<8; i++)
-//  {
-//    localMemBarrier();
-//    const short stride = (1 << i);
-//
-//    // add in strides of 2, 4, 8 ...
-//    short localIndex2 = localIndex * (2 << i);
-//
-//    // if within the bounds
-//    if (localIndex2 < REDUCE_COMPUTE_THREADS)
-//    {
-//      // index offset 1, 2, 4 ...
-//      const short otherIndex = localIndex2 + stride;
-//      // add elements
-//      ADD_FUNCTION(localArray[paddedIndex(localIndex2)], localArray[paddedIndex(otherIndex)]);
-//    }
-//    //localMemBarrier();
-//  }
-//
-//  return;
-
   const ushort subGroupLocalIndex = localIndex & (ComputeSimdWidth - 1);
   const ushort subGroupIndex = localIndex >> ComputeSimdWidthExp;
 
-  // per sub group reduce
+  // per sub group reduce — all threads call, every barrier inside is reached.
   subGroupReduce(localArray, localIndex, subGroupLocalIndex);
   localMemBarrier();
 
@@ -90,11 +77,10 @@ void groupReduce(volatile Shared MemberStructType* localArray, const ushort loca
   }
   localMemBarrier();
 
-  // reduce first sub group
-  if (subGroupIndex == 0)
-  {
-    subGroupReduce(localArray, localIndex, subGroupLocalIndex);
-  }
+  // Reduce first sub group. ALL threads call so the workgroup barriers
+  // inside subGroupReduce are reached. Waves != 0 work on disjoint slot
+  // ranges so they don't disturb the result accumulating in localArray[0].
+  subGroupReduce(localArray, localIndex, subGroupLocalIndex);
 }
 
 #else

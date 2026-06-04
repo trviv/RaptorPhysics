@@ -112,7 +112,7 @@ extern void logComputeMessage(const char* format, ...);
 extern void logComputeError(const char* format, ...);
 
 extern const char* getStatusMessage(ComputeStatus status);
-#define computeCheckError(a, b) if((a)!=(b)) { printf("Compute Error : %s\n", getStatusMessage(a)); assert((a) == (b)); }
+#define computeCheckError(a, b) if((a)!=(b)) { printf("Compute Error : %s (code %d)\n", getStatusMessage(a), (int)(a)); assert((a) == (b)); }
 #define checkError(a) computeCheckError(a, 0)
 
 class ComputeInterface;
@@ -239,6 +239,13 @@ class ComputeKernel
   bool setArgumentBuffer;
   vector<pair<uint, uint>> argumentBufferRange;
   unordered_map<uint, ComputeMemoryIdentifier> argumentBuffers;
+
+  // Number of arguments the kernel actually has after compilation. setArg
+  // calls with an index >= numArgs become a no-op. NVIDIA's OpenCL strips
+  // unused kernel arguments, so the host's expected indices may exceed what
+  // the surviving kernel exposes. UINT32_MAX means "no limit / not queried"
+  // (default for Metal/Vulkan/Apple-OpenCL paths that don't strip args).
+  uint numArgs = (uint)-1;
 
   uint mapArgumentIndex(uint index)const;
 
